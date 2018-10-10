@@ -11,6 +11,7 @@ upstream_bootstrap_arch="${upstream_bootstrap_arch:-amd64 arm64 armhf i386 mips6
 
 rm -f stage0/*/*.sha256
 mkdir -p stage0 build && ln -sf ../stage0 build/cache
+touch stage0/hack
 if [ -n "$(find stage0/ -type f)" ]; then
 	echo >&2 "$0: NOTE: extra artifacts in stage0/ will be included:"
 	find stage0/ -type f
