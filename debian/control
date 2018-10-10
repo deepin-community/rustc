@@ -34,6 +34,7 @@ Build-Depends:
  procps <!nocheck>,
 # below are optional tools even for 'make check'
  gdb (>= 7.12) <!nocheck>,
+ libc6-dbg [armhf],
 # Extra build-deps needed for x.py to download stuff in pkg.rustc.dlstage0.
  curl <pkg.rustc.dlstage0>,
  ca-certificates <pkg.rustc.dlstage0>,
