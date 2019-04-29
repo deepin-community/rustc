@@ -5,7 +5,6 @@
 #u-0001-lldb_batchmode.py-try-import-_thread-for-Python-3.patch
 u-0001-Fix-new-renamed_and_removed_lints-warning-247.patch
 u-reproducible-build.patch
-u-fixtestignores-ppc64el.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
 u-mips-fixes.diff
