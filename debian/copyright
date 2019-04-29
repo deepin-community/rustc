@@ -292,6 +292,17 @@ Files: src/dlmalloc/src/dlmalloc.c
 Copyright: 2000-2012 Doug Lea <dl@cs.oswego.edu>
 License: CC0-1.0
 
+Files: vendor/backtrace-sys/src/libbacktrace/*
+Copyright: 2012-2014 Free Software Foundation, Inc.
+           (written by Ian Lance Taylor, Google.)
+License: BSD-3-Clause
+
+Files:
+ vendor/backtrace-sys/src/libbacktrace/filenames.h
+ vendor/backtrace-sys/src/libbacktrace/ltmain.sh
+Copyright: 2000, 2001, 2007, 2010 Free Software Foundation, Inc.
+License: GPL-2+
+
 Files: vendor/ammonia/*
 Copyright: 2015-2018 Michael Howell <michael@notriddle.com>
 License: MIT  or  Apache-2.0
