@@ -229,12 +229,9 @@ Useful links
 The Fedora rust team is more active than the Debian one. Here are their links:
 
 Source code
-https://src.fedoraproject.org/cgit/rpms/rust.git/tree/
+https://src.fedoraproject.org/rpms/rust/tree/
 
 Binary packages and test logs
 https://kojipkgs.fedoraproject.org//packages/rust/
 If the same test fails both on Fedora and Debian it's a good indication that
 we're not Doing It Wrong and can file a valid bug upstream.
-
-Package metadata
-https://admin.fedoraproject.org/pkgdb/package/rpms/rust/
