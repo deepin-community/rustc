@@ -47,6 +47,7 @@ Files-Excluded:
  vendor/winapi-*/*/*.a
  vendor/mdbook/src/theme/playpen_editor
 # Accidental development files
+ src/stdsimd/crates/coresimd/foo.wasm
  vendor/shlex/*.swp
  vendor/shlex/*/*.swp
 # Non-free-format documents already available in other formats
