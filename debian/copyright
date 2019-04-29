@@ -28,19 +28,19 @@ Files-Excluded:
  src/tools/miri
  src/tools/lld
 # Extraneous stuff from compiler-rt that's not needed by Rust
- src/libcompiler_builtins/compiler-rt/cmake
- src/libcompiler_builtins/compiler-rt/docs
- src/libcompiler_builtins/compiler-rt/include
- src/libcompiler_builtins/compiler-rt/lib/*san
- src/libcompiler_builtins/compiler-rt/lib/fuzzer
- src/libcompiler_builtins/compiler-rt/lib/interception
- src/libcompiler_builtins/compiler-rt/lib/profile
- src/libcompiler_builtins/compiler-rt/lib/sanitizer_common
- src/libcompiler_builtins/compiler-rt/lib/scudo
- src/libcompiler_builtins/compiler-rt/lib/xray
- src/libcompiler_builtins/compiler-rt/test
- src/libcompiler_builtins/compiler-rt/unittests
- src/libcompiler_builtins/compiler-rt/www
+ vendor/compiler_builtins/compiler-rt/cmake
+ vendor/compiler_builtins/compiler-rt/docs
+ vendor/compiler_builtins/compiler-rt/include
+ vendor/compiler_builtins/compiler-rt/lib/*san
+ vendor/compiler_builtins/compiler-rt/lib/fuzzer
+ vendor/compiler_builtins/compiler-rt/lib/interception
+ vendor/compiler_builtins/compiler-rt/lib/profile
+ vendor/compiler_builtins/compiler-rt/lib/sanitizer_common
+ vendor/compiler_builtins/compiler-rt/lib/scudo
+ vendor/compiler_builtins/compiler-rt/lib/xray
+ vendor/compiler_builtins/compiler-rt/test
+ vendor/compiler_builtins/compiler-rt/unittests
+ vendor/compiler_builtins/compiler-rt/www
 # Embedded C libraries
  vendor/lzma-sys*/xz-*
 # Embedded binary blobs
@@ -175,12 +175,12 @@ Copyright: 2006-2009 Graydon Hoare
            2012-2017 The Rust Project Developers (see AUTHORS.txt)
 License: MIT or Apache-2.0
 
-Files: src/libcompiler_builtins/compiler-rt/*
+Files: vendor/compiler_builtins/compiler-rt/*
 Copyright: 2009-2015 Howard Hinnant
            2009-2015 The CompileRT Developers (see src/compiler-rt/CREDITS.TXT)
 License: BSD-3-clause or MIT
 
-Files: src/libcompiler_builtins/compiler-rt/lib/BlocksRuntime/*
+Files: vendor/compiler_builtins/compiler-rt/lib/BlocksRuntime/*
 Copyright: 2008-2010 Apple, Inc.
 License: MIT
 
