@@ -181,6 +181,11 @@ Copyright: 2006-2009 Graydon Hoare
            2012-2017 The Rust Project Developers (see AUTHORS.txt)
 License: MIT or Apache-2.0
 
+Files: vendor/compiler_builtins/*
+Copyright: 2016-2019 Jorge Aparicio <japaricious@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/rust-lang-nursery/compiler-builtins
+
 Files: vendor/compiler_builtins/compiler-rt/*
 Copyright: 2009-2015 Howard Hinnant
            2009-2015 The CompileRT Developers (see src/compiler-rt/CREDITS.TXT)
@@ -230,9 +235,6 @@ Files: vendor/bitflags/*
        vendor/getopts/*
        vendor/libc/*
        vendor/log/*
-       vendor/rand/*
-       vendor/rand-0*/*
-       vendor/rand_core/*
        vendor/regex/*
        vendor/regex-0*/*
        vendor/regex-syntax/*
@@ -268,13 +270,30 @@ Copyright: 2015-2017 Alex Crichton <alex@alexcrichton.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/
 
-Files: src/dlmalloc/*
-       vendor/backtrace/*
+Files:
+ vendor/rand/*
+ vendor/rand-0*/*
+ vendor/rand_core/*
+ vendor/rand_chacha/*
+ vendor/rand_core-0.2.2/*
+ vendor/rand_hc/*
+ vendor/rand_isaac/*
+ vendor/rand_pcg/*
+ vendor/rand_xorshift/*
+Copyright: 2010-2019 The Rand Project Developers
+           2010-2019 The Rust Project Developers
+License: MIT or Apache-2.0
+Comment:
+ see https://github.com/rust-random/rand
+ see https://github.com/rust-random/small-rngs
+
+Files: vendor/backtrace/*
        vendor/backtrace-sys/*
        vendor/cfg-if/*
        vendor/filetime/*
        vendor/flate2/*
        vendor/jobserver/*
+       vendor/libz-sys/*
        vendor/lzma-sys/*
        vendor/miow/*
        vendor/miniz-sys/*
@@ -287,19 +306,24 @@ Files: src/dlmalloc/*
        vendor/tar/*
        vendor/toml/*
        vendor/xz2/*
-Copyright: 2014-2017 Alex Crichton <alex@alexcrichton.com>
+Copyright: 2014-2019 Alex Crichton <alex@alexcrichton.com>
            2015-2017 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/alexcrichton/
 
-Files: src/dlmalloc/src/dlmalloc.c
+Files: vendor/dlmalloc/*
+Copyright: 2017-2019 Alex Crichton <alex@alexcrichton.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/alexcrichton/dlmalloc-rs
+
+Files: vendor/dlmalloc/src/dlmalloc.c
 Copyright: 2000-2012 Doug Lea <dl@cs.oswego.edu>
 License: CC0-1.0
 
 Files: vendor/backtrace-sys/src/libbacktrace/*
-Copyright: 2012-2014 Free Software Foundation, Inc.
-           (written by Ian Lance Taylor, Google.)
+Copyright: 2012-2016 Free Software Foundation, Inc.
 License: BSD-3-Clause
+Comment: written by Ian Lance Taylor, Google.
 
 Files:
  vendor/backtrace-sys/src/libbacktrace/filenames.h
@@ -379,6 +403,12 @@ Files: vendor/cloudabi/*
 Copyright: 2016-2018 Nuxi (https://nuxi.nl/) and contributors
 License: BSD-2-Clause
 Comment: see https://github.com/nuxinl/cloudabi
+
+Files: vendor/crc32fast/*
+Copyright: 2018-2019 Sam Rijs <srijs@airpost.net>
+           2018-2019 Alex Crichton <alex@alexcrichton.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/srijs/rust-crc32fast
 
 Files: vendor/crossbeam-deque/*
        vendor/crossbeam-epoch-0*/*
@@ -467,6 +497,11 @@ Comment:
  see https://github.com/withoutboats/failure
  see https://github.com/withoutboats/failure_derive
 
+Files: vendor/fortanix-sgx-abi/*
+Copyright: 2015-2019 Jethro Beekman <jethro@fortanix.com>
+License: MPL-2.0
+Comment: see https://github.com/fortanix/rust-sgx
+
 Files: vendor/fs_extra/*
 Copyright: 2017-2018 Denis Kurilenko <webdesus@gmail.com>
 License: MIT
@@ -487,6 +522,11 @@ Files: vendor/handlebars/*
 Copyright: 2014-2017 Ning Sun <sunng@about.me>
 License: MIT
 Comment: see https://github.com/sunng87/handlebars-rust
+
+Files: vendor/heck/*
+Copyright: 2017-2018 Without Boats <woboats@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/withoutboats/heck
 
 Files:
  vendor/html5ever/*
@@ -632,6 +672,11 @@ License: Apache-2.0 or MIT
 Comment: see https://github.com/nrc/rls-span
          see https://github.com/nrc/rls-data
 
+Files: vendor/rustc_version/*
+Copyright: 2015-2018 Marvin Löbel <loebel.marvin@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/Kimundi/rustc-version-rs
+
 Files: vendor/rustfix/*
 Copyright: 2016-2018 Pascal Hertleif <killercup@gmail.com>
            2016-2018 Oliver Schneider <oli-obk@users.noreply.github.com>
@@ -642,6 +687,15 @@ Files: vendor/ryu/*
 Copyright: 2018-2018 David Tolnay <dtolnay@gmail.com>
 License: Apache-2.0 or BSL-1.0
 Comment: see https://github.com/dtolnay/ryu
+
+Files:
+ vendor/semver/*
+ vendor/semver-parser/*
+Copyright:
+ 2014-2018 Steve Klabnik <steve@steveklabnik.com>
+ 2014-2018 The Rust Project Developers
+License: MIT or Apache-2.0
+Comment: see https://github.com/steveklabnik/semver
 
 Files: vendor/serde/*
        vendor/serde_json/*
@@ -768,14 +822,16 @@ Copyright: 2017-2018 Andrew Gallant <jamslam@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/BurntSushi/rucd
 
-Files: vendor/unicode-normalization/*
-       vendor/unicode-width/*
-Copyright: 2015-2017 kwantam <kwantam@gmail.com>
+Files:
+ vendor/unicode-normalization/*
+ vendor/unicode-segmentation/*
+ vendor/unicode-width/*
+Copyright: 2015-2019 kwantam <kwantam@gmail.com>
 License: MIT or Apache-2.0
 Comment:
+ see https://github.com/unicode-rs/unicode-normalization
  see https://github.com/unicode-rs/unicode-segmentation
  see https://github.com/unicode-rs/unicode-width
- see https://github.com/unicode-rs/unicode-normalization
 
 Files:
  vendor/unicode-xid/*
@@ -784,6 +840,11 @@ Copyright: 2015-2017 erick.tryzelaar <erick.tryzelaar@gmail.com>
            2015-2017 kwantam <kwantam@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/unicode-rs/unicode-xid
+
+Files: vendor/vcpkg/*
+Copyright: 2017-2019 Jim McGrath <jimmc2@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/mcgoo/vcpkg-rs
 
 Files: vendor/vec_map/*
 Copyright: 2015-2017 Alexis Beingessner <a.beingessner@gmail.com>
