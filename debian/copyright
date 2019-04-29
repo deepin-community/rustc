@@ -82,7 +82,6 @@ Files-Excluded:
  vendor/foreign-types
  vendor/foreign-types-shared
  vendor/fs2
- vendor/fs_extra
  vendor/fst
  vendor/futures
  vendor/fwdansi
@@ -95,7 +94,6 @@ Files-Excluded:
  vendor/if_chain
  vendor/ignore
  vendor/im-rc
- vendor/jemalloc-sys
  vendor/json
  vendor/jsonrpc-core
  vendor/kernel32-sys
