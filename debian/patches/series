@@ -14,24 +14,27 @@ u-mips-fixes.diff
 u-reproducible-dl-stage0.patch
 
 gcc-4.8-aarch64-ice.diff
-# Porter fixes under discussion, not suitable for upstreaming
-# as-is but a proper fix is being discussed
-d-fix-mips64el-bootstrap.patch
-#d-sparc64-fix-fnctls.patch
 
 # Debian-specific patches, not suitable for upstream
+# Patches needed by debian/prune-unused-deps
+d-0000-ignore-removed-submodules.patch
+d-0001-disable-miniz.patch
+# Other patches needed by the full Debian build
 d-ignore-error-detail-diff.patch
 d-disable-cargo-vendor.patch
 d-rust-gdb-paths
 d-rust-lldb-paths
 d-add-soname.patch
 d-dont-download-stage0.patch
-d-ignore-removed-submodules.patch
 d-read-beta-version-from-file.patch
 d-ignore-avx-44056.patch
 d-i686-baseline.patch
 d-no-jemalloc.patch
-
 d-no-web-dependencies-in-doc.patch
+
+# Porter fixes under discussion, not suitable for upstreaming
+# as-is but a proper fix is being discussed
+d-fix-mips64el-bootstrap.patch
+
 # Work around for some porterboxes, keep this commented
 #d-host-duplicates.patch

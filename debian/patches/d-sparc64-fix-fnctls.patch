@@ -1,5 +1,0 @@
-Description: Use correct fnctl constants for sparc64
-Author: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
-Bug: https://github.com/rust-lang/rust/issues/57007
-Last-Update: 2018-12-21
-

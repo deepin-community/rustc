@@ -42,6 +42,7 @@ Files-Excluded:
  vendor/compiler_builtins/compiler-rt/unittests
  vendor/compiler_builtins/compiler-rt/www
 # Embedded C libraries
+ vendor/libz-sys/src/zlib*
  vendor/lzma-sys*/xz-*
 # Embedded binary blobs
  vendor/winapi-*/*/*.a

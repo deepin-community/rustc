@@ -135,6 +135,7 @@ vendor/idna/tests/punycode_tests.json
 vendor/html5ever/data/bench/*.html
 vendor/html5ever/html5lib-tests/*/*.dat
 vendor/html5ever/html5lib-tests/*/*.test
+vendor/libz-sys/src/smoke.c
 vendor/minifier/tests/files/test.json
 vendor/pest/benches/data.json
 vendor/pretty_assertions/src/format_changeset.rs

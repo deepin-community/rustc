@@ -12,6 +12,7 @@ filenamemangle=s/.*\/(.*)\.[gx]z(\..*)?/$1.xz$2/,\
 repack,\
 repacksuffix=+dfsg1,\
 compression=xz,\
+pagemangle=s/rustc--src.tar.gz/rustc-1.33.0-src.tar.gz/,\
 " \
  https://forge.rust-lang.org/other-installation-methods.html \
  (?:.*/)rustc?-(\d[\d.]*(?:-[\w.]+)?)-src\.tar\.[gx]z
