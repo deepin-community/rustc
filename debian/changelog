@@ -1,4 +1,4 @@
-rustc (1.33.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.33.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release.
 
@@ -9,7 +9,7 @@ rustc (1.33.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
   * Update compiler-rt patch.
   * Improve build-related docs a bit.
 
- -- Ximin Luo <infinity0@debian.org>  Mon, 29 Apr 2019 11:43:26 -0700
+ -- Ximin Luo <infinity0@debian.org>  Mon, 29 Apr 2019 19:50:48 -0700
 
 rustc (1.32.0+dfsg1-3) unstable; urgency=medium
 
