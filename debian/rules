@@ -143,10 +143,13 @@ debian/config.toml: debian/config.toml.in debian/rules
 	u="$(DEB_VERSION_UPSTREAM)"; \
 	if [ "$$u" != "$${u%~beta.*+dfsg*}" ]; then channel="beta"; \
 	else channel="stable"; fi; echo $$channel; \
-	m4  -DDEB_BUILD_RUST_TYPE="$(DEB_BUILD_RUST_TYPE)" \
+	m4  -DRELEASE_CHANNEL="$$channel" \
+		-DDEB_BUILD_RUST_TYPE="$(DEB_BUILD_RUST_TYPE)" \
 		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
 		-DDEB_TARGET_RUST_TYPE="$(DEB_TARGET_RUST_TYPE)" \
-		-DRELEASE_CHANNEL="$$channel" \
+		-DDEB_BUILD_GNU_TYPE="$(DEB_BUILD_GNU_TYPE)" \
+		-DDEB_HOST_GNU_TYPE="$(DEB_HOST_GNU_TYPE)" \
+		-DDEB_TARGET_GNU_TYPE="$(DEB_TARGET_GNU_TYPE)" \
 		-DMAKE_OPTIMISATIONS="$(MAKE_OPTIMISATIONS)" \
 		-DLLVM_DESTDIR="$(LLVM_DESTDIR)" \
 		-DLLVM_VERSION="$(LLVM_VERSION)" \
