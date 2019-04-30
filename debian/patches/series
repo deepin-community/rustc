@@ -18,6 +18,7 @@ gcc-4.8-aarch64-ice.diff
 # Patches needed by debian/prune-unused-deps
 d-0000-ignore-removed-submodules.patch
 d-0001-disable-miniz.patch
+d-0002-pkg-config-no-special-snowflake.patch
 # Other patches needed by the full Debian build
 d-ignore-error-detail-diff.patch
 d-disable-cargo-vendor.patch

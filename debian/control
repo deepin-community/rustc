@@ -17,6 +17,8 @@ Build-Depends: debhelper (>= 9),
                libllvm7 (>= 1:7.0.1-3),
                autotools-dev,
                cmake (>= 3.0) | cmake3,
+# needed by some vendor crates
+               pkg-config,
 # this is sometimes needed by rustc_llvm
                zlib1g-dev:native,
                zlib1g-dev,
