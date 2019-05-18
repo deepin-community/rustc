@@ -4,7 +4,7 @@ rustc (1.33.0+dfsg1-1) unstable; urgency=medium
   * Fix build on mips, flags needed whitespace massaging.
   * Drop obsolete patches.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 17 May 2019 21:01:15 -0700
+ -- Ximin Luo <infinity0@debian.org>  Fri, 17 May 2019 21:04:20 -0700
 
 rustc (1.33.0+dfsg1-1~exp1) experimental; urgency=medium
 
