@@ -1,9 +1,9 @@
-rustc (1.33.0+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.33.0+dfsg1-2) unstable; urgency=medium
 
   * Add Fedora patches.
   * Bump i386 allowed test failures to 12.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 18 May 2019 10:38:37 -0700
+ -- Ximin Luo <infinity0@debian.org>  Sat, 18 May 2019 12:18:25 -0700
 
 rustc (1.33.0+dfsg1-1) unstable; urgency=medium
 
