@@ -1,8 +1,8 @@
-use std::fmt::{self, Display, Formatter};
-use std::path::{Path, PathBuf};
 use std::collections::VecDeque;
+use std::fmt::{self, Display, Formatter};
 use std::fs::{self, File};
 use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use super::summary::{parse_summary, Link, SectionNumber, Summary, SummaryItem};
 use config::BuildConfig;
@@ -167,9 +167,9 @@ impl Chapter {
     ) -> Chapter {
         Chapter {
             name: name.to_string(),
-            content: content,
+            content,
             path: path.into(),
-            parent_names: parent_names,
+            parent_names,
             ..Default::default()
         }
     }
@@ -210,7 +210,7 @@ fn load_summary_item<P: AsRef<Path>>(
     match *item {
         SummaryItem::Separator => Ok(BookItem::Separator),
         SummaryItem::Link(ref link) => {
-            load_chapter(link, src_dir, parent_names).map(|c| BookItem::Chapter(c))
+            load_chapter(link, src_dir, parent_names).map(BookItem::Chapter)
         }
     }
 }
@@ -245,7 +245,8 @@ fn load_chapter<P: AsRef<Path>>(
     ch.number = link.number.clone();
 
     sub_item_parents.push(link.name.clone());
-    let sub_items = link.nested_items
+    let sub_items = link
+        .nested_items
         .iter()
         .map(|i| load_summary_item(i, src_dir, sub_item_parents.clone()))
         .collect::<Result<Vec<_>>>()?;
@@ -297,8 +298,8 @@ impl Display for Chapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::{TempDir, Builder as TempFileBuilder};
     use std::io::Write;
+    use tempfile::{Builder as TempFileBuilder, TempDir};
 
     const DUMMY_SRC: &'static str = "
 # Dummy Chapter
@@ -404,14 +405,12 @@ And here is some \
             ..Default::default()
         };
         let should_be = Book {
-            sections: vec![
-                BookItem::Chapter(Chapter {
-                    name: String::from("Chapter 1"),
-                    content: String::from(DUMMY_SRC),
-                    path: PathBuf::from("chapter_1.md"),
-                    ..Default::default()
-                }),
-            ],
+            sections: vec![BookItem::Chapter(Chapter {
+                name: String::from("Chapter 1"),
+                content: String::from(DUMMY_SRC),
+                path: PathBuf::from("chapter_1.md"),
+                ..Default::default()
+            })],
             ..Default::default()
         };
 
@@ -477,12 +476,12 @@ And here is some \
         assert_eq!(got.len(), 5);
 
         // checking the chapter names are in the order should be sufficient here...
-        let chapter_names: Vec<String> = got.into_iter()
+        let chapter_names: Vec<String> = got
+            .into_iter()
             .filter_map(|i| match *i {
                 BookItem::Chapter(ref ch) => Some(ch.name.clone()),
                 _ => None,
-            })
-            .collect();
+            }).collect();
         let should_be: Vec<_> = vec![
             String::from("Chapter 1"),
             String::from("Hello World"),
@@ -535,13 +534,11 @@ And here is some \
     fn cant_load_chapters_with_an_empty_path() {
         let (_, temp) = dummy_link();
         let summary = Summary {
-            numbered_chapters: vec![
-                SummaryItem::Link(Link {
-                    name: String::from("Empty"),
-                    location: PathBuf::from(""),
-                    ..Default::default()
-                }),
-            ],
+            numbered_chapters: vec![SummaryItem::Link(Link {
+                name: String::from("Empty"),
+                location: PathBuf::from(""),
+                ..Default::default()
+            })],
             ..Default::default()
         };
 
@@ -556,13 +553,11 @@ And here is some \
         fs::create_dir(&dir).unwrap();
 
         let summary = Summary {
-            numbered_chapters: vec![
-                SummaryItem::Link(Link {
-                    name: String::from("nested"),
-                    location: dir,
-                    ..Default::default()
-                }),
-            ],
+            numbered_chapters: vec![SummaryItem::Link(Link {
+                name: String::from("nested"),
+                location: dir,
+                ..Default::default()
+            })],
             ..Default::default()
         };
 

@@ -11,31 +11,52 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ptr;
 use std::rc::Rc;
+use std::str;
 
 use super::pairs::{self, Pairs};
 use super::queueable_token::QueueableToken;
 use super::tokens::{self, Tokens};
-use RuleType;
 use span::{self, Span};
+use RuleType;
 
-/// A `struct` containing a matching pair of `Token`s and everything between them.
+/// A matching pair of [`Token`]s and everything between them.
 ///
 /// A matching `Token` pair is formed by a `Token::Start` and a subsequent `Token::End` with the
 /// same `Rule`, with the condition that all `Token`s between them can form such pairs as well.
 /// This is similar to the [brace matching problem](https://en.wikipedia.org/wiki/Brace_matching) in
 /// editors.
+///
+/// [`Token`]: ../enum.Token.html
 #[derive(Clone)]
 pub struct Pair<'i, R> {
+    /// # Safety
+    ///
+    /// All `QueueableToken`s' `input_pos` must be valid character boundary indices into `input`.
     queue: Rc<Vec<QueueableToken<R>>>,
     input: &'i str,
-    start: usize
+    /// Token index into `queue`.
+    start: usize,
 }
 
+// TODO(safety): QueueableTokens must be valid indices into input.
 pub fn new<R: RuleType>(queue: Rc<Vec<QueueableToken<R>>>, input: &str, start: usize) -> Pair<R> {
+    if cfg!(debug_assertions) {
+        for tok in queue.iter() {
+            match *tok {
+                QueueableToken::Start { input_pos, .. } | QueueableToken::End { input_pos, .. } => {
+                    assert!(
+                        input.get(input_pos..).is_some(),
+                        "💥 UNSAFE `Pair` CREATED 💥"
+                    )
+                }
+            }
+        }
+    }
+
     Pair {
         queue,
         input,
-        start
+        start,
     }
 }
 
@@ -54,9 +75,9 @@ impl<'i, R: RuleType> Pair<'i, R> {
     /// }
     ///
     /// let input = "";
-    /// let pair = pest::state(input, |state, pos| {
+    /// let pair = pest::state(input, |state| {
     ///     // generating Token pair with Rule::a ...
-    /// #     state.rule(Rule::a, pos, |_, p| Ok(p))
+    /// #     state.rule(Rule::a, |s| Ok(s))
     /// }).unwrap().next().unwrap();
     ///
     /// assert_eq!(pair.as_rule(), Rule::a);
@@ -65,7 +86,7 @@ impl<'i, R: RuleType> Pair<'i, R> {
     pub fn as_rule(&self) -> R {
         match self.queue[self.pair()] {
             QueueableToken::End { rule, .. } => rule,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -83,9 +104,9 @@ impl<'i, R: RuleType> Pair<'i, R> {
     /// }
     ///
     /// let input = "ab";
-    /// let pair = pest::state(input, |state, pos| {
+    /// let pair = pest::state(input, |state| {
     ///     // generating Token pair with Rule::ab ...
-    /// #     state.rule(Rule::ab, pos, |_, p| p.match_string("ab"))
+    /// #     state.rule(Rule::ab, |s| s.match_string("ab"))
     /// }).unwrap().next().unwrap();
     ///
     /// assert_eq!(pair.as_str(), "ab");
@@ -95,7 +116,8 @@ impl<'i, R: RuleType> Pair<'i, R> {
         let start = self.pos(self.start);
         let end = self.pos(self.pair());
 
-        unsafe { self.input.slice_unchecked(start, end) }
+        // Generated positions always come from Positions and are UTF-8 borders.
+        &self.input[start..end]
     }
 
     /// Returns the `Span` defined by the `Pair`, consuming it.
@@ -112,19 +134,47 @@ impl<'i, R: RuleType> Pair<'i, R> {
     /// }
     ///
     /// let input = "ab";
-    /// let pair = pest::state(input, |state, pos| {
+    /// let pair = pest::state(input, |state| {
     ///     // generating Token pair with Rule::ab ...
-    /// #     state.rule(Rule::ab, pos, |_, p| p.match_string("ab"))
+    /// #     state.rule(Rule::ab, |s| s.match_string("ab"))
     /// }).unwrap().next().unwrap();
     ///
     /// assert_eq!(pair.into_span().as_str(), "ab");
     /// ```
     #[inline]
+    #[deprecated(since = "2.0.0", note = "Please use `as_span` instead")]
     pub fn into_span(self) -> Span<'i> {
+        self.as_span()
+    }
+
+    /// Returns the `Span` defined by the `Pair`, **without** consuming it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::rc::Rc;
+    /// # use pest;
+    /// # #[allow(non_camel_case_types)]
+    /// # #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    /// enum Rule {
+    ///     ab
+    /// }
+    ///
+    /// let input = "ab";
+    /// let pair = pest::state(input, |state| {
+    ///     // generating Token pair with Rule::ab ...
+    /// #     state.rule(Rule::ab, |s| s.match_string("ab"))
+    /// }).unwrap().next().unwrap();
+    ///
+    /// assert_eq!(pair.as_span().as_str(), "ab");
+    /// ```
+    #[inline]
+    pub fn as_span(&self) -> Span<'i> {
         let start = self.pos(self.start);
         let end = self.pos(self.pair());
 
-        span::new(self.input, start, end)
+        // Generated positions always come from Positions and are UTF-8 borders.
+        unsafe { span::Span::new_unchecked(self.input, start, end) }
     }
 
     /// Returns the inner `Pairs` between the `Pair`, consuming it.
@@ -141,9 +191,9 @@ impl<'i, R: RuleType> Pair<'i, R> {
     /// }
     ///
     /// let input = "";
-    /// let pair = pest::state(input, |state, pos| {
+    /// let pair = pest::state(input, |state| {
     ///     // generating Token pair with Rule::a ...
-    /// #     state.rule(Rule::a, pos, |_, p| Ok(p))
+    /// #     state.rule(Rule::a, |s| Ok(s))
     /// }).unwrap().next().unwrap();
     ///
     /// assert!(pair.into_inner().next().is_none());
@@ -152,10 +202,10 @@ impl<'i, R: RuleType> Pair<'i, R> {
     pub fn into_inner(self) -> Pairs<'i, R> {
         let pair = self.pair();
 
-        pairs::new(self.queue, self.input, self.start + 1, pair - 1)
+        pairs::new(self.queue, self.input, self.start + 1, pair)
     }
 
-    /// Converts the `Pair` into a `TokenIterator`.
+    /// Returns the `Tokens` for the `Pair`.
     ///
     /// # Examples
     ///
@@ -169,9 +219,9 @@ impl<'i, R: RuleType> Pair<'i, R> {
     /// }
     ///
     /// let input = "";
-    /// let pair = pest::state(input, |state, pos| {
+    /// let pair = pest::state(input, |state| {
     ///     // generating Token pair with Rule::a ...
-    /// #     state.rule(Rule::a, pos, |_, p| Ok(p))
+    /// #     state.rule(Rule::a, |s| Ok(s))
     /// }).unwrap().next().unwrap();
     /// let tokens: Vec<_> = pair.tokens().collect();
     ///
@@ -186,27 +236,29 @@ impl<'i, R: RuleType> Pair<'i, R> {
 
     fn pair(&self) -> usize {
         match self.queue[self.start] {
-            QueueableToken::Start { pair, .. } => pair,
-            _ => unreachable!()
+            QueueableToken::Start {
+                end_token_index, ..
+            } => end_token_index,
+            _ => unreachable!(),
         }
     }
 
     fn pos(&self, index: usize) -> usize {
         match self.queue[index] {
-            QueueableToken::Start { pos, .. } | QueueableToken::End { pos, .. } => pos
+            QueueableToken::Start { input_pos, .. } | QueueableToken::End { input_pos, .. } => {
+                input_pos
+            }
         }
     }
 }
 
 impl<'i, R: RuleType> fmt::Debug for Pair<'i, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Pair {{ rule: {:?}, span: {:?}, inner: {:?} }}",
-            self.as_rule(),
-            self.clone().into_span(),
-            self.clone().into_inner()
-        )
+        f.debug_struct("Pair")
+            .field("rule", &self.as_rule())
+            .field("span", &self.as_span())
+            .field("inner", &self.clone().into_inner().collect::<Vec<_>>())
+            .finish()
     }
 }
 
@@ -237,7 +289,8 @@ impl<'i, R: RuleType> fmt::Display for Pair<'i, R> {
 
 impl<'i, R: PartialEq> PartialEq for Pair<'i, R> {
     fn eq(&self, other: &Pair<'i, R>) -> bool {
-        Rc::ptr_eq(&self.queue, &other.queue) && ptr::eq(self.input, other.input)
+        Rc::ptr_eq(&self.queue, &other.queue)
+            && ptr::eq(self.input, other.input)
             && self.start == other.start
     }
 }
@@ -249,5 +302,20 @@ impl<'i, R: Hash> Hash for Pair<'i, R> {
         (&*self.queue as *const Vec<QueueableToken<R>>).hash(state);
         (self.input as *const str).hash(state);
         self.start.hash(state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use macros::tests::*;
+    use parser::Parser;
+
+    #[test]
+    fn pair_into_inner() {
+        let pair = AbcParser::parse(Rule::a, "abcde").unwrap().next().unwrap(); // the tokens a(b())
+
+        let pairs = pair.into_inner(); // the tokens b()
+
+        assert_eq!(2, pairs.tokens().count());
     }
 }

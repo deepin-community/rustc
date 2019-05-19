@@ -12,15 +12,18 @@
 
 [package]
 name = "pest"
-version = "1.0.6"
+version = "2.1.0"
 authors = ["Dragoș Tiselice <dragostiselice@gmail.com>"]
 description = "The Elegant Parser"
+homepage = "https://pest-parser.github.io/"
 documentation = "https://docs.rs/pest"
 readme = "_README.md"
 keywords = ["pest", "parser", "peg", "grammar"]
 categories = ["parsing"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/pest-parser/pest"
+[dependencies.ucd-trie]
+version = "0.1.1"
 [badges.codecov]
 repository = "pest-parser/pest"
 

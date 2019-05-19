@@ -12,8 +12,8 @@
 
 [package]
 name = "handlebars"
-version = "0.32.4"
-authors = ["Ning Sun <sunng@about.me>"]
+version = "1.1.0"
+authors = ["Ning Sun <sunng@pm.me>"]
 description = "Handlebars templating implemented in Rust."
 homepage = "https://github.com/sunng87/handlebars-rust"
 documentation = "https://docs.rs/crate/handlebars/"
@@ -27,35 +27,50 @@ repository = "https://github.com/sunng87/handlebars-rust"
 name = "handlebars"
 path = "src/lib.rs"
 [dependencies.lazy_static]
-version = "^1.0.0"
+version = "1.0.0"
 
 [dependencies.log]
-version = "^0.4.0"
+version = "0.4.0"
+optional = true
 
 [dependencies.pest]
-version = "^1.0.0"
+version = "2.0.2"
 
 [dependencies.pest_derive]
-version = "^1.0.0"
+version = "2.0.1"
 
 [dependencies.quick-error]
-version = "^1.0.0"
+version = "1.0.0"
 
 [dependencies.regex]
-version = "^1.0.0"
+version = "1.0.3"
 
 [dependencies.serde]
-version = "^1.0.0"
+version = "1.0.0"
 
 [dependencies.serde_json]
-version = "^1.0.0"
+version = "1.0.0"
+
+[dependencies.walkdir]
+version = "2.2.3"
+optional = true
 [dev-dependencies.env_logger]
-version = "^0.4.0"
+version = "0.5.13"
 
 [dev-dependencies.maplit]
-version = "^1.0.0"
+version = "1.0.0"
 
 [dev-dependencies.serde_derive]
-version = "^1.0.0"
+version = "1.0.75"
+
+[dev-dependencies.tempfile]
+version = "3.0.0"
+
+[features]
+default = ["dir_source", "logging"]
+dir_source = ["walkdir"]
+logging = ["log"]
+no_dir_source = ["logging"]
+no_logging = ["dir_source"]
 [badges.maintenance]
 status = "actively-developed"

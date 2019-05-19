@@ -1,12 +1,10 @@
-use build::{BlockAnd, BlockAndExtension, BlockFrame, Builder};
-use build::ForGuard::OutsideGuard;
-use build::matches::ArmHasGuard;
-use hair::*;
+use crate::build::{BlockAnd, BlockAndExtension, BlockFrame, Builder};
+use crate::build::ForGuard::OutsideGuard;
+use crate::build::matches::ArmHasGuard;
+use crate::hair::*;
 use rustc::mir::*;
 use rustc::hir;
 use syntax_pos::Span;
-
-use std::slice;
 
 impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
     pub fn ast_block(&mut self,
@@ -125,7 +123,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                             None,
                             remainder_span,
                             lint_level,
-                            slice::from_ref(&pattern),
+                            &pattern,
                             ArmHasGuard(false),
                             Some((None, initializer_span)),
                         );
@@ -138,7 +136,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                             }));
                     } else {
                         scope = this.declare_bindings(
-                            None, remainder_span, lint_level, slice::from_ref(&pattern),
+                            None, remainder_span, lint_level, &pattern,
                             ArmHasGuard(false), None);
 
                         debug!("ast_block_stmts: pattern={:?}", pattern);

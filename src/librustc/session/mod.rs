@@ -1,19 +1,19 @@
 pub use self::code_stats::{DataTypeKind, SizeKind, FieldInfo, VariantInfo};
 use self::code_stats::CodeStats;
 
-use dep_graph::cgu_reuse_tracker::CguReuseTracker;
-use hir::def_id::CrateNum;
+use crate::dep_graph::cgu_reuse_tracker::CguReuseTracker;
+use crate::hir::def_id::CrateNum;
 use rustc_data_structures::fingerprint::Fingerprint;
 
-use lint;
-use lint::builtin::BuiltinLintDiagnostics;
-use middle::allocator::AllocatorKind;
-use middle::dependency_format;
-use session::config::{OutputType, Lto};
-use session::search_paths::{PathKind, SearchPath};
-use util::nodemap::{FxHashMap, FxHashSet};
-use util::common::{duration_to_secs_str, ErrorReported};
-use util::common::ProfileQueriesMsg;
+use crate::lint;
+use crate::lint::builtin::BuiltinLintDiagnostics;
+use crate::middle::allocator::AllocatorKind;
+use crate::middle::dependency_format;
+use crate::session::config::OutputType;
+use crate::session::search_paths::{PathKind, SearchPath};
+use crate::util::nodemap::{FxHashMap, FxHashSet};
+use crate::util::common::{duration_to_secs_str, ErrorReported};
+use crate::util::common::ProfileQueriesMsg;
 
 use rustc_data_structures::base_n;
 use rustc_data_structures::sync::{
@@ -21,7 +21,7 @@ use rustc_data_structures::sync::{
     Ordering::SeqCst,
 };
 
-use errors::{self, DiagnosticBuilder, DiagnosticId, Applicability};
+use errors::{DiagnosticBuilder, DiagnosticId, Applicability};
 use errors::emitter::{Emitter, EmitterWriter};
 use syntax::ast::{self, NodeId};
 use syntax::edition::Edition;
@@ -30,7 +30,7 @@ use syntax::json::JsonEmitter;
 use syntax::source_map;
 use syntax::parse::{self, ParseSess};
 use syntax_pos::{MultiSpan, Span};
-use util::profiling::SelfProfiler;
+use crate::util::profiling::SelfProfiler;
 
 use rustc_target::spec::{PanicStrategy, RelroLevel, Target, TargetTriple};
 use rustc_data_structures::flock;
@@ -51,7 +51,7 @@ pub mod filesearch;
 pub mod search_paths;
 
 pub struct OptimizationFuel {
-    /// If -zfuel=crate=n is specified, initially set to n. Otherwise 0.
+    /// If `-zfuel=crate=n` is specified, initially set to `n`, otherwise `0`.
     remaining: u64,
     /// We're rejecting all further optimizations.
     out_of_fuel: bool,
@@ -64,11 +64,9 @@ pub struct Session {
     pub host: Target,
     pub opts: config::Options,
     pub host_tlib_path: SearchPath,
-    /// This is `None` if the host and target are the same.
+    /// `None` if the host and target are the same.
     pub target_tlib_path: Option<SearchPath>,
     pub parse_sess: ParseSess,
-    /// For a library crate, this is always none
-    pub entry_fn: Once<Option<(NodeId, Span, config::EntryFnType)>>,
     pub sysroot: PathBuf,
     /// The name of the root source file of the crate, in the local file system.
     /// `None` means that there is no source file.
@@ -87,7 +85,7 @@ pub struct Session {
     /// in order to avoid redundantly verbose output (Issue #24690, #44953).
     pub one_time_diagnostics: Lock<FxHashSet<(DiagnosticMessageId, Option<Span>, String)>>,
     pub plugin_llvm_passes: OneThread<RefCell<Vec<String>>>,
-    pub plugin_attributes: OneThread<RefCell<Vec<(String, AttributeType)>>>,
+    pub plugin_attributes: Lock<Vec<(String, AttributeType)>>,
     pub crate_types: Once<Vec<config::CrateType>>,
     pub dependency_formats: Once<dependency_format::Dependencies>,
     /// The crate_disambiguator is constructed out of all the `-C metadata`
@@ -106,7 +104,7 @@ pub struct Session {
     /// The maximum length of types during monomorphization.
     pub type_length_limit: Once<usize>,
 
-    /// The maximum number of stackframes allowed in const eval
+    /// The maximum number of stackframes allowed in const eval.
     pub const_eval_stack_frame_limit: usize,
 
     /// The metadata::creader module may inject an allocator/panic_runtime
@@ -125,13 +123,13 @@ pub struct Session {
     /// `-Zquery-dep-graph` is specified.
     pub cgu_reuse_tracker: CguReuseTracker,
 
-    /// Used by -Z profile-queries in util::common
+    /// Used by `-Z profile-queries` in `util::common`.
     pub profile_channel: Lock<Option<mpsc::Sender<ProfileQueriesMsg>>>,
 
-    /// Used by -Z self-profile
+    /// Used by `-Z self-profile`.
     pub self_profiling_active: bool,
 
-    /// Used by -Z self-profile
+    /// Used by `-Z self-profile`.
     pub self_profiling: Lock<SelfProfiler>,
 
     /// Some measurements that are being gathered during compilation.
@@ -142,14 +140,14 @@ pub struct Session {
 
     next_node_id: OneThread<Cell<ast::NodeId>>,
 
-    /// If -zfuel=crate=n is specified, Some(crate).
+    /// If `-zfuel=crate=n` is specified, `Some(crate)`.
     optimization_fuel_crate: Option<String>,
 
-    /// Tracks fuel info if If -zfuel=crate=n is specified
+    /// Tracks fuel info if `-zfuel=crate=n` is specified.
     optimization_fuel: Lock<OptimizationFuel>,
 
     // The next two are public because the driver needs to read them.
-    /// If -zprint-fuel=crate, Some(crate).
+    /// If `-zprint-fuel=crate`, `Some(crate)`.
     pub print_fuel_crate: Option<String>,
     /// Always set to zero and incremented so that we can print fuel expended by a crate.
     pub print_fuel: AtomicU64,
@@ -158,10 +156,10 @@ pub struct Session {
     /// false positives about a job server in our environment.
     pub jobserver: Client,
 
-    /// Metadata about the allocators for the current crate being compiled
+    /// Metadata about the allocators for the current crate being compiled.
     pub has_global_allocator: Once<bool>,
 
-    /// Metadata about the panic handlers for the current crate being compiled
+    /// Metadata about the panic handlers for the current crate being compiled.
     pub has_panic_handler: Once<bool>,
 
     /// Cap lint level specified by a driver specifically.
@@ -169,9 +167,9 @@ pub struct Session {
 }
 
 pub struct PerfStats {
-    /// The accumulated time spent on computing symbol hashes
+    /// The accumulated time spent on computing symbol hashes.
     pub symbol_hash_time: Lock<Duration>,
-    /// The accumulated time spent decoding def path tables from metadata
+    /// The accumulated time spent decoding def path tables from metadata.
     pub decode_def_path_tables_time: Lock<Duration>,
     /// Total number of values canonicalized queries constructed.
     pub queries_canonicalized: AtomicUsize,
@@ -437,7 +435,7 @@ impl Session {
                 }
                 DiagnosticBuilderMethod::SpanSuggestion(suggestion) => {
                     let span = span_maybe.expect("span_suggestion_* needs a span");
-                    diag_builder.span_suggestion_with_applicability(
+                    diag_builder.span_suggestion(
                         span,
                         message,
                         suggestion,
@@ -541,7 +539,7 @@ impl Session {
         self.opts.debugging_opts.print_llvm_passes
     }
 
-    /// Get the features enabled for the current compilation session.
+    /// Gets the features enabled for the current compilation session.
     /// DO NOT USE THIS METHOD if there is a TyCtxt available, as it circumvents
     /// dependency tracking. Use tcx.features() instead.
     #[inline]
@@ -879,7 +877,7 @@ impl Session {
         let mut ret = true;
         if let Some(ref c) = self.optimization_fuel_crate {
             if c == crate_name {
-                assert_eq!(self.query_threads(), 1);
+                assert_eq!(self.threads(), 1);
                 let mut fuel = self.optimization_fuel.lock();
                 ret = fuel.remaining != 0;
                 if fuel.remaining == 0 && !fuel.out_of_fuel {
@@ -892,7 +890,7 @@ impl Session {
         }
         if let Some(ref c) = self.print_fuel_crate {
             if c == crate_name {
-                assert_eq!(self.query_threads(), 1);
+                assert_eq!(self.threads(), 1);
                 self.print_fuel.fetch_add(1, SeqCst);
             }
         }
@@ -901,14 +899,14 @@ impl Session {
 
     /// Returns the number of query threads that should be used for this
     /// compilation
-    pub fn query_threads_from_opts(opts: &config::Options) -> usize {
-        opts.debugging_opts.query_threads.unwrap_or(1)
+    pub fn threads_from_opts(opts: &config::Options) -> usize {
+        opts.debugging_opts.threads.unwrap_or(::num_cpus::get())
     }
 
     /// Returns the number of query threads that should be used for this
     /// compilation
-    pub fn query_threads(&self) -> usize {
-        Self::query_threads_from_opts(&self.opts)
+    pub fn threads(&self) -> usize {
+        Self::threads_from_opts(&self.opts)
     }
 
     /// Returns the number of codegen units that should be used for this
@@ -991,7 +989,7 @@ impl Session {
         self.opts.edition
     }
 
-    /// True if we cannot skip the PLT for shared library calls.
+    /// Returns `true` if we cannot skip the PLT for shared library calls.
     pub fn needs_plt(&self) -> bool {
         // Check if the current target usually needs PLT to be enabled.
         // The user can use the command line flag to override it.
@@ -1173,8 +1171,6 @@ pub fn build_session_(
         host_tlib_path,
         target_tlib_path,
         parse_sess: p_s,
-        // For a library crate, this is always none
-        entry_fn: Once::new(),
         sysroot,
         local_crate_source_file,
         working_dir,
@@ -1182,7 +1178,7 @@ pub fn build_session_(
         buffered_lints: Lock::new(Some(Default::default())),
         one_time_diagnostics: Default::default(),
         plugin_llvm_passes: OneThread::new(RefCell::new(Vec::new())),
-        plugin_attributes: OneThread::new(RefCell::new(Vec::new())),
+        plugin_attributes: Lock::new(Vec::new()),
         crate_types: Once::new(),
         dependency_formats: Once::new(),
         crate_disambiguator: Once::new(),
@@ -1250,20 +1246,6 @@ pub fn build_session_(
 // If it is useful to have a Session available already for validating a
 // commandline argument, you can do so here.
 fn validate_commandline_args_with_session_available(sess: &Session) {
-
-    if sess.opts.incremental.is_some() {
-        match sess.lto() {
-            Lto::Thin |
-            Lto::Fat => {
-                sess.err("can't perform LTO when compiling incrementally");
-            }
-            Lto::ThinLocal |
-            Lto::No => {
-                // This is fine
-            }
-        }
-    }
-
     // Since we don't know if code in an rlib will be linked to statically or
     // dynamically downstream, rustc generates `__imp_` symbols that help the
     // MSVC linker deal with this lack of knowledge (#27438). Unfortunately,
@@ -1271,7 +1253,7 @@ fn validate_commandline_args_with_session_available(sess: &Session) {
     // bitcode during ThinLTO. Therefore we disallow dynamic linking on MSVC
     // when compiling for LLD ThinLTO. This way we can validly just not generate
     // the `dllimport` attributes and `__imp_` symbols in that case.
-    if sess.opts.debugging_opts.cross_lang_lto.enabled() &&
+    if sess.opts.cg.linker_plugin_lto.enabled() &&
        sess.opts.cg.prefer_dynamic &&
        sess.target.target.options.is_like_msvc {
         sess.err("Linker plugin based LTO is not supported together with \

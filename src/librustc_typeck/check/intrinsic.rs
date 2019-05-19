@@ -4,7 +4,7 @@
 use rustc::traits::{ObligationCause, ObligationCauseCode};
 use rustc::ty::{self, TyCtxt, Ty};
 use rustc::ty::subst::Subst;
-use require_same_types;
+use crate::require_same_types;
 
 use rustc_target::spec::abi::Abi;
 use syntax::symbol::Symbol;
@@ -58,16 +58,17 @@ fn equate_intrinsic_type<'a, 'tcx>(
         safety,
         abi
     )));
-    let cause = ObligationCause::new(it.span, it.id, ObligationCauseCode::IntrinsicType);
+    let cause = ObligationCause::new(it.span, it.hir_id, ObligationCauseCode::IntrinsicType);
     require_same_types(tcx, &cause, tcx.mk_fn_ptr(tcx.fn_sig(def_id)), fty);
 }
 
-/// Returns whether the given intrinsic is unsafe to call or not.
+/// Returns `true` if the given intrinsic is unsafe to call or not.
 pub fn intrisic_operation_unsafety(intrinsic: &str) -> hir::Unsafety {
     match intrinsic {
         "size_of" | "min_align_of" | "needs_drop" |
         "add_with_overflow" | "sub_with_overflow" | "mul_with_overflow" |
         "overflowing_add" | "overflowing_sub" | "overflowing_mul" |
+        "saturating_add" | "saturating_sub" |
         "rotate_left" | "rotate_right" |
         "ctpop" | "ctlz" | "cttz" | "bswap" | "bitreverse"
         => hir::Unsafety::Normal,
@@ -307,6 +308,8 @@ pub fn check_intrinsic_type<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 
             "overflowing_add" | "overflowing_sub" | "overflowing_mul" =>
                 (1, vec![param(0), param(0)], param(0)),
+            "saturating_add" | "saturating_sub" =>
+                (1, vec![param(0), param(0)], param(0)),
             "fadd_fast" | "fsub_fast" | "fmul_fast" | "fdiv_fast" | "frem_fast" =>
                 (1, vec![param(0), param(0)], param(0)),
 
@@ -407,7 +410,8 @@ pub fn check_platform_intrinsic_type<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         "simd_add" | "simd_sub" | "simd_mul" | "simd_rem" |
         "simd_div" | "simd_shl" | "simd_shr" |
         "simd_and" | "simd_or" | "simd_xor" |
-        "simd_fmin" | "simd_fmax" | "simd_fpow" => {
+        "simd_fmin" | "simd_fmax" | "simd_fpow" |
+        "simd_saturating_add" | "simd_saturating_sub" => {
             (1, vec![param(0), param(0)], param(0))
         }
         "simd_fsqrt" | "simd_fsin" | "simd_fcos" | "simd_fexp" | "simd_fexp2" |
@@ -430,6 +434,7 @@ pub fn check_platform_intrinsic_type<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         "simd_insert" => (2, vec![param(0), tcx.types.u32, param(1)], param(0)),
         "simd_extract" => (2, vec![param(0), tcx.types.u32], param(1)),
         "simd_cast" => (2, vec![param(0)], param(1)),
+        "simd_bitmask" => (2, vec![param(0)], param(1)),
         "simd_select" |
         "simd_select_bitmask" => (2, vec![param(0), param(1), param(1)], param(1)),
         "simd_reduce_all" | "simd_reduce_any" => (1, vec![param(0)], tcx.types.bool),

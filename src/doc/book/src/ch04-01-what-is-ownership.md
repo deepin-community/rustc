@@ -39,25 +39,27 @@ strings.
 > bottom wouldn’t work as well! Adding data is called *pushing onto the stack*,
 > and removing data is called *popping off the stack*.
 >
-> The stack is fast because of the way it accesses the data: it never has to
-> search for a place to put new data or a place to get data from because that
-> place is always the top. Another property that makes the stack fast is that
-> all data on the stack must take up a known, fixed size.
->
-> Data with a size unknown at compile time or a size that might change can be
-> stored on the heap instead. The heap is less organized: when you put data on
-> the heap, you ask for some amount of space. The operating system finds an
-> empty spot somewhere in the heap that is big enough, marks it as being in
-> use, and returns a *pointer*, which is the address of that location. This
-> process is called *allocating on the heap*, sometimes abbreviated as just
-> “allocating.” Pushing values onto the stack is not considered allocating.
-> Because the pointer is a known, fixed size, you can store the pointer on the
-> stack, but when you want the actual data, you have to follow the pointer.
+> All data stored on the stack must have a known, fixed size. Data with a size
+> that is unknown at compile time or a size that might change must be stored on
+> the heap instead. The heap is less organized: when you put data on the heap,
+> you ask for some amount of space. The operating system finds an empty spot
+> somewhere in the heap that is big enough, marks it as being in use, and
+> returns a *pointer*, which is the address of that location. This process is
+> called *allocating on the heap*, sometimes abbreviated as just “allocating.”
+> Pushing values onto the stack is not considered allocating. Because the
+> pointer is a known, fixed size, you can store the pointer on the stack, but
+> when you want the actual data, you have to follow the pointer.
 >
 > Think of being seated at a restaurant. When you enter, you state the number of
 > people in your group, and the staff finds an empty table that fits everyone
 > and leads you there. If someone in your group comes late, they can ask where
 > you’ve been seated to find you.
+>
+> Pushing to the stack is faster than allocating on the heap because it never
+> has to search for a place to put new data; that place is always at the top
+> of the stack. Comparatively, allocating space on the heap requires more work,
+> because the operating system must first find a space big enough to hold the
+> data and then perform bookkeeping to prepare for the next allocation.
 >
 > Accessing data in the heap is slower than accessing data on the stack because
 > you have to follow a pointer to get there. Contemporary processors are faster
@@ -136,10 +138,11 @@ understanding by introducing the `String` type.
 ### The `String` Type
 
 To illustrate the rules of ownership, we need a data type that is more complex
-than the ones we covered in the “Data Types” section of Chapter 3. The types
-covered previously are all stored on the stack and popped off the stack when
-their scope is over, but we want to look at data that is stored on the heap and
-explore how Rust knows when to clean up that data.
+than the ones we covered in the [“Data Types”][data-types]<!-- ignore -->
+section of Chapter 3. The types covered previously are all stored on the stack
+and popped off the stack when their scope is over, but we want to look at data
+that is stored on the heap and explore how Rust knows when to clean up that
+data.
 
 We’ll use `String` as the example here and concentrate on the parts of `String`
 that relate to ownership. These aspects also apply to other complex data types
@@ -162,9 +165,10 @@ let s = String::from("hello");
 
 The double colon (`::`) is an operator that allows us to namespace this
 particular `from` function under the `String` type rather than using some sort
-of name like `string_from`. We’ll discuss this syntax more in the “Method
-Syntax” section of Chapter 5 and when we talk about namespacing with modules in
-“Paths for Referring to an Item in the Module Tree” in Chapter 7.
+of name like `string_from`. We’ll discuss this syntax more in the [“Method
+Syntax”][method-syntax]<!-- ignore --> section of Chapter 5 and when we talk
+about namespacing with modules in [“Paths for Referring to an Item in the
+Module Tree”][paths-module-tree]<!-- ignore --> in Chapter 7.
 
 This kind of string *can* be mutated:
 
@@ -414,8 +418,8 @@ usable after assignment. Rust won’t let us annotate a type with the `Copy`
 trait if the type, or any of its parts, has implemented the `Drop` trait. If
 the type needs something special to happen when the value goes out of scope and
 we add the `Copy` annotation to that type, we’ll get a compile-time error. To
-learn about how to add the `Copy` annotation to your type, see “Derivable
-Traits” in Appendix C.
+learn about how to add the `Copy` annotation to your type, see [“Derivable
+Traits”][derivable-traits]<!-- ignore --> in Appendix C.
 
 So what types are `Copy`? You can check the documentation for the given type to
 be sure, but as a general rule, any group of simple scalar values can be
@@ -550,3 +554,8 @@ fn calculate_length(s: String) -> (String, usize) {
 But this is too much ceremony and a lot of work for a concept that should be
 common. Luckily for us, Rust has a feature for this concept, called
 *references*.
+
+[data-types]: ch03-02-data-types.html#data-types
+[derivable-traits]: appendix-03-derivable-traits.html
+[method-syntax]: ch05-03-method-syntax.html#method-syntax
+[paths-module-tree]: ch07-02-modules-and-use-to-control-scope-and-privacy.html#paths-for-referring-to-an-item-in-the-module-tree

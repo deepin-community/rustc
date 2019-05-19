@@ -1,8 +1,8 @@
 //! This module contains `HashStable` implementations for various MIR data
 //! types in no particular order.
 
-use ich::StableHashingContext;
-use mir;
+use crate::ich::StableHashingContext;
+use crate::mir;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher,
                                            StableHasherResult};
 use std::mem;
@@ -196,7 +196,12 @@ impl_stable_hash_for!(impl<'gcx> for enum mir::StatementKind<'gcx> [ mir::Statem
 });
 
 impl_stable_hash_for!(enum mir::RetagKind { FnEntry, TwoPhase, Raw, Default });
-impl_stable_hash_for!(enum mir::FakeReadCause { ForMatchGuard, ForMatchedPlace, ForLet });
+impl_stable_hash_for!(enum mir::FakeReadCause {
+    ForMatchGuard,
+    ForMatchedPlace,
+    ForGuardBinding,
+    ForLet
+});
 
 impl<'a, 'gcx> HashStable<StableHashingContext<'a>> for mir::Place<'gcx> {
     fn hash_stable<W: StableHasherResult>(&self,

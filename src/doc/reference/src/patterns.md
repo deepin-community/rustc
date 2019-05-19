@@ -69,7 +69,7 @@ Patterns are used in:
 
 Patterns can be used to *destructure* [structs], [enums], and [tuples].
 Destructuring breaks up a value into its component pieces. The syntax used is
-almost the same as when creating such values. In a pattern whose head
+almost the same as when creating such values. In a pattern whose [scrutinee]
 expression has a `struct`, `enum` or `tuple` type, a placeholder (`_`) stands
 in for a *single* data field, whereas a wildcard `..` stands in for *all* the
 remaining fields of a particular variant. When destructuring a data structure
@@ -418,9 +418,12 @@ println!("{}", match 0xfacade {
 });
 ```
 
-Range patterns are always refutable, even when they cover the complete set
-of possible values of a type. For example, `0u8..=255u8` is refutable even though
-it covers all possible values of `u8`.
+Range patterns for (non-`usize` and -`isize`) integer and `char` types are irrefutable
+when they span the entire set of possible values of a type. For example, `0u8..=255u8`
+is irrefutable. The range of values for an integer type is the closed range from its
+minimum to maximum value. The range of values for a `char` type are precisely those
+ranges containing all Unicode Scalar Values: `'\u{0000}'..='\u{D7FF}'` and
+`'\u{E000}'..='\u{10FFFF}'`.
 
 ## Reference patterns
 
@@ -673,3 +676,4 @@ refer to refutable constants or enum variants for enums with multiple variants.
 [literals]: expressions/literal-expr.html
 [structs]: items/structs.html
 [tuples]: types/tuple.html
+[scrutinee]: glossary.html#scrutinee

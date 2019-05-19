@@ -13,9 +13,10 @@ using Cargo, adding dependencies will be much easier to do.
 
 Because the vast majority of Rust projects use Cargo, the rest of this book
 assumes that you’re using Cargo too. Cargo comes installed with Rust if you
-used the official installers discussed in the “Installation” section. If you
-installed Rust through some other means, check whether Cargo is installed by
-entering the following into your terminal:
+used the official installers discussed in the [“Installation”]
+[installation]<!-- ignore --> section. If you installed Rust through some other
+means, check whether Cargo is installed by entering the following into your
+terminal:
 
 ```text
 $ cargo --version
@@ -78,10 +79,10 @@ following statements are configuring a package. As we add more information to
 this file, we’ll add other sections.
 
 The next four lines set the configuration information Cargo needs to compile
-your program: the name, the version, and who wrote it. Cargo gets your name and
-email information from your environment, so if that information is not correct,
-fix the information now and then save the file. We’ll talk about the `edition`
-key in Appendix E.
+your program: the name, the version, who wrote it, and the edition of Rust to
+use. Cargo gets your name and email information from your environment, so if
+that information is not correct, fix the information now and then save the
+file. We’ll talk about the `edition` key in Appendix E.
 
 The last line, `[dependencies]`, is the start of a section for you to list any
 of your project’s dependencies. In Rust, packages of code are referred to as
@@ -243,3 +244,5 @@ This is a great time to build a more substantial program to get used to reading
 and writing Rust code. So, in Chapter 2, we’ll build a guessing game program.
 If you would rather start by learning how common programming concepts work in
 Rust, see Chapter 3 and then return to Chapter 2.
+
+[installation]: ch01-01-installation.html#installation

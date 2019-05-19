@@ -1,8 +1,9 @@
 ## Advanced Traits
 
-We first covered traits in the “Traits: Defining Shared Behavior” section of
-Chapter 10, but as with lifetimes, we didn’t discuss the more advanced details.
-Now that you know more about Rust, we can get into the nitty-gritty.
+We first covered traits in the [“Traits: Defining Shared Behavior”]
+[traits-defining-shared-behavior]<!-- ignore --> section of Chapter 10, but as
+with lifetimes, we didn’t discuss the more advanced details. Now that you know
+more about Rust, we can get into the nitty-gritty.
 
 ### Specifying Placeholder Types in Trait Definitions with Associated Types
 
@@ -21,9 +22,10 @@ the other features discussed in this chapter.
 One example of a trait with an associated type is the `Iterator` trait that the
 standard library provides. The associated type is named `Item` and stands in
 for the type of the values the type implementing the `Iterator` trait is
-iterating over. In “The `Iterator` Trait and the `next` Method” section of
-Chapter 13, we mentioned that the definition of the `Iterator` trait is as
-shown in Listing 19-20.
+iterating over. In [“The `Iterator` Trait and the `next` Method”]
+[the-iterator-trait-and-the-next-method]<!-- ignore --> section of Chapter 13,
+we mentioned that the definition of the `Iterator` trait is as shown in Listing
+19-20.
 
 ```rust
 pub trait Iterator {
@@ -513,7 +515,7 @@ implementation you want to call.
 ### Using Supertraits to Require One Trait’s Functionality Within Another Trait
 
 Sometimes, you might need one trait to use another trait’s functionality. In
-this case, you need to rely on the dependent traits also being implemented.
+this case, you need to rely on the dependent trait also being implemented.
 The trait you rely on is a *supertrait* of the trait you’re implementing.
 
 For example, let’s say we want to make an `OutlinePrint` trait with an
@@ -619,17 +621,19 @@ it within an outline of asterisks.
 
 ### Using the Newtype Pattern to Implement External Traits on External Types
 
-In Chapter 10 in the “Implementing a Trait on a Type” section, we mentioned the
+In Chapter 10 in the [“Implementing a Trait on a Type”]
+[implementing-a-trait-on-a-type]<!-- ignore --> section, we mentioned the
 orphan rule that states we’re allowed to implement a trait on a type as long as
 either the trait or the type are local to our crate. It’s possible to get
 around this restriction using the *newtype pattern*, which involves creating a
-new type in a tuple struct. (We covered tuple structs in the “Using Tuple
-Structs without Named Fields to Create Different Types” section of Chapter 5.)
-The tuple struct will have one field and be a thin wrapper around the type we
-want to implement a trait for. Then the wrapper type is local to our crate, and
-we can implement the trait on the wrapper. *Newtype* is a term that originates
-from the Haskell programming language. There is no runtime performance penalty
-for using this pattern, and the wrapper type is elided at compile time.
+new type in a tuple struct. (We covered tuple structs in the [“Using Tuple
+Structs without Named Fields to Create Different Types”][tuple-structs]<!--
+ignore --> section of Chapter 5.) The tuple struct will have one field and be a
+thin wrapper around the type we want to implement a trait for. Then the wrapper
+type is local to our crate, and we can implement the trait on the wrapper.
+*Newtype* is a term that originates from the Haskell programming language.
+There is no runtime performance penalty for using this pattern, and the wrapper
+type is elided at compile time.
 
 As an example, let’s say we want to implement `Display` on `Vec<T>`, which the
 orphan rule prevents us from doing directly because the `Display` trait and the
@@ -668,13 +672,22 @@ doesn’t have the methods of the value it’s holding. We would have to impleme
 all the methods of `Vec<T>` directly on `Wrapper` such that the methods
 delegate to `self.0`, which would allow us to treat `Wrapper` exactly like a
 `Vec<T>`. If we wanted the new type to have every method the inner type has,
-implementing the `Deref` trait (discussed in Chapter 15 in the “Treating Smart
-Pointers like Regular References with the `Deref` Trait” section) on the
-`Wrapper` to return the inner type would be a solution. If we don’t want the
-`Wrapper` type to have all the methods of the inner type—for example, to
-restrict the `Wrapper` type’s behavior—we would have to implement just the
-methods we do want manually.
+implementing the `Deref` trait (discussed in Chapter 15 in the [“Treating Smart
+Pointers Like Regular References with the `Deref`
+Trait”][smart-pointer-deref]<!-- ignore --> section) on the `Wrapper` to return
+the inner type would be a solution. If we don’t want the `Wrapper` type to have
+all the methods of the inner type—for example, to restrict the `Wrapper` type’s
+behavior—we would have to implement just the methods we do want manually.
 
 Now you know how the newtype pattern is used in relation to traits; it’s also a
 useful pattern even when traits are not involved. Let’s switch focus and look
 at some advanced ways to interact with Rust’s type system.
+
+[implementing-a-trait-on-a-type]:
+ch10-02-traits.html#implementing-a-trait-on-a-type
+[the-iterator-trait-and-the-next-method]:
+ch13-02-iterators.html#the-iterator-trait-and-the-next-method
+[traits-defining-shared-behavior]:
+ch10-02-traits.html#traits-defining-shared-behavior
+[smart-pointer-deref]: ch15-02-deref.html#treating-smart-pointers-like-regular-references-with-the-deref-trait
+[tuple-structs]: ch05-01-defining-structs.html#using-tuple-structs-without-named-fields-to-create-different-types

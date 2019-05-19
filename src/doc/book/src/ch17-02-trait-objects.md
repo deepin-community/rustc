@@ -1,4 +1,4 @@
-## Using Trait Objects that Allow for Values of Different Types
+## Using Trait Objects That Allow for Values of Different Types
 
 In Chapter 8, we mentioned that one limitation of vectors is that they can
 store elements of only one type. We created a workaround in Listing 8-10 where
@@ -40,16 +40,17 @@ allow users to extend it with new types.
 
 To implement the behavior we want `gui` to have, we’ll define a trait named
 `Draw` that will have one method named `draw`. Then we can define a vector that
-takes a *trait object*. A trait object points to an instance of a type that
-implements the trait we specify. We create a trait object by specifying some
-sort of pointer, such as a `&` reference or a `Box<T>` smart pointer, and then
-specifying the relevant trait, and add a `dyn` keyword. (We’ll talk about the
+takes a *trait object*. A trait object points to both an instance of a type
+implementing our specified trait as well as a table used to look up trait
+methods on that type at runtime. We create a trait object by specifying some
+sort of pointer, such as a `&` reference or a `Box<T>` smart pointer, then the
+`dyn` keyword, and then specifying the relevant trait. (We’ll talk about the
 reason trait objects must use a pointer in Chapter 19 in the section
-“Dynamically Sized Types & Sized”.) We can use trait objects in place of a
-generic or concrete type. Wherever we use a trait object, Rust’s type system
-will ensure at compile time that any value used in that context will
-implement the trait object’s trait. Consequently, we don’t need to know all
-the possible types at compile time.
+[“Dynamically Sized Types and the `Sized` Trait.”][dynamically-sized]<!--
+ignore -->) We can use trait objects in place of a generic or concrete type.
+Wherever we use a trait object, Rust’s type system will ensure at compile time
+that any value used in that context will implement the trait object’s trait.
+Consequently, we don’t need to know all the possible types at compile time.
 
 We’ve mentioned that in Rust, we refrain from calling structs and enums
 “objects” to distinguish them from other languages’ objects. In a struct or
@@ -160,9 +161,9 @@ collections, using generics and trait bounds is preferable because the
 definitions will be monomorphized at compile time to use the concrete types.
 
 On the other hand, with the method using trait objects, one `Screen` instance
-can hold a `Vec` that contains a `Box<Button>` as well as a `Box<TextField>`.
-Let’s look at how this works, and then we’ll talk about the runtime performance
-implications.
+can hold a `Vec<T>` that contains a `Box<Button>` as well as a
+`Box<TextField>`. Let’s look at how this works, and then we’ll talk about the
+runtime performance implications.
 
 ### Implementing the Trait
 
@@ -270,7 +271,7 @@ different types that implement the same trait</span>
 
 When we wrote the library, we didn’t know that someone might add the
 `SelectBox` type, but our `Screen` implementation was able to operate on the
-new type and draw it because `SelectBox` implements the `Draw` type, which
+new type and draw it because `SelectBox` implements the `Draw` trait, which
 means it implements the `draw` method.
 
 This concept—of being concerned only with the messages a value responds to
@@ -330,7 +331,8 @@ didn’t mean to pass and we should pass a different type or we should implement
 
 ### Trait Objects Perform Dynamic Dispatch
 
-Recall in the “Performance of Code Using Generics” section in Chapter 10 our
+Recall in the [“Performance of Code Using Generics”]
+[performance-of-code-using-generics]<!-- ignore --> section in Chapter 10 our
 discussion on the monomorphization process performed by the compiler when we
 use trait bounds on generics: the compiler generates nongeneric implementations
 of functions and methods for each concrete type that we use in place of a
@@ -385,9 +387,9 @@ pub trait Clone {
 
 The `String` type implements the `Clone` trait, and when we call the `clone`
 method on an instance of `String` we get back an instance of `String`.
-Similarly, if we call `clone` on an instance of `Vec`, we get back an instance
-of `Vec`. The signature of `clone` needs to know what type will stand in for
-`Self`, because that’s the return type.
+Similarly, if we call `clone` on an instance of `Vec<T>`, we get back an
+instance of `Vec<T>`. The signature of `clone` needs to know what type will
+stand in for `Self`, because that’s the return type.
 
 The compiler will indicate when you’re trying to do something that violates the
 rules of object safety in regard to trait objects. For example, let’s say we
@@ -407,8 +409,8 @@ error[E0038]: the trait `std::clone::Clone` cannot be made into an object
  --> src/lib.rs:2:5
   |
 2 |     pub components: Vec<Box<dyn Clone>>,
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::clone::Clone` cannot be
-made into an object
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `std::clone::Clone`
+  cannot be made into an object
   |
   = note: the trait cannot require that `Self : Sized`
 ```
@@ -417,3 +419,7 @@ This error means you can’t use this trait as a trait object in this way. If
 you’re interested in more details on object safety, see [Rust RFC 255].
 
 [Rust RFC 255]: https://github.com/rust-lang/rfcs/blob/master/text/0255-object-safety.md
+
+[performance-of-code-using-generics]:
+ch10-01-syntax.html#performance-of-code-using-generics
+[dynamically-sized]: ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait

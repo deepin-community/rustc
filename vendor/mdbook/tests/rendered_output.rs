@@ -9,27 +9,29 @@ mod dummy_book;
 
 use dummy_book::{assert_contains_strings, assert_doesnt_contain_strings, DummyBook};
 
+use mdbook::config::Config;
+use mdbook::errors::*;
+use mdbook::utils::fs::{file_to_string, write_file};
+use mdbook::MDBook;
+use select::document::Document;
+use select::predicate::{Class, Name, Predicate};
+use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::ffi::OsStr;
-use walkdir::{DirEntry, WalkDir};
-use select::document::Document;
-use select::predicate::{Class, Name, Predicate};
 use tempfile::Builder as TempFileBuilder;
-use mdbook::errors::*;
-use mdbook::utils::fs::file_to_string;
-use mdbook::config::Config;
-use mdbook::MDBook;
+use walkdir::{DirEntry, WalkDir};
 
 const BOOK_ROOT: &'static str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/dummy_book");
 const TOC_TOP_LEVEL: &[&'static str] = &[
     "1. First Chapter",
     "2. Second Chapter",
     "Conclusion",
+    "Dummy Book",
     "Introduction",
 ];
-const TOC_SECOND_LEVEL: &[&'static str] = &["1.1. Nested Chapter", "1.2. Includes"];
+const TOC_SECOND_LEVEL: &[&'static str] =
+    &["1.1. Nested Chapter", "1.2. Includes", "2.1. Nested Chapter", "1.3. Recursive"];
 
 /// Make sure you can load the dummy book and build it without panicking.
 #[test]
@@ -83,12 +85,11 @@ fn check_correct_cross_links_in_nested_dir() {
 
     let first = temp.path().join("book").join("first");
     let links = vec![
-        r#"<base href="../">"#,
-        r#"href="intro.html""#,
-        r#"href="first/index.html""#,
-        r#"href="first/nested.html""#,
-        r#"href="second.html""#,
-        r#"href="conclusion.html""#,
+        r#"href="../intro.html""#,
+        r#"href="../first/index.html""#,
+        r#"href="../first/nested.html""#,
+        r#"href="../second.html""#,
+        r#"href="../conclusion.html""#,
     ];
 
     let files_in_nested_dir = vec!["index.html", "nested.html"];
@@ -99,16 +100,26 @@ fn check_correct_cross_links_in_nested_dir() {
 
     assert_contains_strings(
         first.join("index.html"),
-        &[
-            r##"href="first/index.html#some-section" id="some-section""##,
-        ],
+        &[r##"href="#some-section" id="some-section""##],
     );
 
     assert_contains_strings(
         first.join("nested.html"),
-        &[
-            r##"href="first/nested.html#some-section" id="some-section""##,
-        ],
+        &[r##"href="#some-section" id="some-section""##],
+    );
+}
+
+#[test]
+fn check_correct_relative_links_in_print_page() {
+    let temp = DummyBook::new().build().unwrap();
+    let md = MDBook::load(temp.path()).unwrap();
+    md.build().unwrap();
+
+    let first = temp.path().join("book");
+
+    assert_contains_strings(
+        first.join("print.html"),
+        &[r##"<a href="second/../first/nested.html">the first section</a>,"##],
     );
 }
 
@@ -130,7 +141,8 @@ fn rendered_code_has_playpen_stuff() {
 #[test]
 fn chapter_content_appears_in_rendered_document() {
     let content = vec![
-        ("index.html", "Here's some interesting text"),
+        ("index.html", "This file is just here to cause the"),
+        ("intro.html", "Here's some interesting text"),
         ("second.html", "Second Chapter"),
         ("first/nested.html", "testable code"),
         ("first/index.html", "more text"),
@@ -176,7 +188,8 @@ fn chapter_files_were_rendered_to_html() {
         .filter(|path| path.file_name().and_then(OsStr::to_str) != Some("SUMMARY.md"));
 
     for chapter in chapter_files {
-        let rendered_location = temp.path()
+        let rendered_location = temp
+            .path()
             .join(chapter.strip_prefix(&src).unwrap())
             .with_extension("html");
         assert!(
@@ -215,7 +228,8 @@ fn check_second_toc_level() {
 
     let pred = descendants!(Class("chapter"), Name("li"), Name("li"), Name("a"));
 
-    let mut children_of_children: Vec<_> = doc.find(pred)
+    let mut children_of_children: Vec<_> = doc
+        .find(pred)
         .map(|elem| elem.text().trim().to_string())
         .collect();
     children_of_children.sort();
@@ -233,7 +247,8 @@ fn check_first_toc_level() {
 
     let pred = descendants!(Class("chapter"), Name("li"), Name("a"));
 
-    let mut children: Vec<_> = doc.find(pred)
+    let mut children: Vec<_> = doc
+        .find(pred)
         .map(|elem| elem.text().trim().to_string())
         .collect();
     children.sort();
@@ -246,7 +261,8 @@ fn check_spacers() {
     let doc = root_index_html().unwrap();
     let should_be = 1;
 
-    let num_spacers = doc.find(Class("chapter").descendant(Name("li").and(Class("spacer"))))
+    let num_spacers = doc
+        .find(Class("chapter").descendant(Name("li").and(Class("spacer"))))
         .count();
     assert_eq!(num_spacers, should_be);
 }
@@ -313,6 +329,20 @@ fn able_to_include_files_in_chapters() {
     assert_doesnt_contain_strings(&includes, &["{{#include ../SUMMARY.md::}}"]);
 }
 
+/// Ensure cyclic includes are capped so that no exceptions occur
+#[test]
+fn recursive_includes_are_capped() {
+    let temp = DummyBook::new().build().unwrap();
+    let md = MDBook::load(temp.path()).unwrap();
+    md.build().unwrap();
+
+    let recursive = temp.path().join("book/first/recursive.html");
+    let content = &["Around the world, around the world
+Around the world, around the world
+Around the world, around the world"];
+    assert_contains_strings(&recursive, content);
+}
+
 #[test]
 fn example_book_can_build() {
     let example_book_dir = dummy_book::new_copy_of_example_book().unwrap();
@@ -340,14 +370,55 @@ fn book_with_a_reserved_filename_does_not_build() {
     assert!(got.is_err());
 }
 
+#[test]
+fn by_default_mdbook_use_index_preprocessor_to_convert_readme_to_index() {
+    let temp = DummyBook::new().build().unwrap();
+    let mut cfg = Config::default();
+    cfg.set("book.src", "src2")
+        .expect("Couldn't set config.book.src to \"src2\".");
+    let md = MDBook::load_with_config(temp.path(), cfg).unwrap();
+    md.build().unwrap();
+
+    let first_index = temp.path().join("book").join("first").join("index.html");
+    let expected_strings = vec![
+        r#"href="../first/index.html""#,
+        r#"href="../second/index.html""#,
+        "First README",
+    ];
+    assert_contains_strings(&first_index, &expected_strings);
+    assert_doesnt_contain_strings(&first_index, &vec!["README.html"]);
+
+    let second_index = temp.path().join("book").join("second").join("index.html");
+    let unexpected_strings = vec!["Second README"];
+    assert_doesnt_contain_strings(&second_index, &unexpected_strings);
+}
+
+#[test]
+fn theme_dir_overrides_work_correctly() {
+    let book_dir = dummy_book::new_copy_of_example_book().unwrap();
+    let book_dir = book_dir.path();
+    let theme_dir = book_dir.join("theme");
+
+    let mut index = ::mdbook::theme::INDEX.to_vec();
+    index.extend_from_slice(b"\n<!-- This is a modified index.hbs! -->");
+
+    write_file(&theme_dir, "index.hbs", &index).unwrap();
+
+    let md = MDBook::load(book_dir).unwrap();
+    md.build().unwrap();
+
+    let built_index = book_dir.join("book").join("index.html");
+    dummy_book::assert_contains_strings(built_index, &["This is a modified index.hbs!"]);
+}
+
 #[cfg(feature = "search")]
 mod search {
     extern crate serde_json;
-    use std::fs::File;
-    use std::path::Path;
+    use dummy_book::DummyBook;
     use mdbook::utils::fs::file_to_string;
     use mdbook::MDBook;
-    use dummy_book::DummyBook;
+    use std::fs::File;
+    use std::path::Path;
 
     fn read_book_index(root: &Path) -> serde_json::Value {
         let index = root.join("book/searchindex.js");
@@ -365,27 +436,31 @@ mod search {
 
         let index = read_book_index(temp.path());
 
+        let doc_urls = index["doc_urls"].as_array().unwrap();
+        let get_doc_ref =
+            |url: &str| -> String { doc_urls.iter().position(|s| s == url).unwrap().to_string() };
+
+        let first_chapter = get_doc_ref("first/index.html#first-chapter");
+        let introduction = get_doc_ref("intro.html#introduction");
+        let some_section = get_doc_ref("first/index.html#some-section");
+        let summary = get_doc_ref("first/includes.html#summary");
+        let conclusion = get_doc_ref("conclusion.html#conclusion");
+
         let bodyidx = &index["index"]["index"]["body"]["root"];
         let textidx = &bodyidx["t"]["e"]["x"]["t"];
         assert_eq!(textidx["df"], 2);
-        assert_eq!(textidx["docs"]["first/index.html#first-chapter"]["tf"], 1.0);
-        assert_eq!(textidx["docs"]["intro.html#introduction"]["tf"], 1.0);
+        assert_eq!(textidx["docs"][&first_chapter]["tf"], 1.0);
+        assert_eq!(textidx["docs"][&introduction]["tf"], 1.0);
 
         let docs = &index["index"]["documentStore"]["docs"];
-        assert_eq!(docs["first/index.html#first-chapter"]["body"], "more text.");
-        assert_eq!(docs["first/index.html#some-section"]["body"], "");
+        assert_eq!(docs[&first_chapter]["body"], "more text.");
+        assert_eq!(docs[&some_section]["body"], "");
         assert_eq!(
-            docs["first/includes.html#summary"]["body"],
-            "Introduction First Chapter Nested Chapter Includes Second Chapter Conclusion"
+            docs[&summary]["body"],
+            "Dummy Book Introduction First Chapter Nested Chapter Includes Recursive Second Chapter Nested Chapter Conclusion"
         );
-        assert_eq!(
-            docs["first/includes.html#summary"]["breadcrumbs"],
-            "First Chapter » Summary"
-        );
-        assert_eq!(
-            docs["conclusion.html#conclusion"]["body"],
-            "I put &lt;HTML&gt; in here!"
-        );
+        assert_eq!(docs[&summary]["breadcrumbs"], "First Chapter » Summary");
+        assert_eq!(docs[&conclusion]["body"], "I put &lt;HTML&gt; in here!");
     }
 
     // Setting this to `true` may cause issues with `cargo watch`,
@@ -420,7 +495,7 @@ mod search {
     //
     // If you're pretty sure you haven't broken anything, change `GENERATE_FIXTURE`
     // above to `true`, and run `cargo test` to generate a new fixture. Then
-    // change it back to `false`. Include the changed `searchindex_fixture.json` in your commit.
+    // **change it back to `false`**. Include the changed `searchindex_fixture.json` in your commit.
     #[test]
     fn search_index_hasnt_changed_accidentally() {
         let temp = DummyBook::new().build().unwrap();

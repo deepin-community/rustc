@@ -144,7 +144,7 @@ macro_rules! consumes_to {
     };
 }
 
-/// A `macro` which facilitates grammar testing and debugging by comparing produced tokens.
+/// Testing tool that compares produced tokens.
 ///
 /// This macro takes several arguments:
 ///
@@ -160,7 +160,8 @@ macro_rules! consumes_to {
 /// ```
 /// # #[macro_use]
 /// # extern crate pest;
-/// # use pest::{Error, Parser};
+/// # use pest::Parser;
+/// # use pest::error::Error;
 /// # use pest::iterators::Pairs;
 /// # fn main() {
 /// # #[allow(non_camel_case_types)]
@@ -174,15 +175,15 @@ macro_rules! consumes_to {
 /// # struct AbcParser;
 /// #
 /// # impl Parser<Rule> for AbcParser {
-/// #     fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<'i, Rule>> {
-/// #         pest::state(input, |state, pos| {
-/// #             state.rule(Rule::a, pos, |state, pos| {
-/// #                 state.rule(Rule::b, pos.skip(1).unwrap(), |_, pos| {
-/// #                     pos.skip(1)
+/// #     fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<Rule>> {
+/// #         pest::state(input, |state| {
+/// #             state.rule(Rule::a, |state| {
+/// #                 state.skip(1).unwrap().rule(Rule::b, |state| {
+/// #                     state.skip(1)
 /// #                 }).unwrap().skip(1)
-/// #             }).and_then(|p| {
-/// #                 state.rule(Rule::c, p.skip(1).unwrap(), |_, pos| {
-/// #                     pos.skip(1)
+/// #             }).and_then(|state| {
+/// #                 state.skip(1).unwrap().rule(Rule::c, |state| {
+/// #                     state.skip(1)
 /// #                 })
 /// #             })
 /// #         })
@@ -216,12 +217,35 @@ macro_rules! parses_to {
 
             let rest: Vec<_> = tokens.collect();
 
-            assert!(rest.is_empty(), format!("expected end of stream, but found {:?}", rest));
+            match rest.len() {
+                0 => (),
+                2 => {
+                    let (first, second) = (&rest[0], &rest[1]);
+
+                    match (first, second) {
+                        (
+                            &$crate::Token::Start { rule: ref first_rule, .. },
+                            &$crate::Token::End { rule: ref second_rule, .. }
+                        ) => {
+                            assert!(
+                                format!("{:?}", first_rule) == "EOI",
+                                format!("expected end of input, but found {:?}", rest)
+                            );
+                            assert!(
+                                format!("{:?}", second_rule) == "EOI",
+                                format!("expected end of input, but found {:?}", rest)
+                            );
+                        }
+                        _ => panic!("expected end of input, but found {:?}", rest)
+                    }
+                }
+                _ => panic!("expected end of input, but found {:?}", rest)
+            };
         }
     };
 }
 
-/// A `macro` which facilitates grammar testing and debugging by comparing produced errors.
+/// Testing tool that compares produced errors.
 ///
 /// This macro takes several arguments:
 ///
@@ -237,7 +261,8 @@ macro_rules! parses_to {
 /// ```
 /// # #[macro_use]
 /// # extern crate pest;
-/// # use pest::{Error, Parser};
+/// # use pest::Parser;
+/// # use pest::error::Error;
 /// # use pest::iterators::Pairs;
 /// # fn main() {
 /// # #[allow(non_camel_case_types)]
@@ -251,15 +276,15 @@ macro_rules! parses_to {
 /// # struct AbcParser;
 /// #
 /// # impl Parser<Rule> for AbcParser {
-/// #     fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<'i, Rule>> {
-/// #         pest::state(input, |state, pos| {
-/// #             state.rule(Rule::a, pos, |state, pos| {
-/// #                 state.rule(Rule::b, pos.skip(1).unwrap(), |_, pos| {
-/// #                     pos.skip(1)
+/// #     fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<Rule>> {
+/// #         pest::state(input, |state| {
+/// #             state.rule(Rule::a, |state| {
+/// #                 state.skip(1).unwrap().rule(Rule::b, |s| {
+/// #                     s.skip(1)
 /// #                 }).unwrap().skip(1)
-/// #             }).and_then(|p| {
-/// #                 state.rule(Rule::c, p.skip(1).unwrap(), |_, pos| {
-/// #                     pos.match_string("e")
+/// #             }).and_then(|state| {
+/// #                 state.skip(1).unwrap().rule(Rule::c, |s| {
+/// #                     s.match_string("e")
 /// #                 })
 /// #             })
 /// #         })
@@ -279,54 +304,59 @@ macro_rules! parses_to {
 macro_rules! fails_with {
     ( parser: $parser:ident, input: $string:expr, rule: $rules:tt :: $rule:tt,
       positives: $positives:expr, negatives: $negatives:expr, pos: $pos:expr ) => {
-
         #[allow(unused_mut)]
         {
             use $crate::Parser;
 
             let error = $parser::parse($rules::$rule, $string).unwrap_err();
 
-            match error {
-                $crate::Error::ParsingError { positives, negatives, pos } => {
+            match error.variant {
+                $crate::error::ErrorVariant::ParsingError {
+                    positives,
+                    negatives,
+                } => {
                     assert_eq!(positives, $positives);
                     assert_eq!(negatives, $negatives);
-                    assert_eq!(pos.pos(), $pos);
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             };
+
+            match error.location {
+                $crate::error::InputLocation::Pos(pos) => assert_eq!(pos, $pos),
+                _ => unreachable!(),
+            }
         }
     };
 }
 
 #[cfg(test)]
 pub mod tests {
-    use super::super::{state, Parser};
     use super::super::error::Error;
     use super::super::iterators::Pairs;
+    use super::super::{state, Parser};
 
     #[allow(non_camel_case_types)]
     #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub enum Rule {
         a,
         b,
-        c
+        c,
     }
 
     pub struct AbcParser;
 
     impl Parser<Rule> for AbcParser {
-        fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<'i, Rule>> {
-            state(input, |state, pos| {
+        fn parse<'i>(_: Rule, input: &'i str) -> Result<Pairs<'i, Rule>, Error<Rule>> {
+            state(input, |state| {
                 state
-                    .rule(Rule::a, pos, |state, pos| {
-                        state
-                            .rule(Rule::b, pos.skip(1).unwrap(), |_, pos| pos.skip(1))
+                    .rule(Rule::a, |s| {
+                        s.skip(1)
+                            .unwrap()
+                            .rule(Rule::b, |s| s.skip(1))
                             .unwrap()
                             .skip(1)
                     })
-                    .and_then(|p| {
-                        state.rule(Rule::c, p.skip(1).unwrap(), |_, pos| pos.match_string("e"))
-                    })
+                    .and_then(|s| s.skip(1).unwrap().rule(Rule::c, |s| s.match_string("e")))
             })
         }
     }

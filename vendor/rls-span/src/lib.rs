@@ -9,8 +9,6 @@
 #![cfg_attr(rustbuild, feature(staged_api, rustc_private))]
 #![cfg_attr(rustbuild, unstable(feature = "rustc_private", issue = "27812"))]
 
-#![feature(proc_macro)]
-
 #[cfg(feature = "serialize-serde")]
 extern crate serde;
 #[cfg(feature = "serialize-serde")]
@@ -48,14 +46,19 @@ impl<I: Indexed> Copy for Column<I> {}
 
 #[cfg(feature = "serialize-serde")]
 impl<I: Indexed> Serialize for Column<I> {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error> {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        s: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error> {
         s.serialize_u32(self.0)
     }
 }
 
 #[cfg(feature = "serialize-serde")]
 impl<'dt, I: Indexed> Deserialize<'dt> for Column<I> {
-    fn deserialize<D: serde::Deserializer<'dt>>(d: D) -> std::result::Result<Self, <D as serde::Deserializer<'dt>>::Error> {
+    fn deserialize<D: serde::Deserializer<'dt>>(
+        d: D,
+    ) -> std::result::Result<Self, <D as serde::Deserializer<'dt>>::Error> {
         <u32 as Deserialize>::deserialize(d).map(|x| Column::new(x))
     }
 }
@@ -168,13 +171,8 @@ pub struct Position<I: Indexed> {
 }
 
 impl<I: Indexed> Position<I> {
-    pub fn new(row: Row<I>,
-               col: Column<I>)
-               -> Position<I> {
-        Position {
-            row: row,
-            col: col,
-        }
+    pub fn new(row: Row<I>, col: Column<I>) -> Position<I> {
+        Position { row: row, col: col }
     }
 }
 
@@ -215,11 +213,12 @@ pub struct Range<I: Indexed> {
 }
 
 impl<I: Indexed> Range<I> {
-    pub fn new(row_start: Row<I>,
-               row_end: Row<I>,
-               col_start: Column<I>,
-               col_end: Column<I>)
-               -> Range<I> {
+    pub fn new(
+        row_start: Row<I>,
+        row_end: Row<I>,
+        col_start: Column<I>,
+        col_end: Column<I>,
+    ) -> Range<I> {
         Range {
             row_start: row_start,
             row_end: row_end,
@@ -228,9 +227,7 @@ impl<I: Indexed> Range<I> {
         }
     }
 
-    pub fn from_positions(start: Position<I>,
-                          end: Position<I>)
-                          -> Range<I> {
+    pub fn from_positions(start: Position<I>, end: Position<I>) -> Range<I> {
         Range {
             row_start: start.row,
             row_end: end.row,
@@ -293,22 +290,14 @@ pub struct Location<I: Indexed> {
 }
 
 impl<I: Indexed> Location<I> {
-    pub fn new<F: Into<PathBuf>>(row: Row<I>,
-                                 col: Column<I>,
-                                 file: F)
-                                 -> Location<I> {
+    pub fn new<F: Into<PathBuf>>(row: Row<I>, col: Column<I>, file: F) -> Location<I> {
         Location {
-            position: Position {
-                row: row,
-                col: col,
-            },
+            position: Position { row: row, col: col },
             file: file.into(),
         }
     }
 
-    pub fn from_position<F: Into<PathBuf>>(position: Position<I>,
-                                           file: F)
-                                           -> Location<I> {
+    pub fn from_position<F: Into<PathBuf>>(position: Position<I>, file: F) -> Location<I> {
         Location {
             position: position,
             file: file.into(),
@@ -352,12 +341,13 @@ pub struct Span<I: Indexed> {
 }
 
 impl<I: Indexed> Span<I> {
-    pub fn new<F: Into<PathBuf>>(row_start: Row<I>,
-                                 row_end: Row<I>,
-                                 col_start: Column<I>,
-                                 col_end: Column<I>,
-                                 file: F)
-                                 -> Span<I> {
+    pub fn new<F: Into<PathBuf>>(
+        row_start: Row<I>,
+        row_end: Row<I>,
+        col_start: Column<I>,
+        col_end: Column<I>,
+        file: F,
+    ) -> Span<I> {
         Span {
             range: Range {
                 row_start: row_start,
@@ -376,10 +366,11 @@ impl<I: Indexed> Span<I> {
         }
     }
 
-    pub fn from_positions<F: Into<PathBuf>>(start: Position<I>,
-                                            end: Position<I>,
-                                            file: F)
-                                            -> Span<I> {
+    pub fn from_positions<F: Into<PathBuf>>(
+        start: Position<I>,
+        end: Position<I>,
+        file: F,
+    ) -> Span<I> {
         Span {
             range: Range::from_positions(start, end),
             file: file.into(),
@@ -415,9 +406,9 @@ impl Span<ZeroIndexed> {
 }
 
 #[cfg(feature = "serialize-serde")]
-pub trait Indexed: {}
+pub trait Indexed {}
 #[cfg(not(feature = "serialize-serde"))]
-pub trait Indexed: {}
+pub trait Indexed {}
 #[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serialize-serde", derive(Serialize, Deserialize))]
 #[derive(Hash, PartialEq, Eq, Debug, PartialOrd, Ord)]
@@ -431,5 +422,4 @@ impl Indexed for OneIndexed {}
 
 
 #[cfg(test)]
-mod test {
-}
+mod test {}

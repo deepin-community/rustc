@@ -1,11 +1,11 @@
-use namespace::Namespace;
+use crate::namespace::Namespace;
 use rustc::hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc::hir;
 use rustc::hir::itemlikevisit::ItemLikeVisitor;
 use rustc::traits::{self, IntercrateMode};
 use rustc::ty::TyCtxt;
 
-use lint;
+use crate::lint;
 
 pub fn crate_inherent_impls_overlap_check<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
                                                     crate_num: CrateNum) {
@@ -20,7 +20,7 @@ struct InherentOverlapChecker<'a, 'tcx: 'a> {
 
 impl<'a, 'tcx> InherentOverlapChecker<'a, 'tcx> {
     fn check_for_common_items_in_impls(&self, impl1: DefId, impl2: DefId,
-                                       overlap: traits::OverlapResult,
+                                       overlap: traits::OverlapResult<'_>,
                                        used_to_be_allowed: bool) {
 
         let name_and_namespace = |def_id| {

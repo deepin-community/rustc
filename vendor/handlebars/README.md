@@ -8,6 +8,7 @@ Rust templating with [Handlebars templating language](https://handlebarsjs.com).
 [![](https://img.shields.io/crates/d/handlebars.svg)](https://crates.io/crates/handlebars)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Docs](https://docs.rs/handlebars/badge.svg)](https://docs.rs/crate/handlebars/)
+[![Donate](https://img.shields.io/badge/donate-liberapay-yellow.svg)](https://liberapay.com/Sunng/donate)
 
 ## Getting Started
 
@@ -20,23 +21,19 @@ extern crate serde_json;
 
 use handlebars::Handlebars;
 
-fn main() {
+fn main() -> Result<(), Box<Error>> {
     let mut reg = Handlebars::new();
     // render without register
     println!(
         "{}",
-        reg.render_template("Hello {{name}}", &json!({"name": "foo"}))
-            .unwrap()
+        reg.render_template("Hello {{name}}", &json!({"name": "foo"}))?
     );
 
     // register template using given name
-    reg.register_template_string("tpl_1", "Good afternoon, {{name}}")
-        .unwrap();
-    println!("{}", reg.render("tpl_1", &json!({"name": "foo"})).unwrap());
+    reg.register_template_string("tpl_1", "Good afternoon, {{name}}")?;
+    println!("{}", reg.render("tpl_1", &json!({"name": "foo"}))?);
 }
 ```
-
-Note that I use `unwrap` here which is not recommended in your real code.
 
 ### Code Example
 
@@ -59,19 +56,9 @@ output).
 
 Checkout `examples/` for more concrete demos of current API.
 
-From 0.26, [Serde](https://serde.rs/) JSON is the default type system
-for this library. The data you pass to handlebars template must
-implements the `Serialize` trait. Note that we don't actually
-serialize data to JSON string, we just use the JSON type: number,
-boolean and etc.
+## Document
 
-Rustc_serialize is now officially deprecated. If your application is
-still using it, you need to use handlebars-rust `0.25.*`.
-
-## Documents
-
-[Rust
-doc](http://sunng87.github.io/handlebars-rust/handlebars/index.html).
+[Rust doc](https://docs.rs/crate/handlebars/).
 
 ## Changelog
 
@@ -80,7 +67,7 @@ Change log is available in the source tree named as `CHANGELOG.md`.
 ## Contributor Guide
 
 Any contribution to this library is welcomed. To get started into
-development, I have several [Helper
+development, I have several [Help
 Wanted](https://github.com/sunng87/handlebars-rust/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 issue, with difficult level labeled. When running into any problem,
 feel free to contact me on github.
@@ -88,6 +75,11 @@ feel free to contact me on github.
 I'm always looking for maintainers to work together on this library,
 also let me know (via email or anywhere in the issue tracker) if you
 want to join.
+
+## Donation
+
+I'm now accepting donation on [liberapay](https://liberapay.com/Sunng/donate),
+if you find my work helpful and want to keep it going.
 
 ## Why (this) Handlebars?
 
@@ -116,22 +108,16 @@ yourself.
 A helper can be as a simple as a Rust function like:
 
 ```rust
-fn hex_helper (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), RenderError> {
-    // just for example, add error check for unwrap
-    let param = h.param(0).unwrap().value();
-    let rendered = format!("0x{:x}", param.as_u64().unwrap());
-    try!(rc.writer.write(rendered.into_bytes().as_ref()));
-    Ok(())
-}
+handlebars_helper!(hex: |v: i64| format!("0x{:x}", v));
 
 /// register the helper
-handlebars.register_helper("hex", Box::new(hex_helper));
+handlebars.register_helper("hex", Box::new(hex));
 ```
 
 And using it in your template:
 
 ```handlebars
-{{hex my_value}}
+{{hex 16}}
 ```
 
 #### Template inheritance
@@ -149,9 +135,12 @@ You can find a real example for template inheritance in
 
 #### WebAssembly compatible
 
-You can use this handlebars implementation in your rust project that
-compiles to WebAssembly. Checkout my fork of
-[todomvc](https://github.com/sunng87/rust-todomvc) demo.
+Handlebars 1.0 can be used in WebAssembly projects with directory
+source feature disabled. Adding handlebars to your project like this:
+
+```
+handlebars = { version = "1", features = ["no_dir_source"], default-features = false }
+```
 
 #### Strict mode
 
@@ -166,7 +155,7 @@ By enabling `strict_mode` on handlebars:
 handlebars.set_strict_mode(true);
 ```
 
-You will get a `RenderError` when accessing fields that not exists.
+You will get a `RenderError` when accessing field that not exists.
 
 ### Limitations
 
@@ -209,6 +198,9 @@ workaround for cases we don't support.
 
 * Iron: [handlebars-iron](https://github.com/sunng87/handlebars-iron)
 * Rocket: [rocket/contrib](https://api.rocket.rs/rocket_contrib/struct.Template.html)
+* Warp: [handlebars
+  example](https://github.com/seanmonstar/warp/blob/master/examples/handlebars_template.rs)
+* Tower-web: [Built-in](https://github.com/carllerche/tower-web)
 
 ## Using handlebars-rust?
 
@@ -218,7 +210,3 @@ Add your project to our
 ## License
 
 This library (handlebars-rust) is open sourced under MIT License.
-
-## Contact
-
-[Ning Sun](https://github.com/sunng87) (sunng@protonmail.com)

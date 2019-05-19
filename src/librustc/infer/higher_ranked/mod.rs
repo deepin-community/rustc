@@ -4,9 +4,9 @@
 use super::combine::CombineFields;
 use super::{HigherRankedType, InferCtxt, PlaceholderMap};
 
-use infer::CombinedSnapshot;
-use ty::relate::{Relate, RelateResult, TypeRelation};
-use ty::{self, Binder, TypeFoldable};
+use crate::infer::CombinedSnapshot;
+use crate::ty::relate::{Relate, RelateResult, TypeRelation};
+use crate::ty::{self, Binder, TypeFoldable};
 
 impl<'a, 'gcx, 'tcx> CombineFields<'a, 'gcx, 'tcx> {
     pub fn higher_ranked_sub<T>(
@@ -60,7 +60,7 @@ impl<'a, 'gcx, 'tcx> CombineFields<'a, 'gcx, 'tcx> {
 }
 
 impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
-    /// Replace all regions (resp. types) bound by `binder` with placeholder
+    /// Replaces all regions (resp. types) bound by `binder` with placeholder
     /// regions (resp. types) and return a map indicating which bound-region
     /// placeholder region. This is the first step of checking subtyping
     /// when higher-ranked things are involved.
@@ -107,10 +107,7 @@ impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
              binder={:?}, \
              result={:?}, \
              map={:?})",
-            next_universe,
-            binder,
-            result,
-            map,
+            next_universe, binder, result, map,
         );
 
         (result, map)

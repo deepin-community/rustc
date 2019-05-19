@@ -11,9 +11,9 @@ fn foo(
     x: fn(&u8, &u8),
     y: for<'a> fn(&'a u8, &'a u8),
 ) {
-    let z = match 22 { //~ ERROR match arms have incompatible types
+    let z = match 22 {
         0 => x,
-        _ => y,
+        _ => y, //~ ERROR match arms have incompatible types
     };
 }
 

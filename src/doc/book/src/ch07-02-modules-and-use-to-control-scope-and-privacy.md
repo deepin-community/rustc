@@ -5,7 +5,7 @@ encompasses a few more features than modules. In this section, we’ll talk abou
 
 * Modules, a way to organize code and control the privacy of paths
 * Paths, a way to name items
-* `use` a keyword to bring a path into scope
+* `use`, a keyword to bring a path into scope
 * `pub`, a keyword to make items public
 * Renaming items when bringing them into scope with the `as` keyword
 * Using external packages
@@ -69,18 +69,19 @@ Listing 7-1. We then defined two modules within the `sound` module named
 `instrument` and `voice`. The `instrument` module has another module defined
 within it, `woodwind`, and that module contains a function named `clarinet`.
 
-We mentioned in the “Packages and Crates for Making Libraries and Executables”
-section that *src/main.rs* and *src/lib.rs* are called *crate roots*. They are
-called crate roots because the contents of either of these two files form a
-module named `crate` at the root of the crate’s module tree. So in Listing 7-2,
-we have a module tree that looks like Listing 7-3:
+We mentioned in the [“Packages and Crates for Making Libraries and
+Executables”][packages]<!-- ignore --> section that *src/main.rs* and
+*src/lib.rs* are called *crate roots*. They are called crate roots because the
+contents of either of these two files form a module named `crate` at the root
+of the crate’s module tree. So in Listing 7-2, we have a module tree that looks
+like Listing 7-3:
 
 ```text
 crate
- └── sound
-     └── instrument
-        └── woodwind
-     └── voice
+└── sound
+    ├── instrument
+    │   └── woodwind
+    └── voice
 ```
 
 <span class="caption">Listing 7-3: The module tree for the code in Listing
@@ -180,7 +181,7 @@ error[E0603]: module `instrument` is private
 <span class="caption">Listing 7-5: Compiler errors from building the code in
 Listing 7-4</span>
 
-The error messsages say that module `instrument` is private. We can see that we
+The error messages say that module `instrument` is private. We can see that we
 have the correct paths for the `instrument` module and the `clarinet` function,
 but Rust won’t let us use them because they’re private. It’s time to learn
 about the `pub` keyword!
@@ -192,7 +193,7 @@ organization. There’s another reason Rust has modules: modules are the *privac
 boundary* in Rust. If you want to make an item like a function or struct
 private, you put it in a module. Here are the privacy rules:
 
-* All items (functions, methods, structs, enums, modules, annd constants) are
+* All items (functions, methods, structs, enums, modules, and constants) are
   private by default.
 * You can use the `pub` keyword to make an item public.
 * You aren’t allowed to use private code defined in modules that are children
@@ -319,7 +320,7 @@ You can also construct relative paths beginning with `super`. Doing so is like
 starting a filesystem path with `..`: the path starts from the *parent* module,
 rather than the current module. This is useful in situations such as the
 example in Listing 7-9, where the function `clarinet` calls the function
-`breathe_in` by specifying the path to `breathe_in` start with `super`:
+`breathe_in` by specifying its path to start with `super`:
 
 <span class="filename">Filename: src/lib.rs</span>
 
@@ -536,7 +537,7 @@ fn main() {
 a relative path starting with `self`</span>
 
 Starting relative paths with `self` when specified after `use` might not be
-neccesary in the future; it’s an inconsistency in the language that people are
+necessary in the future; it’s an inconsistency in the language that people are
 working on eliminating.
 
 Choosing to specify absolute paths with `use` can make updates easier if the
@@ -613,7 +614,7 @@ fn main() {
 ```
 
 <span class="caption">Listing 7-16: Bringing the `clarinet` function into
-scoope with `use`, which is unidiomatic</span>
+scope with `use`, which is unidiomatic</span>
 
 For functions, it’s considered idiomatic to specify the function’s parent
 module with `use`, and then specify the parent module when calling the
@@ -672,6 +673,7 @@ use std::io;
 fn function1() -> fmt::Result {
 #     Ok(())
 }
+
 fn function2() -> io::Result<()> {
 #     Ok(())
 }
@@ -780,9 +782,9 @@ available to our project.
 
 Then, to bring `rand` definitions into the scope of our package, we added a
 `use` line starting with the name of the package, `rand`, and listing the items
-we wanted to bring into scope. Recall that in the “Generating a Random Number”
-section in Chapter 2, we brought the `Rng` trait into scope and called the
-`rand::thread_rng` function:
+we wanted to bring into scope. Recall that in the [“Generating a Random
+Number”][rand]<!-- ignore --> section in Chapter 2, we brought the `Rng` trait
+into scope and called the `rand::thread_rng` function:
 
 ```rust,ignore
 use rand::Rng;
@@ -793,7 +795,7 @@ fn main() {
 ```
 
 There are many packages that members of the community have published on
-*https://crates.io*, and pulling any of them in to your package involves these
+*https://crates.io*, and pulling any of them into your package involves these
 same steps: listing them in your package’s *Cargo.toml* and bringing items
 defined in them into a scope in your package with `use`.
 
@@ -876,7 +878,7 @@ This brings both `std::io` and `std::io::Write` into scope.
 ### Bringing All Public Definitions into Scope with the Glob Operator
 
 If you’d like to bring *all* public items defined in a path into scope, you can
-use specify that path followed by `*`, the glob operator:
+specify that path followed by `*`, the glob operator:
 
 ```rust
 use std::collections::*;
@@ -889,11 +891,11 @@ Be careful with using the glob operator! It makes it harder to tell what names
 are in scope and where a name your program uses was defined.
 
 The glob operator is often used when testing to bring everything under test
-into the `tests` module; we’ll talk about that in the “How to Write Tests”
-section of Chapter 11. The glob operator is also sometimes used as part of the
-prelude pattern; see [the standard library
-documentation](../std/prelude/index.html#other-preludes) for more
-information on that pattern.
+into the `tests` module; we’ll talk about that in the [“How to Write
+Tests”][writing-tests]<!-- ignore --> section of Chapter 11. The glob operator
+is also sometimes used as part of the prelude pattern; see [the standard
+library documentation](../std/prelude/index.html#other-preludes)<!-- ignore -->
+for more information on that pattern.
 
 ### Separating Modules into Different Files
 
@@ -977,3 +979,7 @@ choose to make definitions public by adding the `pub` keyword.
 
 Next, we’ll look at some collection data structures in the standard library
 that you can use in your nice, neat code.
+
+[packages]: ch07-01-packages-and-crates-for-making-libraries-and-executables.html#packages-and-crates-for-making-libraries-and-executables
+[rand]: ch02-00-guessing-game-tutorial.html#generating-a-random-number
+[writing-tests]: ch11-01-writing-tests.html#how-to-write-tests

@@ -1,5 +1,41 @@
 # Change Log
 
+## [1.1.0](https://github.com/sunng87/handlebars-rust/compare/1.0.5...1.1.0) - 2018-10-24
+
+* [Added] New option `includeZero` for `if` helper
+* [Added] New option `level` for `log` helper
+* [Changed] Updated Pest to 2.0
+
+## [1.0.5](https://github.com/sunng87/handlebars-rust/compare/1.0.4...1.0.5) - 2018-10-04
+
+* [Changed] Added feature `no_logging` for using handlebars in a
+  logging provider.
+
+## [1.0.4](https://github.com/sunng87/handlebars-rust/compare/1.0.3...1.0.4) - 2018-09-21
+
+* [Changed] Fixed build on wasm
+* [Changed] Added support for single-quote Json string literal
+
+## [1.0.3](https://github.com/sunng87/handlebars-rust/compare/1.0.2...1.0.3) - 2018-08-29
+
+* [Changed] Fixed build on Rust 1.23.0
+
+## [1.0.2](https://github.com/sunng87/handlebars-rust/compare/1.0.1...1.0.2) - 2018-08-27
+
+* [Changed] Update minimal dependency versions
+
+## [1.0.1](https://github.com/sunng87/handlebars-rust/compare/1.0.0...1.0.1) - 2018-08-16
+
+* [Changed] Added hidden/temp file filter to directory register
+
+## [1.0.0](https://github.com/sunng87/handlebars-rust/compare/0.32.4...1.0.0) - 2018-07-18
+
+* [Changed] Helper API finalized and new output API
+* [Changed] New internal value API, reduced clone cost
+* [Added] Helper macro
+* [Added] New built-in helpers: `gt`, `lt` and some more
+* [Added] Register template folder
+
 ## [0.32.4](https://github.com/sunng87/handlebars-rust/compare/0.32.3...0.32.4) - 2018-05-23
 
 * [Changed] Keep compatibility with pre-1.26 rust by removing `impl

@@ -15,31 +15,33 @@ use super::queueable_token::QueueableToken;
 use super::tokens::{self, Tokens};
 use RuleType;
 
-/// A `struct` containing `Pairs`. It is created by
-/// [`Pairs::flatten`](struct.Pairs.html#method.flatten).
+/// An iterator over [`Pair`]s. It is created by [`Pairs::flatten`].
+///
+/// [`Pair`]: struct.Pair.html
+/// [`Pairs::flatten`]: struct.Pairs.html#method.flatten
 pub struct FlatPairs<'i, R> {
     queue: Rc<Vec<QueueableToken<R>>>,
     input: &'i str,
     start: usize,
-    end: usize
+    end: usize,
 }
 
 pub fn new<R: RuleType>(
     queue: Rc<Vec<QueueableToken<R>>>,
     input: &str,
     start: usize,
-    end: usize
+    end: usize,
 ) -> FlatPairs<R> {
     FlatPairs {
         queue,
         input,
         start,
-        end
+        end,
     }
 }
 
 impl<'i, R: RuleType> FlatPairs<'i, R> {
-    /// Converts the `FlatPairs` into a `TokenIterator`.
+    /// Returns the `Tokens` for these pairs.
     ///
     /// # Examples
     ///
@@ -53,9 +55,9 @@ impl<'i, R: RuleType> FlatPairs<'i, R> {
     /// }
     ///
     /// let input = "";
-    /// let pairs = pest::state(input, |state, pos| {
+    /// let pairs = pest::state(input, |state| {
     ///     // generating Token pair with Rule::a ...
-    /// #     state.rule(Rule::a, pos, |_, p| Ok(p))
+    /// #     state.rule(Rule::a, |s| Ok(s))
     /// }).unwrap();
     /// let tokens: Vec<_> = pairs.flatten().tokens().collect();
     ///
@@ -69,15 +71,23 @@ impl<'i, R: RuleType> FlatPairs<'i, R> {
     fn next_start(&mut self) {
         self.start += 1;
 
-        while self.start < self.end && !self.is_start() {
+        while self.start < self.end && !self.is_start(self.start) {
             self.start += 1;
         }
     }
 
-    fn is_start(&self) -> bool {
-        match self.queue[self.start] {
+    fn next_start_from_end(&mut self) {
+        self.end -= 1;
+
+        while self.end >= self.start && !self.is_start(self.end) {
+            self.end -= 1;
+        }
+    }
+
+    fn is_start(&self, index: usize) -> bool {
+        match self.queue[index] {
             QueueableToken::Start { .. } => true,
-            QueueableToken::End { .. } => false
+            QueueableToken::End { .. } => false,
         }
     }
 }
@@ -98,13 +108,25 @@ impl<'i, R: RuleType> Iterator for FlatPairs<'i, R> {
     }
 }
 
+impl<'i, R: RuleType> DoubleEndedIterator for FlatPairs<'i, R> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.end <= self.start {
+            return None;
+        }
+
+        self.next_start_from_end();
+
+        let pair = pair::new(Rc::clone(&self.queue), self.input, self.end);
+
+        Some(pair)
+    }
+}
+
 impl<'i, R: RuleType> fmt::Debug for FlatPairs<'i, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "FlatPairs {{ pairs: {:?} }}",
-            self.clone().collect::<Vec<_>>()
-        )
+        f.debug_struct("FlatPairs")
+            .field("pairs", &self.clone().collect::<Vec<_>>())
+            .finish()
     }
 }
 
@@ -114,7 +136,36 @@ impl<'i, R: Clone> Clone for FlatPairs<'i, R> {
             queue: Rc::clone(&self.queue),
             input: self.input,
             start: self.start,
-            end: self.end
+            end: self.end,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::macros::tests::*;
+    use super::super::super::Parser;
+
+    #[test]
+    fn iter_for_flat_pairs() {
+        let pairs = AbcParser::parse(Rule::a, "abcde").unwrap();
+
+        assert_eq!(
+            pairs.flatten().map(|p| p.as_rule()).collect::<Vec<Rule>>(),
+            vec![Rule::a, Rule::b, Rule::c]
+        );
+    }
+
+    #[test]
+    fn double_ended_iter_for_flat_pairs() {
+        let pairs = AbcParser::parse(Rule::a, "abcde").unwrap();
+        assert_eq!(
+            pairs
+                .flatten()
+                .rev()
+                .map(|p| p.as_rule())
+                .collect::<Vec<Rule>>(),
+            vec![Rule::c, Rule::b, Rule::a]
+        );
     }
 }

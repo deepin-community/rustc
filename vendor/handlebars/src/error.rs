@@ -1,8 +1,11 @@
-use std::io::Error as IOError;
 use std::error::Error;
 use std::fmt;
+use std::io::Error as IOError;
+use std::string::FromUtf8Error;
 
 use serde_json::error::Error as SerdeError;
+#[cfg(not(feature = "no_dir_source"))]
+use walkdir::Error as WalkdirError;
 
 use template::Parameter;
 
@@ -52,6 +55,12 @@ impl From<IOError> for RenderError {
 
 impl From<SerdeError> for RenderError {
     fn from(e: SerdeError) -> RenderError {
+        RenderError::with(e)
+    }
+}
+
+impl From<FromUtf8Error> for RenderError {
+    fn from(e: FromUtf8Error) -> RenderError {
         RenderError::with(e)
     }
 }
@@ -176,9 +185,9 @@ fn template_segment(template_str: &str, line: usize, col: usize) -> String {
 impl fmt::Display for TemplateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match (self.line_no, self.column_no, &self.segment) {
-            (Some(line), Some(col), &Some(ref seg)) => write!(
+            (Some(line), Some(col), &Some(ref seg)) => writeln!(
                 f,
-                "Template error: {}\n    --> Template error in \"{}\":{}:{}\n     |\n{}     |\n     = reason: {}\n",
+                "Template error: {}\n    --> Template error in \"{}\":{}:{}\n     |\n{}     |\n     = reason: {}",
                 self.reason,
                 self.template_name
                     .as_ref()
@@ -207,6 +216,17 @@ quick_error! {
             description(err.description())
             display("Template \"{}\": {}", name, err)
         }
+    }
+}
+
+#[cfg(not(feature = "no_dir_source"))]
+impl From<WalkdirError> for TemplateFileError {
+    fn from(error: WalkdirError) -> TemplateFileError {
+        let path_string: String = error
+            .path()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        TemplateFileError::IOError(IOError::from(error), path_string)
     }
 }
 

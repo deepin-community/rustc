@@ -9,11 +9,27 @@
 
 //! # pest. The Elegant Parser
 //!
-//! pest is a [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar) parser built with
-//! *simplicity* and *speed* in mind.
+//! pest is a general purpose parser written in Rust with a focus on accessibility, correctness,
+//! and performance. It uses parsing expression grammars (or [PEG]) as input, which are similar in
+//! spirit to regular expressions, but which offer the enhanced expressivity needed to parse
+//! complex languages.
 //!
-//! This crate works in conjunction with the [`pest` crate](https://docs.rs/pest) by
-//! deriving a grammar implementation based on a provided grammar.
+//! [PEG]: https://en.wikipedia.org/wiki/Parsing_expression_grammar
+//!
+//! ## Getting started
+//!
+//! The recommended way to start parsing with pest is to read the official [book].
+//!
+//! Other helpful resources:
+//!
+//! * API reference on [docs.rs]
+//! * play with grammars and share them on our [fiddle]
+//! * leave feedback, ask questions, or greet us on [Gitter]
+//!
+//! [book]: https://pest-parser.github.io/book
+//! [docs.rs]: https://docs.rs/pest
+//! [fiddle]: https://pest-parser.github.io/#editor
+//! [Gitter]: https://gitter.im/dragostis/pest
 //!
 //! ## `.pest` files
 //!
@@ -21,20 +37,15 @@
 //! relative to `src` and is specified between the `derive` attribute and empty `struct` that
 //! `Parser` will be derived on.
 //!
-//! Because of a limitation in procedural macros, there is no way for Cargo to know that a module
-//! needs to be recompiled based on the file that the procedural macro is opening. This leads to the
-//! case where modifying a `.pest` file without touching the file where the `derive` is does not
-//! recompile it if it already has a working binary in the cache. To avoid this issue, the grammar
-//! file can be included in a dummy `const` definition while debugging.
-//!
 //! ```ignore
-//! #[cfg(debug_assertions)]
-//! const _GRAMMAR: &'static str = include_str!("path/to/my_grammar.pest"); // relative to this file
-//!
 //! #[derive(Parser)]
 //! #[grammar = "path/to/my_grammar.pest"] // relative to src
 //! struct MyParser;
 //! ```
+//!
+//! ## Inline grammars
+//!
+//! Grammars can also be inlined by using the `#[grammar_inline = "..."]` attribute.
 //!
 //! ## Grammar
 //!
@@ -92,7 +103,7 @@
 //!     a =  { "a" }
 //!     b = @{ a ~ "b" }
 //!
-//!     whitespace = _{ " " }
+//!     WHITESPACE = _{ " " }
 //!     ```
 //!
 //!     Parsing `"ab"` produces the token pair `b()`, while `"a   b"` produces an error.
@@ -106,7 +117,7 @@
 //!     a =  { "a" }
 //!     b = ${ a ~ "b" }
 //!
-//!     whitespace = _{ " " }
+//!     WHITESPACE = _{ " " }
 //!     ```
 //!
 //!     Parsing `"ab"` produces the token pairs `b(a())`, while `"a   b"` produces an error.
@@ -121,7 +132,7 @@
 //!     b = !{ a ~ "b" }
 //!     c = @{ b }
 //!
-//!     whitespace = _{ " " }
+//!     WHITESPACE = _{ " " }
 //!     ```
 //!
 //!     Parsing both `"ab"` and `"a   b"` produce the token pairs `c(a())`.
@@ -146,40 +157,51 @@
 //!
 //! 2. Non-terminals
 //!
-//!     | Non-terminal | Usage                                                      |
-//!     |--------------|------------------------------------------------------------|
-//!     | `(e)`        | matches `e`                                                |
-//!     | `e1 ~ e2`    | matches the sequence `e1` `e2`                             |
-//!     | `e1 | e2`    | matches either `e1` or `e2`                                |
-//!     | `e*`         | matches `e` zero or more times                             |
-//!     | `e+`         | matches `e` one or more times                              |
-//!     | `e{n}`       | matches `e` exactly `n` times                              |
-//!     | `e{, n}`     | matches `e` at most `n` times                              |
-//!     | `e{n,} `     | matches `e` at least `n` times                             |
-//!     | `e{m, n}`    | matches `e` between `m` and `n` times inclusively          |
-//!     | `e?`         | optionally matches `e`                                     |
-//!     | `&e`         | matches `e` without making progress                        |
-//!     | `!e`         | matches if `e` doesn't match without making progress       |
-//!     | `push(e)`    | matches `e` and pushes it's captured string down the stack |
+//!     | Non-terminal          | Usage                                                      |
+//!     |-----------------------|------------------------------------------------------------|
+//!     | `(e)`                 | matches `e`                                                |
+//!     | `e1 ~ e2`             | matches the sequence `e1` `e2`                             |
+//!     | <code>e1 \| e2</code> | matches either `e1` or `e2`                                |
+//!     | `e*`                  | matches `e` zero or more times                             |
+//!     | `e+`                  | matches `e` one or more times                              |
+//!     | `e{n}`                | matches `e` exactly `n` times                              |
+//!     | `e{, n}`              | matches `e` at most `n` times                              |
+//!     | `e{n,} `              | matches `e` at least `n` times                             |
+//!     | `e{m, n}`             | matches `e` between `m` and `n` times inclusively          |
+//!     | `e?`                  | optionally matches `e`                                     |
+//!     | `&e`                  | matches `e` without making progress                        |
+//!     | `!e`                  | matches if `e` doesn't match without making progress       |
+//!     | `PUSH(e)`             | matches `e` and pushes it's captured string down the stack |
 //!
 //!     where `e`, `e1`, and `e2` are expressions.
+//!
+//! Expressions can modify the stack only if they match the input. For example,
+//! if `e1` in the compound expression `e1 | e2` does not match the input, then
+//! it does not modify the stack, so `e2` sees the stack in the same state as
+//! `e1` did. Repetitions and optionals (`e*`, `e+`, `e{, n}`, `e{n,}`,
+//! `e{m,n}`, `e?`) can modify the stack each time `e` matches. The `!e` and `&e`
+//! expressions are a special case; they never modify the stack.
 //!
 //! ## Special rules
 //!
 //! Special rules can be called within the grammar. They are:
 //!
-//! * `whitespace` - gets run between rules and sub-rules
-//! * `comment` - gets run between rules and sub-rules
-//! * `any` - matches exactly one `char`
-//! * `soi` - (start-of-input) matches only when a `Parser` is still at the starting position
-//! * `eoi` - (end-of-input) matches only when a `Parser` has reached its end
-//! * `pop` - pops a string from the stack and matches it
-//! * `peek` - peeks a string from the stack and matches it
+//! * `WHITESPACE` - runs between rules and sub-rules
+//! * `COMMENT` - runs between rules and sub-rules
+//! * `ANY` - matches exactly one `char`
+//! * `SOI` - (start-of-input) matches only when a `Parser` is still at the starting position
+//! * `EOI` - (end-of-input) matches only when a `Parser` has reached its end
+//! * `POP` - pops a string from the stack and matches it
+//! * `POP_ALL` - pops the entire state of the stack and matches it
+//! * `PEEK` - peeks a string from the stack and matches it
+//! * `PEEK[a..b]` - peeks part of the stack and matches it
+//! * `PEEK_ALL` - peeks the entire state of the stack and matches it
+//! * `DROP` - drops the top of the stack (fails to match if the stack is empty)
 //!
-//! `whitespace` and `comment` should be defined manually if needed. All other rules cannot be
+//! `WHITESPACE` and `COMMENT` should be defined manually if needed. All other rules cannot be
 //! overridden.
 //!
-//! ## `whitespace` and `comment`
+//! ## `WHITESPACE` and `COMMENT`
 //!
 //! When defined, these rules get matched automatically in sequences (`~`) and repetitions
 //! (`*`, `+`) between expressions. Atomic rules and those rules called by atomic rules are exempt
@@ -188,7 +210,7 @@
 //! These rules should be defined so as to match one whitespace character and one comment only since
 //! they are run in repetitions.
 //!
-//! If both `whitespace` and `comment` are defined, this grammar:
+//! If both `WHITESPACE` and `COMMENT` are defined, this grammar:
 //!
 //! ```ignore
 //! a = { b ~ c }
@@ -197,19 +219,19 @@
 //! is effectively transformed into this one behind the scenes:
 //!
 //! ```ignore
-//! a = { b ~ whitespace* ~ (comment ~ whitespace*)* ~ c }
+//! a = { b ~ WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~ c }
 //! ```
 //!
-//! ## `push`, `pop`, and `peek`
+//! ## `PUSH`, `POP`, `DROP`, and `PEEK`
 //!
-//! `push(e)` simply pushes the captured string of the expression `e` down a stack. This stack can
-//! then later be used to match grammar based on its content with `pop` and `peek`.
+//! `PUSH(e)` simply pushes the captured string of the expression `e` down a stack. This stack can
+//! then later be used to match grammar based on its content with `POP` and `PEEK`.
 //!
-//! `peek` always matches the string at the top of stack. So, if the stack contains `["a", "b"]`,
-//! the this grammar:
+//! `PEEK` always matches the string at the top of stack. So, if the stack contains `["b", "a"]`
+//! (`"a"` being on top), this grammar:
 //!
 //! ```ignore
-//! a = { peek }
+//! a = { PEEK }
 //! ```
 //!
 //! is effectively transformed into at parse time:
@@ -218,183 +240,63 @@
 //! a = { "a" }
 //! ```
 //!
-//! `pop` works the same way with the exception that it pops the string off of the stack if the
-//! the match worked. With the stack from above, if `pop` matches `"a"`, the stack will be mutated
+//! `POP` works the same way with the exception that it pops the string off of the stack if the
+//! match worked. With the stack from above, if `POP` matches `"a"`, the stack will be mutated
 //! to `["b"]`.
+//!
+//! `DROP` makes it possible to remove the string at the top of the stack
+//! without matching it. If the stack is nonempty, `DROP` drops the top of the
+//! stack. If the stack is empty, then `DROP` fails to match.
+//!
+//! ### Advanced peeking
+//!
+//! `PEEK[start..end]` and `PEEK_ALL` allow to peek deeper into the stack. The syntax works exactly
+//! like Rust’s exclusive slice syntax. Additionally, negative indices can be used to indicate an
+//! offset from the top. If the end lies before or at the start, the expression matches (as does
+//! a `PEEK_ALL` on an empty stack). With the stack `["c", "b", "a"]` (`"a"` on top):
+//!
+//! ```ignore
+//! fill = PUSH("c") ~ PUSH("b") ~ PUSH("a")
+//! v = { PEEK_ALL } = { "a" ~ "b" ~ "c" }  // top to bottom
+//! w = { PEEK[..] } = { "c" ~ "b" ~ "a" }  // bottom to top
+//! x = { PEEK[1..2] } = { PEEK[1..-1] } = { "b" }
+//! y = { PEEK[..-2] } = { PEEK[0..1] } = { "a" }
+//! z = { PEEK[1..] } = { PEEK[-2..3] } = { "c" ~ "b" }
+//! n = { PEEK[2..-2] } = { PEEK[2..1] } = { "" }
+//! ```
+//!
+//! For historical reasons, `PEEK_ALL` matches from top to bottom, while `PEEK[start..end]` matches
+//! from bottom to top. There is currectly no syntax to match a slice of the stack top to bottom.
 //!
 //! ## `Rule`
 //!
 //! All rules defined or used in the grammar populate a generated `enum` called `Rule`. This
 //! implements `pest`'s `RuleType` and can be used throughout the API.
+//!
+//! ## `Built-in rules`
+//!
+//! Pest also comes with a number of built-in rules for convenience. They are:
+//!
+//! * `ASCII_DIGIT` - matches a numeric character from 0..9
+//! * `ASCII_NONZERO_DIGIT` - matches a numeric character from 1..9
+//! * `ASCII_BIN_DIGIT` - matches a numeric character from 0..1
+//! * `ASCII_OCT_DIGIT` - matches a numeric character from 0..7
+//! * `ASCII_HEX_DIGIT` - matches a numeric character from 0..9 or a..f or A..F
+//! * `ASCII_ALPHA_LOWER` - matches a character from a..z
+//! * `ASCII_ALPHA_UPPER` - matches a character from A..Z
+//! * `ASCII_ALPHA` - matches a character from a..z or A..Z
+//! * `ASCII_ALPHANUMERIC` - matches a character from a..z or A..Z or 0..9
+//! * `ASCII` - matches a character from \x00..\x7f
+//! * `NEWLINE` - matches either "\n" or "\r\n" or "\r"
 
 #![doc(html_root_url = "https://docs.rs/pest_derive")]
-#![recursion_limit = "256"]
 
-#[cfg(test)]
-#[macro_use]
-extern crate pest;
-#[cfg(not(test))]
-extern crate pest;
-
+extern crate pest_generator;
 extern crate proc_macro;
-#[macro_use]
-extern crate quote;
-extern crate syn;
 
-use std::env;
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
-
-use pest::Parser;
 use proc_macro::TokenStream;
-use quote::Ident;
-use syn::{Attribute, Lit, MetaItem};
 
-mod ast;
-mod generator;
-mod optimizer;
-mod parser;
-mod validator;
-
-use parser::{GrammarParser, GrammarRule};
-
-#[proc_macro_derive(Parser, attributes(grammar))]
+#[proc_macro_derive(Parser, attributes(grammar, grammar_inline))]
 pub fn derive_parser(input: TokenStream) -> TokenStream {
-    let source = input.to_string();
-
-    let (name, path) = parse_derive(source);
-
-    let root = env::var("CARGO_MANIFEST_DIR").unwrap_or(".".into());
-    let path = Path::new(&root).join("src/").join(&path);
-    let file_name = match path.file_name() {
-        Some(file_name) => file_name,
-        None => panic!("grammar attribute should point to a file")
-    };
-
-    let data = match read_file(&path) {
-        Ok(data) => data,
-        Err(error) => panic!("error opening {:?}: {}", file_name, error)
-    };
-
-    let input = &data;
-    let pairs = match GrammarParser::parse(GrammarRule::grammar_rules, input) {
-        Ok(pairs) => pairs,
-        Err(error) => panic!(
-            "error parsing {:?}\n\n{}",
-            file_name,
-            error.renamed_rules(|rule| match *rule {
-                GrammarRule::grammar_rule => "rule".to_owned(),
-                GrammarRule::eoi => "end-of-input".to_owned(),
-                GrammarRule::assignment_operator => "`=`".to_owned(),
-                GrammarRule::silent_modifier => "`_`".to_owned(),
-                GrammarRule::atomic_modifier => "`@`".to_owned(),
-                GrammarRule::compound_atomic_modifier => "`$`".to_owned(),
-                GrammarRule::non_atomic_modifier => "`!`".to_owned(),
-                GrammarRule::opening_brace => "`{`".to_owned(),
-                GrammarRule::closing_brace => "`}`".to_owned(),
-                GrammarRule::opening_paren => "`(`".to_owned(),
-                GrammarRule::positive_predicate_operator => "`&`".to_owned(),
-                GrammarRule::negative_predicate_operator => "`!`".to_owned(),
-                GrammarRule::sequence_operator => "`&`".to_owned(),
-                GrammarRule::choice_operator => "`|`".to_owned(),
-                GrammarRule::optional_operator => "`?`".to_owned(),
-                GrammarRule::repeat_operator => "`*`".to_owned(),
-                GrammarRule::repeat_once_operator => "`+`".to_owned(),
-                GrammarRule::comma => "`,`".to_owned(),
-                GrammarRule::closing_paren => "`)`".to_owned(),
-                GrammarRule::quote => "`\"`".to_owned(),
-                GrammarRule::insensitive_string => "`^`".to_owned(),
-                GrammarRule::range_operator => "`..`".to_owned(),
-                GrammarRule::single_quote => "`'`".to_owned(),
-                other_rule => format!("{:?}", other_rule)
-            })
-        )
-    };
-
-    let (ast, defaults) = parser::consume_rules(pairs);
-    let optimized = optimizer::optimize(ast);
-    let generated = generator::generate(name, optimized, defaults);
-
-    generated.as_ref().parse().unwrap()
-}
-
-fn read_file<P: AsRef<Path>>(path: P) -> io::Result<String> {
-    let mut file = File::open(path.as_ref())?;
-    let mut string = String::new();
-    file.read_to_string(&mut string)?;
-    Ok(string)
-}
-
-fn parse_derive(source: String) -> (Ident, String) {
-    let ast = syn::parse_derive_input(&source).unwrap();
-    let name = Ident::new(ast.ident.as_ref());
-
-    let grammar: Vec<_> = ast.attrs
-        .iter()
-        .filter(|attr| match attr.value {
-            MetaItem::NameValue(ref ident, _) => format!("{}", ident) == "grammar",
-            _ => false
-        })
-        .collect();
-
-    let filename = match grammar.len() {
-        0 => panic!("a grammar file needs to be provided with the #[grammar(\"...\")] attribute"),
-        1 => get_filename(grammar[0]),
-        _ => panic!("only 1 grammar file can be provided")
-    };
-
-    (name, filename)
-}
-
-fn get_filename(attr: &Attribute) -> String {
-    if let MetaItem::NameValue(_, ref lit) = attr.value {
-        if let &Lit::Str(ref string, _) = lit {
-            string.clone()
-        } else {
-            panic!("grammar attribute must be a string")
-        }
-    } else {
-        unreachable!();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::parse_derive;
-
-    #[test]
-    fn derive_ok() {
-        let definition = "
-            #[other_attr]
-            #[grammar = \"myfile.pest\"]
-            pub struct MyParser<'a, T>;
-        ";
-        let (_, filename) = parse_derive(definition.to_owned());
-
-        assert_eq!(filename, "myfile.pest");
-    }
-
-    #[test]
-    #[should_panic(expected = "only 1 grammar file can be provided")]
-    fn derive_multiple_grammars() {
-        let definition = "
-            #[other_attr]
-            #[grammar = \"myfile1.pest\"]
-            #[grammar = \"myfile2.pest\"]
-            pub struct MyParser<'a, T>;
-        ";
-        parse_derive(definition.to_owned());
-    }
-
-    #[test]
-    #[should_panic(expected = "grammar attribute must be a string")]
-    fn derive_wrong_arg() {
-        let definition = "
-            #[other_attr]
-            #[grammar = 1]
-            pub struct MyParser<'a, T>;
-        ";
-        parse_derive(definition.to_owned());
-    }
+    pest_generator::derive_parser(input.into(), true).into()
 }

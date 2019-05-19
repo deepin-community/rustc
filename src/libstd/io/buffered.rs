@@ -5,7 +5,7 @@ use io::prelude::*;
 use cmp;
 use error;
 use fmt;
-use io::{self, Initializer, DEFAULT_BUF_SIZE, Error, ErrorKind, SeekFrom};
+use io::{self, Initializer, DEFAULT_BUF_SIZE, Error, ErrorKind, SeekFrom, IoVec, IoVecMut};
 use memchr;
 
 /// The `BufReader` struct adds buffering to any reader.
@@ -16,9 +16,9 @@ use memchr;
 /// the underlying [`Read`] and maintains an in-memory buffer of the results.
 ///
 /// `BufReader` can improve the speed of programs that make *small* and
-/// *repeated* read calls to the same file or network socket.  It does not
+/// *repeated* read calls to the same file or network socket. It does not
 /// help when reading very large amounts at once, or reading just one or a few
-/// times.  It also provides no advantage when reading from a source that is
+/// times. It also provides no advantage when reading from a source that is
 /// already in memory, like a `Vec<u8>`.
 ///
 /// [`Read`]: ../../std/io/trait.Read.html
@@ -235,6 +235,19 @@ impl<R: Read> Read for BufReader<R> {
         Ok(nread)
     }
 
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        let total_len = bufs.iter().map(|b| b.len()).sum::<usize>();
+        if self.pos == self.cap && total_len >= self.buf.len() {
+            return self.inner.read_vectored(bufs);
+        }
+        let nread = {
+            let mut rem = self.fill_buf()?;
+            rem.read_vectored(bufs)?
+        };
+        self.consume(nread);
+        Ok(nread)
+    }
+
     // we can't skip unconditionally because of the large buffer case in read.
     unsafe fn initializer(&self) -> Initializer {
         self.inner.initializer()
@@ -331,9 +344,9 @@ impl<R: Seek> Seek for BufReader<R> {
 /// writer in large, infrequent batches.
 ///
 /// `BufWriter` can improve the speed of programs that make *small* and
-/// *repeated* write calls to the same file or network socket.  It does not
+/// *repeated* write calls to the same file or network socket. It does not
 /// help when writing very large amounts at once, or writing just one or a few
-/// times.  It also provides no advantage when writing to a destination that is
+/// times. It also provides no advantage when writing to a destination that is
 /// in memory, like a `Vec<u8>`.
 ///
 /// When the `BufWriter` is dropped, the contents of its buffer will be written
@@ -577,9 +590,25 @@ impl<W: Write> Write for BufWriter<W> {
             self.panicked = false;
             r
         } else {
-            Write::write(&mut self.buf, buf)
+            self.buf.write(buf)
         }
     }
+
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        let total_len = bufs.iter().map(|b| b.len()).sum::<usize>();
+        if self.buf.len() + total_len > self.buf.capacity() {
+            self.flush_buf()?;
+        }
+        if total_len >= self.buf.capacity() {
+            self.panicked = true;
+            let r = self.inner.as_mut().unwrap().write_vectored(bufs);
+            self.panicked = false;
+            r
+        } else {
+            self.buf.write_vectored(bufs)
+        }
+    }
+
     fn flush(&mut self) -> io::Result<()> {
         self.flush_buf().and_then(|()| self.get_mut().flush())
     }
@@ -1174,7 +1203,7 @@ mod tests {
         // Issue #32085
         struct FailFlushWriter<'a>(&'a mut Vec<u8>);
 
-        impl<'a> Write for FailFlushWriter<'a> {
+        impl Write for FailFlushWriter<'_> {
             fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
                 self.0.extend_from_slice(buf);
                 Ok(buf.len())

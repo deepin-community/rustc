@@ -14,9 +14,10 @@ use syntax_pos::{self, Span};
 
 use std::mem;
 
-use core;
-use clean::{self, AttributesExt, NestedAttributesExt, def_id_to_path};
-use doctree::*;
+use crate::core;
+use crate::clean::{self, AttributesExt, NestedAttributesExt, def_id_to_path};
+use crate::doctree::*;
+
 
 // Looks to me like the first two of these are actually
 // output parameters, maybe only mutated once; perhaps
@@ -177,9 +178,10 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
             Some(kind) => {
                 let name = if kind == MacroKind::Derive {
                     item.attrs.lists("proc_macro_derive")
-                              .filter_map(|mi| mi.name())
+                              .filter_map(|mi| mi.ident())
                               .next()
                               .expect("proc-macro derives require a name")
+                              .name
                 } else {
                     name
                 };
@@ -192,8 +194,8 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
 
                     if let Some(list) = mi.meta_item_list() {
                         for inner_mi in list {
-                            if let Some(name) = inner_mi.name() {
-                                helpers.push(name);
+                            if let Some(ident) = inner_mi.ident() {
+                                helpers.push(ident.name);
                             }
                         }
                     }
@@ -259,7 +261,7 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
     /// Cross-crate inlining occurs later on during crate cleaning
     /// and follows different rules.
     ///
-    /// Returns true if the target has been inlined.
+    /// Returns `true` if the target has been inlined.
     fn maybe_inline_local(&mut self,
                           id: ast::NodeId,
                           def: Def,
@@ -268,7 +270,7 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
                           om: &mut Module,
                           please_inline: bool) -> bool {
 
-        fn inherits_doc_hidden(cx: &core::DocContext, mut node: ast::NodeId) -> bool {
+        fn inherits_doc_hidden(cx: &core::DocContext<'_, '_, '_>, mut node: ast::NodeId) -> bool {
             while let Some(id) = cx.tcx.hir().get_enclosing_scope(node) {
                 node = id;
                 if cx.tcx.hir().attrs(node).lists("doc").has_word("hidden") {
@@ -284,10 +286,11 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
         debug!("maybe_inline_local def: {:?}", def);
 
         let tcx = self.cx.tcx;
-        if def == Def::Err {
+        let def_did = if let Some(did) = def.opt_def_id() {
+            did
+        } else {
             return false;
-        }
-        let def_did = def.def_id();
+        };
 
         let use_attrs = tcx.hir().attrs(id);
         // Don't inline `doc(hidden)` imports so they can be stripped at a later stage.
@@ -314,7 +317,7 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
                         .insert(did, AccessLevel::Public);
                 },
                 Def::Mod(did) => if !self_is_hidden {
-                    ::visit_lib::LibEmbargoVisitor::new(self.cx).visit_mod(did);
+                    crate::visit_lib::LibEmbargoVisitor::new(self.cx).visit_mod(did);
                 },
                 _ => {},
             }
@@ -546,8 +549,19 @@ impl<'a, 'tcx, 'rcx> RustdocVisitor<'a, 'tcx, 'rcx> {
                 };
                 om.traits.push(t);
             },
-            hir::ItemKind::TraitAlias(..) => {
-                unimplemented!("trait objects are not yet implemented")
+            hir::ItemKind::TraitAlias(ref gen, ref b) => {
+                let t = TraitAlias {
+                    name: ident.name,
+                    generics: gen.clone(),
+                    bounds: b.iter().cloned().collect(),
+                    id: item.id,
+                    attrs: item.attrs.clone(),
+                    whence: item.span,
+                    vis: item.vis.clone(),
+                    stab: self.stability(item.id),
+                    depr: self.deprecation(item.id),
+                };
+                om.trait_aliases.push(t);
             },
 
             hir::ItemKind::Impl(unsafety,

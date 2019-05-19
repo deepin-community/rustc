@@ -57,13 +57,7 @@ matrix:
     - name: "wasm32-unknown-unknown"
       env: TARGET=wasm32-unknown-unknown
     - name: "nvptx64-nvidia-cuda - cross compiled, build libcore only"
-      env: TARGET=x86_64-unknown-linux-gnu CROSS_TARGET=nvptx64-nvidia-cuda-cross NORUN=1 NOSTD=1
-      install:
-        - travis_retry rustup target add $TARGET
-        - travis_retry rustup component add rust-src
-        - cargo install xargo
-        - xargo --version
-        - mkdir -p $HOME/.xargo
+      env: TARGET=nvptx64-nvidia-cuda NORUN=1 NOSTD=1
     - name: "thumbv6m-none-eabi - build libcore only"
       env: TARGET=thumbv6m-none-eabi NORUN=1 NOSTD=1
       script: ci/run.sh
@@ -89,7 +83,7 @@ matrix:
     - name: "clippy"
       install: true
       script: |
-        if rustup component add clippy-preview; then
+        if rustup component add clippy-preview ; then
             cargo clippy --all -- -D clippy::pedantic
         fi
     - name: "Shellcheck"
@@ -97,21 +91,15 @@ matrix:
       script:
         - shellcheck --version
         - shellcheck ci/*.sh
+
   allow_failures:
-    # FIXME https://github.com/rust-lang/libc/issues/1170
-    - name: "x86_64-linux-android - no assert_instr"
-    - name: "arm-linux-androideabi - no assert_instr"
-    - name: "aarch64-linux-android - no assert_instr"
-    # clippy changes enough from time to time that it breaks relatively
-    # regularly
-    - name: "clippy"
-    # qemu seems to intermittently segfault...
+    # FIXME: https://github.com/rust-lang-nursery/stdsimd/issues/669
     - name: "powerpc-unknown-linux-gnu - no assert_instr"
 
 install: travis_retry rustup target add $TARGET
 script:
   - cargo generate-lockfile
-  - ci/run-docker.sh $TARGET $CROSS_TARGET $FEATURES
+  - ci/run-docker.sh $TARGET
 
 notifications:
   email:
