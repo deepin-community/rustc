@@ -10,7 +10,7 @@ external code would, using only the public interface and potentially exercising
 multiple modules per test.
 
 Writing both kinds of tests is important to ensure that the pieces of your
-library are doing what you expect them to separately and together.
+library are doing what you expect them to, separately and together.
 
 ### Unit Tests
 
@@ -62,7 +62,7 @@ There’s debate within the testing community about whether or not private
 functions should be tested directly, and other languages make it difficult or
 impossible to test private functions. Regardless of which testing ideology you
 adhere to, Rust’s privacy rules do allow you to test private functions.
-Consider the code in Listing 11-12 with the private function `internal_adder`:
+Consider the code in Listing 11-12 with the private function `internal_adder`.
 
 <span class="filename">Filename: src/lib.rs</span>
 
@@ -115,7 +115,7 @@ will compile each of the files as an individual crate.
 
 Let’s create an integration test. With the code in Listing 11-12 still in the
 *src/lib.rs* file, make a *tests* directory, create a new file named
-*tests/integration_test.rs*, and enter the code in Listing 11-13:
+*tests/integration_test.rs*, and enter the code in Listing 11-13.
 
 <span class="filename">Filename: tests/integration_test.rs</span>
 
@@ -214,11 +214,12 @@ separate code into modules and files.
 
 The different behavior of files in the *tests* directory is most noticeable
 when you have a set of helper functions that would be useful in multiple
-integration test files and you try to follow the steps in the “Separating
-Modules into Different Files” section of Chapter 7 to extract them into a
-common module. For example, if we create *tests/common.rs* and place a function
-named `setup` in it, we can add some code to `setup` that we want to call from
-multiple test functions in multiple test files:
+integration test files and you try to follow the steps in the [“Separating
+Modules into Different Files”][separating-modules-into-files]<!-- ignore -->
+section of Chapter 7 to extract them into a common module. For example, if we
+create *tests/common.rs* and place a function named `setup` in it, we can add
+some code to `setup` that we want to call from multiple test functions in
+multiple test files:
 
 <span class="filename">Filename: tests/common.rs</span>
 
@@ -322,3 +323,6 @@ reduce logic bugs having to do with how your code is expected to behave.
 
 Let’s combine the knowledge you learned in this chapter and in previous
 chapters to work on a project!
+
+[separating-modules-into-files]:
+ch07-02-modules-and-use-to-control-scope-and-privacy.html#separating-modules-into-different-files

@@ -2,7 +2,7 @@
 // unresolved type variables and replaces "ty_var" types with their
 // substitutions.
 
-use check::FnCtxt;
+use crate::check::FnCtxt;
 use errors::DiagnosticBuilder;
 use rustc::hir;
 use rustc::hir::def_id::{DefId, DefIndex};
@@ -100,7 +100,7 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
         body: &'gcx hir::Body,
         rustc_dump_user_substs: bool,
     ) -> WritebackCx<'cx, 'gcx, 'tcx> {
-        let owner = fcx.tcx.hir().definitions().node_to_hir_id(body.id().node_id);
+        let owner = body.id().hir_id;
 
         WritebackCx {
             fcx,
@@ -404,11 +404,10 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
                 .user_provided_types_mut()
                 .insert(hir_id, c_ty.clone());
 
-            if let ty::UserTypeAnnotation::TypeOf(_, user_substs) = c_ty.value {
+            if let ty::UserType::TypeOf(_, user_substs) = c_ty.value {
                 if self.rustc_dump_user_substs {
                     // This is a unit-testing mechanism.
-                    let node_id = self.tcx().hir().hir_to_node_id(hir_id);
-                    let span = self.tcx().hir().span(node_id);
+                    let span = self.tcx().hir().span_by_hir_id(hir_id);
                     // We need to buffer the errors in order to guarantee a consistent
                     // order when emitting them.
                     let err = self.tcx().sess.struct_span_err(
@@ -561,21 +560,29 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
                 if def_id == defin_ty_def_id {
                     // Concrete type resolved to the existential type itself
                     // Force a cycle error
+                    // FIXME(oli-obk): we could just not insert it into `concrete_existential_types`
+                    // which simply would make this use not a defining use.
                     self.tcx().at(span).type_of(defin_ty_def_id);
                 }
             }
 
+            let new = ty::ResolvedOpaqueTy {
+                concrete_type: definition_ty,
+                substs: self.tcx().lift_to_global(&opaque_defn.substs).unwrap(),
+            };
+
             let old = self.tables
                 .concrete_existential_types
-                .insert(def_id, definition_ty);
+                .insert(def_id, new);
             if let Some(old) = old {
-                if old != definition_ty {
+                if old.concrete_type != definition_ty || old.substs != opaque_defn.substs {
                     span_bug!(
                         span,
                         "visit_opaque_types tried to write \
-                        different types for the same existential type: {:?}, {:?}, {:?}",
+                        different types for the same existential type: {:?}, {:?}, {:?}, {:?}",
                         def_id,
                         definition_ty,
+                        opaque_defn,
                         old,
                     );
                 }
@@ -722,32 +729,31 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
 }
 
 trait Locatable {
-    fn to_span(&self, tcx: &TyCtxt) -> Span;
+    fn to_span(&self, tcx: &TyCtxt<'_, '_, '_>) -> Span;
 }
 
 impl Locatable for Span {
-    fn to_span(&self, _: &TyCtxt) -> Span {
+    fn to_span(&self, _: &TyCtxt<'_, '_, '_>) -> Span {
         *self
     }
 }
 
 impl Locatable for ast::NodeId {
-    fn to_span(&self, tcx: &TyCtxt) -> Span {
+    fn to_span(&self, tcx: &TyCtxt<'_, '_, '_>) -> Span {
         tcx.hir().span(*self)
     }
 }
 
 impl Locatable for DefIndex {
-    fn to_span(&self, tcx: &TyCtxt) -> Span {
-        let node_id = tcx.hir().def_index_to_node_id(*self);
-        tcx.hir().span(node_id)
+    fn to_span(&self, tcx: &TyCtxt<'_, '_, '_>) -> Span {
+        let hir_id = tcx.hir().def_index_to_hir_id(*self);
+        tcx.hir().span_by_hir_id(hir_id)
     }
 }
 
 impl Locatable for hir::HirId {
-    fn to_span(&self, tcx: &TyCtxt) -> Span {
-        let node_id = tcx.hir().hir_to_node_id(*self);
-        tcx.hir().span(node_id)
+    fn to_span(&self, tcx: &TyCtxt<'_, '_, '_>) -> Span {
+        tcx.hir().span_by_hir_id(*self)
     }
 }
 

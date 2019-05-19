@@ -8,25 +8,23 @@
 //!
 //! The definition for [RenderContext] may be useful though.
 //!
-//! [For Developers]: https://rust-lang-nursery.github.io/mdBook/lib/index.html
+//! [For Developers]: https://rust-lang-nursery.github.io/mdBook/for_developers/index.html
 //! [RenderContext]: struct.RenderContext.html
 
 pub use self::html_handlebars::HtmlHandlebars;
 
 mod html_handlebars;
 
+use serde_json;
+use shlex::Shlex;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use serde_json;
-use shlex::Shlex;
 
-use errors::*;
-use config::Config;
 use book::Book;
-
-const MDBOOK_VERSION: &str = env!("CARGO_PKG_VERSION");
+use config::Config;
+use errors::*;
 
 /// An arbitrary `mdbook` backend.
 ///
@@ -66,6 +64,8 @@ pub struct RenderContext {
     /// renderers to cache intermediate results, this directory is not
     /// guaranteed to be empty or even exist.
     pub destination: PathBuf,
+    #[serde(skip)]
+    __non_exhaustive: (),
 }
 
 impl RenderContext {
@@ -76,11 +76,12 @@ impl RenderContext {
         Q: Into<PathBuf>,
     {
         RenderContext {
-            book: book,
-            config: config,
-            version: MDBOOK_VERSION.to_string(),
+            book,
+            config,
+            version: ::MDBOOK_VERSION.to_string(),
             root: root.into(),
             destination: destination.into(),
+            __non_exhaustive: (),
         }
     }
 
@@ -157,22 +158,27 @@ impl Renderer for CmdRenderer {
 
         let _ = fs::create_dir_all(&ctx.destination);
 
-        let mut child = match self.compose_command()?
+        let mut child = match self
+            .compose_command()?
             .stdin(Stdio::piped())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .current_dir(&ctx.destination)
-            .spawn() {
-                Ok(c) => c,
-                Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-                    warn!("The command wasn't found, is the \"{}\" backend installed?", self.name);
-                    warn!("\tCommand: {}", self.cmd);
-                    return Ok(());
-                }
-                Err(e) => {
-                    return Err(e).chain_err(|| "Unable to start the backend")?;
-                }
-            };
+            .spawn()
+        {
+            Ok(c) => c,
+            Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
+                warn!(
+                    "The command wasn't found, is the \"{}\" backend installed?",
+                    self.name
+                );
+                warn!("\tCommand: {}", self.cmd);
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e).chain_err(|| "Unable to start the backend")?;
+            }
+        };
 
         {
             let mut stdin = child.stdin.take().expect("Child has stdin");

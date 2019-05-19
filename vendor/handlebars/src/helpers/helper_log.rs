@@ -1,25 +1,58 @@
-use helpers::{HelperDef, HelperResult};
-use registry::Registry;
-use context::JsonRender;
-use render::{Helper, RenderContext};
+use context::Context;
+#[cfg(not(feature = "no_logging"))]
 use error::RenderError;
+use helpers::{HelperDef, HelperResult};
+use output::Output;
+use registry::Registry;
+use render::{Helper, RenderContext};
+#[cfg(not(feature = "no_logging"))]
+use value::JsonRender;
+#[cfg(not(feature = "no_logging"))]
+use log::Level;
+#[cfg(not(feature = "no_logging"))]
+use std::str::FromStr;
 
 #[derive(Clone, Copy)]
 pub struct LogHelper;
 
+#[cfg(not(feature = "no_logging"))]
 impl HelperDef for LogHelper {
-    fn call(&self, h: &Helper, _: &Registry, _: &mut RenderContext) -> HelperResult {
-        let param = try!(
-            h.param(0)
-                .ok_or_else(|| RenderError::new("Param not found for helper \"log\""))
-        );
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper,
+        _: &Registry,
+        _: &Context,
+        _: &mut RenderContext,
+        _: &mut Output,
+    ) -> HelperResult {
+        let param = h
+            .param(0)
+            .ok_or_else(|| RenderError::new("Param not found for helper \"log\""))?;
+        let level = h.hash_get("level")
+            .and_then(|v| v.value().as_str())
+            .unwrap_or("info");
 
-        info!(
-            "{}: {}",
-            param.path().unwrap_or(&"".to_owned()),
-            param.value().render()
-        );
+        if let Ok(log_level) = Level::from_str(level) {
+            log!(log_level, "{}: {}",
+                 param.path().unwrap_or(&"".to_owned()),
+                 param.value().render())
+        } else {
+            return Err(RenderError::new(&format!("Unsupported logging level {}", level)));
+        }
+        Ok(())
+    }
+}
 
+#[cfg(feature = "no_logging")]
+impl HelperDef for LogHelper {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        _: &Helper,
+        _: &Registry,
+        _: &Context,
+        _: &mut RenderContext,
+        _: &mut Output,
+    ) -> HelperResult {
         Ok(())
     }
 }

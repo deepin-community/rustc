@@ -12,24 +12,18 @@
 
 [package]
 name = "mdbook"
-version = "0.1.7"
-authors = ["Mathieu David <mathieudavid@mathieudavid.org>", "Michael-F-Bryan <michaelfbryan@gmail.com>"]
-build = "build.rs"
-exclude = ["book-example/*", "src/theme/stylus/**"]
+version = "0.2.3"
+authors = ["Mathieu David <mathieudavid@mathieudavid.org>", "Michael-F-Bryan <michaelfbryan@gmail.com>", "Matt Ickstadt <mattico8@gmail.com>"]
+exclude = ["book-example/*"]
 description = "Create books from markdown files"
 documentation = "http://rust-lang-nursery.github.io/mdBook/index.html"
 readme = "README.md"
 keywords = ["book", "gitbook", "rustbook", "markdown"]
 license = "MPL-2.0"
 repository = "https://github.com/rust-lang-nursery/mdBook"
-[package.metadata.release]
-push-remote = "origin"
-sign-commit = true
-tag-prefix = "v"
 
 [[bin]]
 name = "mdbook"
-path = "src/bin/mdbook.rs"
 doc = false
 [dependencies.ammonia]
 version = "1.1"
@@ -41,23 +35,19 @@ version = "0.4"
 [dependencies.clap]
 version = "2.24"
 
-[dependencies.crossbeam]
-version = "0.3"
-optional = true
-
 [dependencies.elasticlunr-rs]
-version = "2.2"
+version = "2.3"
 optional = true
 default-features = false
 
 [dependencies.env_logger]
-version = "0.5.0-rc.1"
+version = "0.5"
 
 [dependencies.error-chain]
-version = "0.11"
+version = "0.12"
 
 [dependencies.handlebars]
-version = "0.32"
+version = "1.0"
 
 [dependencies.iron]
 version = "0.6"
@@ -86,7 +76,7 @@ version = "1.1"
 version = "0.1.2"
 
 [dependencies.regex]
-version = "0.2.1"
+version = "1.0.0"
 
 [dependencies.serde]
 version = "1.0"
@@ -107,15 +97,11 @@ optional = true
 [dependencies.tempfile]
 version = "3.0"
 
-[dependencies.time]
-version = "0.1.34"
-optional = true
-
 [dependencies.toml]
-version = "0.4"
+version = "0.4.8"
 
 [dependencies.toml-query]
-version = "0.6"
+version = "0.7"
 
 [dependencies.ws]
 version = "0.7"
@@ -131,14 +117,11 @@ version = "0.4"
 
 [dev-dependencies.walkdir]
 version = "2.0"
-[build-dependencies.error-chain]
-version = "0.11"
 
 [features]
 debug = []
 default = ["output", "watch", "serve", "search"]
 output = []
-regenerate-css = []
 search = ["elasticlunr-rs", "ammonia"]
 serve = ["iron", "staticfile", "ws"]
-watch = ["notify", "time", "crossbeam"]
+watch = ["notify"]

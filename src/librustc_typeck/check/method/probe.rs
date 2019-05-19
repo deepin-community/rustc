@@ -3,11 +3,11 @@ use super::NoMatchData;
 use super::{CandidateSource, ImplSource, TraitSource};
 use super::suggest;
 
-use check::autoderef::{self, Autoderef};
-use check::FnCtxt;
-use hir::def_id::DefId;
-use hir::def::Def;
-use namespace::Namespace;
+use crate::check::autoderef::{self, Autoderef};
+use crate::check::FnCtxt;
+use crate::hir::def_id::DefId;
+use crate::hir::def::Def;
+use crate::namespace::Namespace;
 
 use rustc_data_structures::sync::Lrc;
 use rustc::hir;
@@ -388,7 +388,7 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
     }
 }
 
-pub fn provide(providers: &mut ty::query::Providers) {
+pub fn provide(providers: &mut ty::query::Providers<'_>) {
     providers.method_autoderef_steps = method_autoderef_steps;
 }
 
@@ -401,7 +401,7 @@ fn method_autoderef_steps<'a, 'gcx, 'tcx>(tcx: TyCtxt<'a, 'gcx, 'gcx>,
     tcx.infer_ctxt().enter_with_canonical(DUMMY_SP, &goal, |ref infcx, goal, inference_vars| {
         let ParamEnvAnd { param_env, value: self_ty } = goal;
 
-        let mut autoderef = Autoderef::new(infcx, param_env, ast::DUMMY_NODE_ID, DUMMY_SP, self_ty)
+        let mut autoderef = Autoderef::new(infcx, param_env, hir::DUMMY_HIR_ID, DUMMY_SP, self_ty)
             .include_raw_pointers()
             .silence_errors();
         let mut reached_raw_pointer = false;
@@ -1180,17 +1180,17 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
 
     fn emit_unstable_name_collision_hint(
         &self,
-        stable_pick: &Pick,
+        stable_pick: &Pick<'_>,
         unstable_candidates: &[(&Candidate<'tcx>, Symbol)],
     ) {
-        let mut diag = self.tcx.struct_span_lint_node(
+        let mut diag = self.tcx.struct_span_lint_hir(
             lint::builtin::UNSTABLE_NAME_COLLISIONS,
             self.fcx.body_id,
             self.span,
             "a method with this name may be added to the standard library in the future",
         );
 
-        // FIXME: This should be a `span_suggestion_with_applicability` instead of `help`
+        // FIXME: This should be a `span_suggestion` instead of `help`
         // However `self.span` only
         // highlights the method name, so we can't use it. Also consider reusing the code from
         // `report_method_error()`.
@@ -1537,7 +1537,7 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
         }
     }
 
-    /// Get the type of an impl and generate substitutions with placeholders.
+    /// Gets the type of an impl and generate substitutions with placeholders.
     fn impl_ty_and_substs(&self, impl_def_id: DefId) -> (Ty<'tcx>, &'tcx Substs<'tcx>) {
         (self.tcx.type_of(impl_def_id), self.fresh_item_substs(impl_def_id))
     }
@@ -1554,7 +1554,7 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
         })
     }
 
-    /// Replace late-bound-regions bound by `value` with `'static` using
+    /// Replaces late-bound-regions bound by `value` with `'static` using
     /// `ty::erase_late_bound_regions`.
     ///
     /// This is only a reasonable thing to do during the *probe* phase, not the *confirm* phase, of
@@ -1578,7 +1578,7 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
         self.tcx.erase_late_bound_regions(value)
     }
 
-    /// Find the method with the appropriate name (or return type, as the case may be). If
+    /// Finds the method with the appropriate name (or return type, as the case may be). If
     /// `allow_similar_names` is set, find methods with close-matching names.
     fn impl_or_trait_item(&self, def_id: DefId) -> Vec<ty::AssociatedItem> {
         if let Some(name) = self.method_name {

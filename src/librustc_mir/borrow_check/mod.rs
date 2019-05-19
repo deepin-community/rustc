@@ -1,6 +1,6 @@
 //! This query borrow-checks the MIR to (further) ensure it is not broken.
 
-use borrow_check::nll::region_infer::RegionInferenceContext;
+use crate::borrow_check::nll::region_infer::RegionInferenceContext;
 use rustc::hir;
 use rustc::hir::Node;
 use rustc::hir::def_id::DefId;
@@ -25,16 +25,16 @@ use std::collections::BTreeMap;
 
 use syntax_pos::Span;
 
-use dataflow::indexes::{BorrowIndex, InitIndex, MoveOutIndex, MovePathIndex};
-use dataflow::move_paths::{HasMoveData, LookupResult, MoveData, MoveError};
-use dataflow::Borrows;
-use dataflow::DataflowResultsConsumer;
-use dataflow::FlowAtLocation;
-use dataflow::MoveDataParamEnv;
-use dataflow::{do_dataflow, DebugFormatted};
-use dataflow::EverInitializedPlaces;
-use dataflow::{MaybeInitializedPlaces, MaybeUninitializedPlaces};
-use util::borrowck_errors::{BorrowckErrors, Origin};
+use crate::dataflow::indexes::{BorrowIndex, InitIndex, MoveOutIndex, MovePathIndex};
+use crate::dataflow::move_paths::{HasMoveData, LookupResult, MoveData, MoveError};
+use crate::dataflow::Borrows;
+use crate::dataflow::DataflowResultsConsumer;
+use crate::dataflow::FlowAtLocation;
+use crate::dataflow::MoveDataParamEnv;
+use crate::dataflow::{do_dataflow, DebugFormatted};
+use crate::dataflow::EverInitializedPlaces;
+use crate::dataflow::{MaybeInitializedPlaces, MaybeUninitializedPlaces};
+use crate::util::borrowck_errors::{BorrowckErrors, Origin};
 
 use self::borrow_set::{BorrowData, BorrowSet};
 use self::flows::Flows;
@@ -59,7 +59,7 @@ mod used_muts;
 
 pub(crate) mod nll;
 
-pub fn provide(providers: &mut Providers) {
+pub fn provide(providers: &mut Providers<'_>) {
     *providers = Providers {
         mir_borrowck,
         ..*providers
@@ -108,7 +108,7 @@ fn mir_borrowck<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, def_id: DefId) -> BorrowC
     }
 
     let opt_closure_req = tcx.infer_ctxt().enter(|infcx| {
-        let input_mir: &Mir = &input_mir.borrow();
+        let input_mir: &Mir<'_> = &input_mir.borrow();
         do_mir_borrowck(&infcx, input_mir, def_id)
     });
     debug!("mir_borrowck done");
@@ -163,10 +163,7 @@ fn do_mir_borrowck<'a, 'gcx, 'tcx>(
         |bd, i| DebugFormatted::new(&bd.move_data().move_paths[i]),
     ));
 
-    let locals_are_invalidated_at_exit = match tcx.hir().body_owner_kind(id) {
-            hir::BodyOwnerKind::Const | hir::BodyOwnerKind::Static(_) => false,
-            hir::BodyOwnerKind::Fn => true,
-    };
+    let locals_are_invalidated_at_exit = tcx.hir().body_owner_kind(id).is_fn_or_closure();
     let borrow_set = Rc::new(BorrowSet::build(
             tcx, mir, locals_are_invalidated_at_exit, &mdpe.move_data));
 
@@ -310,7 +307,7 @@ fn do_mir_borrowck<'a, 'gcx, 'tcx>(
                 span,
                 "variable does not need to be mutable",
             )
-            .span_suggestion_short_with_applicability(
+            .span_suggestion_short(
                 mut_span,
                 "remove this `mut`",
                 String::new(),
@@ -332,30 +329,12 @@ fn do_mir_borrowck<'a, 'gcx, 'tcx>(
             // When borrowck=migrate, check if AST-borrowck would
             // error on the given code.
 
-            // rust-lang/rust#55492: loop over parents to ensure that
-            // errors that AST-borrowck only detects in some parent of
-            // a closure still allows NLL to signal an error.
-            let mut curr_def_id = def_id;
-            let signalled_any_error = loop {
-                match tcx.borrowck(curr_def_id).signalled_any_error {
-                    SignalledError::NoErrorsSeen => {
-                        // keep traversing (and borrow-checking) parents
-                    }
-                    SignalledError::SawSomeError => {
-                        // stop search here
-                        break SignalledError::SawSomeError;
-                    }
-                }
+            // rust-lang/rust#55492, rust-lang/rust#58776 check the base def id
+            // for errors. AST borrowck is responsible for aggregating
+            // `signalled_any_error` from all of the nested closures here.
+            let base_def_id = tcx.closure_base_def_id(def_id);
 
-                if tcx.is_closure(curr_def_id) {
-                    curr_def_id = tcx.parent_def_id(curr_def_id)
-                        .expect("a closure must have a parent_def_id");
-                } else {
-                    break SignalledError::NoErrorsSeen;
-                }
-            };
-
-            match signalled_any_error {
+            match tcx.borrowck(base_def_id).signalled_any_error {
                 SignalledError::NoErrorsSeen => {
                     // if AST-borrowck signalled no errors, then
                     // downgrade all the buffered MIR-borrowck errors
@@ -423,11 +402,11 @@ pub struct MirBorrowckCtxt<'cx, 'gcx: 'tcx, 'tcx: 'cx> {
     access_place_error_reported: FxHashSet<(Place<'tcx>, Span)>,
     /// This field keeps track of when borrow conflict errors are reported
     /// for reservations, so that we don't report seemingly duplicate
-    /// errors for corresponding activations
-    ///
-    /// FIXME: Ideally this would be a set of BorrowIndex, not Places,
-    /// but it is currently inconvenient to track down the BorrowIndex
-    /// at the time we detect and report a reservation error.
+    /// errors for corresponding activations.
+    //
+    // FIXME: ideally this would be a set of `BorrowIndex`, not `Place`s,
+    // but it is currently inconvenient to track down the `BorrowIndex`
+    // at the time we detect and report a reservation error.
     reservation_error_reported: FxHashSet<Place<'tcx>>,
     /// This field keeps track of move errors that are to be reported for given move indicies.
     ///
@@ -455,7 +434,7 @@ pub struct MirBorrowckCtxt<'cx, 'gcx: 'tcx, 'tcx: 'cx> {
     /// If the function we're checking is a closure, then we'll need to report back the list of
     /// mutable upvars that have been used. This field keeps track of them.
     used_mut_upvars: SmallVec<[Field; 8]>,
-    /// Non-lexical region inference context, if NLL is enabled.  This
+    /// Non-lexical region inference context, if NLL is enabled. This
     /// contains the results from region inference and lets us e.g.
     /// find out which CFG points are contained in each borrow region.
     nonlexical_regioncx: Rc<RegionInferenceContext<'tcx>>,
@@ -838,12 +817,12 @@ enum WriteKind {
 
 /// When checking permissions for a place access, this flag is used to indicate that an immutable
 /// local place can be mutated.
-///
-/// FIXME: @nikomatsakis suggested that this flag could be removed with the following modifications:
-/// - Merge `check_access_permissions()` and `check_if_reassignment_to_immutable_state()`
-/// - Split `is_mutable()` into `is_assignable()` (can be directly assigned) and
-///   `is_declared_mutable()`
-/// - Take flow state into consideration in `is_assignable()` for local variables
+//
+// FIXME: @nikomatsakis suggested that this flag could be removed with the following modifications:
+// - Merge `check_access_permissions()` and `check_if_reassignment_to_immutable_state()`.
+// - Split `is_mutable()` into `is_assignable()` (can be directly assigned) and
+//   `is_declared_mutable()`.
+// - Take flow state into consideration in `is_assignable()` for local variables.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum LocalMutationIsAllowed {
     Yes,
@@ -898,7 +877,7 @@ impl<'cx, 'gcx, 'tcx> MirBorrowckCtxt<'cx, 'gcx, 'tcx> {
     /// place is initialized and (b) it is not borrowed in some way that would prevent this
     /// access.
     ///
-    /// Returns true if an error is reported, false otherwise.
+    /// Returns `true` if an error is reported.
     fn access_place(
         &mut self,
         context: Context,
@@ -1001,7 +980,9 @@ impl<'cx, 'gcx, 'tcx> MirBorrowckCtxt<'cx, 'gcx, 'tcx> {
                 }
 
                 (Read(_), BorrowKind::Shared) | (Reservation(..), BorrowKind::Shared)
-                | (Read(_), BorrowKind::Shallow) | (Reservation(..), BorrowKind::Shallow) => {
+                | (Read(_), BorrowKind::Shallow) | (Reservation(..), BorrowKind::Shallow)
+                | (Read(ReadKind::Borrow(BorrowKind::Shallow)), BorrowKind::Unique)
+                | (Read(ReadKind::Borrow(BorrowKind::Shallow)), BorrowKind::Mut { .. }) => {
                     Control::Continue
                 }
 
@@ -1788,9 +1769,9 @@ impl<'cx, 'gcx, 'tcx> MirBorrowckCtxt<'cx, 'gcx, 'tcx> {
         }
     }
 
-    /// Check the permissions for the given place and read or write kind
+    /// Checks the permissions for the given place and read or write kind
     ///
-    /// Returns true if an error is reported, false otherwise.
+    /// Returns `true` if an error is reported.
     fn check_access_permissions(
         &mut self,
         (place, span): (&Place<'tcx>, Span),

@@ -22,14 +22,14 @@
 
 use std::fmt;
 use std::iter::Peekable;
-use std::str::CharIndices;
+use std::str::{CharIndices, FromStr};
 
 pub trait MyTryFrom<T>: Sized {
     type Error;
     fn try_from(value: T) -> Result<Self, Self::Error>;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum ReservedChar {
     Comma,
     OpenParenthese,
@@ -62,7 +62,7 @@ pub enum ReservedChar {
 }
 
 impl ReservedChar {
-    fn is_useless(&self) -> bool {
+    pub fn is_useless(&self) -> bool {
         *self == ReservedChar::Space ||
         *self == ReservedChar::Tab ||
         *self == ReservedChar::Backline
@@ -144,7 +144,7 @@ impl MyTryFrom<char> for ReservedChar {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum Keyword {
     Break,
     Case,
@@ -161,6 +161,7 @@ pub enum Keyword {
     If,
     In,
     InstanceOf,
+    Let,
     New,
     Null,
     Private,
@@ -180,7 +181,11 @@ pub enum Keyword {
 
 fn get_required<'a>(next: &Token<'a>) -> Option<char> {
     match *next {
-        Token::Keyword(_) | Token::Other(_) => Some(' '),
+        Token::Keyword(_) |
+        Token::Other(_) |
+        Token::CreatedVarDecl(_) |
+        Token::Number(_) |
+        Token::FloatingNumber(_) => Some(' '),
         _ => None,
     }
 }
@@ -204,6 +209,7 @@ impl fmt::Display for Keyword {
                    Keyword::If => "if",
                    Keyword::In => "in",
                    Keyword::InstanceOf => "instanceof",
+                   Keyword::Let => "let",
                    Keyword::New => "new",
                    Keyword::Null => "null",
                    Keyword::Private => "private",
@@ -243,6 +249,7 @@ impl<'a> MyTryFrom<&'a str> for Keyword {
             "if" => Ok(Keyword::If),
             "in" => Ok(Keyword::In),
             "instanceof" => Ok(Keyword::InstanceOf),
+            "let" => Ok(Keyword::Let),
             "new" => Ok(Keyword::New),
             "null" => Ok(Keyword::Null),
             "private" => Ok(Keyword::Private),
@@ -263,7 +270,7 @@ impl<'a> MyTryFrom<&'a str> for Keyword {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Condition {
     And,
     Or,
@@ -307,7 +314,7 @@ impl MyTryFrom<ReservedChar> for Condition {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Operation {
     Addition,
     AdditionEqual,
@@ -357,7 +364,7 @@ impl MyTryFrom<ReservedChar> for Operation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Hash)]
 pub enum Token<'a> {
     Keyword(Keyword),
     Char(ReservedChar),
@@ -372,6 +379,10 @@ pub enum Token<'a> {
     },
     Condition(Condition),
     Operation(Operation),
+    CreatedVarDecl(String),
+    CreatedVar(String),
+    Number(usize),
+    FloatingNumber(&'a str),
 }
 
 impl<'a> fmt::Display for Token<'a> {
@@ -395,6 +406,10 @@ impl<'a> fmt::Display for Token<'a> {
             }
             Token::Condition(x) => write!(f, "{}", x),
             Token::Operation(x) => write!(f, "{}", x),
+            Token::CreatedVarDecl(ref x) => write!(f, "{}", x),
+            Token::CreatedVar(ref x) => write!(f, "{}", x),
+            Token::Number(x) => write!(f, "{}", x),
+            Token::FloatingNumber(ref x) => write!(f, "{}", x),
         }
     }
 }
@@ -442,9 +457,23 @@ impl<'a> Token<'a> {
         }
     }
 
+    pub fn get_other(&self) -> Option<&str> {
+        match *self {
+            Token::Other(s) => Some(s),
+            _ => None,
+        }
+    }
+
     pub fn is_white_character(&self) -> bool {
         match *self {
             Token::Char(c) => c.is_useless(),
+            _ => false,
+        }
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        match *self {
+            Token::Keyword(_) => true,
             _ => false,
         }
     }
@@ -453,6 +482,55 @@ impl<'a> Token<'a> {
         match *self {
             Token::Keyword(k) => Some(k),
             _ => None,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        match *self {
+            Token::String(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_string(&self) -> Option<&str> {
+        match *self {
+            Token::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn is_regex(&self) -> bool {
+        match *self {
+            Token::Regex { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_created_var_decl(&self) -> bool {
+        match *self {
+            Token::CreatedVarDecl(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_created_var(&self) -> bool {
+        match *self {
+            Token::CreatedVar(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_number(&self) -> bool {
+        match *self {
+            Token::Number(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_floating_number(&self) -> bool {
+        match *self {
+            Token::FloatingNumber(_) => true,
+            _ => false,
         }
     }
 }
@@ -574,6 +652,10 @@ fn fill_other<'a>(source: &'a str, v: &mut Vec<Token<'a>>, start: usize, pos: us
     if start < pos {
         if let Ok(w) = Keyword::try_from(&source[start..pos]) {
             v.push(Token::Keyword(w));
+        } else if let Ok(n) = usize::from_str(&source[start..pos]) {
+            v.push(Token::Number(n))
+        } else if f64::from_str(&source[start..pos]).is_ok() {
+            v.push(Token::FloatingNumber(&source[start..pos]))
         } else {
             v.push(Token::Other(&source[start..pos]));
         }
@@ -636,6 +718,22 @@ fn handle_equal_sign(v: &mut Vec<Token>, c: ReservedChar) -> bool {
     true
 }
 
+fn check_if_number<'a>(
+    iterator: &mut Peekable<CharIndices>,
+    start: usize,
+    pos: usize,
+    source: &'a str,
+) -> bool {
+    if source[start..pos].find('.').is_some() {
+        return false;
+    } else if u64::from_str(&source[start..pos]).is_ok() {
+        return true;
+    } else if let Some((_, x)) = iterator.peek() {
+        return *x as u8 >= b'0' && *x as u8 <= b'9';
+    }
+    false
+}
+
 pub fn tokenize<'a>(source: &'a str) -> Tokens<'a> {
     let mut v = Vec::with_capacity(1000);
     let mut start = 0;
@@ -650,6 +748,19 @@ pub fn tokenize<'a>(source: &'a str) -> Tokens<'a> {
             }
         };
         if let Ok(c) = ReservedChar::try_from(c) {
+            if c == ReservedChar::Dot && check_if_number(&mut iterator, start, pos, source) {
+                let mut cont = true;
+                if let Some(x) = iterator.peek() {
+                    if !"0123456789,; \t\n<>/*&|{}[]-+=~%^:!".contains(x.1) {
+                        fill_other(source, &mut v, start, pos);
+                        start = pos;
+                        cont = false;
+                    }
+                }
+                if cont {
+                    continue
+                }
+            }
             fill_other(source, &mut v, start, pos);
             if_match! {
                 c == ReservedChar::Quote || c == ReservedChar::DoubleQuote =>
@@ -726,16 +837,19 @@ impl<'a> fmt::Display for Tokens<'a> {
     }
 }
 
-pub fn clean_tokens<'a>(tokens: &mut Tokens<'a>) {
-    tokens.0.retain(|c| {
-        !c.is_comment() && {
-            if let Some(x) = c.get_char() {
-                !x.is_useless()
-            } else {
-                true
-            }
-        }
-    });
+impl<'a> Tokens<'a> {
+    pub fn apply<F>(self, func: F) -> Tokens<'a>
+    where F: Fn(Tokens<'a>) -> Tokens<'a> {
+        func(self)
+    }
+}
+
+impl<'a> ::std::ops::Deref for Tokens<'a> {
+    type Target = Vec<Token<'a>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[test]
@@ -744,8 +858,7 @@ fn check_regex() {
     let expected_result = r#"var x=/"\.x/g;"#;
     assert_eq!(::js::minify(source), expected_result);
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(v.0[3],
                Token::Regex {
                    regex: "\"\\.x",
@@ -757,8 +870,7 @@ fn check_regex() {
     let expected_result = r#"var x=/"\.x/gi;var x="hello";"#;
     assert_eq!(::js::minify(source), expected_result);
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(v.0[3],
                Token::Regex {
                    regex: "\"\\.x",
@@ -773,8 +885,7 @@ fn more_regex() {
     let expected_result = r#"var x=/"\.x\/a/i;"#;
     assert_eq!(::js::minify(source), expected_result);
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(v.0[3],
                Token::Regex {
                    regex: "\"\\.x\\/a",
@@ -786,8 +897,7 @@ fn more_regex() {
     let expected_result = r#"var x=/\\/i;"#;
     assert_eq!(::js::minify(source), expected_result);
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(v.0[3],
                Token::Regex {
                    regex: "\\\\",
@@ -798,28 +908,71 @@ fn more_regex() {
 
 #[test]
 fn test_tokens_parsing() {
-    let source = "true = == 2 === 3";
+    let source = "true = == 2.3 === 32";
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(&v.0,
                &[Token::Keyword(Keyword::True),
                  Token::Operation(Operation::Equal),
                  Token::Condition(Condition::EqualTo),
-                 Token::Other("2"),
+                 Token::FloatingNumber("2.3"),
                  Token::Condition(Condition::SuperEqualTo),
-                 Token::Other("3")]);
+                 Token::Number(32)]);
 }
 
 #[test]
 fn test_string_parsing() {
     let source = "var x = 'hello people!'";
 
-    let mut v = tokenize(source);
-    clean_tokens(&mut v);
+    let v = tokenize(source).apply(::js::clean_tokens);
     assert_eq!(&v.0,
                &[Token::Keyword(Keyword::Var),
                  Token::Other("x"),
                  Token::Operation(Operation::Equal),
                  Token::String("\'hello people!\'")]);
+}
+
+#[test]
+fn test_number_parsing() {
+    let source = "var x = .12; let y = 4.; var z = 12; .3 4. 'a' let u = 12.2";
+
+    let v = tokenize(source).apply(::js::clean_tokens);
+    assert_eq!(&v.0,
+               &[Token::Keyword(Keyword::Var),
+                 Token::Other("x"),
+                 Token::Operation(Operation::Equal),
+                 Token::FloatingNumber(".12"),
+                 Token::Char(ReservedChar::SemiColon),
+                 Token::Keyword(Keyword::Let),
+                 Token::Other("y"),
+                 Token::Operation(Operation::Equal),
+                 Token::FloatingNumber("4."),
+                 Token::Char(ReservedChar::SemiColon),
+                 Token::Keyword(Keyword::Var),
+                 Token::Other("z"),
+                 Token::Operation(Operation::Equal),
+                 Token::Number(12),
+                 Token::Char(ReservedChar::SemiColon),
+                 Token::FloatingNumber(".3"),
+                 Token::FloatingNumber("4."),
+                 Token::String("'a'"),
+                 Token::Keyword(Keyword::Let),
+                 Token::Other("u"),
+                 Token::Operation(Operation::Equal),
+                 Token::FloatingNumber("12.2")]);
+}
+
+#[test]
+fn test_number_parsing2() {
+    let source = "var x = 12.a;";
+
+    let v = tokenize(source).apply(::js::clean_tokens);
+    assert_eq!(&v.0,
+               &[Token::Keyword(Keyword::Var),
+                 Token::Other("x"),
+                 Token::Operation(Operation::Equal),
+                 Token::Number(12),
+                 Token::Char(ReservedChar::Dot),
+                 Token::Other("a"),
+                 Token::Char(ReservedChar::SemiColon)]);
 }

@@ -107,17 +107,23 @@ extern crate toml_query;
 #[macro_use]
 extern crate pretty_assertions;
 
-pub mod preprocess;
 pub mod book;
 pub mod config;
+pub mod preprocess;
 pub mod renderer;
 pub mod theme;
 pub mod utils;
 
-pub use book::MDBook;
+/// The current version of `mdbook`.
+///
+/// This is provided as a way for custom preprocessors and renderers to do
+/// compatibility checks.
+pub const MDBOOK_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub use book::BookItem;
-pub use renderer::Renderer;
+pub use book::MDBook;
 pub use config::Config;
+pub use renderer::Renderer;
 
 /// The error types used through out this crate.
 pub mod errors {

@@ -1,20 +1,20 @@
 use std::cmp;
 
+use crate::hir::HirId;
+use crate::ich::StableHashingContext;
+use crate::lint::builtin;
+use crate::lint::context::CheckLintNameResult;
+use crate::lint::{self, Lint, LintId, Level, LintSource};
+use crate::session::Session;
+use crate::util::nodemap::FxHashMap;
 use errors::{Applicability, DiagnosticBuilder};
-use hir::HirId;
-use ich::StableHashingContext;
-use lint::builtin;
-use lint::context::CheckLintNameResult;
-use lint::{self, Lint, LintId, Level, LintSource};
 use rustc_data_structures::stable_hasher::{HashStable, ToStableHashKey,
                                            StableHasher, StableHasherResult};
-use session::Session;
 use syntax::ast;
 use syntax::attr;
 use syntax::feature_gate;
 use syntax::source_map::MultiSpan;
 use syntax::symbol::Symbol;
-use util::nodemap::FxHashMap;
 
 pub struct LintLevelSets {
     list: Vec<LintSet>,
@@ -193,7 +193,7 @@ impl<'a> LintLevelsBuilder<'a> {
             struct_span_err!(sess, span, E0452, "malformed lint attribute")
         };
         for attr in attrs {
-            let level = match Level::from_str(&attr.name().as_str()) {
+            let level = match attr.ident_str().and_then(|name| Level::from_str(name)) {
                 None => continue,
                 Some(lvl) => lvl,
             };
@@ -204,8 +204,6 @@ impl<'a> LintLevelsBuilder<'a> {
             let mut metas = if let Some(metas) = meta.meta_item_list() {
                 metas
             } else {
-                let mut err = bad_attr(meta.span);
-                err.emit();
                 continue;
             };
 
@@ -256,9 +254,9 @@ impl<'a> LintLevelsBuilder<'a> {
             }
 
             for li in metas {
-                let word = match li.word() {
-                    Some(word) => word,
-                    None => {
+                let meta_item = match li.meta_item() {
+                    Some(meta_item) if meta_item.is_word() => meta_item,
+                    _ => {
                         let mut err = bad_attr(li.span);
                         if let Some(item) = li.meta_item() {
                             if let ast::MetaItemKind::NameValue(_) = item.node {
@@ -271,23 +269,24 @@ impl<'a> LintLevelsBuilder<'a> {
                         continue;
                     }
                 };
-                let tool_name = if let Some(lint_tool) = word.is_scoped() {
-                    if !attr::is_known_lint_tool(lint_tool) {
+                let tool_name = if meta_item.ident.segments.len() > 1 {
+                    let tool_ident = meta_item.ident.segments[0].ident;
+                    if !attr::is_known_lint_tool(tool_ident) {
                         span_err!(
                             sess,
-                            lint_tool.span,
+                            tool_ident.span,
                             E0710,
                             "an unknown tool name found in scoped lint: `{}`",
-                            word.ident
+                            meta_item.ident
                         );
                         continue;
                     }
 
-                    Some(lint_tool.as_str())
+                    Some(tool_ident.as_str())
                 } else {
                     None
                 };
-                let name = word.name();
+                let name = meta_item.ident.segments.last().expect("empty lint name").ident.name;
                 match store.check_lint_name(&name.as_str(), tool_name) {
                     CheckLintNameResult::Ok(ids) => {
                         let src = LintSource::Node(name, li.span, reason);
@@ -326,7 +325,7 @@ impl<'a> LintLevelsBuilder<'a> {
                                     Some(li.span.into()),
                                     &msg,
                                 );
-                                err.span_suggestion_with_applicability(
+                                err.span_suggestion(
                                     li.span,
                                     "change it to",
                                     new_lint_name.to_string(),
@@ -364,7 +363,7 @@ impl<'a> LintLevelsBuilder<'a> {
                                                               Some(li.span.into()),
                                                               &msg);
                         if let Some(new_name) = renamed {
-                            err.span_suggestion_with_applicability(
+                            err.span_suggestion(
                                 li.span,
                                 "use the new name",
                                 new_name,
@@ -388,7 +387,7 @@ impl<'a> LintLevelsBuilder<'a> {
                                                 &msg);
 
                         if let Some(suggestion) = suggestion {
-                            db.span_suggestion_with_applicability(
+                            db.span_suggestion(
                                 li.span,
                                 "did you mean",
                                 suggestion.to_string(),

@@ -1,48 +1,48 @@
-//! type context book-keeping
+//! Type context book-keeping.
 
-use dep_graph::DepGraph;
-use dep_graph::{DepNode, DepConstructor};
+use crate::dep_graph::DepGraph;
+use crate::dep_graph::{self, DepNode, DepConstructor};
+use crate::session::Session;
+use crate::session::config::{BorrowckMode, OutputFilenames};
+use crate::session::config::CrateType;
+use crate::middle;
+use crate::hir::{TraitCandidate, HirId, ItemKind, ItemLocalId, Node};
+use crate::hir::def::{Def, Export};
+use crate::hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE};
+use crate::hir::map as hir_map;
+use crate::hir::map::DefPathHash;
+use crate::lint::{self, Lint};
+use crate::ich::{StableHashingContext, NodeIdHashingMode};
+use crate::infer::canonical::{Canonical, CanonicalVarInfo, CanonicalVarInfos};
+use crate::infer::outlives::free_region_map::FreeRegionMap;
+use crate::middle::cstore::CrateStoreDyn;
+use crate::middle::cstore::EncodedMetadata;
+use crate::middle::lang_items;
+use crate::middle::resolve_lifetime::{self, ObjectLifetimeDefault};
+use crate::middle::stability;
+use crate::mir::{self, Mir, interpret, ProjectionKind};
+use crate::mir::interpret::Allocation;
+use crate::ty::subst::{Kind, Substs, Subst};
+use crate::ty::ReprOptions;
+use crate::traits;
+use crate::traits::{Clause, Clauses, GoalKind, Goal, Goals};
+use crate::ty::{self, Ty, TypeAndMut};
+use crate::ty::{TyS, TyKind, List};
+use crate::ty::{AdtKind, AdtDef, ClosureSubsts, GeneratorSubsts, Region, Const, LazyConst};
+use crate::ty::{PolyFnSig, InferTy, ParamTy, ProjectionTy, ExistentialPredicate, Predicate};
+use crate::ty::RegionKind;
+use crate::ty::{TyVar, TyVid, IntVar, IntVid, FloatVar, FloatVid};
+use crate::ty::TyKind::*;
+use crate::ty::GenericParamDefKind;
+use crate::ty::layout::{LayoutDetails, TargetDataLayout, VariantIdx};
+use crate::ty::query;
+use crate::ty::steal::Steal;
+use crate::ty::subst::{UserSubsts, UnpackedKind};
+use crate::ty::{BoundVar, BindingMode};
+use crate::ty::CanonicalPolyFnSig;
+use crate::util::nodemap::{DefIdMap, DefIdSet, ItemLocalMap};
+use crate::util::nodemap::{FxHashMap, FxHashSet};
 use errors::DiagnosticBuilder;
-use session::Session;
-use session::config::{BorrowckMode, OutputFilenames};
-use session::config::CrateType;
-use middle;
-use hir::{TraitCandidate, HirId, ItemKind, ItemLocalId, Node};
-use hir::def::{Def, Export};
-use hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE};
-use hir::map as hir_map;
-use hir::map::DefPathHash;
-use lint::{self, Lint};
-use ich::{StableHashingContext, NodeIdHashingMode};
-use infer::canonical::{Canonical, CanonicalVarInfo, CanonicalVarInfos};
-use infer::outlives::free_region_map::FreeRegionMap;
-use middle::cstore::CrateStoreDyn;
-use middle::cstore::EncodedMetadata;
-use middle::lang_items;
-use middle::resolve_lifetime::{self, ObjectLifetimeDefault};
-use middle::stability;
-use mir::{self, Mir, interpret, ProjectionKind};
-use mir::interpret::Allocation;
-use ty::subst::{Kind, Substs, Subst};
-use ty::ReprOptions;
-use traits;
-use traits::{Clause, Clauses, GoalKind, Goal, Goals};
-use ty::{self, Ty, TypeAndMut};
-use ty::{TyS, TyKind, List};
-use ty::{AdtKind, AdtDef, ClosureSubsts, GeneratorSubsts, Region, Const, LazyConst};
-use ty::{PolyFnSig, InferTy, ParamTy, ProjectionTy, ExistentialPredicate, Predicate};
-use ty::RegionKind;
-use ty::{TyVar, TyVid, IntVar, IntVid, FloatVar, FloatVid};
-use ty::TyKind::*;
-use ty::GenericParamDefKind;
-use ty::layout::{LayoutDetails, TargetDataLayout, VariantIdx};
-use ty::query;
-use ty::steal::Steal;
-use ty::subst::{UserSubsts, UnpackedKind};
-use ty::{BoundVar, BindingMode};
-use ty::CanonicalPolyFnSig;
-use util::nodemap::{DefIdMap, DefIdSet, ItemLocalMap};
-use util::nodemap::{FxHashMap, FxHashSet};
 use rustc_data_structures::interner::HashInterner;
 use smallvec::SmallVec;
 use rustc_data_structures::stable_hasher::{HashStable, hash_stable_hashmap,
@@ -73,7 +73,7 @@ use syntax::feature_gate;
 use syntax::symbol::{Symbol, keywords, InternedString};
 use syntax_pos::Span;
 
-use hir;
+use crate::hir;
 
 pub struct AllArenas<'tcx> {
     pub global: WorkerLocal<GlobalArenas<'tcx>>,
@@ -317,6 +317,17 @@ impl<'a, V> LocalTableInContextMut<'a, V> {
     }
 }
 
+/// All information necessary to validate and reveal an `impl Trait` or `existential Type`
+#[derive(RustcEncodable, RustcDecodable, Debug)]
+pub struct ResolvedOpaqueTy<'tcx> {
+    /// The revealed type as seen by this function.
+    pub concrete_type: Ty<'tcx>,
+    /// Generic parameters on the opaque type as passed by this function.
+    /// For `existential type Foo<A, B>; fn foo<T, U>() -> Foo<T, U> { .. }` this is `[T, U]`, not
+    /// `[A, B]`
+    pub substs: &'tcx Substs<'tcx>,
+}
+
 #[derive(RustcEncodable, RustcDecodable, Debug)]
 pub struct TypeckTables<'tcx> {
     /// The HirId::owner all ItemLocalIds in this table are relative to.
@@ -332,13 +343,13 @@ pub struct TypeckTables<'tcx> {
     /// belongs, but it may not exist if it's a tuple field (`tuple.0`).
     field_indices: ItemLocalMap<usize>,
 
-    /// Stores the types for various nodes in the AST.  Note that this table
-    /// is not guaranteed to be populated until after typeck.  See
+    /// Stores the types for various nodes in the AST. Note that this table
+    /// is not guaranteed to be populated until after typeck. See
     /// typeck::check::fn_ctxt for details.
     node_types: ItemLocalMap<Ty<'tcx>>,
 
     /// Stores the type parameters which were substituted to obtain the type
-    /// of this node.  This only applies to nodes that refer to entities
+    /// of this node. This only applies to nodes that refer to entities
     /// parameterized by type parameters, such as generic fns, types, or
     /// other items.
     node_substs: ItemLocalMap<&'tcx Substs<'tcx>>,
@@ -352,7 +363,7 @@ pub struct TypeckTables<'tcx> {
     /// canonical substitutions would include only `for<X> { Vec<X> }`.
     ///
     /// See also `AscribeUserType` statement in MIR.
-    user_provided_types: ItemLocalMap<CanonicalUserTypeAnnotation<'tcx>>,
+    user_provided_types: ItemLocalMap<CanonicalUserType<'tcx>>,
 
     /// Stores the canonicalized types provided by the user. See also
     /// `AscribeUserType` statement in MIR.
@@ -413,13 +424,13 @@ pub struct TypeckTables<'tcx> {
     pub tainted_by_errors: bool,
 
     /// Stores the free-region relationships that were deduced from
-    /// its where clauses and parameter types. These are then
+    /// its where-clauses and parameter types. These are then
     /// read-again by borrowck.
     pub free_region_map: FreeRegionMap<'tcx>,
 
     /// All the existential types that are restricted to concrete types
     /// by this function
-    pub concrete_existential_types: FxHashMap<DefId, Ty<'tcx>>,
+    pub concrete_existential_types: FxHashMap<DefId, ResolvedOpaqueTy<'tcx>>,
 
     /// Given the closure ID this map provides the list of UpvarIDs used by it.
     /// The upvarID contains the HIR node ID and it also contains the full path
@@ -495,7 +506,7 @@ impl<'tcx> TypeckTables<'tcx> {
 
     pub fn user_provided_types(
         &self
-    ) -> LocalTableInContext<'_, CanonicalUserTypeAnnotation<'tcx>> {
+    ) -> LocalTableInContext<'_, CanonicalUserType<'tcx>> {
         LocalTableInContext {
             local_id_root: self.local_id_root,
             data: &self.user_provided_types
@@ -504,7 +515,7 @@ impl<'tcx> TypeckTables<'tcx> {
 
     pub fn user_provided_types_mut(
         &mut self
-    ) -> LocalTableInContextMut<'_, CanonicalUserTypeAnnotation<'tcx>> {
+    ) -> LocalTableInContextMut<'_, CanonicalUserType<'tcx>> {
         LocalTableInContextMut {
             local_id_root: self.local_id_root,
             data: &mut self.user_provided_types
@@ -525,17 +536,14 @@ impl<'tcx> TypeckTables<'tcx> {
         }
     }
 
-    pub fn node_id_to_type(&self, id: hir::HirId) -> Ty<'tcx> {
-        self.node_id_to_type_opt(id).unwrap_or_else(||
-            bug!("node_id_to_type: no type for node `{}`",
-                 tls::with(|tcx| {
-                     let id = tcx.hir().hir_to_node_id(id);
-                     tcx.hir().node_to_string(id)
-                 }))
+    pub fn node_type(&self, id: hir::HirId) -> Ty<'tcx> {
+        self.node_type_opt(id).unwrap_or_else(||
+            bug!("node_type: no type for node `{}`",
+                 tls::with(|tcx| tcx.hir().hir_to_string(id)))
         )
     }
 
-    pub fn node_id_to_type_opt(&self, id: hir::HirId) -> Option<Ty<'tcx>> {
+    pub fn node_type_opt(&self, id: hir::HirId) -> Option<Ty<'tcx>> {
         validate_hir_id_for_typeck_tables(self.local_id_root, id, false);
         self.node_types.get(&id.local_id).cloned()
     }
@@ -560,11 +568,11 @@ impl<'tcx> TypeckTables<'tcx> {
     // Returns the type of a pattern as a monotype. Like @expr_ty, this function
     // doesn't provide type parameter substitutions.
     pub fn pat_ty(&self, pat: &hir::Pat) -> Ty<'tcx> {
-        self.node_id_to_type(pat.hir_id)
+        self.node_type(pat.hir_id)
     }
 
     pub fn pat_ty_opt(&self, pat: &hir::Pat) -> Option<Ty<'tcx>> {
-        self.node_id_to_type_opt(pat.hir_id)
+        self.node_type_opt(pat.hir_id)
     }
 
     // Returns the type of an expression as a monotype.
@@ -578,11 +586,11 @@ impl<'tcx> TypeckTables<'tcx> {
     // ask for the type of "id" in "id(3)", it will return "fn(&isize) -> isize"
     // instead of "fn(ty) -> T with T = isize".
     pub fn expr_ty(&self, expr: &hir::Expr) -> Ty<'tcx> {
-        self.node_id_to_type(expr.hir_id)
+        self.node_type(expr.hir_id)
     }
 
     pub fn expr_ty_opt(&self, expr: &hir::Expr) -> Option<Ty<'tcx>> {
-        self.node_id_to_type_opt(expr.hir_id)
+        self.node_type_opt(expr.hir_id)
     }
 
     pub fn adjustments(&self) -> LocalTableInContext<'_, Vec<ty::adjustment::Adjustment<'tcx>>> {
@@ -802,25 +810,46 @@ impl<'a, 'gcx> HashStable<StableHashingContext<'a>> for TypeckTables<'gcx> {
 
 newtype_index! {
     pub struct UserTypeAnnotationIndex {
-        DEBUG_FORMAT = "UserTypeAnnotation({})",
+        DEBUG_FORMAT = "UserType({})",
         const START_INDEX = 0,
     }
 }
 
 /// Mapping of type annotation indices to canonical user type annotations.
 pub type CanonicalUserTypeAnnotations<'tcx> =
-    IndexVec<UserTypeAnnotationIndex, (Span, CanonicalUserTypeAnnotation<'tcx>)>;
+    IndexVec<UserTypeAnnotationIndex, CanonicalUserTypeAnnotation<'tcx>>;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, RustcEncodable, RustcDecodable)]
+pub struct CanonicalUserTypeAnnotation<'tcx> {
+    pub user_ty: CanonicalUserType<'tcx>,
+    pub span: Span,
+    pub inferred_ty: Ty<'tcx>,
+}
+
+BraceStructTypeFoldableImpl! {
+    impl<'tcx> TypeFoldable<'tcx> for CanonicalUserTypeAnnotation<'tcx> {
+        user_ty, span, inferred_ty
+    }
+}
+
+BraceStructLiftImpl! {
+    impl<'a, 'tcx> Lift<'tcx> for CanonicalUserTypeAnnotation<'a> {
+        type Lifted = CanonicalUserTypeAnnotation<'tcx>;
+        user_ty, span, inferred_ty
+    }
+}
+
 
 /// Canonicalized user type annotation.
-pub type CanonicalUserTypeAnnotation<'gcx> = Canonical<'gcx, UserTypeAnnotation<'gcx>>;
+pub type CanonicalUserType<'gcx> = Canonical<'gcx, UserType<'gcx>>;
 
-impl CanonicalUserTypeAnnotation<'gcx> {
+impl CanonicalUserType<'gcx> {
     /// Returns `true` if this represents a substitution of the form `[?0, ?1, ?2]`,
-    /// i.e. each thing is mapped to a canonical variable with the same index.
+    /// i.e., each thing is mapped to a canonical variable with the same index.
     pub fn is_identity(&self) -> bool {
         match self.value {
-            UserTypeAnnotation::Ty(_) => false,
-            UserTypeAnnotation::TypeOf(_, user_substs) => {
+            UserType::Ty(_) => false,
+            UserType::TypeOf(_, user_substs) => {
                 if user_substs.user_self_ty.is_some() {
                     return false;
                 }
@@ -851,11 +880,11 @@ impl CanonicalUserTypeAnnotation<'gcx> {
     }
 }
 
-/// A user-given type annotation attached to a constant.  These arise
+/// A user-given type annotation attached to a constant. These arise
 /// from constants that are named via paths, like `Foo::<A>::new` and
 /// so forth.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, RustcEncodable, RustcDecodable)]
-pub enum UserTypeAnnotation<'tcx> {
+pub enum UserType<'tcx> {
     Ty(Ty<'tcx>),
 
     /// The canonical type is the result of `type_of(def_id)` with the
@@ -864,17 +893,17 @@ pub enum UserTypeAnnotation<'tcx> {
 }
 
 EnumTypeFoldableImpl! {
-    impl<'tcx> TypeFoldable<'tcx> for UserTypeAnnotation<'tcx> {
-        (UserTypeAnnotation::Ty)(ty),
-        (UserTypeAnnotation::TypeOf)(def, substs),
+    impl<'tcx> TypeFoldable<'tcx> for UserType<'tcx> {
+        (UserType::Ty)(ty),
+        (UserType::TypeOf)(def, substs),
     }
 }
 
 EnumLiftImpl! {
-    impl<'a, 'tcx> Lift<'tcx> for UserTypeAnnotation<'a> {
-        type Lifted = UserTypeAnnotation<'tcx>;
-        (UserTypeAnnotation::Ty)(ty),
-        (UserTypeAnnotation::TypeOf)(def, substs),
+    impl<'a, 'tcx> Lift<'tcx> for UserType<'a> {
+        type Lifted = UserType<'tcx>;
+        (UserType::Ty)(ty),
+        (UserType::TypeOf)(def, substs),
     }
 }
 
@@ -985,6 +1014,9 @@ pub struct GlobalCtxt<'tcx> {
 
     maybe_unused_trait_imports: FxHashSet<DefId>,
     maybe_unused_extern_crates: Vec<(DefId, Span)>,
+    /// A map of glob use to a set of names it actually imports. Currently only
+    /// used in save-analysis.
+    glob_map: FxHashMap<DefId, FxHashSet<ast::Name>>,
     /// Extern prelude entries. The value is `true` if the entry was introduced
     /// via `extern crate` item and not `--extern` option or compiler built-in.
     pub extern_prelude: FxHashMap<ast::Name, bool>,
@@ -1029,7 +1061,7 @@ pub struct GlobalCtxt<'tcx> {
 }
 
 impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
-    /// Get the global TyCtxt.
+    /// Gets the global `TyCtxt`.
     #[inline]
     pub fn global_tcx(self) -> TyCtxt<'gcx, 'gcx, 'gcx> {
         TyCtxt {
@@ -1129,12 +1161,12 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
         value.lift_to_tcx(self.global_tcx())
     }
 
-    /// Returns true if self is the same as self.global_tcx().
+    /// Returns `true` if self is the same as self.global_tcx().
     fn is_global(self) -> bool {
         ptr::eq(self.interners, &self.global_interners)
     }
 
-    /// Create a type context and call the closure with a `TyCtxt` reference
+    /// Creates a type context and call the closure with a `TyCtxt` reference
     /// to the context. The closure enforces that the type context and any interned
     /// value (types, substs, etc.) can only be used while `ty::tls` has a valid
     /// reference to the context, to allow formatting values that need it.
@@ -1227,6 +1259,9 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
                     .into_iter()
                     .map(|(id, sp)| (hir.local_def_id(id), sp))
                     .collect(),
+            glob_map: resolutions.glob_map.into_iter().map(|(id, names)| {
+                (hir.local_def_id(id), names)
+            }).collect(),
             extern_prelude: resolutions.extern_prelude,
             hir_map: hir,
             def_path_hash_to_def_id,
@@ -1326,7 +1361,7 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
         }
     }
 
-    /// Convert a `DefId` into its fully expanded `DefPath` (every
+    /// Converts a `DefId` into its fully expanded `DefPath` (every
     /// `DefId` is really just an interned def-path).
     ///
     /// Note that if `id` is not local to this crate, the result will
@@ -1403,7 +1438,8 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
             self.dep_graph.with_task(dep_node,
                                      self,
                                      crate_hash,
-                                     |_, x| x // No transformation needed
+                                     |_, x| x, // No transformation needed
+                                     dep_graph::hash_result,
             );
         }
     }
@@ -1643,6 +1679,12 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
         }
         false
     }
+
+    /// Determine whether identifiers in the assembly have strict naming rules.
+    /// Currently, only NVPTX* targets need it.
+    pub fn has_strict_asm_symbol_naming(&self) -> bool {
+        self.gcx.sess.target.target.arch.contains("nvptx")
+    }
 }
 
 impl<'a, 'tcx> TyCtxt<'a, 'tcx, 'tcx> {
@@ -1735,7 +1777,7 @@ macro_rules! nop_list_lift {
         impl<'a, 'tcx> Lift<'tcx> for &'a List<$ty> {
             type Lifted = &'tcx List<$lifted>;
             fn lift_to_tcx<'b, 'gcx>(&self, tcx: TyCtxt<'b, 'gcx, 'tcx>) -> Option<Self::Lifted> {
-                        if self.is_empty() {
+                if self.is_empty() {
                     return Some(List::empty());
                 }
                 if tcx.interners.arena.in_arena(*self as *const _) {
@@ -1784,18 +1826,18 @@ pub mod tls {
     use std::marker::PhantomData;
     use std::ptr;
     use syntax_pos;
-    use ty::query;
+    use crate::ty::query;
     use errors::{Diagnostic, TRACK_DIAGNOSTICS};
     use rustc_data_structures::OnDrop;
     use rustc_data_structures::sync::{self, Lrc, Lock};
     use rustc_data_structures::thin_vec::ThinVec;
-    use dep_graph::TaskDeps;
+    use crate::dep_graph::TaskDeps;
 
-    #[cfg(not(parallel_queries))]
+    #[cfg(not(parallel_compiler))]
     use std::cell::Cell;
 
-    #[cfg(parallel_queries)]
-    use rayon_core;
+    #[cfg(parallel_compiler)]
+    use rustc_rayon_core as rayon_core;
 
     /// This is the implicit state of rustc. It contains the current
     /// TyCtxt and query. It is updated when creating a local interner or
@@ -1827,7 +1869,7 @@ pub mod tls {
     /// Sets Rayon's thread local variable which is preserved for Rayon jobs
     /// to `value` during the call to `f`. It is restored to its previous value after.
     /// This is used to set the pointer to the new ImplicitCtxt.
-    #[cfg(parallel_queries)]
+    #[cfg(parallel_compiler)]
     #[inline]
     fn set_tlv<F: FnOnce() -> R, R>(value: usize, f: F) -> R {
         rayon_core::tlv::with(value, f)
@@ -1835,20 +1877,20 @@ pub mod tls {
 
     /// Gets Rayon's thread local variable which is preserved for Rayon jobs.
     /// This is used to get the pointer to the current ImplicitCtxt.
-    #[cfg(parallel_queries)]
+    #[cfg(parallel_compiler)]
     #[inline]
     fn get_tlv() -> usize {
         rayon_core::tlv::get()
     }
 
     /// A thread local variable which stores a pointer to the current ImplicitCtxt
-    #[cfg(not(parallel_queries))]
+    #[cfg(not(parallel_compiler))]
     thread_local!(static TLV: Cell<usize> = Cell::new(0));
 
     /// Sets TLV to `value` during the call to `f`.
     /// It is restored to its previous value after.
     /// This is used to set the pointer to the new ImplicitCtxt.
-    #[cfg(not(parallel_queries))]
+    #[cfg(not(parallel_compiler))]
     #[inline]
     fn set_tlv<F: FnOnce() -> R, R>(value: usize, f: F) -> R {
         let old = get_tlv();
@@ -1858,7 +1900,7 @@ pub mod tls {
     }
 
     /// This is used to get the pointer to the current ImplicitCtxt.
-    #[cfg(not(parallel_queries))]
+    #[cfg(not(parallel_compiler))]
     fn get_tlv() -> usize {
         TLV.with(|tlv| tlv.get())
     }
@@ -2076,8 +2118,8 @@ macro_rules! sty_debug_print {
         // variable names.
         #[allow(non_snake_case)]
         mod inner {
-            use ty::{self, TyCtxt};
-            use ty::context::Interned;
+            use crate::ty::{self, TyCtxt};
+            use crate::ty::context::Interned;
 
             #[derive(Copy, Clone)]
             struct DebugStat {
@@ -2973,6 +3015,10 @@ pub fn provide(providers: &mut ty::query::Providers<'_>) {
     providers.maybe_unused_extern_crates = |tcx, cnum| {
         assert_eq!(cnum, LOCAL_CRATE);
         Lrc::new(tcx.maybe_unused_extern_crates.clone())
+    };
+    providers.names_imported_by_glob_use = |tcx, id| {
+        assert_eq!(id.krate, LOCAL_CRATE);
+        Lrc::new(tcx.glob_map.get(&id).cloned().unwrap_or_default())
     };
 
     providers.stability_index = |tcx, cnum| {

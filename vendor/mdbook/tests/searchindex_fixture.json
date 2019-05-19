@@ -1,110 +1,145 @@
 {
+  "doc_urls": [
+    "index.html#dummy-book",
+    "intro.html#introduction",
+    "first/index.html#first-chapter",
+    "first/index.html#some-section",
+    "first/nested.html#nested-chapter",
+    "first/nested.html#some-section",
+    "first/includes.html#includes",
+    "first/includes.html#summary",
+    "second.html#second-chapter",
+    "second/nested.html#testing-relative-links-for-the-print-page",
+    "conclusion.html#conclusion"
+  ],
   "index": {
     "documentStore": {
       "docInfo": {
-        "conclusion.html#conclusion": {
+        "0": {
+          "body": 9,
+          "breadcrumbs": 2,
+          "title": 2
+        },
+        "1": {
           "body": 3,
           "breadcrumbs": 1,
           "title": 1
         },
-        "first/includes.html#includes": {
-          "body": 0,
-          "breadcrumbs": 3,
+        "10": {
+          "body": 3,
+          "breadcrumbs": 1,
           "title": 1
         },
-        "first/includes.html#summary": {
-          "body": 9,
-          "breadcrumbs": 3,
-          "title": 1
-        },
-        "first/index.html#first-chapter": {
+        "2": {
           "body": 2,
           "breadcrumbs": 2,
           "title": 2
         },
-        "first/index.html#some-section": {
+        "3": {
           "body": 0,
           "breadcrumbs": 1,
           "title": 1
         },
-        "first/nested.html#nested-chapter": {
+        "4": {
           "body": 4,
           "breadcrumbs": 4,
           "title": 2
         },
-        "first/nested.html#some-section": {
+        "5": {
           "body": 0,
           "breadcrumbs": 3,
           "title": 1
         },
-        "intro.html#introduction": {
-          "body": 3,
-          "breadcrumbs": 1,
+        "6": {
+          "body": 0,
+          "breadcrumbs": 3,
           "title": 1
         },
-        "second.html#second-chapter": {
+        "7": {
+          "body": 14,
+          "breadcrumbs": 3,
+          "title": 1
+        },
+        "8": {
           "body": 20,
           "breadcrumbs": 2,
           "title": 2
+        },
+        "9": {
+          "body": 10,
+          "breadcrumbs": 7,
+          "title": 5
         }
       },
       "docs": {
-        "conclusion.html#conclusion": {
-          "body": "I put &lt;HTML&gt; in here!",
-          "breadcrumbs": "Conclusion",
-          "id": "conclusion.html#conclusion",
-          "title": "Conclusion"
+        "0": {
+          "body": "This file is just here to cause the index preprocessor to run. Does a pretty good job, too.",
+          "breadcrumbs": "Dummy Book",
+          "id": "0",
+          "title": "Dummy Book"
         },
-        "first/includes.html#includes": {
-          "body": "",
-          "breadcrumbs": "First Chapter » Includes",
-          "id": "first/includes.html#includes",
-          "title": "Includes"
-        },
-        "first/includes.html#summary": {
-          "body": "Introduction First Chapter Nested Chapter Includes Second Chapter Conclusion",
-          "breadcrumbs": "First Chapter » Summary",
-          "id": "first/includes.html#summary",
-          "title": "Summary"
-        },
-        "first/index.html#first-chapter": {
-          "body": "more text.",
-          "breadcrumbs": "First Chapter",
-          "id": "first/index.html#first-chapter",
-          "title": "First Chapter"
-        },
-        "first/index.html#some-section": {
-          "body": "",
-          "breadcrumbs": "Some Section",
-          "id": "first/index.html#some-section",
-          "title": "Some Section"
-        },
-        "first/nested.html#nested-chapter": {
-          "body": "This file has some testable code. assert!(true);",
-          "breadcrumbs": "First Chapter » Nested Chapter",
-          "id": "first/nested.html#nested-chapter",
-          "title": "Nested Chapter"
-        },
-        "first/nested.html#some-section": {
-          "body": "",
-          "breadcrumbs": "First Chapter » Some Section",
-          "id": "first/nested.html#some-section",
-          "title": "Some Section"
-        },
-        "intro.html#introduction": {
+        "1": {
           "body": "Here's some interesting text...",
           "breadcrumbs": "Introduction",
-          "id": "intro.html#introduction",
+          "id": "1",
           "title": "Introduction"
         },
-        "second.html#second-chapter": {
+        "10": {
+          "body": "I put &lt;HTML&gt; in here!",
+          "breadcrumbs": "Conclusion",
+          "id": "10",
+          "title": "Conclusion"
+        },
+        "2": {
+          "body": "more text.",
+          "breadcrumbs": "First Chapter",
+          "id": "2",
+          "title": "First Chapter"
+        },
+        "3": {
+          "body": "",
+          "breadcrumbs": "Some Section",
+          "id": "3",
+          "title": "Some Section"
+        },
+        "4": {
+          "body": "This file has some testable code. assert!(true);",
+          "breadcrumbs": "First Chapter » Nested Chapter",
+          "id": "4",
+          "title": "Nested Chapter"
+        },
+        "5": {
+          "body": "",
+          "breadcrumbs": "First Chapter » Some Section",
+          "id": "5",
+          "title": "Some Section"
+        },
+        "6": {
+          "body": "",
+          "breadcrumbs": "First Chapter » Includes",
+          "id": "6",
+          "title": "Includes"
+        },
+        "7": {
+          "body": "Dummy Book Introduction First Chapter Nested Chapter Includes Recursive Second Chapter Nested Chapter Conclusion",
+          "breadcrumbs": "First Chapter » Summary",
+          "id": "7",
+          "title": "Summary"
+        },
+        "8": {
           "body": "This makes sure you can insert runnable Rust files. fn main() { println!(\"Hello World!\");\n#\n# // You can even hide lines! :D\n# println!(\"I am hidden! Expand the code snippet to see me\");\n}",
           "breadcrumbs": "Second Chapter",
-          "id": "second.html#second-chapter",
+          "id": "8",
           "title": "Second Chapter"
+        },
+        "9": {
+          "body": "When we link to the first section , it should work on both the print page and the non-print page.",
+          "breadcrumbs": "Second Chapter » Testing relative links for the print page",
+          "id": "9",
+          "title": "Testing relative links for the print page"
         }
       },
-      "length": 9,
+      "length": 11,
       "save": true
     },
     "fields": [
@@ -144,7 +179,7 @@
                               "u": {
                                 "df": 1,
                                 "docs": {
-                                  "first/nested.html#nested-chapter": {
+                                  "4": {
                                     "tf": 1.0
                                   }
                                 }
@@ -163,7 +198,58 @@
               }
             }
           },
+          "b": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "df": 0,
+              "docs": {},
+              "o": {
+                "df": 0,
+                "docs": {},
+                "k": {
+                  "df": 2,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    },
+                    "7": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              },
+              "t": {
+                "df": 0,
+                "docs": {},
+                "h": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            }
+          },
           "c": {
+            "a": {
+              "df": 0,
+              "docs": {},
+              "u": {
+                "df": 0,
+                "docs": {},
+                "s": {
+                  "df": 1,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            },
             "df": 0,
             "docs": {},
             "h": {
@@ -182,16 +268,16 @@
                       "r": {
                         "df": 4,
                         "docs": {
-                          "first/includes.html#summary": {
-                            "tf": 1.7320508075688773
-                          },
-                          "first/index.html#first-chapter": {
+                          "2": {
                             "tf": 1.0
                           },
-                          "first/nested.html#nested-chapter": {
+                          "4": {
                             "tf": 1.0
                           },
-                          "second.html#second-chapter": {
+                          "7": {
+                            "tf": 2.0
+                          },
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -210,10 +296,10 @@
                 "e": {
                   "df": 2,
                   "docs": {
-                    "first/nested.html#nested-chapter": {
+                    "4": {
                       "tf": 1.0
                     },
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -234,10 +320,10 @@
                       "s": {
                         "df": 2,
                         "docs": {
-                          "conclusion.html#conclusion": {
+                          "10": {
                             "tf": 1.0
                           },
-                          "first/includes.html#summary": {
+                          "7": {
                             "tf": 1.0
                           }
                         }
@@ -253,8 +339,31 @@
           "d": {
             "df": 1,
             "docs": {
-              "second.html#second-chapter": {
+              "8": {
                 "tf": 1.0
+              }
+            },
+            "u": {
+              "df": 0,
+              "docs": {},
+              "m": {
+                "df": 0,
+                "docs": {},
+                "m": {
+                  "df": 0,
+                  "docs": {},
+                  "i": {
+                    "df": 2,
+                    "docs": {
+                      "0": {
+                        "tf": 1.0
+                      },
+                      "7": {
+                        "tf": 1.0
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -272,7 +381,7 @@
                 "n": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -290,7 +399,7 @@
                     "d": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -314,12 +423,15 @@
                 "df": 0,
                 "docs": {},
                 "e": {
-                  "df": 2,
+                  "df": 3,
                   "docs": {
-                    "first/nested.html#nested-chapter": {
+                    "0": {
                       "tf": 1.0
                     },
-                    "second.html#second-chapter": {
+                    "4": {
+                      "tf": 1.0
+                    },
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -332,12 +444,15 @@
                   "df": 0,
                   "docs": {},
                   "t": {
-                    "df": 2,
+                    "df": 3,
                     "docs": {
-                      "first/includes.html#summary": {
+                      "2": {
                         "tf": 1.0
                       },
-                      "first/index.html#first-chapter": {
+                      "7": {
+                        "tf": 1.0
+                      },
+                      "9": {
                         "tf": 1.0
                       }
                     }
@@ -348,9 +463,29 @@
             "n": {
               "df": 1,
               "docs": {
-                "second.html#second-chapter": {
+                "8": {
                   "tf": 1.0
                 }
+              }
+            }
+          },
+          "g": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "df": 0,
+              "docs": {},
+              "o": {
+                "d": {
+                  "df": 1,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    }
+                  }
+                },
+                "df": 0,
+                "docs": {}
               }
             }
           },
@@ -367,14 +502,17 @@
                   "'": {
                     "df": 1,
                     "docs": {
-                      "intro.html#introduction": {
+                      "1": {
                         "tf": 1.0
                       }
                     }
                   },
-                  "df": 1,
+                  "df": 2,
                   "docs": {
-                    "conclusion.html#conclusion": {
+                    "0": {
+                      "tf": 1.0
+                    },
+                    "10": {
                       "tf": 1.0
                     }
                   }
@@ -392,7 +530,7 @@
                     "n": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -404,7 +542,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -428,16 +566,32 @@
                     "d": {
                       "df": 2,
                       "docs": {
-                        "first/includes.html#includes": {
+                        "6": {
                           "tf": 1.0
                         },
-                        "first/includes.html#summary": {
+                        "7": {
                           "tf": 1.0
                         }
                       }
                     },
                     "df": 0,
                     "docs": {}
+                  }
+                }
+              },
+              "d": {
+                "df": 0,
+                "docs": {},
+                "e": {
+                  "df": 0,
+                  "docs": {},
+                  "x": {
+                    "df": 1,
+                    "docs": {
+                      "0": {
+                        "tf": 1.0
+                      }
+                    }
                   }
                 }
               },
@@ -455,7 +609,7 @@
                     "t": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -481,7 +635,7 @@
                         "t": {
                           "df": 1,
                           "docs": {
-                            "intro.html#introduction": {
+                            "1": {
                               "tf": 1.0
                             }
                           }
@@ -504,10 +658,10 @@
                           "t": {
                             "df": 2,
                             "docs": {
-                              "first/includes.html#summary": {
+                              "1": {
                                 "tf": 1.0
                               },
-                              "intro.html#introduction": {
+                              "7": {
                                 "tf": 1.0
                               }
                             }
@@ -524,6 +678,22 @@
               }
             }
           },
+          "j": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "b": {
+                "df": 1,
+                "docs": {
+                  "0": {
+                    "tf": 1.0
+                  }
+                }
+              },
+              "df": 0,
+              "docs": {}
+            }
+          },
           "l": {
             "df": 0,
             "docs": {},
@@ -536,8 +706,16 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
+                    }
+                  }
+                },
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.4142135623730951
                     }
                   }
                 }
@@ -566,7 +744,7 @@
                             "t": {
                               "df": 1,
                               "docs": {
-                                "conclusion.html#conclusion": {
+                                "10": {
                                   "tf": 1.0
                                 }
                               }
@@ -594,7 +772,7 @@
                 "n": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -606,7 +784,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -624,7 +802,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "first/index.html#first-chapter": {
+                    "2": {
                       "tf": 1.0
                     }
                   }
@@ -644,23 +822,111 @@
                 "t": {
                   "df": 2,
                   "docs": {
-                    "first/includes.html#summary": {
+                    "4": {
                       "tf": 1.0
                     },
-                    "first/nested.html#nested-chapter": {
-                      "tf": 1.0
+                    "7": {
+                      "tf": 1.4142135623730951
                     }
+                  }
+                }
+              }
+            },
+            "o": {
+              "df": 0,
+              "docs": {},
+              "n": {
+                "df": 1,
+                "docs": {
+                  "9": {
+                    "tf": 1.0
                   }
                 }
               }
             }
           },
           "p": {
+            "a": {
+              "df": 0,
+              "docs": {},
+              "g": {
+                "df": 0,
+                "docs": {},
+                "e": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.7320508075688772
+                    }
+                  }
+                }
+              }
+            },
             "df": 0,
             "docs": {},
             "r": {
               "df": 0,
               "docs": {},
+              "e": {
+                "df": 0,
+                "docs": {},
+                "p": {
+                  "df": 0,
+                  "docs": {},
+                  "r": {
+                    "df": 0,
+                    "docs": {},
+                    "o": {
+                      "c": {
+                        "df": 0,
+                        "docs": {},
+                        "e": {
+                          "df": 0,
+                          "docs": {},
+                          "s": {
+                            "df": 0,
+                            "docs": {},
+                            "s": {
+                              "df": 0,
+                              "docs": {},
+                              "o": {
+                                "df": 0,
+                                "docs": {},
+                                "r": {
+                                  "df": 1,
+                                  "docs": {
+                                    "0": {
+                                      "tf": 1.0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "df": 0,
+                      "docs": {}
+                    }
+                  }
+                },
+                "t": {
+                  "df": 0,
+                  "docs": {},
+                  "t": {
+                    "df": 0,
+                    "docs": {},
+                    "i": {
+                      "df": 1,
+                      "docs": {
+                        "0": {
+                          "tf": 1.0
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "i": {
                 "df": 0,
                 "docs": {},
@@ -668,8 +934,12 @@
                   "df": 0,
                   "docs": {},
                   "t": {
-                    "df": 0,
-                    "docs": {},
+                    "df": 1,
+                    "docs": {
+                      "9": {
+                        "tf": 1.7320508075688772
+                      }
+                    },
                     "l": {
                       "df": 0,
                       "docs": {},
@@ -694,7 +964,7 @@
                                       "o": {
                                         "df": 1,
                                         "docs": {
-                                          "second.html#second-chapter": {
+                                          "8": {
                                             "tf": 1.0
                                           }
                                         }
@@ -706,7 +976,7 @@
                               "i": {
                                 "df": 1,
                                 "docs": {
-                                  "second.html#second-chapter": {
+                                  "8": {
                                     "tf": 1.0
                                   }
                                 }
@@ -732,7 +1002,7 @@
               "t": {
                 "df": 1,
                 "docs": {
-                  "conclusion.html#conclusion": {
+                  "10": {
                     "tf": 1.0
                   }
                 }
@@ -742,12 +1012,48 @@
           "r": {
             "df": 0,
             "docs": {},
+            "e": {
+              "c": {
+                "df": 0,
+                "docs": {},
+                "u": {
+                  "df": 0,
+                  "docs": {},
+                  "r": {
+                    "df": 0,
+                    "docs": {},
+                    "s": {
+                      "df": 1,
+                      "docs": {
+                        "7": {
+                          "tf": 1.0
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "df": 0,
+              "docs": {},
+              "l": {
+                "df": 1,
+                "docs": {
+                  "9": {
+                    "tf": 1.0
+                  }
+                }
+              }
+            },
             "u": {
               "df": 0,
               "docs": {},
               "n": {
-                "df": 0,
-                "docs": {},
+                "df": 1,
+                "docs": {
+                  "0": {
+                    "tf": 1.0
+                  }
+                },
                 "n": {
                   "a": {
                     "b": {
@@ -756,7 +1062,7 @@
                       "l": {
                         "df": 1,
                         "docs": {
-                          "second.html#second-chapter": {
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -775,7 +1081,7 @@
                 "t": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -797,10 +1103,10 @@
                     "d": {
                       "df": 2,
                       "docs": {
-                        "first/includes.html#summary": {
+                        "7": {
                           "tf": 1.0
                         },
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -819,12 +1125,15 @@
                       "df": 0,
                       "docs": {},
                       "n": {
-                        "df": 2,
+                        "df": 3,
                         "docs": {
-                          "first/index.html#some-section": {
+                          "3": {
                             "tf": 1.0
                           },
-                          "first/nested.html#some-section": {
+                          "5": {
+                            "tf": 1.0
+                          },
+                          "9": {
                             "tf": 1.0
                           }
                         }
@@ -838,7 +1147,7 @@
               "e": {
                 "df": 1,
                 "docs": {
-                  "second.html#second-chapter": {
+                  "8": {
                     "tf": 1.0
                   }
                 }
@@ -862,7 +1171,7 @@
                       "t": {
                         "df": 1,
                         "docs": {
-                          "second.html#second-chapter": {
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -888,7 +1197,7 @@
                       "i": {
                         "df": 1,
                         "docs": {
-                          "first/includes.html#summary": {
+                          "7": {
                             "tf": 1.0
                           }
                         }
@@ -905,7 +1214,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -930,7 +1239,7 @@
                       "l": {
                         "df": 1,
                         "docs": {
-                          "first/nested.html#nested-chapter": {
+                          "4": {
                             "tf": 1.0
                           }
                         }
@@ -939,8 +1248,12 @@
                     "df": 0,
                     "docs": {}
                   },
-                  "df": 0,
-                  "docs": {}
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
                 }
               },
               "x": {
@@ -949,10 +1262,10 @@
                 "t": {
                   "df": 2,
                   "docs": {
-                    "first/index.html#first-chapter": {
+                    "1": {
                       "tf": 1.0
                     },
-                    "intro.html#introduction": {
+                    "2": {
                       "tf": 1.0
                     }
                   }
@@ -969,11 +1282,19 @@
               "r": {
                 "df": 0,
                 "docs": {},
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
+                },
                 "l": {
                   "d": {
                     "df": 1,
                     "docs": {
-                      "second.html#second-chapter": {
+                      "8": {
                         "tf": 1.0
                       }
                     }
@@ -1017,7 +1338,7 @@
                               "u": {
                                 "df": 1,
                                 "docs": {
-                                  "first/nested.html#nested-chapter": {
+                                  "4": {
                                     "tf": 1.0
                                   }
                                 }
@@ -1036,7 +1357,58 @@
               }
             }
           },
+          "b": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "df": 0,
+              "docs": {},
+              "o": {
+                "df": 0,
+                "docs": {},
+                "k": {
+                  "df": 2,
+                  "docs": {
+                    "0": {
+                      "tf": 1.4142135623730951
+                    },
+                    "7": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              },
+              "t": {
+                "df": 0,
+                "docs": {},
+                "h": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            }
+          },
           "c": {
+            "a": {
+              "df": 0,
+              "docs": {},
+              "u": {
+                "df": 0,
+                "docs": {},
+                "s": {
+                  "df": 1,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            },
             "df": 0,
             "docs": {},
             "h": {
@@ -1053,25 +1425,28 @@
                       "df": 0,
                       "docs": {},
                       "r": {
-                        "df": 6,
+                        "df": 7,
                         "docs": {
-                          "first/includes.html#includes": {
+                          "2": {
+                            "tf": 1.4142135623730951
+                          },
+                          "4": {
+                            "tf": 1.7320508075688772
+                          },
+                          "5": {
                             "tf": 1.0
                           },
-                          "first/includes.html#summary": {
-                            "tf": 2.0
-                          },
-                          "first/index.html#first-chapter": {
-                            "tf": 1.4142135623730952
-                          },
-                          "first/nested.html#nested-chapter": {
-                            "tf": 1.7320508075688773
-                          },
-                          "first/nested.html#some-section": {
+                          "6": {
                             "tf": 1.0
                           },
-                          "second.html#second-chapter": {
-                            "tf": 1.4142135623730952
+                          "7": {
+                            "tf": 2.23606797749979
+                          },
+                          "8": {
+                            "tf": 1.4142135623730951
+                          },
+                          "9": {
+                            "tf": 1.0
                           }
                         }
                       }
@@ -1089,10 +1464,10 @@
                 "e": {
                   "df": 2,
                   "docs": {
-                    "first/nested.html#nested-chapter": {
+                    "4": {
                       "tf": 1.0
                     },
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1113,10 +1488,10 @@
                       "s": {
                         "df": 2,
                         "docs": {
-                          "conclusion.html#conclusion": {
-                            "tf": 1.4142135623730952
+                          "10": {
+                            "tf": 1.4142135623730951
                           },
-                          "first/includes.html#summary": {
+                          "7": {
                             "tf": 1.0
                           }
                         }
@@ -1132,8 +1507,31 @@
           "d": {
             "df": 1,
             "docs": {
-              "second.html#second-chapter": {
+              "8": {
                 "tf": 1.0
+              }
+            },
+            "u": {
+              "df": 0,
+              "docs": {},
+              "m": {
+                "df": 0,
+                "docs": {},
+                "m": {
+                  "df": 0,
+                  "docs": {},
+                  "i": {
+                    "df": 2,
+                    "docs": {
+                      "0": {
+                        "tf": 1.4142135623730951
+                      },
+                      "7": {
+                        "tf": 1.0
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1151,7 +1549,7 @@
                 "n": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1169,7 +1567,7 @@
                     "d": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -1193,12 +1591,15 @@
                 "df": 0,
                 "docs": {},
                 "e": {
-                  "df": 2,
+                  "df": 3,
                   "docs": {
-                    "first/nested.html#nested-chapter": {
+                    "0": {
                       "tf": 1.0
                     },
-                    "second.html#second-chapter": {
+                    "4": {
+                      "tf": 1.0
+                    },
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1211,21 +1612,24 @@
                   "df": 0,
                   "docs": {},
                   "t": {
-                    "df": 5,
+                    "df": 6,
                     "docs": {
-                      "first/includes.html#includes": {
+                      "2": {
+                        "tf": 1.4142135623730951
+                      },
+                      "4": {
                         "tf": 1.0
                       },
-                      "first/includes.html#summary": {
-                        "tf": 1.4142135623730952
-                      },
-                      "first/index.html#first-chapter": {
-                        "tf": 1.4142135623730952
-                      },
-                      "first/nested.html#nested-chapter": {
+                      "5": {
                         "tf": 1.0
                       },
-                      "first/nested.html#some-section": {
+                      "6": {
+                        "tf": 1.0
+                      },
+                      "7": {
+                        "tf": 1.4142135623730951
+                      },
+                      "9": {
                         "tf": 1.0
                       }
                     }
@@ -1236,9 +1640,29 @@
             "n": {
               "df": 1,
               "docs": {
-                "second.html#second-chapter": {
+                "8": {
                   "tf": 1.0
                 }
+              }
+            }
+          },
+          "g": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "df": 0,
+              "docs": {},
+              "o": {
+                "d": {
+                  "df": 1,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    }
+                  }
+                },
+                "df": 0,
+                "docs": {}
               }
             }
           },
@@ -1255,14 +1679,17 @@
                   "'": {
                     "df": 1,
                     "docs": {
-                      "intro.html#introduction": {
+                      "1": {
                         "tf": 1.0
                       }
                     }
                   },
-                  "df": 1,
+                  "df": 2,
                   "docs": {
-                    "conclusion.html#conclusion": {
+                    "0": {
+                      "tf": 1.0
+                    },
+                    "10": {
                       "tf": 1.0
                     }
                   }
@@ -1280,7 +1707,7 @@
                     "n": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -1292,7 +1719,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1316,16 +1743,32 @@
                     "d": {
                       "df": 2,
                       "docs": {
-                        "first/includes.html#includes": {
-                          "tf": 1.4142135623730952
+                        "6": {
+                          "tf": 1.4142135623730951
                         },
-                        "first/includes.html#summary": {
+                        "7": {
                           "tf": 1.0
                         }
                       }
                     },
                     "df": 0,
                     "docs": {}
+                  }
+                }
+              },
+              "d": {
+                "df": 0,
+                "docs": {},
+                "e": {
+                  "df": 0,
+                  "docs": {},
+                  "x": {
+                    "df": 1,
+                    "docs": {
+                      "0": {
+                        "tf": 1.0
+                      }
+                    }
                   }
                 }
               },
@@ -1343,7 +1786,7 @@
                     "t": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -1369,7 +1812,7 @@
                         "t": {
                           "df": 1,
                           "docs": {
-                            "intro.html#introduction": {
+                            "1": {
                               "tf": 1.0
                             }
                           }
@@ -1392,11 +1835,11 @@
                           "t": {
                             "df": 2,
                             "docs": {
-                              "first/includes.html#summary": {
-                                "tf": 1.0
+                              "1": {
+                                "tf": 1.4142135623730951
                               },
-                              "intro.html#introduction": {
-                                "tf": 1.4142135623730952
+                              "7": {
+                                "tf": 1.0
                               }
                             }
                           }
@@ -1412,6 +1855,22 @@
               }
             }
           },
+          "j": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "b": {
+                "df": 1,
+                "docs": {
+                  "0": {
+                    "tf": 1.0
+                  }
+                }
+              },
+              "df": 0,
+              "docs": {}
+            }
+          },
           "l": {
             "df": 0,
             "docs": {},
@@ -1424,8 +1883,16 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
+                    }
+                  }
+                },
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.7320508075688772
                     }
                   }
                 }
@@ -1454,7 +1921,7 @@
                             "t": {
                               "df": 1,
                               "docs": {
-                                "conclusion.html#conclusion": {
+                                "10": {
                                   "tf": 1.0
                                 }
                               }
@@ -1482,7 +1949,7 @@
                 "n": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1494,7 +1961,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1512,7 +1979,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "first/index.html#first-chapter": {
+                    "2": {
                       "tf": 1.0
                     }
                   }
@@ -1532,23 +1999,111 @@
                 "t": {
                   "df": 2,
                   "docs": {
-                    "first/includes.html#summary": {
-                      "tf": 1.0
+                    "4": {
+                      "tf": 1.4142135623730951
                     },
-                    "first/nested.html#nested-chapter": {
-                      "tf": 1.4142135623730952
+                    "7": {
+                      "tf": 1.4142135623730951
                     }
+                  }
+                }
+              }
+            },
+            "o": {
+              "df": 0,
+              "docs": {},
+              "n": {
+                "df": 1,
+                "docs": {
+                  "9": {
+                    "tf": 1.0
                   }
                 }
               }
             }
           },
           "p": {
+            "a": {
+              "df": 0,
+              "docs": {},
+              "g": {
+                "df": 0,
+                "docs": {},
+                "e": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 2.0
+                    }
+                  }
+                }
+              }
+            },
             "df": 0,
             "docs": {},
             "r": {
               "df": 0,
               "docs": {},
+              "e": {
+                "df": 0,
+                "docs": {},
+                "p": {
+                  "df": 0,
+                  "docs": {},
+                  "r": {
+                    "df": 0,
+                    "docs": {},
+                    "o": {
+                      "c": {
+                        "df": 0,
+                        "docs": {},
+                        "e": {
+                          "df": 0,
+                          "docs": {},
+                          "s": {
+                            "df": 0,
+                            "docs": {},
+                            "s": {
+                              "df": 0,
+                              "docs": {},
+                              "o": {
+                                "df": 0,
+                                "docs": {},
+                                "r": {
+                                  "df": 1,
+                                  "docs": {
+                                    "0": {
+                                      "tf": 1.0
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "df": 0,
+                      "docs": {}
+                    }
+                  }
+                },
+                "t": {
+                  "df": 0,
+                  "docs": {},
+                  "t": {
+                    "df": 0,
+                    "docs": {},
+                    "i": {
+                      "df": 1,
+                      "docs": {
+                        "0": {
+                          "tf": 1.0
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "i": {
                 "df": 0,
                 "docs": {},
@@ -1556,8 +2111,12 @@
                   "df": 0,
                   "docs": {},
                   "t": {
-                    "df": 0,
-                    "docs": {},
+                    "df": 1,
+                    "docs": {
+                      "9": {
+                        "tf": 2.0
+                      }
+                    },
                     "l": {
                       "df": 0,
                       "docs": {},
@@ -1582,7 +2141,7 @@
                                       "o": {
                                         "df": 1,
                                         "docs": {
-                                          "second.html#second-chapter": {
+                                          "8": {
                                             "tf": 1.0
                                           }
                                         }
@@ -1594,7 +2153,7 @@
                               "i": {
                                 "df": 1,
                                 "docs": {
-                                  "second.html#second-chapter": {
+                                  "8": {
                                     "tf": 1.0
                                   }
                                 }
@@ -1620,7 +2179,7 @@
               "t": {
                 "df": 1,
                 "docs": {
-                  "conclusion.html#conclusion": {
+                  "10": {
                     "tf": 1.0
                   }
                 }
@@ -1630,12 +2189,48 @@
           "r": {
             "df": 0,
             "docs": {},
+            "e": {
+              "c": {
+                "df": 0,
+                "docs": {},
+                "u": {
+                  "df": 0,
+                  "docs": {},
+                  "r": {
+                    "df": 0,
+                    "docs": {},
+                    "s": {
+                      "df": 1,
+                      "docs": {
+                        "7": {
+                          "tf": 1.0
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "df": 0,
+              "docs": {},
+              "l": {
+                "df": 1,
+                "docs": {
+                  "9": {
+                    "tf": 1.4142135623730951
+                  }
+                }
+              }
+            },
             "u": {
               "df": 0,
               "docs": {},
               "n": {
-                "df": 0,
-                "docs": {},
+                "df": 1,
+                "docs": {
+                  "0": {
+                    "tf": 1.0
+                  }
+                },
                 "n": {
                   "a": {
                     "b": {
@@ -1644,7 +2239,7 @@
                       "l": {
                         "df": 1,
                         "docs": {
-                          "second.html#second-chapter": {
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -1663,7 +2258,7 @@
                 "t": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1683,13 +2278,16 @@
                   "docs": {},
                   "n": {
                     "d": {
-                      "df": 2,
+                      "df": 3,
                       "docs": {
-                        "first/includes.html#summary": {
+                        "7": {
                           "tf": 1.0
                         },
-                        "second.html#second-chapter": {
-                          "tf": 1.4142135623730952
+                        "8": {
+                          "tf": 1.4142135623730951
+                        },
+                        "9": {
+                          "tf": 1.0
                         }
                       }
                     },
@@ -1707,13 +2305,16 @@
                       "df": 0,
                       "docs": {},
                       "n": {
-                        "df": 2,
+                        "df": 3,
                         "docs": {
-                          "first/index.html#some-section": {
-                            "tf": 1.4142135623730952
+                          "3": {
+                            "tf": 1.4142135623730951
                           },
-                          "first/nested.html#some-section": {
-                            "tf": 1.4142135623730952
+                          "5": {
+                            "tf": 1.4142135623730951
+                          },
+                          "9": {
+                            "tf": 1.0
                           }
                         }
                       }
@@ -1726,7 +2327,7 @@
               "e": {
                 "df": 1,
                 "docs": {
-                  "second.html#second-chapter": {
+                  "8": {
                     "tf": 1.0
                   }
                 }
@@ -1750,7 +2351,7 @@
                       "t": {
                         "df": 1,
                         "docs": {
-                          "second.html#second-chapter": {
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -1776,8 +2377,8 @@
                       "i": {
                         "df": 1,
                         "docs": {
-                          "first/includes.html#summary": {
-                            "tf": 1.4142135623730952
+                          "7": {
+                            "tf": 1.4142135623730951
                           }
                         }
                       }
@@ -1793,7 +2394,7 @@
                 "e": {
                   "df": 1,
                   "docs": {
-                    "second.html#second-chapter": {
+                    "8": {
                       "tf": 1.0
                     }
                   }
@@ -1818,7 +2419,7 @@
                       "l": {
                         "df": 1,
                         "docs": {
-                          "first/nested.html#nested-chapter": {
+                          "4": {
                             "tf": 1.0
                           }
                         }
@@ -1827,8 +2428,12 @@
                     "df": 0,
                     "docs": {}
                   },
-                  "df": 0,
-                  "docs": {}
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.4142135623730951
+                    }
+                  }
                 }
               },
               "x": {
@@ -1837,10 +2442,10 @@
                 "t": {
                   "df": 2,
                   "docs": {
-                    "first/index.html#first-chapter": {
+                    "1": {
                       "tf": 1.0
                     },
-                    "intro.html#introduction": {
+                    "2": {
                       "tf": 1.0
                     }
                   }
@@ -1857,11 +2462,19 @@
               "r": {
                 "df": 0,
                 "docs": {},
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
+                },
                 "l": {
                   "d": {
                     "df": 1,
                     "docs": {
-                      "second.html#second-chapter": {
+                      "8": {
                         "tf": 1.0
                       }
                     }
@@ -1876,6 +2489,26 @@
       },
       "title": {
         "root": {
+          "b": {
+            "df": 0,
+            "docs": {},
+            "o": {
+              "df": 0,
+              "docs": {},
+              "o": {
+                "df": 0,
+                "docs": {},
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "0": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            }
+          },
           "c": {
             "df": 0,
             "docs": {},
@@ -1895,13 +2528,13 @@
                       "r": {
                         "df": 3,
                         "docs": {
-                          "first/index.html#first-chapter": {
+                          "2": {
                             "tf": 1.0
                           },
-                          "first/nested.html#nested-chapter": {
+                          "4": {
                             "tf": 1.0
                           },
-                          "second.html#second-chapter": {
+                          "8": {
                             "tf": 1.0
                           }
                         }
@@ -1929,7 +2562,7 @@
                       "s": {
                         "df": 1,
                         "docs": {
-                          "conclusion.html#conclusion": {
+                          "10": {
                             "tf": 1.0
                           }
                         }
@@ -1939,6 +2572,30 @@
                 },
                 "df": 0,
                 "docs": {}
+              }
+            }
+          },
+          "d": {
+            "df": 0,
+            "docs": {},
+            "u": {
+              "df": 0,
+              "docs": {},
+              "m": {
+                "df": 0,
+                "docs": {},
+                "m": {
+                  "df": 0,
+                  "docs": {},
+                  "i": {
+                    "df": 1,
+                    "docs": {
+                      "0": {
+                        "tf": 1.0
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -1959,7 +2616,7 @@
                   "t": {
                     "df": 1,
                     "docs": {
-                      "first/index.html#first-chapter": {
+                      "2": {
                         "tf": 1.0
                       }
                     }
@@ -1982,7 +2639,7 @@
                     "d": {
                       "df": 1,
                       "docs": {
-                        "first/includes.html#includes": {
+                        "6": {
                           "tf": 1.0
                         }
                       }
@@ -2011,7 +2668,7 @@
                           "t": {
                             "df": 1,
                             "docs": {
-                              "intro.html#introduction": {
+                              "1": {
                                 "tf": 1.0
                               }
                             }
@@ -2023,6 +2680,26 @@
                     },
                     "df": 0,
                     "docs": {}
+                  }
+                }
+              }
+            }
+          },
+          "l": {
+            "df": 0,
+            "docs": {},
+            "i": {
+              "df": 0,
+              "docs": {},
+              "n": {
+                "df": 0,
+                "docs": {},
+                "k": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
                   }
                 }
               }
@@ -2040,9 +2717,65 @@
                 "t": {
                   "df": 1,
                   "docs": {
-                    "first/nested.html#nested-chapter": {
+                    "4": {
                       "tf": 1.0
                     }
+                  }
+                }
+              }
+            }
+          },
+          "p": {
+            "a": {
+              "df": 0,
+              "docs": {},
+              "g": {
+                "df": 0,
+                "docs": {},
+                "e": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
+                }
+              }
+            },
+            "df": 0,
+            "docs": {},
+            "r": {
+              "df": 0,
+              "docs": {},
+              "i": {
+                "df": 0,
+                "docs": {},
+                "n": {
+                  "df": 0,
+                  "docs": {},
+                  "t": {
+                    "df": 1,
+                    "docs": {
+                      "9": {
+                        "tf": 1.0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "r": {
+            "df": 0,
+            "docs": {},
+            "e": {
+              "df": 0,
+              "docs": {},
+              "l": {
+                "df": 1,
+                "docs": {
+                  "9": {
+                    "tf": 1.0
                   }
                 }
               }
@@ -2062,7 +2795,7 @@
                     "d": {
                       "df": 1,
                       "docs": {
-                        "second.html#second-chapter": {
+                        "8": {
                           "tf": 1.0
                         }
                       }
@@ -2083,10 +2816,10 @@
                       "n": {
                         "df": 2,
                         "docs": {
-                          "first/index.html#some-section": {
+                          "3": {
                             "tf": 1.0
                           },
-                          "first/nested.html#some-section": {
+                          "5": {
                             "tf": 1.0
                           }
                         }
@@ -2114,7 +2847,7 @@
                       "i": {
                         "df": 1,
                         "docs": {
-                          "first/includes.html#summary": {
+                          "7": {
                             "tf": 1.0
                           }
                         }
@@ -2123,6 +2856,26 @@
                   },
                   "df": 0,
                   "docs": {}
+                }
+              }
+            }
+          },
+          "t": {
+            "df": 0,
+            "docs": {},
+            "e": {
+              "df": 0,
+              "docs": {},
+              "s": {
+                "df": 0,
+                "docs": {},
+                "t": {
+                  "df": 1,
+                  "docs": {
+                    "9": {
+                      "tf": 1.0
+                    }
+                  }
                 }
               }
             }
@@ -2138,11 +2891,11 @@
     "ref": "id",
     "version": "0.9.5"
   },
-  "resultsoptions": {
+  "results_options": {
     "limit_results": 30,
     "teaser_word_count": 30
   },
-  "searchoptions": {
+  "search_options": {
     "bool": "OR",
     "expand": true,
     "fields": {

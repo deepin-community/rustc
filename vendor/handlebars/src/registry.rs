@@ -1,22 +1,26 @@
 use std::collections::HashMap;
-use std::io::prelude::*;
-use std::fs::File;
-use std::path::Path;
 use std::fmt::{self, Debug, Formatter};
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
 use serde::Serialize;
 
 use regex::{Captures, Regex};
 
-use template::Template;
-use render::{RenderContext, Renderable};
 use context::Context;
-use helpers::{self, HelperDef};
 use directives::{self, DirectiveDef};
-use support::str::StringWriter;
 use error::{RenderError, TemplateError, TemplateFileError, TemplateRenderError};
+use helpers::{self, HelperDef};
+use output::{Output, StringOutput, WriteOutput};
+use render::{RenderContext, Renderable};
+use support::str::StringWriter;
+use template::Template;
 
-lazy_static!{
+#[cfg(not(feature = "no_dir_source"))]
+use walkdir::{DirEntry, WalkDir};
+
+lazy_static! {
     static ref DEFAULT_REPLACE: Regex = Regex::new(">|<|\"|&").unwrap();
 }
 
@@ -39,8 +43,7 @@ pub fn html_escape(data: &str) -> String {
                 Some("&") => "&amp;",
                 _ => unreachable!(),
             }.to_owned()
-        })
-        .into_owned()
+        }).into_owned()
 }
 
 /// `EscapeFn` that do not change any thing. Useful when using in a non-html
@@ -72,6 +75,25 @@ impl Debug for Registry {
     }
 }
 
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(not(feature = "no_dir_source"))]
+fn filter_file(entry: &DirEntry, suffix: &str) -> bool {
+    let path = entry.path();
+
+    // ignore hidden files, emacs buffers and files with wrong suffix
+    !path.is_file() || path
+        .file_name()
+        .map(|s| {
+            let ds = s.to_string_lossy();
+            ds.starts_with(".") || ds.starts_with("#") || !ds.ends_with(suffix)
+        }).unwrap_or(true)
+}
+
 impl Registry {
     pub fn new() -> Registry {
         let r = Registry {
@@ -94,6 +116,16 @@ impl Registry {
         self.register_helper("lookup", Box::new(helpers::LOOKUP_HELPER));
         self.register_helper("raw", Box::new(helpers::RAW_HELPER));
         self.register_helper("log", Box::new(helpers::LOG_HELPER));
+
+        self.register_helper("eq", Box::new(helpers::helper_boolean::eq));
+        self.register_helper("ne", Box::new(helpers::helper_boolean::ne));
+        self.register_helper("gt", Box::new(helpers::helper_boolean::gt));
+        self.register_helper("gte", Box::new(helpers::helper_boolean::gte));
+        self.register_helper("lt", Box::new(helpers::helper_boolean::lt));
+        self.register_helper("lte", Box::new(helpers::helper_boolean::lte));
+        self.register_helper("and", Box::new(helpers::helper_boolean::and));
+        self.register_helper("or", Box::new(helpers::helper_boolean::or));
+        self.register_helper("not", Box::new(helpers::helper_boolean::not));
 
         self.register_decorator("inline", Box::new(directives::INLINE_DIRECTIVE));
         self
@@ -142,10 +174,8 @@ impl Registry {
     where
         S: AsRef<str>,
     {
-        try!(
-            Template::compile_with_name(tpl_str, name.to_owned(), self.source_map)
-                .and_then(|t| Ok(self.templates.insert(name.to_string(), t)))
-        );
+        Template::compile_with_name(tpl_str, name.to_owned(), self.source_map)
+            .and_then(|t| Ok(self.templates.insert(name.to_string(), t)))?;
         Ok(())
     }
 
@@ -170,8 +200,54 @@ impl Registry {
         P: AsRef<Path>,
     {
         let mut file =
-            try!(File::open(tpl_path).map_err(|e| TemplateFileError::IOError(e, name.to_owned())));
+            File::open(tpl_path).map_err(|e| TemplateFileError::IOError(e, name.to_owned()))?;
         self.register_template_source(name, &mut file)
+    }
+
+    /// Register templates from a directory
+    ///
+    /// * `tpl_extension`: the template file extension
+    /// * `dir_path`: the path of directory
+    ///
+    /// Hidden files and tempfile (starts with `#`) will be ignored. All registered
+    /// will use their relative name as template name. For example, when `dir_path` is
+    /// `templates/` and `tpl_extension` is `.hbs`, the file
+    /// `templates/some/path/file.hbs` will be registerd as `some/path/file`.
+    #[cfg(not(feature = "no_dir_source"))]
+    pub fn register_templates_directory<P>(
+        &mut self,
+        tpl_extension: &'static str,
+        dir_path: P,
+    ) -> Result<(), TemplateFileError>
+    where
+        P: AsRef<Path>,
+    {
+        let dir_path = dir_path.as_ref();
+
+        let prefix_len = if dir_path.to_string_lossy().ends_with('/') {
+            dir_path.to_string_lossy().len()
+        } else {
+            dir_path.to_string_lossy().len() + 1
+        };
+
+        let walker = WalkDir::new(dir_path);
+        let dir_iter = walker
+            .min_depth(1)
+            .into_iter()
+            .filter(|e| e.is_ok() && !filter_file(e.as_ref().unwrap(), tpl_extension));
+
+        for entry in dir_iter {
+            let entry = entry?;
+
+            let tpl_path = entry.path();
+            let tpl_file_path = entry.path().to_string_lossy();
+
+            let tpl_name = &tpl_file_path[prefix_len..tpl_file_path.len() - tpl_extension.len()];
+            let tpl_canonical_name = tpl_name.replace("\\", "/");
+            self.register_template_file(&tpl_canonical_name, &tpl_path)?;
+        }
+
+        Ok(())
     }
 
     /// Register a template from `std::io::Read` source
@@ -181,12 +257,10 @@ impl Registry {
         tpl_source: &mut Read,
     ) -> Result<(), TemplateFileError> {
         let mut buf = String::new();
-        try!(
-            tpl_source
-                .read_to_string(&mut buf)
-                .map_err(|e| TemplateFileError::IOError(e, name.to_owned()))
-        );
-        try!(self.register_template_string(name, buf));
+        tpl_source
+            .read_to_string(&mut buf)
+            .map_err(|e| TemplateFileError::IOError(e, name.to_owned()))?;
+        self.register_template_string(name, buf)?;
         Ok(())
     }
 
@@ -231,6 +305,11 @@ impl Registry {
         &*self.escape_fn
     }
 
+    /// Return `true` if a template is registered for the given name
+    pub fn has_template(&self, name: &str) -> bool {
+        self.get_template(name).is_some()
+    }
+
     /// Return a registered template,
     pub fn get_template(&self, name: &str) -> Option<&Template> {
         self.templates.get(name)
@@ -256,6 +335,24 @@ impl Registry {
         self.templates.clear();
     }
 
+    fn render_to_output<T>(
+        &self,
+        name: &str,
+        data: &T,
+        output: &mut Output,
+    ) -> Result<(), RenderError>
+    where
+        T: Serialize,
+    {
+        self.get_template(name)
+            .ok_or_else(|| RenderError::new(format!("Template not found: {}", name)))
+            .and_then(|t| {
+                let ctx = Context::wraps(data)?;
+                let mut render_context = RenderContext::new(t.name.as_ref());
+                t.render(self, &ctx, &mut render_context, output)
+            }).map(|_| ())
+    }
+
     /// Render a registered template with some data into a string
     ///
     /// * `name` is the template name you registred previously
@@ -266,32 +363,19 @@ impl Registry {
     where
         T: Serialize,
     {
-        let mut writer = StringWriter::new();
-        {
-            try!(self.render_to_write(name, data, &mut writer));
-        }
-        Ok(writer.to_string())
+        let mut output = StringOutput::new();
+        self.render_to_output(name, data, &mut output)?;
+        output.into_string().map_err(RenderError::from)
     }
 
     /// Render a registered template and write some data to the `std::io::Write`
-    pub fn render_to_write<T>(
-        &self,
-        name: &str,
-        data: &T,
-        writer: &mut Write,
-    ) -> Result<(), RenderError>
+    pub fn render_to_write<T, W>(&self, name: &str, data: &T, writer: W) -> Result<(), RenderError>
     where
         T: Serialize,
+        W: Write,
     {
-        self.get_template(&name.to_string())
-            .ok_or(RenderError::new(format!("Template not found: {}", name)))
-            .and_then(|t| {
-                let ctx = try!(Context::wraps(data));
-                let mut local_helpers = HashMap::new();
-                let mut render_context = RenderContext::new(ctx, &mut local_helpers, writer);
-                render_context.root_template = t.name.clone();
-                t.render(self, &mut render_context)
-            })
+        let mut output = WriteOutput::new(writer);
+        self.render_to_output(name, data, &mut output)
     }
 
     /// render a template string using current registry without register it
@@ -304,116 +388,78 @@ impl Registry {
         T: Serialize,
     {
         let mut writer = StringWriter::new();
-        {
-            try!(self.render_template_to_write(template_string, data, &mut writer));
-        }
-        Ok(writer.to_string())
+        self.render_template_to_write(template_string, data, &mut writer)?;
+        Ok(writer.into_string())
     }
 
     /// render a template string using current registry without register it
-    pub fn render_template_to_write<T>(
+    pub fn render_template_to_write<T, W>(
         &self,
         template_string: &str,
         data: &T,
-        writer: &mut Write,
+        writer: W,
     ) -> Result<(), TemplateRenderError>
     where
         T: Serialize,
+        W: Write,
     {
-        let tpl = try!(Template::compile2(template_string, self.source_map));
-        let ctx = try!(Context::wraps(data));
-        let mut local_helpers = HashMap::new();
-        let mut render_context = RenderContext::new(ctx, &mut local_helpers, writer);
-        tpl.render(self, &mut render_context)
+        let tpl = Template::compile2(template_string, self.source_map)?;
+        let ctx = Context::wraps(data)?;
+        let mut render_context = RenderContext::new(None);
+        let mut out = WriteOutput::new(writer);
+        tpl.render(self, &ctx, &mut render_context, &mut out)
+            .map(|_| ())
             .map_err(TemplateRenderError::from)
     }
 
     /// render a template source using current registry without register it
-    pub fn render_template_source_to_write<T>(
+    pub fn render_template_source_to_write<T, W>(
         &self,
         template_source: &mut Read,
         data: &T,
-        writer: &mut Write,
+        writer: W,
     ) -> Result<(), TemplateRenderError>
     where
         T: Serialize,
+        W: Write,
     {
         let mut tpl_str = String::new();
-        try!(
-            template_source
-                .read_to_string(&mut tpl_str)
-                .map_err(|e| TemplateRenderError::IOError(e, "Unamed template source".to_owned()))
-        );
+        template_source
+            .read_to_string(&mut tpl_str)
+            .map_err(|e| TemplateRenderError::IOError(e, "Unnamed template source".to_owned()))?;
         self.render_template_to_write(&tpl_str, data, writer)
-    }
-
-    #[deprecated(since = "0.30.0", note = "Please use render_to_write instead.")]
-    pub fn renderw<T>(&self, name: &str, data: &T, writer: &mut Write) -> Result<(), RenderError>
-    where
-        T: Serialize,
-    {
-        self.render_to_write(name, data, writer)
-    }
-
-    #[deprecated(since = "0.30.0", note = "Please use render_template instead.")]
-    pub fn template_render<T>(
-        &self,
-        template_string: &str,
-        data: &T,
-    ) -> Result<String, TemplateRenderError>
-    where
-        T: Serialize,
-    {
-        self.render_template(template_string, data)
-    }
-
-    #[deprecated(since = "0.30.0", note = "Please use render_template_to_write instead.")]
-    pub fn template_renderw<T>(
-        &self,
-        template_string: &str,
-        data: &T,
-        writer: &mut Write,
-    ) -> Result<(), TemplateRenderError>
-    where
-        T: Serialize,
-    {
-        self.render_template_to_write(template_string, data, writer)
-    }
-
-    #[deprecated(since = "0.30.0", note = "Please use render_template_source_to_write instead.")]
-    pub fn template_renderw2<T>(
-        &self,
-        template_source: &mut Read,
-        data: &T,
-        writer: &mut Write,
-    ) -> Result<(), TemplateRenderError>
-    where
-        T: Serialize,
-    {
-        self.render_template_source_to_write(template_source, data, writer)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use context::Context;
+    use error::RenderError;
+    use helpers::HelperDef;
+    use output::Output;
     use registry::Registry;
     use render::{Helper, RenderContext, Renderable};
-    use helpers::HelperDef;
+    #[cfg(not(feature = "no_dir_source"))]
+    use std::fs::{DirBuilder, File};
+    #[cfg(not(feature = "no_dir_source"))]
+    use std::io::Write;
     use support::str::StringWriter;
-    use error::RenderError;
+    #[cfg(not(feature = "no_dir_source"))]
+    use tempfile::tempdir;
 
     #[derive(Clone, Copy)]
     struct DummyHelper;
 
     impl HelperDef for DummyHelper {
-        fn call(
+        fn call<'reg: 'rc, 'rc>(
             &self,
-            h: &Helper,
-            r: &Registry,
-            rc: &mut RenderContext,
+            h: &Helper<'reg, 'rc>,
+            r: &'reg Registry,
+            ctx: &Context,
+            rc: &mut RenderContext<'reg>,
+            out: &mut Output,
         ) -> Result<(), RenderError> {
-            try!(h.template().unwrap().render(r, rc));
-            Ok(())
+            h.template().unwrap().render(r, ctx, rc, out)
         }
     }
 
@@ -437,7 +483,118 @@ mod test {
         r.register_helper("dummy", Box::new(DUMMY_HELPER));
 
         // built-in helpers plus 1
-        assert_eq!(r.helpers.len(), 7 + 1);
+        let num_helpers = 7;
+        let num_boolean_helpers = 9; // stuff like gt and lte
+        let num_custom_helpers = 1; // dummy from above
+        assert_eq!(
+            r.helpers.len(),
+            num_helpers + num_boolean_helpers + num_custom_helpers
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "no_dir_source"))]
+    fn test_register_templates_directory() {
+        let mut r = Registry::new();
+        {
+            let dir = tempdir().unwrap();
+
+            assert_eq!(r.templates.len(), 0);
+
+            let file1_path = dir.path().join("t1.hbs");
+            let mut file1: File = File::create(&file1_path).unwrap();
+            writeln!(file1, "<h1>Hello {{world}}!</h1>").unwrap();
+
+            let file2_path = dir.path().join("t2.hbs");
+            let mut file2: File = File::create(&file2_path).unwrap();
+            writeln!(file2, "<h1>Hola {{world}}!</h1>").unwrap();
+
+            let file3_path = dir.path().join("t3.hbs");
+            let mut file3: File = File::create(&file3_path).unwrap();
+            writeln!(file3, "<h1>Hallo {{world}}!</h1>").unwrap();
+
+            let file4_path = dir.path().join(".t4.hbs");
+            let mut file4: File = File::create(&file4_path).unwrap();
+            writeln!(file4, "<h1>Hallo {{world}}!</h1>").unwrap();
+
+            r.register_templates_directory(".hbs", dir.path()).unwrap();
+
+            assert_eq!(r.templates.len(), 3);
+            assert_eq!(r.templates.contains_key("t1"), true);
+            assert_eq!(r.templates.contains_key("t2"), true);
+            assert_eq!(r.templates.contains_key("t3"), true);
+            assert_eq!(r.templates.contains_key("t4"), false);
+
+            drop(file1);
+            drop(file2);
+            drop(file3);
+
+            dir.close().unwrap();
+        }
+
+        {
+            let dir = tempdir().unwrap();
+
+            let file1_path = dir.path().join("t4.hbs");
+            let mut file1: File = File::create(&file1_path).unwrap();
+            writeln!(file1, "<h1>Hello {{world}}!</h1>").unwrap();
+
+            let file2_path = dir.path().join("t5.erb");
+            let mut file2: File = File::create(&file2_path).unwrap();
+            writeln!(file2, "<h1>Hello {{% world %}}!</h1>").unwrap();
+
+            let file3_path = dir.path().join("t6.html");
+            let mut file3: File = File::create(&file3_path).unwrap();
+            writeln!(file3, "<h1>Hello world!</h1>").unwrap();
+
+            r.register_templates_directory(".hbs", dir.path()).unwrap();
+
+            assert_eq!(r.templates.len(), 4);
+            assert_eq!(r.templates.contains_key("t4"), true);
+
+            drop(file1);
+            drop(file2);
+            drop(file3);
+
+            dir.close().unwrap();
+        }
+
+        {
+            let dir = tempdir().unwrap();
+
+            let _ = DirBuilder::new().create(dir.path().join("french")).unwrap();
+            let _ = DirBuilder::new()
+                .create(dir.path().join("portugese"))
+                .unwrap();
+            let _ = DirBuilder::new()
+                .create(dir.path().join("italian"))
+                .unwrap();
+
+            let file1_path = dir.path().join("french/t7.hbs");
+            let mut file1: File = File::create(&file1_path).unwrap();
+            writeln!(file1, "<h1>Bonjour {{world}}!</h1>").unwrap();
+
+            let file2_path = dir.path().join("portugese/t8.hbs");
+            let mut file2: File = File::create(&file2_path).unwrap();
+            writeln!(file2, "<h1>Ola {{world}}!</h1>").unwrap();
+
+            let file3_path = dir.path().join("italian/t9.hbs");
+            let mut file3: File = File::create(&file3_path).unwrap();
+            writeln!(file3, "<h1>Ciao {{world}}!</h1>").unwrap();
+
+            r.register_templates_directory(".hbs", dir.path()).unwrap();
+
+            assert_eq!(r.templates.len(), 7);
+            assert_eq!(r.templates.contains_key("french/t7"), true);
+            assert_eq!(r.templates.contains_key("portugese/t8"), true);
+            assert_eq!(r.templates.contains_key("italian/t9"), true);
+
+            drop(file1);
+            drop(file2);
+            drop(file3);
+
+            dir.close().unwrap();
+        }
     }
 
     #[test]
@@ -451,7 +608,7 @@ mod test {
             r.render_to_write("index", &(), &mut sw).ok().unwrap();
         }
 
-        assert_eq!("<h1></h1>".to_string(), sw.to_string());
+        assert_eq!("<h1></h1>".to_string(), sw.into_string());
     }
 
     #[test]
@@ -477,9 +634,7 @@ mod test {
     #[test]
     fn test_escape() {
         let r = Registry::new();
-        let data = json!({
-            "hello": "world"
-        });
+        let data = json!({"hello": "world"});
 
         assert_eq!(
             "{{hello}}",
@@ -491,10 +646,7 @@ mod test {
             r.render_template(r" \{{hello}}", &data).unwrap()
         );
 
-        assert_eq!(
-            r"\world",
-            r.render_template(r"\\{{hello}}", &data).unwrap()
-        );
+        assert_eq!(r"\world", r.render_template(r"\\{{hello}}", &data).unwrap());
     }
 
     #[test]
@@ -518,9 +670,9 @@ mod test {
                 .is_err()
         );
 
-        let render_error =
-            r.render_template("accessing non-exists key {{the_key_never_exists}}", &data)
-                .unwrap_err();
+        let render_error = r
+            .render_template("accessing non-exists key {{the_key_never_exists}}", &data)
+            .unwrap_err();
         assert_eq!(
             render_error.as_render_error().unwrap().column_no.unwrap(),
             26
@@ -535,7 +687,8 @@ mod test {
             r.render_template("accessing invalid array index {{this.[3]}}", &data2)
                 .is_err()
         );
-        let render_error2 = r.render_template("accessing invalid array index {{this.[3]}}", &data2)
+        let render_error2 = r
+            .render_template("accessing invalid array index {{this.[3]}}", &data2)
             .unwrap_err();
         assert_eq!(
             render_error2.as_render_error().unwrap().column_no.unwrap(),

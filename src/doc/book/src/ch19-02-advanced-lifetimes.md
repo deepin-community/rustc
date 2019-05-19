@@ -1,16 +1,16 @@
 ## Advanced Lifetimes
 
-In Chapter 10 in the “Validating References with Lifetimes” section, you
-learned how to annotate references with lifetime parameters to tell Rust how
-lifetimes of different references relate. You saw how every reference has a
-lifetime, but most of the time, Rust will let you elide lifetimes. Now we’ll
-look at three advanced features of lifetimes that we haven’t covered yet:
+In Chapter 10 in the [“Validating References with Lifetimes”]
+[validating-references-with-lifetimes]<!-- ignore --> section, you learned how
+to annotate references with lifetime parameters to tell Rust how lifetimes of
+different references relate. You saw how every reference has a lifetime, but
+most of the time, Rust will let you elide lifetimes. Now we’ll look at three
+advanced features of lifetimes that we haven’t covered yet:
 
 * Lifetime subtyping: ensures that one lifetime outlives another lifetime
 * Lifetime bounds: specifies a lifetime for a reference to a generic type
 * Inference of trait object lifetimes: allows the compiler to infer trait
   object lifetimes and when they need to be specified
-* The anonymous lifetime: making elision more obvious
 
 ### Ensuring One Lifetime Outlives Another with Lifetime Subtyping
 
@@ -63,11 +63,12 @@ lifetimes involved.
 To get this code to compile, we need to fill in the lifetime parameters for the
 string slice in `Context` and the reference to the `Context` in `Parser`. The
 most straightforward way to do this is to use the same lifetime name
-everywhere, as shown in Listing 19-13. Recall from the “Lifetime Annotations in
-Struct Definitions” section in Chapter 10 that each of `struct Context<'a>`,
-`struct Parser<'a>`, and `impl<'a>` is declaring a new lifetime parameter.
-While their names happen to all be the same, the three lifetime parameters
-declared in this example aren’t related.
+everywhere, as shown in Listing 19-13. Recall from the [“Lifetime Annotations
+in Struct Definitions”][lifetime-annotations-in-struct-definitions]<!-- ignore
+--> section in Chapter 10 that each of `struct Context<'a>`, `struct
+Parser<'a>`, and `impl<'a>` is declaring a new lifetime parameter. While their
+names happen to all be the same, the three lifetime parameters declared in this
+example aren’t related.
 
 <span class="filename">Filename: src/lib.rs</span>
 
@@ -303,17 +304,19 @@ refer to something and give it the necessary lifetime.
 
 ### Lifetime Bounds on References to Generic Types
 
-In the “Trait Bounds” section in Chapter 10, we discussed using trait bounds on
-generic types. We can also add lifetime parameters as constraints on generic
-types; these are called *lifetime bounds*. Lifetime bounds help Rust verify
-that references in generic types won’t outlive the data they’re referencing.
+In the [“Traits as Parameters”][traits-as-parameters]<!-- ignore --> section in
+Chapter 10, we discussed using trait bounds on generic types. We can also add
+lifetime parameters as constraints on generic types; these are called *lifetime
+bounds*. Lifetime bounds help Rust verify that references in generic types
+won’t outlive the data they’re referencing.
 
 As an example, consider a type that is a wrapper over references. Recall the
-`RefCell<T>` type from the “`RefCell<T>` and the Interior Mutability Pattern”
-section in Chapter 15: its `borrow` and `borrow_mut` methods return the types
-`Ref` and `RefMut`, respectively. These types are wrappers over references that
-keep track of the borrowing rules at runtime. The definition of the `Ref`
-struct is shown in Listing 19-16, without lifetime bounds for now.
+`RefCell<T>` type from the [“`RefCell<T>` and the Interior Mutability Pattern”]
+[refcellt-and-the-interior-mutability-pattern]<!-- ignore --> section in
+Chapter 15: its `borrow` and `borrow_mut` methods return the types `Ref` and
+`RefMut`, respectively. These types are wrappers over references that keep
+track of the borrowing rules at runtime. The definition of the `Ref` struct is
+shown in Listing 19-16, without lifetime bounds for now.
 
 <span class="filename">Filename: src/lib.rs</span>
 
@@ -392,8 +395,9 @@ a reference has a shorter lifetime than what it refers to.
 
 ### Inference of Trait Object Lifetimes
 
-In Chapter 17 in the “Using Trait Objects that Allow for Values of Different
-Types” section, we discussed trait objects, consisting of a trait behind a
+In Chapter 17 in the [“Using Trait Objects That Allow for Values of Different
+Types”][using-trait-objects-that-allow-for-values-of-different-types]<!--
+ignore --> section, we discussed trait objects, consisting of a trait behind a
 reference, that allow us to use dynamic dispatch. We haven’t yet discussed what
 happens if the type implementing the trait in the trait object has a lifetime
 of its own. Consider Listing 19-19 where we have a trait `Red` and a struct
@@ -441,47 +445,14 @@ As with the other bounds, the syntax adding a lifetime bound means that any
 implementor of the `Red` trait that has references inside the type must have
 the same lifetime specified in the trait object bounds as those references.
 
-### The anonymous lifetime
-
-Let’s say that we have a struct that’s a wrapper around a string slice, like
-this:
-
-```rust
-struct StrWrap<'a>(&'a str);
-```
-
-We can write a function that returns one of these like this:
-
-```rust
-# struct StrWrap<'a>(&'a str);
-fn foo<'a>(string: &'a str) -> StrWrap<'a> {
-    StrWrap(string)
-}
-```
-
-But that’s a lot of `'a`s! To cut down on some of this noise, we can use the
-anonymous lifetime, `'_`, like this:
-
-```rust
-# struct StrWrap<'a>(&'a str);
-fn foo(string: &str) -> StrWrap<'_> {
-    StrWrap(string)
-}
-```
-
-The `'_` says “use the elidied lifetime here.” This means that we can still see
-that `StrWrap` contains a reference, but we don’t need all of the lifetime
-annotations to make sense of it.
-
-It works in `impl` headers too; for example:
-
-```rust,ignore
-// verbose
-impl<'a> fmt::Debug for StrWrap<'a> {
-
-// elided
-impl fmt::Debug for StrWrap<'_> {
-
-```
-
 Next, let’s look at some other advanced features that manage traits.
+
+[lifetime-annotations-in-struct-definitions]:
+ch10-03-lifetime-syntax.html#lifetime-annotations-in-struct-definitions
+[refcellt-and-the-interior-mutability-pattern]:
+ch15-05-interior-mutability.html#refcellt-and-the-interior-mutability-pattern
+[traits-as-parameters]: ch10-02-traits.html#traits-as-parameters
+[using-trait-objects-that-allow-for-values-of-different-types]:
+ch17-02-trait-objects.html#using-trait-objects-that-allow-for-values-of-different-types
+[validating-references-with-lifetimes]:
+ch10-03-lifetime-syntax.html#validating-references-with-lifetimes

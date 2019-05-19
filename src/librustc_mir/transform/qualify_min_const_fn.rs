@@ -21,6 +21,7 @@ pub fn is_min_const_fn(
                 | Predicate::RegionOutlives(_)
                 | Predicate::TypeOutlives(_)
                 | Predicate::WellFormed(_)
+                | Predicate::Projection(_)
                 | Predicate::ConstEvaluatable(..) => continue,
                 | Predicate::ObjectSafe(_) => {
                     bug!("object safe predicate on function: {:#?}", predicate)
@@ -29,13 +30,6 @@ pub fn is_min_const_fn(
                     bug!("closure kind predicate on function: {:#?}", predicate)
                 }
                 Predicate::Subtype(_) => bug!("subtype predicate on function: {:#?}", predicate),
-                Predicate::Projection(_) => {
-                    let span = tcx.def_span(current);
-                    // we'll hit a `Predicate::Trait` later which will report an error
-                    tcx.sess
-                        .delay_span_bug(span, "projection without trait bound");
-                    continue;
-                }
                 Predicate::Trait(pred) => {
                     if Some(pred.def_id()) == tcx.lang_items().sized_trait() {
                         continue;
@@ -364,7 +358,7 @@ fn check_terminator(
     }
 }
 
-/// Returns true if the `def_id` refers to an intrisic which we've whitelisted
+/// Returns `true` if the `def_id` refers to an intrisic which we've whitelisted
 /// for being called from stable `const fn`s (`min_const_fn`).
 ///
 /// Adding more intrinsics requires sign-off from @rust-lang/lang.
@@ -380,6 +374,8 @@ fn is_intrinsic_whitelisted(tcx: TyCtxt<'a, 'tcx, 'tcx>, def_id: DefId) -> bool 
         | "overflowing_add" // ~> .wrapping_add
         | "overflowing_sub" // ~> .wrapping_sub
         | "overflowing_mul" // ~> .wrapping_mul
+        | "saturating_add" // ~> .saturating_add
+        | "saturating_sub" // ~> .saturating_sub
         | "unchecked_shl" // ~> .wrapping_shl
         | "unchecked_shr" // ~> .wrapping_shr
         | "rotate_left" // ~> .rotate_left

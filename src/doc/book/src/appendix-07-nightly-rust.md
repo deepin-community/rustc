@@ -181,7 +181,7 @@ you can write up a proposal, called an RFC.
 Anyone can write RFCs to improve Rust, and the proposals are reviewed and
 discussed by the Rust team, which is comprised of many topic subteams. There’s
 a full list of the teams [on Rust’s
-website](https://www.rust-lang.org/en-US/team.html), which includes teams for
+website](https://www.rust-lang.org/governance), which includes teams for
 each area of the project: language design, compiler implementation,
 infrastructure, documentation, and more. The appropriate team reads the
 proposal and the comments, writes some comments of their own, and eventually,
@@ -191,7 +191,7 @@ If the feature is accepted, an issue is opened on the Rust repository, and
 someone can implement it. The person who implements it very well may not be the
 person who proposed the feature in the first place! When the implementation is
 ready, it lands on the `master` branch behind a feature gate, as we discussed
-in the “Unstable Features” section.
+in the [“Unstable Features”](#unstable-features)<!-- ignore --> section.
 
 After some time, once Rust developers who use nightly releases have been able
 to try out the new feature, team members will discuss the feature, how it’s

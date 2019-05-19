@@ -128,7 +128,7 @@ fn verify_all_signatures() {
     let xml = include_bytes!("../x86-intel.xml");
 
     let xml = &xml[..];
-    let data: Data = serde_xml_rs::deserialize(xml).expect("failed to deserialize xml");
+    let data: Data = serde_xml_rs::from_reader(xml).expect("failed to deserialize xml");
     let mut map = HashMap::new();
     for intrinsic in &data.intrinsics {
         map.entry(&intrinsic.name[..])
@@ -273,15 +273,25 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
             .flat_map(|c| c.to_lowercase())
             .collect::<String>();
 
+        // The XML file names IFMA as "avx512ifma52", while Rust calls
+        // it "avx512ifma".  Fix this mismatch by replacing the Intel
+        // name with the Rust name.
+        let fixup_cpuid = |cpuid: String| match cpuid.as_ref() {
+            "avx512ifma52" => String::from("avx512ifma"),
+            _ => cpuid,
+        };
+        let fixed_cpuid = fixup_cpuid(cpuid);
+
         let rust_feature = rust
             .target_feature
             .expect(&format!("no target feature listed for {}", rust.name));
-        if rust_feature.contains(&cpuid) {
+
+        if rust_feature.contains(&fixed_cpuid) {
             continue;
         }
         bail!(
             "intel cpuid `{}` not in `{}` for {}",
-            cpuid,
+            fixed_cpuid,
             rust_feature,
             rust.name
         )
@@ -359,7 +369,7 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
         // Apparently all of clang/msvc/gcc accept these intrinsics on
         // 32-bit, so let's do the same
         "_mm_set_epi64x" | "_mm_set1_epi64x" | "_mm256_set_epi64x" | "_mm256_setr_epi64x"
-        | "_mm256_set1_epi64x" => true,
+        | "_mm256_set1_epi64x" | "_mm512_set1_epi64" => true,
 
         // These return a 64-bit argument but they're assembled from other
         // 32-bit registers, so these work on 32-bit just fine. See #308 for

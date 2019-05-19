@@ -2,21 +2,29 @@ use std::collections::BTreeMap;
 
 use serde_json::value::Value as Json;
 
-use helpers::{HelperDef, HelperResult};
-use registry::Registry;
-use context::{to_json, JsonTruthy};
-use render::{Helper, RenderContext, Renderable};
+use context::Context;
 use error::RenderError;
+use helpers::{HelperDef, HelperResult};
+use output::Output;
+use registry::Registry;
+use render::{Helper, RenderContext, Renderable};
+use value::{to_json, JsonTruthy};
 
 #[derive(Clone, Copy)]
 pub struct EachHelper;
 
 impl HelperDef for EachHelper {
-    fn call(&self, h: &Helper, r: &Registry, rc: &mut RenderContext) -> HelperResult {
-        let value = try!(
-            h.param(0)
-                .ok_or_else(|| RenderError::new("Param not found for helper \"each\""))
-        );
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Registry,
+        ctx: &Context,
+        rc: &mut RenderContext<'reg>,
+        out: &mut Output,
+    ) -> HelperResult {
+        let value = h
+            .param(0)
+            .ok_or_else(|| RenderError::new("Param not found for helper \"each\""))?;
 
         let template = h.template();
 
@@ -28,24 +36,24 @@ impl HelperDef for EachHelper {
                     .map(|p| format!("{}/{}", rc.get_path(), p));
 
                 debug!("each value {:?}", value.value());
-                let rendered = match (value.value().is_truthy(), value.value()) {
+                let rendered = match (value.value().is_truthy(false), value.value()) {
                     (true, &Json::Array(ref list)) => {
                         let len = list.len();
-                        for i in 0..len {
+                        for (i, _) in list.iter().enumerate().take(len) {
                             let mut local_rc = rc.derive();
                             if let Some(ref p) = local_path_root {
                                 local_rc.push_local_path_root(p.clone());
                             }
 
-                            local_rc.set_local_var("@first".to_string(), to_json(&(i == 0usize)));
-                            local_rc.set_local_var("@last".to_string(), to_json(&(i == len - 1)));
-                            local_rc.set_local_var("@index".to_string(), to_json(&i));
+                            local_rc.set_local_var("@first".to_string(), to_json(i == 0usize));
+                            local_rc.set_local_var("@last".to_string(), to_json(i == len - 1));
+                            local_rc.set_local_var("@index".to_string(), to_json(i));
 
                             if let Some(inner_path) = value.path() {
                                 let new_path =
                                     format!("{}/{}/[{}]", local_rc.get_path(), inner_path, i);
                                 debug!("each path {:?}", new_path);
-                                local_rc.set_path(new_path.clone());
+                                local_rc.set_path(new_path);
                             }
 
                             if let Some(block_param) = h.block_param() {
@@ -54,7 +62,7 @@ impl HelperDef for EachHelper {
                                 local_rc.push_block_context(&map)?;
                             }
 
-                            try!(t.render(r, &mut local_rc));
+                            t.render(r, ctx, &mut local_rc, out)?;
 
                             if h.block_param().is_some() {
                                 local_rc.pop_block_context();
@@ -68,12 +76,13 @@ impl HelperDef for EachHelper {
                     }
                     (true, &Json::Object(ref obj)) => {
                         let mut first: bool = true;
-                        for k in obj.keys() {
+                        for (k, v) in obj.iter() {
                             let mut local_rc = rc.derive();
+
                             if let Some(ref p) = local_path_root {
                                 local_rc.push_local_path_root(p.clone());
                             }
-                            local_rc.set_local_var("@first".to_string(), to_json(&first));
+                            local_rc.set_local_var("@first".to_string(), to_json(first));
                             if first {
                                 first = false;
                             }
@@ -89,11 +98,11 @@ impl HelperDef for EachHelper {
                             if let Some((bp_key, bp_val)) = h.block_param_pair() {
                                 let mut map = BTreeMap::new();
                                 map.insert(bp_key.to_string(), to_json(k));
-                                map.insert(bp_val.to_string(), to_json(obj.get(k).unwrap()));
+                                map.insert(bp_val.to_string(), to_json(v));
                                 local_rc.push_block_context(&map)?;
                             }
 
-                            try!(t.render(r, &mut local_rc));
+                            t.render(r, ctx, &mut local_rc, out)?;
 
                             if h.block_param().is_some() {
                                 local_rc.pop_block_context();
@@ -108,13 +117,13 @@ impl HelperDef for EachHelper {
                     }
                     (false, _) => {
                         if let Some(else_template) = h.inverse() {
-                            try!(else_template.render(r, rc));
+                            else_template.render(r, ctx, rc, out)?;
                         }
                         Ok(())
                     }
                     _ => Err(RenderError::new(format!(
                         "Param type is not iterable: {:?}",
-                        template
+                        value.value()
                     ))),
                 };
 
@@ -131,11 +140,11 @@ pub static EACH_HELPER: EachHelper = EachHelper;
 #[cfg(test)]
 mod test {
     use registry::Registry;
-    use context::to_json;
+    use value::to_json;
 
+    use serde_json::value::Value as Json;
     use std::collections::BTreeMap;
     use std::str::FromStr;
-    use serde_json::value::Value as Json;
 
     #[test]
     fn test_each() {

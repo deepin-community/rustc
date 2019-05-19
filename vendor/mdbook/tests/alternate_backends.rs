@@ -3,22 +3,22 @@
 extern crate mdbook;
 extern crate tempfile;
 
-#[cfg(not(windows))]
-use std::path::Path;
-use tempfile::{TempDir, Builder as TempFileBuilder};
 use mdbook::config::Config;
 use mdbook::MDBook;
+#[cfg(not(windows))]
+use std::path::Path;
+use tempfile::{Builder as TempFileBuilder, TempDir};
 
 #[test]
 fn passing_alternate_backend() {
-    let (md, _temp) = dummy_book_with_backend("passing", "true");
+    let (md, _temp) = dummy_book_with_backend("passing", success_cmd());
 
     md.build().unwrap();
 }
 
 #[test]
 fn failing_alternate_backend() {
-    let (md, _temp) = dummy_book_with_backend("failing", "false");
+    let (md, _temp) = dummy_book_with_backend("failing", fail_cmd());
 
     md.build().unwrap_err();
 }
@@ -52,8 +52,8 @@ fn tee_command<P: AsRef<Path>>(out_file: P) -> String {
 #[test]
 #[cfg(not(windows))]
 fn backends_receive_render_context_via_stdin() {
-    use std::fs::File;
     use mdbook::renderer::RenderContext;
+    use std::fs::File;
 
     let temp = TempFileBuilder::new().prefix("output").tempdir().unwrap();
     let out_file = temp.path().join("out.txt");
@@ -83,4 +83,20 @@ fn dummy_book_with_backend(name: &str, command: &str) -> (MDBook, TempDir) {
         .unwrap();
 
     (md, temp)
+}
+
+fn fail_cmd() -> &'static str {
+    if cfg!(windows) {
+        r#"cmd.exe /c "exit 1""#
+    } else {
+        "false"
+    }
+}
+
+fn success_cmd() -> &'static str {
+    if cfg!(windows) {
+        r#"cmd.exe /c "exit 0""#
+    } else {
+        "true"
+    }
 }

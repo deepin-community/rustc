@@ -50,17 +50,17 @@
 
 #![deny(missing_docs)]
 
-use std::path::{Path, PathBuf};
-use std::fs::File;
-use std::io::Read;
-use std::env;
-use toml::{self, Value};
-use toml::value::Table;
-use toml_query::read::TomlValueReadExt;
-use toml_query::insert::TomlValueInsertExt;
-use toml_query::delete::TomlValueDeleteExt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
+use std::env;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use toml::value::Table;
+use toml::{self, Value};
+use toml_query::delete::TomlValueDeleteExt;
+use toml_query::insert::TomlValueInsertExt;
+use toml_query::read::TomlValueReadExt;
 
 use errors::*;
 
@@ -209,6 +209,18 @@ impl Config {
         Ok(())
     }
 
+    /// Get the table associated with a particular renderer.
+    pub fn get_renderer<I: AsRef<str>>(&self, index: I) -> Option<&Table> {
+        let key = format!("output.{}", index.as_ref());
+        self.get(&key).and_then(|v| v.as_table())
+    }
+
+    /// Get the table associated with a particular preprocessor.
+    pub fn get_preprocessor<I: AsRef<str>>(&self, index: I) -> Option<&Table> {
+        let key = format!("preprocessor.{}", index.as_ref());
+        self.get(&key).and_then(|v| v.as_table())
+    }
+
     fn from_legacy(mut table: Value) -> Config {
         let mut cfg = Config::default();
 
@@ -217,9 +229,10 @@ impl Config {
         // figure out what try_into() deserializes to.
         macro_rules! get_and_insert {
             ($table:expr, $key:expr => $out:expr) => {
-                let got = $table.as_table_mut()
-                                .and_then(|t| t.remove($key))
-                                .and_then(|v| v.try_into().ok());
+                let got = $table
+                    .as_table_mut()
+                    .and_then(|t| t.remove($key))
+                    .and_then(|v| v.try_into().ok());
                 if let Some(value) = got {
                     $out = value;
                 }
@@ -288,8 +301,8 @@ impl<'de> Deserialize<'de> for Config {
             .unwrap_or_default();
 
         Ok(Config {
-            book: book,
-            build: build,
+            book,
+            build,
             rest: Value::Table(table),
         })
     }
@@ -381,8 +394,9 @@ pub struct BuildConfig {
     /// Should non-existent markdown files specified in `SETTINGS.md` be created
     /// if they don't exist?
     pub create_missing: bool,
-    /// Which preprocessors should be applied
-    pub preprocess: Option<Vec<String>>,
+    /// Should the default preprocessors always be used when they are
+    /// compatible with the renderer?
+    pub use_default_preprocessors: bool,
 }
 
 impl Default for BuildConfig {
@@ -390,7 +404,7 @@ impl Default for BuildConfig {
         BuildConfig {
             build_dir: PathBuf::from("book"),
             create_missing: true,
-            preprocess: None,
+            use_default_preprocessors: true,
         }
     }
 }
@@ -401,6 +415,8 @@ impl Default for BuildConfig {
 pub struct HtmlConfig {
     /// The theme directory, if specified.
     pub theme: Option<PathBuf>,
+    /// The default theme to use, defaults to 'light'
+    pub default_theme: Option<String>,
     /// Use "smart quotes" instead of the usual `"` character.
     pub curly_quotes: bool,
     /// Should mathjax be enabled?
@@ -422,10 +438,15 @@ pub struct HtmlConfig {
     /// This config item *should not be edited* by the end user.
     #[doc(hidden)]
     pub livereload_url: Option<String>,
-    /// Should section labels be rendered?
+    /// Don't render section labels.
     pub no_section_label: bool,
     /// Search settings. If `None`, the default will be used.
     pub search: Option<Search>,
+    /// Git repository url. If `None`, the git button will not be shown.
+    pub git_repository_url: Option<String>,
+    /// FontAwesome icon class to use for the Git repository link.
+    /// Defaults to `fa-github` if `None`.
+    pub git_repository_icon: Option<String>,
 }
 
 impl HtmlConfig {
@@ -463,9 +484,11 @@ impl Default for Playpen {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct Search {
+    /// Enable the search feature. Default: `true`.
+    pub enable: bool,
     /// Maximum number of visible results. Default: `30`.
     pub limit_results: u32,
-    /// The number of words used for a search result teaser. Default: `30`,
+    /// The number of words used for a search result teaser. Default: `30`.
     pub teaser_word_count: u32,
     /// Define the logical link between multiple search words.
     /// If true, all search words must appear in each result. Default: `true`.
@@ -494,6 +517,7 @@ impl Default for Search {
     fn default() -> Search {
         // Please update the documentation of `Search` when changing values!
         Search {
+            enable: true,
             limit_results: 30,
             teaser_word_count: 30,
             use_boolean_and: false,
@@ -530,11 +554,7 @@ trait Updateable<'de>: Serialize + Deserialize<'de> {
     }
 }
 
-impl<'de, T> Updateable<'de> for T
-where
-    T: Serialize + Deserialize<'de>,
-{
-}
+impl<'de, T> Updateable<'de> for T where T: Serialize + Deserialize<'de> {}
 
 #[cfg(test)]
 mod tests {
@@ -551,17 +571,24 @@ mod tests {
         [build]
         build-dir = "outputs"
         create-missing = false
-        preprocess = ["first_preprocessor", "second_preprocessor"]
+        use-default-preprocessors = true
 
         [output.html]
         theme = "./themedir"
+        default-theme = "rust"
         curly-quotes = true
         google-analytics = "123456"
         additional-css = ["./foo/bar/baz.css"]
+        git-repository-url = "https://foo.com/"
+        git-repository-icon = "fa-code-fork"
 
         [output.html.playpen]
         editable = true
         editor = "ace"
+
+        [preprocess.first]
+
+        [preprocess.second]
         "#;
 
     #[test]
@@ -579,10 +606,7 @@ mod tests {
         let build_should_be = BuildConfig {
             build_dir: PathBuf::from("outputs"),
             create_missing: false,
-            preprocess: Some(vec![
-                "first_preprocessor".to_string(),
-                "second_preprocessor".to_string(),
-            ]),
+            use_default_preprocessors: true,
         };
         let playpen_should_be = Playpen {
             editable: true,
@@ -593,7 +617,10 @@ mod tests {
             google_analytics: Some(String::from("123456")),
             additional_css: vec![PathBuf::from("./foo/bar/baz.css")],
             theme: Some(PathBuf::from("./themedir")),
+            default_theme: Some(String::from("rust")),
             playpen: playpen_should_be,
+            git_repository_url: Some(String::from("https://foo.com/")),
+            git_repository_icon: Some(String::from("fa-code-fork")),
             ..Default::default()
         };
 
@@ -684,7 +711,7 @@ mod tests {
         let build_should_be = BuildConfig {
             build_dir: PathBuf::from("my-book"),
             create_missing: true,
-            preprocess: None,
+            use_default_preprocessors: true,
         };
 
         let html_should_be = HtmlConfig {

@@ -14,9 +14,9 @@ smart pointers to work in a similar way as references. Then we’ll look at
 Rust’s *deref coercion* feature and how it lets us work with either references
 or smart pointers.
 
-> There’s one big difference between the `MyBox<T>` type we’re about to build
-> and the real `Box<T>`: our version will not store its data on the heap. We
-> are focusing this example on `Deref`, and so where the data is actually stored
+> Note: there's one big difference between the `MyBox<T>` type we're about to
+> build and the real `Box<T>`: our version will not store its data on the heap.
+> We are focusing this example on `Deref`, so where the data is actually stored
 > is less important than the pointer-like behavior.
 
 ### Following the Pointer to the Value with the Dereference Operator
@@ -52,12 +52,11 @@ If we tried to write `assert_eq!(5, y);` instead, we would get this compilation
 error:
 
 ```text
-error[E0277]: the trait bound `{integer}: std::cmp::PartialEq<&{integer}>` is
-not satisfied
+error[E0277]: can't compare `{integer}` with `&{integer}`
  --> src/main.rs:6:5
   |
 6 |     assert_eq!(5, y);
-  |     ^^^^^^^^^^^^^^^^^ can't compare `{integer}` with `&{integer}`
+  |     ^^^^^^^^^^^^^^^^^ no implementation for `{integer} == &{integer}`
   |
   = help: the trait `std::cmp::PartialEq<&{integer}>` is not implemented for
   `{integer}`

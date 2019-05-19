@@ -1,5 +1,6 @@
 use cmp;
-use io::{self, SeekFrom, Read, Initializer, Write, Seek, BufRead, Error, ErrorKind};
+use io::{self, SeekFrom, Read, Initializer, Write, Seek, BufRead, Error, ErrorKind, IoVecMut,
+         IoVec};
 use fmt;
 use mem;
 
@@ -7,10 +8,15 @@ use mem;
 // Forwarding implementations
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, R: Read + ?Sized> Read for &'a mut R {
+impl<R: Read + ?Sized> Read for &mut R {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
+    }
+
+    #[inline]
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        (**self).read_vectored(bufs)
     }
 
     #[inline]
@@ -34,9 +40,14 @@ impl<'a, R: Read + ?Sized> Read for &'a mut R {
     }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, W: Write + ?Sized> Write for &'a mut W {
+impl<W: Write + ?Sized> Write for &mut W {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> { (**self).write(buf) }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        (**self).write_vectored(bufs)
+    }
 
     #[inline]
     fn flush(&mut self) -> io::Result<()> { (**self).flush() }
@@ -52,12 +63,12 @@ impl<'a, W: Write + ?Sized> Write for &'a mut W {
     }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, S: Seek + ?Sized> Seek for &'a mut S {
+impl<S: Seek + ?Sized> Seek for &mut S {
     #[inline]
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> { (**self).seek(pos) }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, B: BufRead + ?Sized> BufRead for &'a mut B {
+impl<B: BufRead + ?Sized> BufRead for &mut B {
     #[inline]
     fn fill_buf(&mut self) -> io::Result<&[u8]> { (**self).fill_buf() }
 
@@ -80,6 +91,11 @@ impl<R: Read + ?Sized> Read for Box<R> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
+    }
+
+    #[inline]
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        (**self).read_vectored(bufs)
     }
 
     #[inline]
@@ -106,6 +122,11 @@ impl<R: Read + ?Sized> Read for Box<R> {
 impl<W: Write + ?Sized> Write for Box<W> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> { (**self).write(buf) }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        (**self).write_vectored(bufs)
+    }
 
     #[inline]
     fn flush(&mut self) -> io::Result<()> { (**self).flush() }
@@ -152,7 +173,7 @@ impl<B: BufRead + ?Sized> BufRead for Box<B> {
 /// Note that reading updates the slice to point to the yet unread part.
 /// The slice will be empty when EOF is reached.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a> Read for &'a [u8] {
+impl Read for &[u8] {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let amt = cmp::min(buf.len(), self.len());
@@ -169,6 +190,19 @@ impl<'a> Read for &'a [u8] {
 
         *self = b;
         Ok(amt)
+    }
+
+    #[inline]
+    fn read_vectored(&mut self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+        let mut nread = 0;
+        for buf in bufs {
+            nread += self.read(buf)?;
+            if self.is_empty() {
+                break;
+            }
+        }
+
+        Ok(nread)
     }
 
     #[inline]
@@ -207,7 +241,7 @@ impl<'a> Read for &'a [u8] {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a> BufRead for &'a [u8] {
+impl BufRead for &[u8] {
     #[inline]
     fn fill_buf(&mut self) -> io::Result<&[u8]> { Ok(*self) }
 
@@ -221,7 +255,7 @@ impl<'a> BufRead for &'a [u8] {
 /// Note that writing updates the slice to point to the yet unwritten part.
 /// The slice will be empty when it has been completely overwritten.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a> Write for &'a mut [u8] {
+impl Write for &mut [u8] {
     #[inline]
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         let amt = cmp::min(data.len(), self.len());
@@ -229,6 +263,19 @@ impl<'a> Write for &'a mut [u8] {
         a.copy_from_slice(&data[..amt]);
         *self = b;
         Ok(amt)
+    }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        let mut nwritten = 0;
+        for buf in bufs {
+            nwritten += self.write(buf)?;
+            if self.is_empty() {
+                break;
+            }
+        }
+
+        Ok(nwritten)
     }
 
     #[inline]
@@ -252,6 +299,16 @@ impl Write for Vec<u8> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.extend_from_slice(buf);
         Ok(buf.len())
+    }
+
+    #[inline]
+    fn write_vectored(&mut self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+        let len = bufs.iter().map(|b| b.len()).sum();
+        self.reserve(len);
+        for buf in bufs {
+            self.extend_from_slice(buf);
+        }
+        Ok(len)
     }
 
     #[inline]

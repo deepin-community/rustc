@@ -3,13 +3,13 @@
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::indexed_vec::Idx;
 
-use build::expr::category::{Category, RvalueFunc};
-use build::{BlockAnd, BlockAndExtension, Builder};
-use hair::*;
+use crate::build::expr::category::{Category, RvalueFunc};
+use crate::build::{BlockAnd, BlockAndExtension, Builder};
+use crate::hair::*;
 use rustc::middle::region;
 use rustc::mir::interpret::EvalErrorKind;
 use rustc::mir::*;
-use rustc::ty::{self, Ty, UpvarSubsts};
+use rustc::ty::{self, CanonicalUserTypeAnnotation, Ty, UpvarSubsts};
 use syntax_pos::Span;
 
 impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
@@ -331,8 +331,13 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                         .collect()
                 };
 
+                let inferred_ty = expr.ty;
                 let user_ty = user_ty.map(|ty| {
-                    this.canonical_user_type_annotations.push((expr_span, ty))
+                    this.canonical_user_type_annotations.push(CanonicalUserTypeAnnotation {
+                        span: source_info.span,
+                        user_ty: ty,
+                        inferred_ty,
+                    })
                 });
                 let adt = box AggregateKind::Adt(
                     adt_def,

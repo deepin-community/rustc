@@ -101,11 +101,11 @@ impl AveragedCollection {
 <span class="caption">Listing 17-2: Implementations of the public methods
 `add`, `remove`, and `average` on `AveragedCollection`</span>
 
-The public methods `add`, `remove`, and `average` are the only ways to modify
-an instance of `AveragedCollection`. When an item is added to `list` using the
-`add` method or removed using the `remove` method, the implementations of each
-call the private `update_average` method that handles updating the `average`
-field as well.
+The public methods `add`, `remove`, and `average` are the only ways to access
+or modify data in an instance of `AveragedCollection`. When an item is added
+to `list` using the `add` method or removed using the `remove` method, the
+implementations of each call the private `update_average` method that handles
+updating the `average` field as well.
 
 We leave the `list` and `average` fields private so there is no way for
 external code to add or remove items to the `list` field directly; otherwise,
@@ -115,13 +115,13 @@ code to read the `average` but not modify it.
 
 Because we’ve encapsulated the implementation details of the struct
 `AveragedCollection`, we can easily change aspects, such as the data structure,
-in the future. For instance, we could use a `HashSet` instead of a `Vec` for
-the `list` field. As long as the signatures of the `add`, `remove`, and
-`average` public methods stay the same, code using `AveragedCollection`
-wouldn’t need to change. If we made `list` public instead, this wouldn’t
-necessarily be the case: `HashSet` and `Vec` have different methods for adding
-and removing items, so the external code would likely have to change if it were
-modifying `list` directly.
+in the future. For instance, we could use a `HashSet<i32>` instead of a
+`Vec<i32>` for the `list` field. As long as the signatures of the `add`,
+`remove`, and `average` public methods stay the same, code using
+`AveragedCollection` wouldn’t need to change. If we made `list` public instead,
+this wouldn’t necessarily be the case: `HashSet<i32>` and `Vec<i32>` have
+different methods for adding and removing items, so the external code would
+likely have to change if it were modifying `list` directly.
 
 If encapsulation is a required aspect for a language to be considered object
 oriented, then Rust meets that requirement. The option to use `pub` or not for

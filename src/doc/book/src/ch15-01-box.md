@@ -16,15 +16,17 @@ either. You’ll use them most often in these situations:
 * When you want to own a value and you care only that it’s a type that
   implements a particular trait rather than being of a specific type
 
-We’ll demonstrate the first situation in the “Enabling Recursive Types with
-Boxes” section. In the second case, transferring ownership of a large amount of
-data can take a long time because the data is copied around on the stack. To
-improve performance in this situation, we can store the large amount of data on
-the heap in a box. Then, only the small amount of pointer data is copied around
-on the stack, while the data it references stays in one place on the heap. The
-third case is known as a *trait object*, and Chapter 17 devotes an entire
-section, “Using Trait Objects That Allow for Values of Different Types,” just
-to that topic. So what you learn here you’ll apply again in Chapter 17!
+We’ll demonstrate the first situation in the [“Enabling Recursive Types with
+Boxes”](#enabling-recursive-types-with-boxes)<!-- ignore --> section. In the
+second case, transferring ownership of a large amount of data can take a long
+time because the data is copied around on the stack. To improve performance in
+this situation, we can store the large amount of data on the heap in a box.
+Then, only the small amount of pointer data is copied around on the stack,
+while the data it references stays in one place on the heap. The third case is
+known as a *trait object*, and Chapter 17 devotes an entire section, [“Using
+Trait Objects That Allow for Values of Different Types,”][trait-objects]<!--
+ignore --> just to that topic. So what you learn here you’ll apply again in
+Chapter 17!
 
 ### Using a `Box<T>` to Store Data on the Heap
 
@@ -127,7 +129,7 @@ Listing 15-3:
 <span class="filename">Filename: src/main.rs</span>
 
 ```rust,ignore
-use List::{Cons, Nil};
+use crate::List::{Cons, Nil};
 
 fn main() {
     let list = Cons(1, Cons(2, Cons(3, Nil)));
@@ -238,7 +240,7 @@ enum List {
     Nil,
 }
 
-use List::{Cons, Nil};
+use crate::List::{Cons, Nil};
 
 fn main() {
     let list = Cons(1,
@@ -278,3 +280,5 @@ up as well because of the `Drop` trait implementation. Let’s explore these two
 traits in more detail. These two traits will be even more important to the
 functionality provided by the other smart pointer types we’ll discuss in the
 rest of this chapter.
+
+[trait-objects]: ch17-02-trait-objects.html#using-trait-objects-that-allow-for-values-of-different-types

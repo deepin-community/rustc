@@ -22,6 +22,28 @@
 
 mod token;
 mod js;
+mod utils;
 
-pub use self::js::{minify, minify_and_replace_keywords};
-pub use self::token::Keyword;
+pub use self::js::{
+    aggregate_strings,
+    aggregate_strings_with_separation,
+    aggregate_strings_into_array,
+    aggregate_strings_into_array_with_separation,
+    minify,
+    simple_minify,
+};
+pub use self::token::{
+    tokenize,
+    Condition,
+    Keyword,
+    Operation,
+    ReservedChar,
+    Token,
+    Tokens,
+};
+pub use self::utils::{
+    clean_tokens,
+    clean_tokens_except,
+    get_variable_name_and_value_positions,
+    replace_token_with,
+};

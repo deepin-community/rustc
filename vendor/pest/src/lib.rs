@@ -9,57 +9,71 @@
 
 //! # pest. The Elegant Parser
 //!
-//! pest is a [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar) parser built with
-//! *simplicity* and *speed* in mind.
+//! pest is a general purpose parser written in Rust with a focus on accessibility, correctness,
+//! and performance. It uses parsing expression grammars (or [PEG]) as input, which are similar in
+//! spirit to regular expressions, but which offer the enhanced expressivity needed to parse
+//! complex languages.
 //!
-//! ## Parser
+//! [PEG]: https://en.wikipedia.org/wiki/Parsing_expression_grammar
 //!
-//! pest works mainly through a `trait`, `Parser`, which provides an interface to the parsing
-//! functionality. Since `Parser` is a `trait`, parsing needs to be defined either though the
-//! `#[derive(Parser)]` attribute, or manually through the [`Position API`](struct.Position.html).
-//! The use of the `derive` is highly encouraged since this is the only way you can make use of
-//! pest's PEG grammar, while manual parser definition can be used where highly specific or
-//! efficient parsing is required.
+//! ## Getting started
 //!
-//! ## `#[derive(Parser)]`
+//! The recommended way to start parsing with pest is to read the official [book].
 //!
-//! pest comes with a procedural macro crate--`pest_derive`--which needs to be included in
-//! `Cargo.toml` in order to enable the `derive`.
+//! Other helpful resources:
 //!
-//! ```toml
-//! pest_derive = "*"
-//! ```
+//! * API reference on [docs.rs]
+//! * play with grammars and share them on our [fiddle]
+//! * leave feedback, ask questions, or greet us on [Gitter]
+//!
+//! [book]: https://pest-parser.github.io/book
+//! [docs.rs]: https://docs.rs/pest
+//! [fiddle]: https://pest-parser.github.io/#editor
+//! [Gitter]: https://gitter.im/dragostis/pest
+//!
+//! ## Usage
+//!
+//! The core of pest is the trait [`Parser`], which provides an interface to the parsing
+//! functionality.
+//!
+//! The accompanying crate `pest_derive` can automatically generate a [`Parser`] from a PEG
+//! grammar. Using `pest_derive` is highly encouraged, but it is also possible to implement
+//! [`Parser`] manually if required.
 //!
 //! ## `.pest` files
 //!
-//! Grammar definitions reside in custom `.pest` files located in the `src` directory. Their path is
-//! relative to `src` and is specified between the `derive` attribute and an empty `struct` that
-//! `Parser` will be derived on.
-//!
-//! Because of a limitation in procedural macros, there is no way for Cargo to know that a module
-//! needs to be recompiled based on the file that the procedural macro is opening. This leads to the
-//! case where modifying a `.pest` file without touching the file where the `derive` is does not
-//! recompile it if it already has a working binary in the cache. To avoid this issue, the grammar
-//! file can be included in a dummy `const` definition while debugging.
+//! Grammar definitions reside in custom `.pest` files located in the crate `src` directory.
+//! Parsers are automatically generated from these files using `#[derive(Parser)]` and a special
+//! `#[grammar = "..."]` attribute on a dummy struct.
 //!
 //! ```ignore
-//! #[cfg(debug_assertions)]
-//! const _GRAMMAR: &'static str = include_str!("path/to/my_grammar.pest"); // relative to this file
-//!
 //! #[derive(Parser)]
 //! #[grammar = "path/to/my_grammar.pest"] // relative to src
 //! struct MyParser;
 //! ```
 //!
-//! The grammar of `.pest` files is documented in the
-//! [`pest_derive` crate](https://docs.rs/pest_derive/#Grammar).
+//! The syntax of `.pest` files is documented in the [`pest_derive` crate].
+//!
+//! ## Inline grammars
+//!
+//! Grammars can also be inlined by using the `#[grammar_inline = "..."]` attribute.
+//!
+//! [`Parser`]: trait.Parser.html
+//! [`pest_derive` crate]: https://docs.rs/pest_derive/
 
 #![doc(html_root_url = "https://docs.rs/pest")]
 
+extern crate ucd_trie;
+
+pub use parser::Parser;
+pub use parser_state::{state, Atomicity, Lookahead, MatchDir, ParseResult, ParserState};
+pub use position::Position;
+pub use span::{Lines, Span};
 use std::fmt::Debug;
 use std::hash::Hash;
+pub use token::Token;
 
-mod error;
+pub mod error;
 pub mod iterators;
 mod macros;
 mod parser;
@@ -67,9 +81,12 @@ mod parser_state;
 mod position;
 pub mod prec_climber;
 mod span;
+mod stack;
 mod token;
+#[doc(hidden)]
+pub mod unicode;
 
-/// A `trait` which parser rules must implement.
+/// A trait which parser rules must implement.
 ///
 /// This trait is set up so that any struct that implements all of its required traits will
 /// automatically implement this trait as well.
@@ -77,11 +94,5 @@ mod token;
 /// This is essentially a [trait alias](https://github.com/rust-lang/rfcs/pull/1733). When trait
 /// aliases are implemented, this may be replaced by one.
 pub trait RuleType: Copy + Debug + Eq + Hash + Ord {}
-impl<T: Copy + Debug + Eq + Hash + Ord> RuleType for T {}
 
-pub use error::Error;
-pub use parser::Parser;
-pub use parser_state::{state, Atomicity, Lookahead, ParserState};
-pub use position::Position;
-pub use span::Span;
-pub use token::Token;
+impl<T: Copy + Debug + Eq + Hash + Ord> RuleType for T {}

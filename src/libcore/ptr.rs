@@ -12,7 +12,7 @@
 //! to access only a single value, in which case the documentation omits the size
 //! and implicitly assumes it to be `size_of::<T>()` bytes.
 //!
-//! The precise rules for validity are not determined yet.  The guarantees that are
+//! The precise rules for validity are not determined yet. The guarantees that are
 //! provided at this point are very minimal:
 //!
 //! * A [null] pointer is *never* valid, not even for accesses of [size zero][zst].
@@ -104,7 +104,7 @@ pub use intrinsics::write_bytes;
 ///
 /// * `to_drop` must be [valid] for reads.
 ///
-/// * `to_drop` must be properly aligned.  See the example below for how to drop
+/// * `to_drop` must be properly aligned. See the example below for how to drop
 ///   an unaligned pointer.
 ///
 /// Additionally, if `T` is not [`Copy`], using the pointed-to value after
@@ -135,7 +135,7 @@ pub use intrinsics::write_bytes;
 /// unsafe {
 ///     // Get a raw pointer to the last element in `v`.
 ///     let ptr = &mut v[1] as *mut _;
-///     // Shorten `v` to prevent the last item from being dropped.  We do that first,
+///     // Shorten `v` to prevent the last item from being dropped. We do that first,
 ///     // to prevent issues if the `drop_in_place` below panics.
 ///     v.set_len(1);
 ///     // Without a call `drop_in_place`, the last item would never be dropped,
@@ -531,7 +531,7 @@ pub unsafe fn replace<T>(dst: *mut T, mut src: T) -> T {
 ///
 /// `read` creates a bitwise copy of `T`, regardless of whether `T` is [`Copy`].
 /// If `T` is not [`Copy`], using both the returned value and the value at
-/// `*src` can violate memory safety.  Note that assigning to `*src` counts as a
+/// `*src` can violate memory safety. Note that assigning to `*src` counts as a
 /// use because it will attempt to drop the value at `*src`.
 ///
 /// [`write`] can be used to overwrite data without causing it to be dropped.
@@ -573,7 +573,7 @@ pub unsafe fn replace<T>(dst: *mut T, mut src: T) -> T {
 pub unsafe fn read<T>(src: *const T) -> T {
     let mut tmp = MaybeUninit::<T>::uninitialized();
     copy_nonoverlapping(src, tmp.as_mut_ptr(), 1);
-    tmp.into_inner()
+    tmp.into_initialized()
 }
 
 /// Reads the value from `src` without moving it. This leaves the
@@ -588,7 +588,7 @@ pub unsafe fn read<T>(src: *const T) -> T {
 /// * `src` must be [valid] for reads.
 ///
 /// Like [`read`], `read_unaligned` creates a bitwise copy of `T`, regardless of
-/// whether `T` is [`Copy`].  If `T` is not [`Copy`], using both the returned
+/// whether `T` is [`Copy`]. If `T` is not [`Copy`], using both the returned
 /// value and the value at `*src` can [violate memory safety][read-ownership].
 ///
 /// Note that even if `T` has size `0`, the pointer must be non-NULL.
@@ -642,7 +642,7 @@ pub unsafe fn read_unaligned<T>(src: *const T) -> T {
     copy_nonoverlapping(src as *const u8,
                         tmp.as_mut_ptr() as *mut u8,
                         mem::size_of::<T>());
-    tmp.into_inner()
+    tmp.into_initialized()
 }
 
 /// Overwrites a memory location with the given value without reading or
@@ -825,7 +825,7 @@ pub unsafe fn write_unaligned<T>(dst: *mut T, src: T) {
 ///
 /// The compiler shouldn't change the relative order or number of volatile
 /// memory operations. However, volatile memory operations on zero-sized types
-/// (e.g., if a zero-sized type is passed to `read_volatile`) are no-ops
+/// (e.g., if a zero-sized type is passed to `read_volatile`) are noops
 /// and may be ignored.
 ///
 /// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
@@ -839,7 +839,7 @@ pub unsafe fn write_unaligned<T>(dst: *mut T, src: T) {
 /// * `src` must be properly aligned.
 ///
 /// Like [`read`], `read_unaligned` creates a bitwise copy of `T`, regardless of
-/// whether `T` is [`Copy`].  If `T` is not [`Copy`], using both the returned
+/// whether `T` is [`Copy`]. If `T` is not [`Copy`], using both the returned
 /// value and the value at `*src` can [violate memory safety][read-ownership].
 /// However, storing non-[`Copy`] types in volatile memory is almost certainly
 /// incorrect.
@@ -903,7 +903,7 @@ pub unsafe fn read_volatile<T>(src: *const T) -> T {
 ///
 /// The compiler shouldn't change the relative order or number of volatile
 /// memory operations. However, volatile memory operations on zero-sized types
-/// (e.g., if a zero-sized type is passed to `write_volatile`) are no-ops
+/// (e.g., if a zero-sized type is passed to `write_volatile`) are noops
 /// and may be ignored.
 ///
 /// [c11]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
@@ -1093,7 +1093,7 @@ impl<T: ?Sized> *const T {
     /// unless `x` and `y` point into the same allocated object.
     ///
     /// Always use `.offset(count)` instead when possible, because `offset`
-    /// allows the compiler to optimize better.  If you need to cross object
+    /// allows the compiler to optimize better. If you need to cross object
     /// boundaries, cast the pointer to an integer and do the arithmetic there.
     ///
     /// # Examples
@@ -1712,7 +1712,7 @@ impl<T: ?Sized> *mut T {
     /// unless `x` and `y` point into the same allocated object.
     ///
     /// Always use `.offset(count)` instead when possible, because `offset`
-    /// allows the compiler to optimize better.  If you need to cross object
+    /// allows the compiler to optimize better. If you need to cross object
     /// boundaries, cast the pointer to an integer and do the arithmetic there.
     ///
     /// # Examples
@@ -2473,7 +2473,7 @@ impl<T: ?Sized> PartialEq for *mut T {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: ?Sized> Eq for *mut T {}
 
-/// Compare raw pointers for equality.
+/// Compares raw pointers for equality.
 ///
 /// This is the same as using the `==` operator, but less generic:
 /// the arguments have to be `*const T` raw pointers,
@@ -2718,8 +2718,6 @@ impl<T: ?Sized> PartialOrd for *mut T {
                      (if you also use #[may_dangle]), Send, and/or Sync")]
 #[doc(hidden)]
 #[repr(transparent)]
-// FIXME: the rustc_layout_scalar_valid_range_start attr is marked as unused
-#[cfg_attr(stage0, allow(unused_attributes))]
 #[rustc_layout_scalar_valid_range_start(1)]
 pub struct Unique<T: ?Sized> {
     pointer: *const T,
@@ -2785,8 +2783,6 @@ impl<T: ?Sized> Unique<T> {
     /// Creates a new `Unique` if `ptr` is non-null.
     pub fn new(ptr: *mut T) -> Option<Self> {
         if !ptr.is_null() {
-            // FIXME: this unsafe block is actually needed
-            #[cfg_attr(stage0, allow(unused_unsafe))]
             Some(unsafe { Unique { pointer: ptr as _, _marker: PhantomData } })
         } else {
             None
@@ -2843,8 +2839,6 @@ impl<T: ?Sized> fmt::Pointer for Unique<T> {
 #[unstable(feature = "ptr_internals", issue = "0")]
 impl<'a, T: ?Sized> From<&'a mut T> for Unique<T> {
     fn from(reference: &'a mut T) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { Unique { pointer: reference as *mut T, _marker: PhantomData } }
     }
 }
@@ -2852,8 +2846,6 @@ impl<'a, T: ?Sized> From<&'a mut T> for Unique<T> {
 #[unstable(feature = "ptr_internals", issue = "0")]
 impl<'a, T: ?Sized> From<&'a T> for Unique<T> {
     fn from(reference: &'a T) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { Unique { pointer: reference as *const T, _marker: PhantomData } }
     }
 }
@@ -2861,8 +2853,6 @@ impl<'a, T: ?Sized> From<&'a T> for Unique<T> {
 #[unstable(feature = "ptr_internals", issue = "0")]
 impl<'a, T: ?Sized> From<NonNull<T>> for Unique<T> {
     fn from(p: NonNull<T>) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { Unique { pointer: p.pointer, _marker: PhantomData } }
     }
 }
@@ -3052,8 +3042,6 @@ impl<T: ?Sized> hash::Hash for NonNull<T> {
 impl<T: ?Sized> From<Unique<T>> for NonNull<T> {
     #[inline]
     fn from(unique: Unique<T>) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { NonNull { pointer: unique.pointer } }
     }
 }
@@ -3062,8 +3050,6 @@ impl<T: ?Sized> From<Unique<T>> for NonNull<T> {
 impl<'a, T: ?Sized> From<&'a mut T> for NonNull<T> {
     #[inline]
     fn from(reference: &'a mut T) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { NonNull { pointer: reference as *mut T } }
     }
 }
@@ -3072,8 +3058,6 @@ impl<'a, T: ?Sized> From<&'a mut T> for NonNull<T> {
 impl<'a, T: ?Sized> From<&'a T> for NonNull<T> {
     #[inline]
     fn from(reference: &'a T) -> Self {
-        // FIXME: this unsafe block is actually needed
-        #[cfg_attr(stage0, allow(unused_unsafe))]
         unsafe { NonNull { pointer: reference as *const T } }
     }
 }

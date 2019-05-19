@@ -30,66 +30,35 @@ echo "FEATURES=${FEATURES}"
 echo "OBJDUMP=${OBJDUMP}"
 echo "STDSIMD_DISABLE_ASSERT_INSTR=${STDSIMD_DISABLE_ASSERT_INSTR}"
 echo "STDSIMD_TEST_EVERYTHING=${STDSIMD_TEST_EVERYTHING}"
-echo "CROSS=${CROSS}"
-
-cargo_setup() {
-    if [ "$CROSS" = "1" ]
-    then
-        export RUST_TARGET_PATH="/checkout/ci/cross"
-        echo "RUST_TARGET_PATH=${RUST_TARGET_PATH}"
-    fi
-}
 
 cargo_test() {
-    if [ "$CROSS" = "1" ]
-    then
-        cmd="/cargo-h/bin/xargo"
-    else
-        cmd="cargo"
-    fi
+    cmd="cargo"
     subcmd="test"
-    if [ "$NORUN" = "1" ]
-    then
-        if [ "$CROSS" = "1" ]
-        then
-            export subcmd="rustc"
-        else
-            export subcmd="build"
-        fi
+    if [ "$NORUN" = "1" ]; then
+        export subcmd="build"
     fi
     cmd="$cmd ${subcmd} --target=$TARGET $1"
-    if [ "$NOSTD" = "1" ]
-    then
-        cmd="$cmd -p coresimd"
-    else
-        cmd="$cmd -p coresimd -p stdsimd"
-    fi
     cmd="$cmd -- $2"
-    if [ "$NORUN" != "1" ]
-    then
-      if [ "$TARGET" != "wasm32-unknown-unknown" ]
-      then
-        cmd="$cmd --quiet"
-      fi
-    fi
-    if [ "$CROSS" = "1" ]
-    then
-        cmd="$cmd --emit=asm"
-    fi
     $cmd
 }
 
-cargo_output() {
-    if [ "$CROSS" = "1" ]
-    then
-        find /checkout/target -name "*.s"
-    fi
-}
+CORE_ARCH="--manifest-path=crates/core_arch/Cargo.toml"
+STD_DETECT="--manifest-path=crates/std_detect/Cargo.toml"
+STDSIMD_EXAMPLES="--manifest-path=examples/Cargo.toml"
+cargo_test "${CORE_ARCH}"
+cargo_test "${CORE_ARCH} --release"
+if [ "$NOSTD" != "1" ]; then
+    cargo_test "${STD_DETECT}"
+    cargo_test "${STD_DETECT} --release"
 
-cargo_setup
-cargo_test
-cargo_test "--release"
-cargo_output
+    cargo_test "${STD_DETECT} --no-default-features"
+    cargo_test "${STD_DETECT} --no-default-features --features=std_detect_file_io"
+    cargo_test "${STD_DETECT} --no-default-features --features=std_detect_dlsym_getauxval"
+    cargo_test "${STD_DETECT} --no-default-features --features=std_detect_dlsym_getauxval,std_detect_file_io"
+
+    cargo_test "${STDSIMD_EXAMPLES}"
+    cargo_test "${STDSIMD_EXAMPLES} --release"
+fi
 
 # Test targets compiled with extra features.
 case ${TARGET} in
@@ -103,10 +72,19 @@ case ${TARGET} in
         # proposal, but hopefully that's coming soon! For now just test that we
         # can codegen with no LLVM faults, and we'll remove `--no-run` at a
         # later date.
-        export RUSTFLAGS="${RUSTFLAGS} -C target-feature=+simd128"
-        export RUSTFLAGS="${RUSTFLAGS} -Cllvm-args=-wasm-enable-unimplemented-simd"
+        export RUSTFLAGS="${RUSTFLAGS} -C target-feature=+simd128,+unimplemented-simd128"
         cargo_test "--release --no-run"
         ;;
     *)
         ;;
+
 esac
+
+if [ "$NORUN" != "1" ] && [ "$NOSTD" != 1 ] && [ "$TARGET" != "wasm32-unknown-unknown" ]; then
+    # Test examples
+    (
+        cd examples
+        cargo test --target "$TARGET"
+        echo test | cargo run --release hex
+    )
+fi

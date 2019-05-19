@@ -22,7 +22,7 @@ your projects there.
 Open a terminal and enter the following commands to make a *projects* directory
 and a directory for the Hello, world! project within the *projects* directory.
 
-For Linux and macOS, enter this:
+For Linux, macOS, and PowerShell on Windows, enter this:
 
 ```text
 $ mkdir ~/projects
@@ -36,15 +36,6 @@ For Windows CMD, enter this:
 ```cmd
 > mkdir "%USERPROFILE%\projects"
 > cd /d "%USERPROFILE%\projects"
-> mkdir hello_world
-> cd hello_world
-```
-
-For Windows PowerShell, enter this:
-
-```powershell
-> mkdir $env:USERPROFILE\projects
-> cd $env:USERPROFILE\projects
 > mkdir hello_world
 > cd hello_world
 ```
@@ -86,8 +77,9 @@ Hello, world!
 ```
 
 Regardless of your operating system, the string `Hello, world!` should print to
-the terminal. If you don’t see this output, refer back to the “Troubleshooting”
-part of the Installation section for ways to get help.
+the terminal. If you don’t see this output, refer back to the
+[“Troubleshooting”][troubleshooting]<!-- ignore --> part of the Installation
+section for ways to get help.
 
 If `Hello, world!` did print, congratulations! You’ve officially written a Rust
 program. That makes you a Rust programmer—welcome!
@@ -158,28 +150,14 @@ $ rustc main.rs
 If you have a C or C++ background, you’ll notice that this is similar to `gcc`
 or `clang`. After compiling successfully, Rust outputs a binary executable.
 
-On Linux and macOS you can see the executable by entering the `ls` command in
-your shell as follows:
+On Linux, macOS, and PowerShell on Windows, you can see the executable by
+entering the `ls` command in your shell. On Linux and macOS, you'll see two
+files. With PowerShell on Windows, you’ll see the same three files that you
+would see using CMD.
 
 ```text
 $ ls
 main  main.rs
-```
-
-With PowerShell on Windows, you can use `ls` as well, but you’ll see three files:
-
-```text
-> ls
-
-
-    Directory: Path:\to\the\project
-
-
-Mode                LastWriteTime         Length Name
-----                -------------         ------ ----
--a----         6/1/2018   7:31 AM         137728 main.exe
--a----         6/1/2018   7:31 AM        1454080 main.pdb
--a----         6/1/2018   7:31 AM             14 main.rs
 ```
 
 With CMD on Windows, you would enter the following:
@@ -193,8 +171,8 @@ main.rs
 
 This shows the source code file with the *.rs* extension, the executable file
 (*main.exe* on Windows, but *main* on all other platforms), and, when using
-CMD, a file containing debugging information with the *.pdb* extension. From
-here, you run the *main* or *main.exe* file, like this:
+Windows, a file containing debugging information with the *.pdb* extension.
+From here, you run the *main* or *main.exe* file, like this:
 
 ```text
 $ ./main # or .\main.exe on Windows
@@ -216,3 +194,5 @@ Just compiling with `rustc` is fine for simple programs, but as your project
 grows, you’ll want to manage all the options and make it easy to share your
 code. Next, we’ll introduce you to the Cargo tool, which will help you write
 real-world Rust programs.
+
+[troubleshooting]: ch01-01-installation.html#troubleshooting

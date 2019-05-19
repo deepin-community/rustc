@@ -6,6 +6,12 @@ pub mod str {
         buf: Vec<u8>,
     }
 
+    impl Default for StringWriter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl StringWriter {
         pub fn new() -> StringWriter {
             StringWriter {
@@ -13,7 +19,7 @@ pub mod str {
             }
         }
 
-        pub fn to_string(self) -> String {
+        pub fn into_string(self) -> String {
             if let Ok(s) = String::from_utf8(self.buf) {
                 s
             } else {
@@ -24,9 +30,7 @@ pub mod str {
 
     impl Write for StringWriter {
         fn write(&mut self, buf: &[u8]) -> Result<usize> {
-            for b in buf {
-                self.buf.push(*b);
-            }
+            self.buf.extend_from_slice(buf);
             Ok(buf.len())
         }
 
@@ -37,8 +41,8 @@ pub mod str {
 
     #[cfg(test)]
     mod test {
-        use support::str::StringWriter;
         use std::io::Write;
+        use support::str::StringWriter;
 
         #[test]
         fn test_string_writer() {
@@ -47,7 +51,7 @@ pub mod str {
             let _ = sw.write("hello".to_owned().into_bytes().as_ref());
             let _ = sw.write("world".to_owned().into_bytes().as_ref());
 
-            let s = sw.to_string();
+            let s = sw.into_string();
             assert_eq!(s, "helloworld".to_string());
         }
     }
