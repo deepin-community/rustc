@@ -1,13 +1,9 @@
 # Patches for upstream
 
 # Fedora patches, thanks to them
-u-0001-Backport-deprecation-fixes-from-commit-b7f030e.patch
-u-0001-rust-gdb-relax-the-GDB-version-regex.patch
-# above can be dropped after 1.33
+u-0001-Limit-internalization-in-LLVM-8-ThinLTO.patch
 
 # pending, or forwarded
-u-compiletest.patch # needs to be applied conditionally, see d/rules
-u-0001-Fix-new-renamed_and_removed_lints-warning-247.patch
 u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch

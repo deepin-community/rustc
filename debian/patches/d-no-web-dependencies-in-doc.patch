@@ -11,7 +11,7 @@ Comment:
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
-@@ -180,6 +180,11 @@
+@@ -173,6 +173,11 @@
             url.starts_with("irc:") || url.starts_with("data:") {
              return;
          }
@@ -25,7 +25,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          let fragment = parts.next();
 --- a/vendor/mdbook/src/book/init.rs
 +++ b/vendor/mdbook/src/book/init.rs
-@@ -136,12 +136,6 @@
+@@ -149,12 +149,6 @@
          let mut js = File::create(themedir.join("book.js"))?;
          js.write_all(theme::JS)?;
  
@@ -42,16 +42,25 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 @@ -3,7 +3,7 @@
  use errors::*;
- use renderer::{RenderContext, Renderer};
  use renderer::html_handlebars::helpers;
--use theme::{self, Theme, playpen_editor};
+ use renderer::{RenderContext, Renderer};
+-use theme::{self, playpen_editor, Theme};
 +use theme::{self, Theme};
  use utils;
  
  use std::collections::BTreeMap;
-@@ -145,61 +145,8 @@
-         write_file(destination, "book.js", &theme.js)?;
-         write_file(destination, "book.css", &theme.css)?;
+@@ -107,7 +107,7 @@
+         &self,
+         destination: &Path,
+         theme: &Theme,
+-        html_config: &HtmlConfig,
++        _html_config: &HtmlConfig,
+     ) -> Result<()> {
+         use utils::fs::write_file;
+ 
+@@ -123,62 +123,8 @@
+         write_file(destination, "css/print.css", &theme.print_css)?;
+         write_file(destination, "css/variables.css", &theme.variables_css)?;
          write_file(destination, "favicon.png", &theme.favicon)?;
 -        write_file(destination, "highlight.css", &theme.highlight_css)?;
          write_file(destination, "tomorrow-night.css", &theme.tomorrow_night_css)?;
@@ -60,37 +69,37 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        write_file(destination, "clipboard.min.js", &theme.clipboard_js)?;
 -        write_file(
 -            destination,
--            "_FontAwesome/css/font-awesome.css",
+-            "FontAwesome/css/font-awesome.css",
 -            theme::FONT_AWESOME,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/fontawesome-webfont.eot",
+-            "FontAwesome/fonts/fontawesome-webfont.eot",
 -            theme::FONT_AWESOME_EOT,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/fontawesome-webfont.svg",
+-            "FontAwesome/fonts/fontawesome-webfont.svg",
 -            theme::FONT_AWESOME_SVG,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/fontawesome-webfont.ttf",
+-            "FontAwesome/fonts/fontawesome-webfont.ttf",
 -            theme::FONT_AWESOME_TTF,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/fontawesome-webfont.woff",
+-            "FontAwesome/fonts/fontawesome-webfont.woff",
 -            theme::FONT_AWESOME_WOFF,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/fontawesome-webfont.woff2",
+-            "FontAwesome/fonts/fontawesome-webfont.woff2",
 -            theme::FONT_AWESOME_WOFF2,
 -        )?;
 -        write_file(
 -            destination,
--            "_FontAwesome/fonts/FontAwesome.ttf",
+-            "FontAwesome/fonts/FontAwesome.ttf",
 -            theme::FONT_AWESOME_TTF,
 -        )?;
 -
@@ -103,7 +112,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            write_file(destination, "ace.js", playpen_editor::ACE_JS)?;
 -            write_file(destination, "mode-rust.js", playpen_editor::MODE_RUST_JS)?;
 -            write_file(destination, "theme-dawn.js", playpen_editor::THEME_DAWN_JS)?;
--            write_file(destination,
+-            write_file(
+-                destination,
 -                "theme-tomorrow_night.js",
 -                playpen_editor::THEME_TOMORROW_NIGHT_JS,
 -            )?;
@@ -111,36 +121,47 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
          Ok(())
      }
+--- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
++++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
+@@ -38,8 +38,6 @@
+             format!("window.search = {};", index).as_bytes(),
+         )?;
+         utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
+-        utils::fs::write_file(destination, "mark.min.js", searcher::MARK_JS)?;
+-        utils::fs::write_file(destination, "elasticlunr.min.js", searcher::ELASTICLUNR_JS)?;
+         debug!("Copying search files ✓");
+     }
+ 
 --- a/vendor/mdbook/src/theme/index.hbs
 +++ b/vendor/mdbook/src/theme/index.hbs
-@@ -12,15 +12,13 @@
-         <base href="{{ path_to_root }}">
+@@ -16,12 +16,10 @@
+         <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
  
-         <link rel="stylesheet" href="book.css">
+         <!-- Fonts -->
+-        <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
 -        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
 -        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
++        <link rel="stylesheet" href="{{ path_to_root }}../font-awesome.min.css">
  
-         <link rel="shortcut icon" href="{{ favicon }}">
+         <!-- Highlight.js Stylesheets -->
+-        <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
++        <link rel="stylesheet" href="{{ path_to_root }}../highlight.css">
+         <link rel="stylesheet" href="{{ path_to_root }}tomorrow-night.css">
+         <link rel="stylesheet" href="{{ path_to_root }}ayu-highlight.css">
  
-         <!-- Font Awesome -->
--        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
-+        <link rel="stylesheet" href="../font-awesome.min.css">
- 
--        <link rel="stylesheet" href="highlight.css">
-+        <link rel="stylesheet" href="../highlight.css">
-         <link rel="stylesheet" href="tomorrow-night.css">
-         <link rel="stylesheet" href="ayu-highlight.css">
- 
-@@ -31,47 +29,12 @@
+@@ -32,7 +30,7 @@
  
          {{#if mathjax_support}}
          <!-- MathJax -->
 -        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 +        <script async type="text/javascript" src="../mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
          {{/if}}
- 
      </head>
-     <body class="light">
+     <body class="{{ default_theme }}">
+@@ -42,43 +40,6 @@
+             var default_theme = "{{ default_theme }}";
+         </script>
+ 
 -        <!-- Work around some values being stored in localStorage wrapped in quotes -->
 -        <script type="text/javascript">
 -            try {
@@ -156,12 +177,12 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -                }
 -            } catch (e) { }
 -        </script>
- 
+-
 -        <!-- Set the theme before any content is loaded, prevents flash -->
 -        <script type="text/javascript">
 -            var theme;
 -            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
--            if (theme === null || theme === undefined) { theme = 'light'; }
+-            if (theme === null || theme === undefined) { theme = default_theme; }
 -            document.body.className = theme;
 -            document.querySelector('html').className = theme + ' js';
 -        </script>
@@ -177,10 +198,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            html.classList.remove('sidebar-visible');
 -            html.classList.add("sidebar-" + sidebar);
 -        </script>
- 
+-
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              {{#toc}}{{/toc}}
-@@ -193,24 +156,7 @@
+         </nav>
+@@ -204,41 +165,7 @@
          </script>
          {{/if}}
  
@@ -188,7 +210,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        <!-- Google Analytics Tag -->
 -        <script type="text/javascript">
 -            var localAddrs = ["localhost", "127.0.0.1", ""];
- 
+-
 -            // make sure we don't activate google analytics if the developer is
 -            // inspecting the book locally...
 -            if (localAddrs.indexOf(document.location.hostname) === -1) {
@@ -202,34 +224,25 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            }
 -        </script>
 -        {{/if}}
- 
-         {{#if is_print}}
-         <script type="text/javascript">
-@@ -220,25 +166,11 @@
-         </script>
-         {{/if}}
- 
+-
 -        {{#if playpen_js}}
--        <script src="ace.js" type="text/javascript" charset="utf-8"></script>
--        <script src="editor.js" type="text/javascript" charset="utf-8"></script>
--        <script src="mode-rust.js" type="text/javascript" charset="utf-8"></script>
--        <script src="theme-dawn.js" type="text/javascript" charset="utf-8"></script>
--        <script src="theme-tomorrow_night.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}ace.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}editor.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}mode-rust.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}theme-dawn.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}theme-tomorrow_night.js" type="text/javascript" charset="utf-8"></script>
 -        {{/if}}
 -
-         {{#if search_enabled}}
-         <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
-         {{/if}}
 -        {{#if search_js}}
--        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
--        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
--        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}mark.min.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}searcher.js" type="text/javascript" charset="utf-8"></script>
 -        {{/if}}
- 
--        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
--        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
-         <script src="book.js" type="text/javascript" charset="utf-8"></script>
+-
+-        <script src="{{ path_to_root }}clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}highlight.js" type="text/javascript" charset="utf-8"></script>
++        <script src="{{ path_to_root }}../highlight.js" type="text/javascript" charset="utf-8"></script>
+         <script src="{{ path_to_root }}book.js" type="text/javascript" charset="utf-8"></script>
  
          <!-- Custom JS scripts -->
 --- a/vendor/mdbook/src/theme/mod.rs
@@ -242,8 +255,8 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  #[cfg(feature = "search")]
  pub mod searcher;
  
-@@ -16,23 +14,8 @@
- pub static CSS: &'static [u8] = include_bytes!("book.css");
+@@ -19,23 +17,8 @@
+ pub static VARIABLES_CSS: &'static [u8] = include_bytes!("css/variables.css");
  pub static FAVICON: &'static [u8] = include_bytes!("favicon.png");
  pub static JS: &'static [u8] = include_bytes!("book.js");
 -pub static HIGHLIGHT_JS: &'static [u8] = include_bytes!("highlight.js");
@@ -251,23 +264,23 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -pub static HIGHLIGHT_CSS: &'static [u8] = include_bytes!("highlight.css");
  pub static AYU_HIGHLIGHT_CSS: &'static [u8] = include_bytes!("ayu-highlight.css");
 -pub static CLIPBOARD_JS: &'static [u8] = include_bytes!("clipboard.min.js");
--pub static FONT_AWESOME: &'static [u8] = include_bytes!("_FontAwesome/css/font-awesome.min.css");
+-pub static FONT_AWESOME: &'static [u8] = include_bytes!("FontAwesome/css/font-awesome.min.css");
 -pub static FONT_AWESOME_EOT: &'static [u8] =
--    include_bytes!("_FontAwesome/fonts/fontawesome-webfont.eot");
+-    include_bytes!("FontAwesome/fonts/fontawesome-webfont.eot");
 -pub static FONT_AWESOME_SVG: &'static [u8] =
--    include_bytes!("_FontAwesome/fonts/fontawesome-webfont.svg");
+-    include_bytes!("FontAwesome/fonts/fontawesome-webfont.svg");
 -pub static FONT_AWESOME_TTF: &'static [u8] =
--    include_bytes!("_FontAwesome/fonts/fontawesome-webfont.ttf");
+-    include_bytes!("FontAwesome/fonts/fontawesome-webfont.ttf");
 -pub static FONT_AWESOME_WOFF: &'static [u8] =
--    include_bytes!("_FontAwesome/fonts/fontawesome-webfont.woff");
+-    include_bytes!("FontAwesome/fonts/fontawesome-webfont.woff");
 -pub static FONT_AWESOME_WOFF2: &'static [u8] =
--    include_bytes!("_FontAwesome/fonts/fontawesome-webfont.woff2");
--pub static FONT_AWESOME_OTF: &'static [u8] = include_bytes!("_FontAwesome/fonts/FontAwesome.otf");
- 
+-    include_bytes!("FontAwesome/fonts/fontawesome-webfont.woff2");
+-pub static FONT_AWESOME_OTF: &'static [u8] = include_bytes!("FontAwesome/fonts/FontAwesome.otf");
  
  /// The `Theme` struct should be used instead of the static variables because
-@@ -48,11 +31,8 @@
-     pub css: Vec<u8>,
+ /// the `new()` method will look if the user has a theme directory in their
+@@ -53,11 +36,8 @@
+     pub variables_css: Vec<u8>,
      pub favicon: Vec<u8>,
      pub js: Vec<u8>,
 -    pub highlight_css: Vec<u8>,
@@ -278,18 +291,18 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  }
  
  impl Theme {
-@@ -75,9 +55,6 @@
-                 (theme_dir.join("book.js"), &mut theme.js),
-                 (theme_dir.join("book.css"), &mut theme.css),
+@@ -86,9 +66,6 @@
+                     &mut theme.variables_css,
+                 ),
                  (theme_dir.join("favicon.png"), &mut theme.favicon),
 -                (theme_dir.join("highlight.js"), &mut theme.highlight_js),
 -                (theme_dir.join("clipboard.min.js"), &mut theme.clipboard_js),
 -                (theme_dir.join("highlight.css"), &mut theme.highlight_css),
-                 (theme_dir.join("tomorrow-night.css"), &mut theme.tomorrow_night_css),
-                 (theme_dir.join("ayu-highlight.css"), &mut theme.ayu_highlight_css),
-             ];
-@@ -105,11 +82,8 @@
-             css: CSS.to_owned(),
+                 (
+                     theme_dir.join("tomorrow-night.css"),
+                     &mut theme.tomorrow_night_css,
+@@ -125,11 +102,8 @@
+             variables_css: VARIABLES_CSS.to_owned(),
              favicon: FAVICON.to_owned(),
              js: JS.to_owned(),
 -            highlight_css: HIGHLIGHT_CSS.to_owned(),
@@ -300,8 +313,20 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          }
      }
  }
-@@ -175,11 +149,8 @@
-             css: Vec::new(),
+@@ -179,11 +153,8 @@
+             "css/print.css",
+             "css/variables.css",
+             "book.js",
+-            "highlight.js",
+             "tomorrow-night.css",
+-            "highlight.css",
+             "ayu-highlight.css",
+-            "clipboard.min.js",
+         ];
+ 
+         let temp = TempFileBuilder::new().prefix("mdbook-").tempdir().unwrap();
+@@ -205,11 +176,8 @@
+             variables_css: Vec::new(),
              favicon: Vec::new(),
              js: Vec::new(),
 -            highlight_css: Vec::new(),
@@ -312,17 +337,6 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          };
  
          assert_eq!(got, empty);
---- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
-+++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-@@ -29,8 +29,6 @@
-     if search_config.copy_js {
-         utils::fs::write_file(destination, "searchindex.js", index.as_bytes())?;
-         utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
--        utils::fs::write_file(destination, "mark.min.js", searcher::MARK_JS)?;
--        utils::fs::write_file(destination, "elasticlunr.min.js", searcher::ELASTICLUNR_JS)?;
-         debug!("Copying search files ✓");
-     }
- 
 --- a/vendor/mdbook/src/theme/searcher/mod.rs
 +++ b/vendor/mdbook/src/theme/searcher/mod.rs
 @@ -2,5 +2,3 @@
