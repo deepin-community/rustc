@@ -392,10 +392,27 @@ Comment: see upstream projects,
  * https://github.com/BurntSushi/rust-memchr
  * https://github.com/BurntSushi/utf8-ranges
 
+Files: vendor/arrayref/*
+Copyright: 2015-2018 David Roundy <roundyd@physics.oregonstate.edu>
+License: BSD-2-Clause
+Comment: see https://github.com/droundy/arrayref
+
 Files: vendor/atty/*
 Copyright: 2015-2017 softprops <d.tangren@gmail.com>
 License: MIT
 Comment: see https://github.com/softprops/atty
+
+Files:
+ vendor/block-buffer/*
+ vendor/byte-tools/*
+ vendor/digest/*
+ vendor/fake-simd/*
+ vendor/sha-1/*
+Copyright: 2016-2019 RustCrypto Project Developers
+License: MIT or Apache-2.0
+Comment:
+ see https://github.com/RustCrypto/traits
+ see https://github.com/RustCrypto/utils
 
 Files:
  vendor/byteorder/*
@@ -448,9 +465,11 @@ Copyright: 2018-2019 Sam Rijs <srijs@airpost.net>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/srijs/rust-crc32fast
 
-Files: vendor/crossbeam-deque/*
-       vendor/crossbeam-epoch-0*/*
-       vendor/crossbeam-utils-0*/*
+Files:
+ vendor/crossbeam-deque/*
+ vendor/crossbeam-deque-0*/*
+ vendor/crossbeam-epoch-0*/*
+ vendor/crossbeam-utils-0*/*
 Copyright: 2017-2018 The Crossbeam Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/crossbeam-rs/crossbeam-deque
@@ -487,11 +506,12 @@ Files: vendor/arrayvec/*
        vendor/either/*
        vendor/fixedbitset/*
        vendor/itertools/*
+       vendor/itertools-0*/*
        vendor/maplit/*
        vendor/nodrop/*
        vendor/ordermap/*
        vendor/scopeguard/*
-Copyright: 2014-2018 bluss
+Copyright: 2014-2019 bluss
 License: MIT or Apache-2.0
 Comment: see https://github.com/bluss/rust-itertools
          see https://github.com/bluss/either
@@ -555,6 +575,11 @@ Files: vendor/futf/*
 Copyright: 2015-2018 Keegan McAllister <kmcallister@mozilla.com>
 License: MIT  or  Apache-2.0
 Comment: see https://github.com/servo/futf
+
+Files: vendor/generic-array/*
+Copyright: 2015-2019 Bartłomiej Kamiński <fizyk20@gmail.com>
+License: MIT
+Comment: see https://github.com/fizyk20/generic-array.git
 
 Files: vendor/handlebars/*
 Copyright: 2014-2017 Ning Sun <sunng@about.me>
@@ -654,8 +679,10 @@ Comment: see https://github.com/Byron/open-rs
 Files:
  vendor/pest/*
  vendor/pest_derive/*
-Copyright: 2016-2018 Dragoș Tiselice <dragostiselice@gmail.com>
-License: MPL-2.0
+ vendor/pest_generator/*
+ vendor/pest_meta/*
+Copyright: 2016-2019 Dragoș Tiselice <dragostiselice@gmail.com>
+License: MIT or Apache-2.0
 Comment:
  see https://github.com/dragostis/pest
  see https://github.com/pest-parser/pest
@@ -850,12 +877,20 @@ Copyright: 2017-2018 Colin Kiegel <kiegel@gmx.de>
 License: MIT or Apache-2.0
 Comment: see https://github.com/colin-kiegel/rust-pretty-assertions
 
+Files: vendor/typenum/*
+Copyright: 2015-2019 Paho Lurie-Gregg <paho@paholg.com>
+           2015-2019 Andre Bogus <bogusandre@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/paholg/typenum
+
 Files: vendor/version_check/*
 Copyright: 2017-2018 Sergio Benitez <sb@sergio.bz>
 License: MIT or Apache-2.0
 Comment: see https://github.com/SergioBenitez/version_check
 
-Files: vendor/ucd-util/*
+Files:
+ vendor/ucd-trie/*
+ vendor/ucd-util/*
 Copyright: 2017-2018 Andrew Gallant <jamslam@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/BurntSushi/rucd
