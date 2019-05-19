@@ -295,11 +295,12 @@ ifeq (true,$(BUILD_DOCS))
 	# We could have updated the upstream sources but it would complexify
 	# the rebase
 	@set -e; \
-	find $(DEB_DESTDIR)/usr/share/doc/rust/html -iname '*.html' | \
+	find $(DEB_DESTDIR)/usr/share/doc/*/html -iname '*.html' | \
 	while read file; do \
 	  topdir=$$(echo "$$file" | sed 's,^$(DEB_DESTDIR)/usr/share/doc/rust/html/,,; s,/[^/]*$$,/,; s,^[^/]*$$,,; s,[^/]\+/,../,g'); \
-	  sed -i -e "s,https://doc.rust-lang.org/\(favicon.ico\|logos/rust-logo-32x32-blk.png\),$${topdir}rust-logo-32x32-blk.png," \
-              -e "s,https://www.rust-lang.org/\(favicon.ico\|logos/rust-logo-32x32-blk.png\),$${topdir}rust-logo-32x32-blk.png," "$$file"; \
+	  sed -i \
+	    -e "s,https://\(doc\|www\).rust-lang.org/\(favicon.ico\|logos/rust-logo-32x32-blk.png\),$${topdir}rust-logo-32x32-blk.png," \
+	    -e 's,<img src="https://img.shields.io/[^"]*" alt="\([^"]*\)" />,<span class="deb-privacy-replace--shields-io">\1</span>,g' "$$file"; \
 	done
 	find $(DEB_DESTDIR) \( -iname '*.html' -empty -o -name .lock -o -name '*.inc' \) -delete;
 endif
