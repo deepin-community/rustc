@@ -1,3 +1,9 @@
+rustc (1.33.0+dfsg1-3) UNRELEASED; urgency=medium
+
+  * Ensure Cargo.toml is in rust-src.
+
+ -- Ximin Luo <infinity0@debian.org>  Sat, 18 May 2019 18:56:06 -0700
+
 rustc (1.33.0+dfsg1-2) unstable; urgency=medium
 
   * Add Fedora patches.
