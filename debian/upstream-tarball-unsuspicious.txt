@@ -11,6 +11,7 @@ src/test/run-pass/raw-str.rs
 CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
+src/doc/embedded-book/src/*/*.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc-guide/.travis.yml
 src/doc/rustc-guide/src/*.md
@@ -62,7 +63,9 @@ src/test/run-make/wasm-*/*.js
 src/test/run-make-fulldeps/*.c
 src/test/run-make-fulldeps/*/*.c
 src/test/rustdoc-js/*.js
+src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
+src/tools/rustdoc-js-std/tester.js
 
 # Embedded libraries, justified in README.source
 vendor/backtrace-sys/src/libbacktrace/configure
@@ -80,7 +83,7 @@ vendor/walkdir-*/compare/nftw.c
 
 # False-positive, misc
 src/stdsimd/.travis.yml
-src/stdsimd/ci/cross/nvptx64-nvidia-cuda.json
+src/stdsimd/crates/core_arch/foo.wasm
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
 vendor/clap/.mention-bot
@@ -91,6 +94,11 @@ vendor/num/ci/deploy.enc
 
 # False-positive, hand-editable small image
 src/etc/installer/gfx/
+src/doc/embedded-book/src/assets/*.svg
+src/doc/embedded-book/src/assets/f3.jpg
+src/doc/embedded-book/src/assets/nrf52-memory-map.png
+src/doc/embedded-book/src/assets/nrf52-spi-frequency-register.png
+src/doc/embedded-book/src/assets/verify.jpeg
 src/doc/nomicon/src/img/safeandunsafe.svg
 src/doc/book/second-edition/src/img/*.png
 src/doc/book/second-edition/src/img/*.svg
@@ -102,6 +110,8 @@ src/doc/book/2018-edition/src/img/*.svg
 src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
 src/librustdoc/html/static/*.svg
+src/librustdoc/html/static/rust-logo.png
+src/librustdoc/html/static/favicon.ico
 vendor/difference/assets/*.png
 vendor/fortanix-sgx-abi/images/enclave-execution-lifecycle.png
 vendor/heck/no_step_on_snek.png
@@ -118,7 +128,7 @@ vendor/html5ever/examples/capi/tokenize.c
 # Test data
 src/stdsimd/crates/stdsimd-verify/arm-intrinsics.html
 src/stdsimd/crates/stdsimd-verify/x86-intel.xml
-src/stdsimd/stdsimd/arch/detect/test_data
+src/stdsimd/crates/std_detect/src/detect/test_data/*.auxv
 src/test/compile-fail/not-utf8.bin
 src/test/*/*.rs
 src/test/*/issues/*.rs
@@ -146,6 +156,7 @@ vendor/regex/tests/fowler.rs
 vendor/regex-0*/src/testdata/basic.dat
 vendor/regex-0*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
+vendor/sha-1/tests/data/*.output.bin
 vendor/tar/tests/archives/*.tar
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
@@ -155,6 +166,7 @@ vendor/yaml-rust/tests/specexamples.rs.inc
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
 src/librustdoc/html/static/normalize.css
+vendor/pest_meta/src/grammar.rs
 vendor/unicode-normalization/src/tables.rs
 vendor/unicode-segmentation/src/tables.rs
 
