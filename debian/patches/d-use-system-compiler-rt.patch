@@ -1,0 +1,154 @@
+commit 484e4a2e83ca6cbfb96957996d57262792da0a30
+Author: Ximin Luo <infinity0@debian.org>
+Date:   Sun May 19 19:15:20 2019 -0700
+
+    Use system compiler-rt from clang
+
+--- a/vendor/compiler_builtins/build.rs
++++ b/vendor/compiler_builtins/build.rs
+@@ -68,6 +68,8 @@
+     use std::collections::BTreeMap;
+     use std::env;
+     use std::path::Path;
++    use std::process::Command;
++    use std::str;
+ 
+     struct Sources {
+         // SYMBOL -> PATH TO SOURCE
+@@ -113,33 +115,6 @@
+         let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
+         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+         let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
+-        let cfg = &mut cc::Build::new();
+-
+-        cfg.warnings(false);
+-
+-        if target_env == "msvc" {
+-            // Don't pull in extra libraries on MSVC
+-            cfg.flag("/Zl");
+-
+-            // Emulate C99 and C++11's __func__ for MSVC prior to 2013 CTP
+-            cfg.define("__func__", Some("__FUNCTION__"));
+-        } else {
+-            // Turn off various features of gcc and such, mostly copying
+-            // compiler-rt's build system already
+-            cfg.flag("-fno-builtin");
+-            cfg.flag("-fvisibility=hidden");
+-            cfg.flag("-ffreestanding");
+-            // Avoid the following warning appearing once **per file**:
+-            // clang: warning: optimization flag '-fomit-frame-pointer' is not supported for target 'armv7' [-Wignored-optimization-argument]
+-            //
+-            // Note that compiler-rt's build system also checks
+-            //
+-            // `check_cxx_compiler_flag(-fomit-frame-pointer COMPILER_RT_HAS_FOMIT_FRAME_POINTER_FLAG)`
+-            //
+-            // in https://github.com/rust-lang/compiler-rt/blob/c8fbcb3/cmake/config-ix.cmake#L19.
+-            cfg.flag_if_supported("-fomit-frame-pointer");
+-            cfg.define("VISIBILITY_HIDDEN", None);
+-        }
+ 
+         let mut sources = Sources::new();
+         sources.extend(
+@@ -438,10 +413,23 @@
+         let src_dir = root.join("compiler-rt/lib/builtins");
+         for src in sources.map.values() {
+             let src = src_dir.join(src);
+-            cfg.file(&src);
+-            println!("cargo:rerun-if-changed={}", src.display());
+         }
+ 
+-        cfg.compile("libcompiler-rt.a");
++        // rustc sets this during the build
++        let llvm_config = env::var("LLVM_CONFIG").expect("LLVM_CONFIG not set");
++        let cmd = format!("ls -1d $({} --libdir)/clang/*/lib/linux", llvm_config);
++        let output = Command::new("sh")
++            .args(&["-ec", &cmd])
++            .output()
++            .expect("failed to find clang lib dir");
++        let status = output.status;
++        if !status.success() {
++            panic!(format!("failed to find clang lib dir: {:?}", status.code()));
++        }
++        for search_dir in str::from_utf8(&output.stdout).unwrap().lines() {
++            println!("cargo:rustc-link-search=native={}", search_dir);
++        }
++        let arch = llvm_target[0];
++        println!("cargo:rustc-link-lib=static=clang_rt.builtins-{}", arch);
+     }
+ }
+--- a/src/bootstrap/compile.rs
++++ b/src/bootstrap/compile.rs
+@@ -164,6 +164,12 @@
+     } else {
+         let features = builder.std_features();
+ 
++        // In Debian this is always available
++        let llvm_config = builder.ensure(native::Llvm {
++            target: builder.config.build,
++            emscripten: false,
++        });
++        cargo.env("LLVM_CONFIG", llvm_config);
+         if compiler.stage != 0 && builder.config.sanitizers {
+             // This variable is used by the sanitizer runtime crates, e.g.
+             // rustc_lsan, to build the sanitizer runtime from C code
+@@ -172,11 +178,7 @@
+             // missing
+             // We also only build the runtimes when --enable-sanitizers (or its
+             // config.toml equivalent) is used
+-            let llvm_config = builder.ensure(native::Llvm {
+-                target: builder.config.build,
+-                emscripten: false,
+-            });
+-            cargo.env("LLVM_CONFIG", llvm_config);
++            cargo.env("RUSTC_BUILD_SANITIZERS", "1");
+         }
+ 
+         cargo.arg("--features").arg(features)
+--- a/src/librustc_asan/build.rs
++++ b/src/librustc_asan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_lsan/build.rs
++++ b/src/librustc_lsan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_msan/build.rs
++++ b/src/librustc_msan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_tsan/build.rs
++++ b/src/librustc_tsan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 

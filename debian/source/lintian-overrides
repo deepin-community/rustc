@@ -1,1 +1,3 @@
 rustc source: source-is-missing src/stdsimd/crates/stdsimd-verify/arm-intrinsics.html line length is * characters (>*)
+# TODO: can be removed on next source repack
+rustc source: source-includes-file-in-files-excluded vendor/compiler_builtins/compiler-rt/*
