@@ -65,6 +65,7 @@ Files-Excluded:
  vendor/derive-new
  vendor/directories
  vendor/dirs
+ vendor/ena-0.11.0
  vendor/env_logger
  vendor/error-chain-0.11.0
  vendor/fnv
@@ -86,7 +87,6 @@ Files-Excluded:
  vendor/ignore
  vendor/im-rc
  vendor/iovec
- vendor/itertools
  vendor/json
  vendor/jsonrpc-core
  vendor/kernel32-sys
@@ -113,8 +113,6 @@ Files-Excluded:
  vendor/openssl-sys
  vendor/ordslice
  vendor/packed_simd
- vendor/parking_lot-0.6.4
- vendor/parking_lot_core-0.3.0
  vendor/pest-1.0.6
  vendor/pest_derive-1.0.8
  vendor/pretty_env_logger
@@ -128,7 +126,6 @@ Files-Excluded:
  vendor/regex-syntax-0.5.6
  vendor/rls-analysis
  vendor/rls-blacklist
- vendor/rls-rustc
  vendor/rls-vfs
  vendor/rustc-ap-arena
  vendor/rustc-ap-graphviz
@@ -149,7 +146,9 @@ Files-Excluded:
  vendor/slab
  vendor/syn-0.11.11
  vendor/synom
+ vendor/term-0.4.6
  vendor/term
+ vendor/tester
  vendor/tokio
  vendor/tokio-codec
  vendor/tokio-current-thread
@@ -164,6 +163,7 @@ Files-Excluded:
  vendor/tokio-timer
  vendor/tokio-udp
  vendor/tokio-uds
+ vendor/toml
  vendor/toml-query-0.6.0
  vendor/unicode_categories
  vendor/unicode-xid-0.0.4
