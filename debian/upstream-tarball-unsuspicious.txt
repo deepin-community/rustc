@@ -91,6 +91,7 @@ vendor/cloudabi/cloudabi.rs
 vendor/elasticlunr-rs/src/lang/*.rs
 vendor/markup5ever/data/entities.json
 vendor/num/ci/deploy.enc
+vendor/term-0*/scripts/id_rsa.enc
 
 # False-positive, hand-editable small image
 src/etc/installer/gfx/
@@ -126,6 +127,7 @@ vendor/termion/logo.svg
 vendor/html5ever/examples/capi/tokenize.c
 
 # Test data
+src/stdsimd/ci/gba.json
 src/stdsimd/crates/stdsimd-verify/arm-intrinsics.html
 src/stdsimd/crates/stdsimd-verify/x86-intel.xml
 src/stdsimd/crates/std_detect/src/detect/test_data/*.auxv
@@ -158,6 +160,7 @@ vendor/regex-0*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
 vendor/sha-1/tests/data/*.output.bin
 vendor/tar/tests/archives/*.tar
+vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
 vendor/url/tests/*.json
@@ -165,6 +168,7 @@ vendor/yaml-rust/tests/specexamples.rs.inc
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
+src/doc/rustc-guide/src/mir/mir_*.svg
 src/librustdoc/html/static/normalize.css
 vendor/pest_meta/src/grammar.rs
 vendor/unicode-normalization/src/tables.rs
