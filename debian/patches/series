@@ -12,6 +12,8 @@ u-mips-fixes.diff
 # not forwarded, or forwarded but unlikely to be merged
 u-reproducible-dl-stage0.patch
 
+gcc-4.8-aarch64-ice.diff
+
 # Debian-specific patches, not suitable for upstream
 # Patches needed by debian/prune-unused-deps
 d-0000-ignore-removed-submodules.patch
@@ -20,7 +22,6 @@ d-0002-pkg-config-no-special-snowflake.patch
 d-0003-mdbook-strip-embedded-libs.patch
 d-0004-mdbook-2-1-compat.patch
 # Other patches needed by the full Debian build
-d-use-system-compiler-rt.patch
 d-ignore-error-detail-diff.patch
 d-disable-cargo-vendor.patch
 d-rust-gdb-paths

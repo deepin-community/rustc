@@ -1,3 +1,9 @@
+rustc (1.34.2+dfsg1-1) UNRELEASED; urgency=medium
+
+  * Don't use system compiler-rt, there are issues with that for now.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 29 May 2019 21:50:40 -0700
+
 rustc (1.34.2+dfsg1-1~exp2) experimental; urgency=medium
 
   * Fix doc build, add version 1 compat mode hack for mdBook 2.
