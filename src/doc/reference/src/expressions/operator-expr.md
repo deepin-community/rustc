@@ -93,7 +93,7 @@ Dereferencing a raw pointer requires `unsafe`.
 
 On non-pointer types `*x` is equivalent to `*std::ops::Deref::deref(&x)` in an
 [immutable place expression context](expressions.html#mutability) and
-`*std::ops::Deref::deref_mut(&mut x)` in a mutable place expression context.
+`*std::ops::DerefMut::deref_mut(&mut x)` in a mutable place expression context.
 
 ```rust
 let x = &7;
@@ -131,7 +131,7 @@ println!("{:?}", res);
 # assert!(res.is_err())
 ```
 
-When applied to values of the `Option<T>` type, it propagates `Nones`. If the
+When applied to values of the `Option<T>` type, it propagates `None`s. If the
 value is `None`, then it will return `None`. If applied to `Some(x)`, then it
 will unwrap the value to evaluate to `x`.
 
@@ -352,7 +352,7 @@ well as the following additional casts. Here `*T` means either `*const T` or
 \* or `T` and `V` are compatible unsized types, e.g., both slices, both the
 same trait object.
 
-\*\* only for closures that do capture (close over) any local variables
+\*\* only for closures that do not capture (close over) any local variables
 
 ### Semantics
 

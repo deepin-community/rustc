@@ -23,7 +23,7 @@ pub use assert_instr_macro::*;
 pub use simd_test_macro::*;
 use std::{collections::HashMap, env, str};
 
-// println! doesn't work on wasm32 right now, so shadow the compiler's println!
+// `println!` doesn't work on wasm32 right now, so shadow the compiler's `println!`
 // macro with our own shim that redirects to `console.log`.
 #[allow(unused)]
 #[cfg(target_arch = "wasm32")]
@@ -64,7 +64,7 @@ fn normalize(symbol: &str) -> String {
         None => symbol.to_string(),
     };
     // Normalize to no leading underscore to handle platforms that may
-    // inject extra ones in symbol names
+    // inject extra ones in symbol names.
     while ret.starts_with("_") {
         ret.remove(0);
     }
@@ -90,9 +90,9 @@ pub fn assert(fnptr: usize, fnname: &str, expected: &str) {
     // function, returning if we do indeed find it.
     let mut found = false;
     for instr in instrs {
-        // Gets the first instruction, e.g. tzcntl in tzcntl %rax,%rax
+        // Get the first instruction, e.g., tzcntl in tzcntl %rax,%rax.
         if let Some(part) = instr.parts.get(0) {
-            // Truncates the instruction with the length of the expected
+            // Truncate the instruction with the length of the expected
             // instruction: tzcntl => tzcnt and compares that.
             if part.starts_with(expected) {
                 found = true;
@@ -136,27 +136,28 @@ pub fn assert(fnptr: usize, fnname: &str, expected: &str) {
         .ok()
         .map_or_else(
             || match expected {
-                // cpuid returns a pretty big aggregate structure so exempt it
-                // from the slightly more restrictive 22
-                // instructions below
+                // `cpuid` returns a pretty big aggregate structure, so exempt
+                // it from the slightly more restrictive 22 instructions below.
                 "cpuid" => 30,
 
-                // Apparently on Windows LLVM generates a bunch of
-                // saves/restores of xmm registers around these
-                // intstructions which blows the 20 limit
-                // below. As it seems dictates by Windows's abi
-                // (I guess?) we probably can't do much
-                // about it...
+                // Apparently, on Windows, LLVM generates a bunch of
+                // saves/restores of xmm registers around these intstructions,
+                // which exceeds the limit of 20 below. As it seems dictated by
+                // Windows's ABI (I believe?), we probably can't do much
+                // about it.
                 "vzeroall" | "vzeroupper" if cfg!(windows) => 30,
 
                 // Intrinsics using `cvtpi2ps` are typically "composites" and
                 // in some cases exceed the limit.
                 "cvtpi2ps" => 25,
 
+                // core_arch/src/acle/simd32
+                "usad8" => 27,
+                "qadd8" | "qsub8" | "sadd8" | "sel" | "shadd8" | "shsub8" | "usub8" | "ssub8" => 29,
+
                 // Original limit was 20 instructions, but ARM DSP Intrinsics
-                // are exactly 20 instructions long. So bump
-                // the limit to 22 instead of adding here a
-                // long list of exceptions.
+                // are exactly 20 instructions long. So, bump the limit to 22
+                // instead of adding here a long list of exceptions.
                 _ => 22,
             },
             |v| v.parse().unwrap(),

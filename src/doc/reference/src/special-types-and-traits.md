@@ -16,6 +16,18 @@ defined types.
 * A trait may be implemented for `Box<T>` in the same crate as `T`, which the
   [orphan rules] prevent for other generic types.
 
+## `Rc<T>`
+
+[Methods] can take [`Rc<Self>`] as a receiver.
+
+## `Arc<T>`
+
+[Methods] can take [`Arc<Self>`] as a receiver.
+
+## `Pin<P>`
+
+[Methods] can take [`Pin<P>`] as a receiver.
+
 ## `UnsafeCell<T>`
 
 [`std::cell::UnsafeCell<T>`] is used for [interior mutability]. It ensures that
@@ -98,7 +110,7 @@ according to the following rules:
   closure that captures a `T` by shared reference and a `U` by value implements
   any auto traits that both `&T` and `U` do.
 
-For generic types (counting the built-in types above as generic over `T`), if an
+For generic types (counting the built-in types above as generic over `T`), if a
 generic implementation is available, then the compiler does not automatically
 implement it for types that could use the implementation except that they do not
 meet the requisite trait bounds. For instance, the standard library implements
@@ -123,12 +135,15 @@ compile-time; that is, it's not a [dynamically sized type]. [Type parameters]
 are `Sized` by default. `Sized` is always implemented automatically by the
 compiler, not by [implementation items].
 
+[`Arc<Self>`]: ../std/sync/struct.Arc.html
 [`Box<T>`]: ../std/boxed/struct.Box.html
 [`Clone`]: ../std/clone/trait.Clone.html
 [`Copy`]: ../std/marker/trait.Copy.html
 [`Deref`]: ../std/ops/trait.Deref.html
 [`DerefMut`]: ../std/ops/trait.DerefMut.html
 [`Drop`]: ../std/ops/trait.Drop.html
+[`Pin<P>`]: ../std/pin/struct.Pin.html
+[`Rc<Self>`]: ../std/rc/struct.Rc.html
 [`RefUnwindSafe`]: ../std/panic/trait.RefUnwindSafe.html
 [`Send`]: ../std/marker/trait.Send.html
 [`Sized`]: ../std/marker/trait.Sized.html

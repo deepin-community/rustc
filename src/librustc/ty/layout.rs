@@ -913,11 +913,13 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
                             }
 
                             return Ok(tcx.intern_layout(LayoutDetails {
-                                variants: Variants::NicheFilling {
-                                    dataful_variant: i,
-                                    niche_variants,
-                                    niche: niche_scalar,
-                                    niche_start,
+                                variants: Variants::Multiple {
+                                    discr: niche_scalar,
+                                    discr_kind: DiscriminantKind::Niche {
+                                        dataful_variant: i,
+                                        niche_variants,
+                                        niche_start,
+                                    },
                                     variants: st,
                                 },
                                 fields: FieldPlacement::Arbitrary {
@@ -1137,8 +1139,9 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
                 }
 
                 tcx.intern_layout(LayoutDetails {
-                    variants: Variants::Tagged {
-                        tag,
+                    variants: Variants::Multiple {
+                        discr: tag,
+                        discr_kind: DiscriminantKind::Tag,
                         variants: layout_variants,
                     },
                     fields: FieldPlacement::Arbitrary {
@@ -1176,14 +1179,20 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
 
     /// This is invoked by the `layout_raw` query to record the final
     /// layout of each type.
-    #[inline]
+    #[inline(always)]
     fn record_layout_for_printing(&self, layout: TyLayout<'tcx>) {
-        // If we are running with `-Zprint-type-sizes`, record layouts for
-        // dumping later. Ignore layouts that are done with non-empty
-        // environments or non-monomorphic layouts, as the user only wants
-        // to see the stuff resulting from the final codegen session.
+        // If we are running with `-Zprint-type-sizes`, maybe record layouts
+        // for dumping later.
+        if self.tcx.sess.opts.debugging_opts.print_type_sizes {
+            self.record_layout_for_printing_outlined(layout)
+        }
+    }
+
+    fn record_layout_for_printing_outlined(&self, layout: TyLayout<'tcx>) {
+        // Ignore layouts that are done with non-empty environments or
+        // non-monomorphic layouts, as the user only wants to see the stuff
+        // resulting from the final codegen session.
         if
-            !self.tcx.sess.opts.debugging_opts.print_type_sizes ||
             layout.ty.has_param_types() ||
             layout.ty.has_self_ty() ||
             !self.param_env.caller_bounds.is_empty()
@@ -1191,10 +1200,6 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
             return;
         }
 
-        self.record_layout_for_printing_outlined(layout)
-    }
-
-    fn record_layout_for_printing_outlined(&self, layout: TyLayout<'tcx>) {
         // (delay format until we actually need it)
         let record = |kind, packed, opt_discr_size, variants| {
             let type_desc = format!("{:?}", layout.ty);
@@ -1291,8 +1296,7 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
                 }
             }
 
-            Variants::NicheFilling { .. } |
-            Variants::Tagged { .. } => {
+            Variants::Multiple { ref discr, ref discr_kind, .. } => {
                 debug!("print-type-size `{:#?}` adt general variants def {}",
                        layout.ty, adt_def.variants.len());
                 let variant_infos: Vec<_> =
@@ -1304,8 +1308,8 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
                                            layout.for_variant(self, i))
                     })
                     .collect();
-                record(adt_kind.into(), adt_packed, match layout.variants {
-                    Variants::Tagged { ref tag, .. } => Some(tag.value.size(self)),
+                record(adt_kind.into(), adt_packed, match discr_kind {
+                    DiscriminantKind::Tag => Some(discr.value.size(self)),
                     _ => None
                 }, variant_infos);
             }
@@ -1625,8 +1629,7 @@ impl<'a, 'tcx, C> TyLayoutMethods<'tcx, C> for Ty<'tcx>
                 })
             }
 
-            Variants::NicheFilling { ref variants, .. } |
-            Variants::Tagged { ref variants, .. } => {
+            Variants::Multiple { ref variants, .. } => {
                 &variants[variant_index]
             }
         };
@@ -1733,8 +1736,7 @@ impl<'a, 'tcx, C> TyLayoutMethods<'tcx, C> for Ty<'tcx>
                     }
 
                     // Discriminant field for enums (where applicable).
-                    Variants::Tagged { tag: ref discr, .. } |
-                    Variants::NicheFilling { niche: ref discr, .. } => {
+                    Variants::Multiple { ref discr, .. } => {
                         assert_eq!(i, 0);
                         let layout = LayoutDetails::scalar(cx, discr.clone());
                         return MaybeResult::from_ok(TyLayout {
@@ -1879,26 +1881,37 @@ impl<'a> HashStable<StableHashingContext<'a>> for Variants {
             Single { index } => {
                 index.hash_stable(hcx, hasher);
             }
-            Tagged {
-                ref tag,
+            Multiple {
+                ref discr,
+                ref discr_kind,
                 ref variants,
             } => {
-                tag.hash_stable(hcx, hasher);
+                discr.hash_stable(hcx, hasher);
+                discr_kind.hash_stable(hcx, hasher);
                 variants.hash_stable(hcx, hasher);
             }
-            NicheFilling {
+        }
+    }
+}
+
+impl<'a> HashStable<StableHashingContext<'a>> for DiscriminantKind {
+    fn hash_stable<W: StableHasherResult>(&self,
+                                          hcx: &mut StableHashingContext<'a>,
+                                          hasher: &mut StableHasher<W>) {
+        use crate::ty::layout::DiscriminantKind::*;
+        mem::discriminant(self).hash_stable(hcx, hasher);
+
+        match *self {
+            Tag => {}
+            Niche {
                 dataful_variant,
                 ref niche_variants,
-                ref niche,
                 niche_start,
-                ref variants,
             } => {
                 dataful_variant.hash_stable(hcx, hasher);
                 niche_variants.start().hash_stable(hcx, hasher);
                 niche_variants.end().hash_stable(hcx, hasher);
-                niche.hash_stable(hcx, hasher);
                 niche_start.hash_stable(hcx, hasher);
-                variants.hash_stable(hcx, hasher);
             }
         }
     }

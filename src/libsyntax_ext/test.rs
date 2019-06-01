@@ -227,7 +227,7 @@ fn should_panic(cx: &ExtCtxt<'_>, i: &ast::Item) -> ShouldPanic {
                         .and_then(|mi| mi.value_str());
                     if list.len() != 1 || msg.is_none() {
                         sd.struct_span_warn(
-                            attr.span(),
+                            attr.span,
                             "argument must be of the form: \
                              `expected = \"error message\"`"
                         ).note("Errors in this attribute were erroneously \
@@ -257,7 +257,7 @@ fn has_test_signature(cx: &ExtCtxt<'_>, i: &ast::Item) -> bool {
             );
             return false
         }
-        if header.asyncness.is_async() {
+        if header.asyncness.node.is_async() {
             sd.span_err(
                 i.span,
                 "async functions cannot be used for tests"

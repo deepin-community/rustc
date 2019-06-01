@@ -1,13 +1,14 @@
 //! `i686`'s Streaming SIMD Extensions 4.1 (SSE4.1)
 
-use core_arch::simd_llvm::*;
-use core_arch::x86::*;
-use mem;
+use crate::{
+    core_arch::{simd_llvm::*, x86::*},
+    mem::transmute,
+};
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
 
-/// Extract an 64-bit integer from `a` selected with `imm8`
+/// Extracts an 64-bit integer from `a` selected with `imm8`
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_extract_epi64)
 #[inline]
@@ -20,7 +21,7 @@ pub unsafe fn _mm_extract_epi64(a: __m128i, imm8: i32) -> i64 {
     simd_extract(a.as_i64x2(), imm8)
 }
 
-/// Return a copy of `a` with the 64-bit integer from `i` inserted at a
+/// Returns a copy of `a` with the 64-bit integer from `i` inserted at a
 /// location specified by `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_insert_epi64)
@@ -30,12 +31,12 @@ pub unsafe fn _mm_extract_epi64(a: __m128i, imm8: i32) -> i64 {
 #[rustc_args_required_const(2)]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_insert_epi64(a: __m128i, i: i64, imm8: i32) -> __m128i {
-    mem::transmute(simd_insert(a.as_i64x2(), (imm8 & 1) as u32, i))
+    transmute(simd_insert(a.as_i64x2(), (imm8 & 1) as u32, i))
 }
 
 #[cfg(test)]
 mod tests {
-    use core_arch::arch::x86_64::*;
+    use crate::core_arch::arch::x86_64::*;
     use stdsimd_test::simd_test;
 
     #[simd_test(enable = "sse4.1")]

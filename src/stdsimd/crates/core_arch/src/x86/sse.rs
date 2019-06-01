@@ -1,11 +1,9 @@
 //! Streaming SIMD Extensions (SSE)
 
-use core_arch::simd::*;
-use core_arch::simd_llvm::*;
-use core_arch::x86::*;
-use intrinsics;
-use mem;
-use ptr;
+use crate::{
+    core_arch::{simd::*, simd_llvm::*, x86::*},
+    intrinsics, mem, ptr,
+};
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
@@ -102,7 +100,7 @@ pub unsafe fn _mm_div_ps(a: __m128, b: __m128) -> __m128 {
     simd_div(a, b)
 }
 
-/// Return the square root of the first single-precision (32-bit)
+/// Returns the square root of the first single-precision (32-bit)
 /// floating-point element in `a`, the other elements are unchanged.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_sqrt_ss)
@@ -114,7 +112,7 @@ pub unsafe fn _mm_sqrt_ss(a: __m128) -> __m128 {
     sqrtss(a)
 }
 
-/// Return the square root of packed single-precision (32-bit) floating-point
+/// Returns the square root of packed single-precision (32-bit) floating-point
 /// elements in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_sqrt_ps)
@@ -126,7 +124,7 @@ pub unsafe fn _mm_sqrt_ps(a: __m128) -> __m128 {
     sqrtps(a)
 }
 
-/// Return the approximate reciprocal of the first single-precision
+/// Returns the approximate reciprocal of the first single-precision
 /// (32-bit) floating-point element in `a`, the other elements are unchanged.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_rcp_ss)
@@ -138,7 +136,7 @@ pub unsafe fn _mm_rcp_ss(a: __m128) -> __m128 {
     rcpss(a)
 }
 
-/// Return the approximate reciprocal of packed single-precision (32-bit)
+/// Returns the approximate reciprocal of packed single-precision (32-bit)
 /// floating-point elements in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_rcp_ps)
@@ -150,7 +148,7 @@ pub unsafe fn _mm_rcp_ps(a: __m128) -> __m128 {
     rcpps(a)
 }
 
-/// Return the approximate reciprocal square root of the fist single-precision
+/// Returns the approximate reciprocal square root of the fist single-precision
 /// (32-bit) floating-point elements in `a`, the other elements are unchanged.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_rsqrt_ss)
@@ -162,7 +160,7 @@ pub unsafe fn _mm_rsqrt_ss(a: __m128) -> __m128 {
     rsqrtss(a)
 }
 
-/// Return the approximate reciprocal square root of packed single-precision
+/// Returns the approximate reciprocal square root of packed single-precision
 /// (32-bit) floating-point elements in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_rsqrt_ps)
@@ -174,7 +172,7 @@ pub unsafe fn _mm_rsqrt_ps(a: __m128) -> __m128 {
     rsqrtps(a)
 }
 
-/// Compare the first single-precision (32-bit) floating-point element of `a`
+/// Compares the first single-precision (32-bit) floating-point element of `a`
 /// and `b`, and return the minimum value in the first element of the return
 /// value, the other elements are copied from `a`.
 ///
@@ -187,7 +185,7 @@ pub unsafe fn _mm_min_ss(a: __m128, b: __m128) -> __m128 {
     minss(a, b)
 }
 
-/// Compare packed single-precision (32-bit) floating-point elements in `a` and
+/// Compares packed single-precision (32-bit) floating-point elements in `a` and
 /// `b`, and return the corresponding minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_min_ps)
@@ -199,7 +197,7 @@ pub unsafe fn _mm_min_ps(a: __m128, b: __m128) -> __m128 {
     minps(a, b)
 }
 
-/// Compare the first single-precision (32-bit) floating-point element of `a`
+/// Compares the first single-precision (32-bit) floating-point element of `a`
 /// and `b`, and return the maximum value in the first element of the return
 /// value, the other elements are copied from `a`.
 ///
@@ -212,7 +210,7 @@ pub unsafe fn _mm_max_ss(a: __m128, b: __m128) -> __m128 {
     maxss(a, b)
 }
 
-/// Compare packed single-precision (32-bit) floating-point elements in `a` and
+/// Compares packed single-precision (32-bit) floating-point elements in `a` and
 /// `b`, and return the corresponding maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_max_ps)
@@ -298,7 +296,7 @@ pub unsafe fn _mm_xor_ps(a: __m128, b: __m128) -> __m128 {
     mem::transmute(simd_xor(a, b))
 }
 
-/// Compare the lowest `f32` of both inputs for equality. The lowest 32 bits of
+/// Compares the lowest `f32` of both inputs for equality. The lowest 32 bits of
 /// the result will be `0xffffffff` if the two inputs are equal, or `0`
 /// otherwise. The upper 96 bits of the result are the upper 96 bits of `a`.
 ///
@@ -311,7 +309,7 @@ pub unsafe fn _mm_cmpeq_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 0)
 }
 
-/// Compare the lowest `f32` of both inputs for less than. The lowest 32 bits
+/// Compares the lowest `f32` of both inputs for less than. The lowest 32 bits
 /// of the result will be `0xffffffff` if `a.extract(0)` is less than
 /// `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result are the
 /// upper 96 bits of `a`.
@@ -325,7 +323,7 @@ pub unsafe fn _mm_cmplt_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 1)
 }
 
-/// Compare the lowest `f32` of both inputs for less than or equal. The lowest
+/// Compares the lowest `f32` of both inputs for less than or equal. The lowest
 /// 32 bits of the result will be `0xffffffff` if `a.extract(0)` is less than
 /// or equal `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result
 /// are the upper 96 bits of `a`.
@@ -339,7 +337,7 @@ pub unsafe fn _mm_cmple_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 2)
 }
 
-/// Compare the lowest `f32` of both inputs for greater than. The lowest 32
+/// Compares the lowest `f32` of both inputs for greater than. The lowest 32
 /// bits of the result will be `0xffffffff` if `a.extract(0)` is greater
 /// than `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result
 /// are the upper 96 bits of `a`.
@@ -353,7 +351,7 @@ pub unsafe fn _mm_cmpgt_ss(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, cmpss(b, a, 1), [4, 1, 2, 3])
 }
 
-/// Compare the lowest `f32` of both inputs for greater than or equal. The
+/// Compares the lowest `f32` of both inputs for greater than or equal. The
 /// lowest 32 bits of the result will be `0xffffffff` if `a.extract(0)` is
 /// greater than or equal `b.extract(0)`, or `0` otherwise. The upper 96 bits
 /// of the result are the upper 96 bits of `a`.
@@ -367,7 +365,7 @@ pub unsafe fn _mm_cmpge_ss(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, cmpss(b, a, 2), [4, 1, 2, 3])
 }
 
-/// Compare the lowest `f32` of both inputs for inequality. The lowest 32 bits
+/// Compares the lowest `f32` of both inputs for inequality. The lowest 32 bits
 /// of the result will be `0xffffffff` if `a.extract(0)` is not equal to
 /// `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result are the
 /// upper 96 bits of `a`.
@@ -381,7 +379,7 @@ pub unsafe fn _mm_cmpneq_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 4)
 }
 
-/// Compare the lowest `f32` of both inputs for not-less-than. The lowest 32
+/// Compares the lowest `f32` of both inputs for not-less-than. The lowest 32
 /// bits of the result will be `0xffffffff` if `a.extract(0)` is not less than
 /// `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result are the
 /// upper 96 bits of `a`.
@@ -395,7 +393,7 @@ pub unsafe fn _mm_cmpnlt_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 5)
 }
 
-/// Compare the lowest `f32` of both inputs for not-less-than-or-equal. The
+/// Compares the lowest `f32` of both inputs for not-less-than-or-equal. The
 /// lowest 32 bits of the result will be `0xffffffff` if `a.extract(0)` is not
 /// less than or equal to `b.extract(0)`, or `0` otherwise. The upper 96 bits
 /// of the result are the upper 96 bits of `a`.
@@ -409,7 +407,7 @@ pub unsafe fn _mm_cmpnle_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 6)
 }
 
-/// Compare the lowest `f32` of both inputs for not-greater-than. The lowest 32
+/// Compares the lowest `f32` of both inputs for not-greater-than. The lowest 32
 /// bits of the result will be `0xffffffff` if `a.extract(0)` is not greater
 /// than `b.extract(0)`, or `0` otherwise. The upper 96 bits of the result are
 /// the upper 96 bits of `a`.
@@ -423,7 +421,7 @@ pub unsafe fn _mm_cmpngt_ss(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, cmpss(b, a, 5), [4, 1, 2, 3])
 }
 
-/// Compare the lowest `f32` of both inputs for not-greater-than-or-equal. The
+/// Compares the lowest `f32` of both inputs for not-greater-than-or-equal. The
 /// lowest 32 bits of the result will be `0xffffffff` if `a.extract(0)` is not
 /// greater than or equal to `b.extract(0)`, or `0` otherwise. The upper 96
 /// bits of the result are the upper 96 bits of `a`.
@@ -437,7 +435,7 @@ pub unsafe fn _mm_cmpnge_ss(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, cmpss(b, a, 6), [4, 1, 2, 3])
 }
 
-/// Check if the lowest `f32` of both inputs are ordered. The lowest 32 bits of
+/// Checks if the lowest `f32` of both inputs are ordered. The lowest 32 bits of
 /// the result will be `0xffffffff` if neither of `a.extract(0)` or
 /// `b.extract(0)` is a NaN, or `0` otherwise. The upper 96 bits of the result
 /// are the upper 96 bits of `a`.
@@ -451,7 +449,7 @@ pub unsafe fn _mm_cmpord_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 7)
 }
 
-/// Check if the lowest `f32` of both inputs are unordered. The lowest 32 bits
+/// Checks if the lowest `f32` of both inputs are unordered. The lowest 32 bits
 /// of the result will be `0xffffffff` if any of `a.extract(0)` or
 /// `b.extract(0)` is a NaN, or `0` otherwise. The upper 96 bits of the result
 /// are the upper 96 bits of `a`.
@@ -465,7 +463,7 @@ pub unsafe fn _mm_cmpunord_ss(a: __m128, b: __m128) -> __m128 {
     cmpss(a, b, 3)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input elements
 /// were equal, or `0` otherwise.
 ///
@@ -478,7 +476,7 @@ pub unsafe fn _mm_cmpeq_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 0)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
 /// in `a` is less than the corresponding element in `b`, or `0` otherwise.
 ///
@@ -491,7 +489,7 @@ pub unsafe fn _mm_cmplt_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 1)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
 /// in `a` is less than or equal to the corresponding element in `b`, or `0`
 /// otherwise.
@@ -505,7 +503,7 @@ pub unsafe fn _mm_cmple_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 2)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
 /// in `a` is greater than the corresponding element in `b`, or `0` otherwise.
 ///
@@ -518,7 +516,7 @@ pub unsafe fn _mm_cmpgt_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 1)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
 /// in `a` is greater than or equal to the corresponding element in `b`, or `0`
 /// otherwise.
@@ -532,9 +530,9 @@ pub unsafe fn _mm_cmpge_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 2)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input elements
-/// are *not* equal, or `0` otherwise.
+/// are **not** equal, or `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmpneq_ps)
 #[inline]
@@ -545,9 +543,9 @@ pub unsafe fn _mm_cmpneq_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 4)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
-/// in `a` is *not* less than the corresponding element in `b`, or `0`
+/// in `a` is **not** less than the corresponding element in `b`, or `0`
 /// otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmpnlt_ps)
@@ -559,9 +557,9 @@ pub unsafe fn _mm_cmpnlt_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 5)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
-/// in `a` is *not* less than or equal to the corresponding element in `b`, or
+/// in `a` is **not** less than or equal to the corresponding element in `b`, or
 /// `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmpnle_ps)
@@ -573,9 +571,9 @@ pub unsafe fn _mm_cmpnle_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(a, b, 6)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
-/// in `a` is *not* greater than the corresponding element in `b`, or `0`
+/// in `a` is **not** greater than the corresponding element in `b`, or `0`
 /// otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmpngt_ps)
@@ -587,9 +585,9 @@ pub unsafe fn _mm_cmpngt_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 5)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// The result in the output vector will be `0xffffffff` if the input element
-/// in `a` is *not* greater than or equal to the corresponding element in `b`,
+/// in `a` is **not** greater than or equal to the corresponding element in `b`,
 /// or `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmpnge_ps)
@@ -601,7 +599,7 @@ pub unsafe fn _mm_cmpnge_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 6)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// Returns four floats that have one of two possible bit patterns. The element
 /// in the output vector will be `0xffffffff` if the input elements in `a` and
 /// `b` are ordered (i.e., neither of them is a NaN), or 0 otherwise.
@@ -615,7 +613,7 @@ pub unsafe fn _mm_cmpord_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 7)
 }
 
-/// Compare each of the four floats in `a` to the corresponding element in `b`.
+/// Compares each of the four floats in `a` to the corresponding element in `b`.
 /// Returns four floats that have one of two possible bit patterns. The element
 /// in the output vector will be `0xffffffff` if the input elements in `a` and
 /// `b` are unordered (i.e., at least on of them is a NaN), or 0 otherwise.
@@ -629,7 +627,7 @@ pub unsafe fn _mm_cmpunord_ps(a: __m128, b: __m128) -> __m128 {
     cmpps(b, a, 3)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if they are equal, or `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_comieq_ss)
@@ -641,7 +639,7 @@ pub unsafe fn _mm_comieq_ss(a: __m128, b: __m128) -> i32 {
     comieq_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is less than the one from `b`, or `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_comilt_ss)
@@ -653,7 +651,7 @@ pub unsafe fn _mm_comilt_ss(a: __m128, b: __m128) -> i32 {
     comilt_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is less than or equal to the one from `b`, or `0`
 /// otherwise.
 ///
@@ -666,7 +664,7 @@ pub unsafe fn _mm_comile_ss(a: __m128, b: __m128) -> i32 {
     comile_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is greater than the one from `b`, or `0`
 /// otherwise.
 ///
@@ -679,7 +677,7 @@ pub unsafe fn _mm_comigt_ss(a: __m128, b: __m128) -> i32 {
     comigt_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is greater than or equal to the one from `b`, or
 /// `0` otherwise.
 ///
@@ -692,8 +690,8 @@ pub unsafe fn _mm_comige_ss(a: __m128, b: __m128) -> i32 {
     comige_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
-/// `1` if they are *not* equal, or `0` otherwise.
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// `1` if they are **not** equal, or `0` otherwise.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_comineq_ss)
 #[inline]
@@ -704,7 +702,7 @@ pub unsafe fn _mm_comineq_ss(a: __m128, b: __m128) -> i32 {
     comineq_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if they are equal, or `0` otherwise. This instruction will not signal
 /// an exception if either argument is a quiet NaN.
 ///
@@ -717,7 +715,7 @@ pub unsafe fn _mm_ucomieq_ss(a: __m128, b: __m128) -> i32 {
     ucomieq_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is less than the one from `b`, or `0` otherwise.
 /// This instruction will not signal an exception if either argument is a quiet
 /// NaN.
@@ -731,7 +729,7 @@ pub unsafe fn _mm_ucomilt_ss(a: __m128, b: __m128) -> i32 {
     ucomilt_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is less than or equal to the one from `b`, or `0`
 /// otherwise. This instruction will not signal an exception if either argument
 /// is a quiet NaN.
@@ -745,7 +743,7 @@ pub unsafe fn _mm_ucomile_ss(a: __m128, b: __m128) -> i32 {
     ucomile_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is greater than the one from `b`, or `0`
 /// otherwise. This instruction will not signal an exception if either argument
 /// is a quiet NaN.
@@ -759,7 +757,7 @@ pub unsafe fn _mm_ucomigt_ss(a: __m128, b: __m128) -> i32 {
     ucomigt_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
 /// `1` if the value from `a` is greater than or equal to the one from `b`, or
 /// `0` otherwise. This instruction will not signal an exception if either
 /// argument is a quiet NaN.
@@ -773,8 +771,8 @@ pub unsafe fn _mm_ucomige_ss(a: __m128, b: __m128) -> i32 {
     ucomige_ss(a, b)
 }
 
-/// Compare two 32-bit floats from the low-order bits of `a` and `b`. Returns
-/// `1` if they are *not* equal, or `0` otherwise. This instruction will not
+/// Compares two 32-bit floats from the low-order bits of `a` and `b`. Returns
+/// `1` if they are **not** equal, or `0` otherwise. This instruction will not
 /// signal an exception if either argument is a quiet NaN.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_ucomineq_ss)
@@ -786,7 +784,7 @@ pub unsafe fn _mm_ucomineq_ss(a: __m128, b: __m128) -> i32 {
     ucomineq_ss(a, b)
 }
 
-/// Convert the lowest 32 bit float in the input vector to a 32 bit integer.
+/// Converts the lowest 32 bit float in the input vector to a 32 bit integer.
 ///
 /// The result is rounded according to the current rounding mode. If the result
 /// cannot be represented as a 32 bit integer the result will be `0x8000_0000`
@@ -815,7 +813,7 @@ pub unsafe fn _mm_cvt_ss2si(a: __m128) -> i32 {
     _mm_cvtss_si32(a)
 }
 
-/// Convert the lowest 32 bit float in the input vector to a 32 bit integer
+/// Converts the lowest 32 bit float in the input vector to a 32 bit integer
 /// with
 /// truncation.
 ///
@@ -846,7 +844,7 @@ pub unsafe fn _mm_cvtt_ss2si(a: __m128) -> i32 {
     _mm_cvttss_si32(a)
 }
 
-/// Extract the lowest 32 bit float from the input vector.
+/// Extracts the lowest 32 bit float from the input vector.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cvtss_f32)
 #[inline]
@@ -858,7 +856,7 @@ pub unsafe fn _mm_cvtss_f32(a: __m128) -> f32 {
     simd_extract(a, 0)
 }
 
-/// Convert a 32 bit integer to a 32 bit float. The result vector is the input
+/// Converts a 32 bit integer to a 32 bit float. The result vector is the input
 /// vector `a` with the lowest 32 bit float replaced by the converted integer.
 ///
 /// This intrinsic corresponds to the `CVTSI2SS` instruction (with 32 bit
@@ -985,7 +983,7 @@ pub const fn _MM_SHUFFLE(z: u32, y: u32, x: u32, w: u32) -> i32 {
     ((z << 6) | (y << 4) | (x << 2) | w) as i32
 }
 
-/// Shuffle packed single-precision (32-bit) floating-point elements in `a` and
+/// Shuffles packed single-precision (32-bit) floating-point elements in `a` and
 /// `b` using `mask`.
 ///
 /// The lower half of result takes values from `a` and the higher half from
@@ -1043,7 +1041,7 @@ pub unsafe fn _mm_shuffle_ps(a: __m128, b: __m128, mask: u32) -> __m128 {
     }
 }
 
-/// Unpack and interleave single-precision (32-bit) floating-point elements
+/// Unpacks and interleave single-precision (32-bit) floating-point elements
 /// from the higher half of `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_unpackhi_ps)
@@ -1055,7 +1053,7 @@ pub unsafe fn _mm_unpackhi_ps(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, b, [2, 6, 3, 7])
 }
 
-/// Unpack and interleave single-precision (32-bit) floating-point elements
+/// Unpacks and interleave single-precision (32-bit) floating-point elements
 /// from the lower half of `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_unpacklo_ps)
@@ -1092,7 +1090,7 @@ pub unsafe fn _mm_movelh_ps(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, b, [0, 1, 4, 5])
 }
 
-/// Return a mask of the most significant bit of each element in `a`.
+/// Returns a mask of the most significant bit of each element in `a`.
 ///
 /// The mask is stored in the 4 least significant bits of the return value.
 /// All other bits are set to `0`.
@@ -1106,7 +1104,7 @@ pub unsafe fn _mm_movemask_ps(a: __m128) -> i32 {
     movmskps(a)
 }
 
-/// Set the upper two single-precision floating-point values with 64 bits of
+/// Sets the upper two single-precision floating-point values with 64 bits of
 /// data loaded from the address `p`; the lower two values are passed through
 /// from `a`.
 #[inline]
@@ -1126,8 +1124,8 @@ pub unsafe fn _mm_movemask_ps(a: __m128) -> i32 {
     all(test, target_arch = "x86", not(target_feature = "sse2")),
     assert_instr(shufps)
 )]
-// TODO: This function is actually not limited to floats, but that's what
-// what matches the C type most closely: (__m128, *const __m64) -> __m128
+// TODO: this function is actually not limited to floats, but that's what
+// what matches the C type most closely: `(__m128, *const __m64) -> __m128`.
 pub unsafe fn _mm_loadh_pi(a: __m128, p: *const __m64) -> __m128 {
     let q = p as *const f32x2;
     let b: f32x2 = *q;
@@ -1135,7 +1133,7 @@ pub unsafe fn _mm_loadh_pi(a: __m128, p: *const __m64) -> __m128 {
     simd_shuffle4(a, bb, [0, 1, 4, 5])
 }
 
-/// Load two floats from `p` into the lower half of a `__m128`. The upper half
+/// Loads two floats from `p` into the lower half of a `__m128`. The upper half
 /// is copied from the upper half of `a`.
 #[inline]
 #[target_feature(enable = "sse")]
@@ -1197,7 +1195,7 @@ pub unsafe fn _mm_load_ps1(p: *const f32) -> __m128 {
     _mm_load1_ps(p)
 }
 
-/// Load four `f32` values from *aligned* memory into a `__m128`. If the
+/// Loads four `f32` values from *aligned* memory into a `__m128`. If the
 /// pointer is not aligned to a 128-bit boundary (16 bytes) a general
 /// protection fault will be triggered (fatal program crash).
 ///
@@ -1216,7 +1214,7 @@ pub unsafe fn _mm_load_ps(p: *const f32) -> __m128 {
     *(p as *const __m128)
 }
 
-/// Load four `f32` values from memory into a `__m128`. There are no
+/// Loads four `f32` values from memory into a `__m128`. There are no
 /// restrictions
 /// on memory alignment. For aligned memory
 /// [`_mm_load_ps`](fn._mm_load_ps.html)
@@ -1241,7 +1239,7 @@ pub unsafe fn _mm_loadu_ps(p: *const f32) -> __m128 {
     dst
 }
 
-/// Load four `f32` values from aligned memory into a `__m128` in reverse
+/// Loads four `f32` values from aligned memory into a `__m128` in reverse
 /// order.
 ///
 /// If the pointer is not aligned to a 128-bit boundary (16 bytes) a general
@@ -1271,7 +1269,7 @@ pub unsafe fn _mm_loadr_ps(p: *const f32) -> __m128 {
     simd_shuffle4(a, a, [3, 2, 1, 0])
 }
 
-/// Store the upper half of `a` (64 bits) into memory.
+/// Stores the upper half of `a` (64 bits) into memory.
 ///
 /// This intrinsic corresponds to the `MOVHPS` instruction. The compiler may
 /// choose to generate an equivalent sequence of other instructions.
@@ -1305,7 +1303,7 @@ pub unsafe fn _mm_storeh_pi(p: *mut __m64, a: __m128) {
     }
 }
 
-/// Store the lower half of `a` (64 bits) into memory.
+/// Stores the lower half of `a` (64 bits) into memory.
 ///
 /// This intrinsic corresponds to the `MOVQ` instruction. The compiler may
 /// choose to generate an equivalent sequence of other instructions.
@@ -1337,7 +1335,7 @@ pub unsafe fn _mm_storel_pi(p: *mut __m64, a: __m128) {
     }
 }
 
-/// Store the lowest 32 bit float of `a` into memory.
+/// Stores the lowest 32 bit float of `a` into memory.
 ///
 /// This intrinsic corresponds to the `MOVSS` instruction.
 ///
@@ -1350,7 +1348,7 @@ pub unsafe fn _mm_store_ss(p: *mut f32, a: __m128) {
     *p = simd_extract(a, 0);
 }
 
-/// Store the lowest 32 bit float of `a` repeated four times into *aligned*
+/// Stores the lowest 32 bit float of `a` repeated four times into *aligned*
 /// memory.
 ///
 /// If the pointer is not aligned to a 128-bit boundary (16 bytes) a general
@@ -1389,7 +1387,7 @@ pub unsafe fn _mm_store_ps1(p: *mut f32, a: __m128) {
     _mm_store1_ps(p, a);
 }
 
-/// Store four 32-bit floats into *aligned* memory.
+/// Stores four 32-bit floats into *aligned* memory.
 ///
 /// If the pointer is not aligned to a 128-bit boundary (16 bytes) a general
 /// protection fault will be triggered (fatal program crash).
@@ -1409,7 +1407,7 @@ pub unsafe fn _mm_store_ps(p: *mut f32, a: __m128) {
     *(p as *mut __m128) = a;
 }
 
-/// Store four 32-bit floats into memory. There are no restrictions on memory
+/// Stores four 32-bit floats into memory. There are no restrictions on memory
 /// alignment. For aligned memory [`_mm_store_ps`](fn._mm_store_ps.html) may be
 /// faster.
 ///
@@ -1428,7 +1426,7 @@ pub unsafe fn _mm_storeu_ps(p: *mut f32, a: __m128) {
     );
 }
 
-/// Store four 32-bit floats into *aligned* memory in reverse order.
+/// Stores four 32-bit floats into *aligned* memory in reverse order.
 ///
 /// If the pointer is not aligned to a 128-bit boundary (16 bytes) a general
 /// protection fault will be triggered (fatal program crash).
@@ -1454,7 +1452,7 @@ pub unsafe fn _mm_storer_ps(p: *mut f32, a: __m128) {
     *(p as *mut __m128) = b;
 }
 
-/// Return a `__m128` with the first component from `b` and the remaining
+/// Returns a `__m128` with the first component from `b` and the remaining
 /// components from `a`.
 ///
 /// In other words for any `a` and `b`:
@@ -1471,7 +1469,7 @@ pub unsafe fn _mm_move_ss(a: __m128, b: __m128) -> __m128 {
     simd_shuffle4(a, b, [4, 1, 2, 3])
 }
 
-/// Perform a serializing operation on all store-to-memory instructions that
+/// Performs a serializing operation on all store-to-memory instructions that
 /// were issued prior to this instruction.
 ///
 /// Guarantees that every store instruction that precedes, in program order, is
@@ -1487,7 +1485,7 @@ pub unsafe fn _mm_sfence() {
     sfence()
 }
 
-/// Get the unsigned 32-bit value of the MXCSR control and status register.
+/// Gets the unsigned 32-bit value of the MXCSR control and status register.
 ///
 /// For more info see [`_mm_setcsr`](fn._mm_setcsr.html)
 ///
@@ -1502,7 +1500,7 @@ pub unsafe fn _mm_getcsr() -> u32 {
     result as u32
 }
 
-/// Set the MXCSR register with the 32-bit unsigned integer value.
+/// Sets the MXCSR register with the 32-bit unsigned integer value.
 ///
 /// This register constrols how SIMD instructions handle floating point
 /// operations. Modifying this register only affects the current thread.
@@ -1878,7 +1876,7 @@ pub unsafe fn _mm_prefetch(p: *const i8, strategy: i32) {
     pref!(strategy)
 }
 
-/// Return vector of type __m128 with undefined elements.
+/// Returns vector of type __m128 with undefined elements.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_undefined_ps)
 #[inline]
@@ -1886,7 +1884,7 @@ pub unsafe fn _mm_prefetch(p: *const i8, strategy: i32) {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_undefined_ps() -> __m128 {
     // FIXME: this function should return MaybeUninit<__m128>
-    mem::MaybeUninit::<__m128>::uninitialized().into_initialized()
+    mem::MaybeUninit::<__m128>::uninit().assume_init()
 }
 
 /// Transpose the 4x4 matrix formed by 4 rows of __m128 in place.
@@ -2040,7 +2038,7 @@ pub unsafe fn _mm_stream_ps(mem_addr: *mut f32, a: __m128) {
     intrinsics::nontemporal_store(mem_addr as *mut __m128, a);
 }
 
-/// Store 64-bits of integer data from a into memory using a non-temporal
+/// Stores 64-bits of integer data from a into memory using a non-temporal
 /// memory hint.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2437,7 +2435,7 @@ pub unsafe fn _m_pshufw(a: __m64, imm8: i32) -> __m64 {
     constify_imm8!(imm8, call)
 }
 
-/// Convert the two lower packed single-precision (32-bit) floating-point
+/// Converts the two lower packed single-precision (32-bit) floating-point
 /// elements in `a` to packed 32-bit integers with truncation.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2446,7 +2444,7 @@ pub unsafe fn _mm_cvttps_pi32(a: __m128) -> __m64 {
     cvttps2pi(a)
 }
 
-/// Convert the two lower packed single-precision (32-bit) floating-point
+/// Converts the two lower packed single-precision (32-bit) floating-point
 /// elements in `a` to packed 32-bit integers with truncation.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2455,7 +2453,7 @@ pub unsafe fn _mm_cvtt_ps2pi(a: __m128) -> __m64 {
     _mm_cvttps_pi32(a)
 }
 
-/// Convert the two lower packed single-precision (32-bit) floating-point
+/// Converts the two lower packed single-precision (32-bit) floating-point
 /// elements in `a` to packed 32-bit integers.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2464,7 +2462,7 @@ pub unsafe fn _mm_cvtps_pi32(a: __m128) -> __m64 {
     cvtps2pi(a)
 }
 
-/// Convert the two lower packed single-precision (32-bit) floating-point
+/// Converts the two lower packed single-precision (32-bit) floating-point
 /// elements in `a` to packed 32-bit integers.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2473,7 +2471,7 @@ pub unsafe fn _mm_cvt_ps2pi(a: __m128) -> __m64 {
     _mm_cvtps_pi32(a)
 }
 
-/// Convert packed single-precision (32-bit) floating-point elements in `a` to
+/// Converts packed single-precision (32-bit) floating-point elements in `a` to
 /// packed 16-bit integers.
 #[inline]
 #[target_feature(enable = "sse,mmx")]
@@ -2485,7 +2483,7 @@ pub unsafe fn _mm_cvtps_pi16(a: __m128) -> __m64 {
     _mm_packs_pi32(b, c)
 }
 
-/// Convert packed single-precision (32-bit) floating-point elements in `a` to
+/// Converts packed single-precision (32-bit) floating-point elements in `a` to
 /// packed 8-bit integers, and returns theem in the lower 4 elements of the
 /// result.
 #[inline]
@@ -2499,13 +2497,12 @@ pub unsafe fn _mm_cvtps_pi8(a: __m128) -> __m64 {
 
 #[cfg(test)]
 mod tests {
+    use crate::mem::transmute;
     use std::f32::NAN;
-    use std::mem::transmute;
     use stdsimd_test::simd_test;
     use test::black_box; // Used to inhibit constant-folding.
 
-    use core_arch::simd::*;
-    use core_arch::x86::*;
+    use crate::core_arch::{simd::*, x86::*};
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_add_ps() {
@@ -2832,7 +2829,7 @@ mod tests {
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_cmpnlt_ss() {
-        // TODO: This test is exactly the same as for _mm_cmpge_ss, but there
+        // TODO: this test is exactly the same as for `_mm_cmpge_ss`, but there
         // must be a difference. It may have to do with behavior in the
         // presence of NaNs (signaling or quiet). If so, we should add tests
         // for those.
@@ -2861,7 +2858,7 @@ mod tests {
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_cmpnle_ss() {
-        // TODO: This test is exactly the same as for _mm_cmpgt_ss, but there
+        // TODO: this test is exactly the same as for `_mm_cmpgt_ss`, but there
         // must be a difference. It may have to do with behavior in the
         // presence
         // of NaNs (signaling or quiet). If so, we should add tests for those.
@@ -2890,7 +2887,7 @@ mod tests {
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_cmpngt_ss() {
-        // TODO: This test is exactly the same as for _mm_cmple_ss, but there
+        // TODO: this test is exactly the same as for `_mm_cmple_ss`, but there
         // must be a difference. It may have to do with behavior in the
         // presence of NaNs (signaling or quiet). If so, we should add tests
         // for those.
@@ -2919,7 +2916,7 @@ mod tests {
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_cmpnge_ss() {
-        // TODO: This test is exactly the same as for _mm_cmplt_ss, but there
+        // TODO: this test is exactly the same as for `_mm_cmplt_ss`, but there
         // must be a difference. It may have to do with behavior in the
         // presence of NaNs (signaling or quiet). If so, we should add tests
         // for those.
@@ -3784,7 +3781,7 @@ mod tests {
         let mut ofs = 0;
         let mut p = vals.as_mut_ptr();
 
-        // Make sure p is *not* aligned to 16-byte boundary
+        // Make sure p is **not** aligned to 16-byte boundary
         if (p as usize) & 0xf == 0 {
             ofs = 1;
             p = p.offset(1);

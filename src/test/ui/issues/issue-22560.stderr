@@ -1,16 +1,16 @@
-error[E0393]: the type parameter `RHS` must be explicitly specified
+error[E0393]: the type parameter `Rhs` must be explicitly specified
   --> $DIR/issue-22560.rs:5:13
    |
 LL | type Test = Add +
-   |             ^^^ missing reference to `RHS`
+   |             ^^^ missing reference to `Rhs`
    |
    = note: because of the default `Self` reference, type parameters must be specified on object types
 
-error[E0393]: the type parameter `RHS` must be explicitly specified
+error[E0393]: the type parameter `Rhs` must be explicitly specified
   --> $DIR/issue-22560.rs:8:13
    |
 LL |             Sub;
-   |             ^^^ missing reference to `RHS`
+   |             ^^^ missing reference to `Rhs`
    |
    = note: because of the default `Self` reference, type parameters must be specified on object types
 
@@ -25,8 +25,8 @@ error[E0191]: the value of the associated type `Output` (from the trait `std::op
    |
 LL |   type Test = Add +
    |  _____________^
-LL | |             //~^ ERROR E0393
-LL | |             //~| ERROR E0191
+LL | |
+LL | |
 LL | |             Sub;
    | |_______________^ associated type `Output` must be specified
 

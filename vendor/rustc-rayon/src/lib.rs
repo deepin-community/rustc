@@ -1,7 +1,5 @@
 #![doc(html_root_url = "https://docs.rs/rayon/1.0")]
 #![deny(missing_debug_implementations)]
-#![cfg_attr(test, feature(conservative_impl_trait))]
-#![cfg_attr(test, feature(i128_type))]
 #![deny(missing_docs)]
 
 //! Data-parallelism library that makes it easy to convert sequential
@@ -50,7 +48,7 @@
 //! parallel implementations of many iterative functions such as [`map`],
 //! [`for_each`], [`filter`], [`fold`], and [more].
 //!
-//! [`rayon::prelude::*`]: prelude/index.html
+//! [`rayon::prelude`]: prelude/index.html
 //! [`map`]: iter/trait.ParallelIterator.html#method.map
 //! [`for_each`]: iter/trait.ParallelIterator.html#method.for_each
 //! [`filter`]: iter/trait.ParallelIterator.html#method.filter
@@ -79,8 +77,9 @@
 //!
 //! [faq]: https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 
-extern crate rustc_rayon_core as rayon_core;
+extern crate crossbeam_deque;
 extern crate either;
+extern crate rustc_rayon_core as rayon_core;
 
 #[cfg(test)]
 extern crate rand;
@@ -103,15 +102,16 @@ pub mod slice;
 pub mod str;
 pub mod vec;
 
-mod par_either;
 mod math;
-mod test;
+mod par_either;
+
+mod compile_fail;
 
 pub use rayon_core::current_num_threads;
-pub use rayon_core::ThreadPool;
-pub use rayon_core::ThreadPoolBuilder;
-pub use rayon_core::ThreadPoolBuildError;
-pub use rayon_core::{join, join_context};
-pub use rayon_core::FnContext;
-pub use rayon_core::{scope, Scope};
 pub use rayon_core::spawn;
+pub use rayon_core::FnContext;
+pub use rayon_core::ThreadPool;
+pub use rayon_core::ThreadPoolBuildError;
+pub use rayon_core::ThreadPoolBuilder;
+pub use rayon_core::{join, join_context};
+pub use rayon_core::{scope, Scope};

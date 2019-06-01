@@ -22,7 +22,8 @@ fn main() {
 
     // Forcibly enable memory intrinsics on wasm32 & SGX as we don't have a libc to
     // provide them.
-    if target.contains("wasm32") || (target.contains("sgx") && target.contains("fortanix")) {
+    if (target.contains("wasm32") && !target.contains("wasi")) ||
+        (target.contains("sgx") && target.contains("fortanix")) {
         println!("cargo:rustc-cfg=feature=\"mem\"");
     }
 
@@ -49,10 +50,11 @@ fn main() {
         println!("cargo:rustc-cfg=thumb")
     }
 
-    // compiler-rt `cfg`s away some intrinsics for thumbv6m because that target doesn't have full
-    // THUMBv2 support. We have to cfg our code accordingly.
-    if llvm_target[0] == "thumbv6m" {
-        println!("cargo:rustc-cfg=thumbv6m")
+    // compiler-rt `cfg`s away some intrinsics for thumbv6m and thumbv8m.base because
+    // these targets do not have full Thumb-2 support but only original Thumb-1.
+    // We have to cfg our code accordingly.
+    if llvm_target[0] == "thumbv6m" || llvm_target[0] == "thumbv8m.base" {
+        println!("cargo:rustc-cfg=thumb_1")
     }
 
     // Only emit the ARM Linux atomic emulation on pre-ARMv6 architectures.
@@ -311,6 +313,10 @@ mod c {
                 ],
             );
 
+            if target_os == "freebsd" {
+                sources.extend(&["clear_cache.c"]);
+            }
+
             // First of all aeabi_cdcmp and aeabi_cfcmp are never called by LLVM.
             // Second are little-endian only, so build fail on big-endian targets.
             // Temporally workaround: exclude these files for big-endian targets.
@@ -355,24 +361,36 @@ mod c {
         }
 
         if llvm_target.last().unwrap().ends_with("eabihf") {
-            if !llvm_target[0].starts_with("thumbv7em") {
+            if !llvm_target[0].starts_with("thumbv7em") &&
+               !llvm_target[0].starts_with("thumbv8m.main") {
+                // The FPU option chosen for these architectures in cc-rs, ie:
+                //     -mfpu=fpv4-sp-d16 for thumbv7em
+                //     -mfpu=fpv5-sp-d16 for thumbv8m.main
+                // do not support double precision floating points conversions so the files
+                // that include such instructions are not included for these targets.
                 sources.extend(
                     &[
                         "arm/fixdfsivfp.S",
-                        "arm/fixsfsivfp.S",
                         "arm/fixunsdfsivfp.S",
-                        "arm/fixunssfsivfp.S",
                         "arm/floatsidfvfp.S",
-                        "arm/floatsisfvfp.S",
                         "arm/floatunssidfvfp.S",
-                        "arm/floatunssisfvfp.S",
-                        "arm/restore_vfp_d8_d15_regs.S",
-                        "arm/save_vfp_d8_d15_regs.S",
                     ],
                 );
             }
 
-            sources.extend(&["arm/negdf2vfp.S", "arm/negsf2vfp.S"]);
+            sources.extend(
+                &[
+                    "arm/fixsfsivfp.S",
+                    "arm/fixunssfsivfp.S",
+                    "arm/floatsisfvfp.S",
+                    "arm/floatunssisfvfp.S",
+                    "arm/floatunssisfvfp.S",
+                    "arm/restore_vfp_d8_d15_regs.S",
+                    "arm/save_vfp_d8_d15_regs.S",
+                    "arm/negdf2vfp.S",
+                    "arm/negsf2vfp.S",
+                ]
+            );
 
         }
 
@@ -403,7 +421,7 @@ mod c {
         }
 
         // Remove the assembly implementations that won't compile for the target
-        if llvm_target[0] == "thumbv6m" {
+        if llvm_target[0] == "thumbv6m" || llvm_target[0] == "thumbv8m.base" {
             sources.remove(
                 &[
                     "clzdi2",

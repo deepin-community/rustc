@@ -35,6 +35,9 @@ cfg_if! {
     } else if #[cfg(target_os = "redox")] {
         mod redox;
         pub use self::redox::*;
+    } else if #[cfg(target_env = "wasi")] {
+        mod wasi;
+        pub use self::wasi::*;
     } else if #[cfg(target_arch = "wasm32")] {
         mod wasm;
         pub use self::wasm::*;
@@ -67,7 +70,7 @@ cfg_if! {
         pub mod unix_ext {}
     } else {
         // On other platforms like Windows document the bare bones of unix
-        use os::linux as platform;
+        use crate::os::linux as platform;
         #[path = "unix/ext/mod.rs"]
         pub mod unix_ext;
     }

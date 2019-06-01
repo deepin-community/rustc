@@ -89,7 +89,7 @@ pub struct Struct {
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
     pub depr: Option<attr::Deprecation>,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub struct_type: StructType,
     pub name: Name,
     pub generics: hir::Generics,
@@ -102,7 +102,7 @@ pub struct Union {
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
     pub depr: Option<attr::Deprecation>,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub struct_type: StructType,
     pub name: Name,
     pub generics: hir::Generics,
@@ -118,13 +118,14 @@ pub struct Enum {
     pub variants: hir::HirVec<Variant>,
     pub generics: hir::Generics,
     pub attrs: hir::HirVec<ast::Attribute>,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub whence: Span,
     pub name: Name,
 }
 
 pub struct Variant {
     pub name: Name,
+    pub id: hir::HirId,
     pub attrs: hir::HirVec<ast::Attribute>,
     pub def: hir::VariantData,
     pub stab: Option<attr::Stability>,
@@ -135,7 +136,7 @@ pub struct Variant {
 pub struct Function {
     pub decl: hir::FnDecl,
     pub attrs: hir::HirVec<ast::Attribute>,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub name: Name,
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
@@ -150,7 +151,7 @@ pub struct Typedef {
     pub ty: P<hir::Ty>,
     pub gen: hir::Generics,
     pub name: Name,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub attrs: hir::HirVec<ast::Attribute>,
     pub whence: Span,
     pub vis: hir::Visibility,
@@ -161,7 +162,7 @@ pub struct Typedef {
 pub struct Existential {
     pub exist_ty: hir::ExistTy,
     pub name: Name,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub attrs: hir::HirVec<ast::Attribute>,
     pub whence: Span,
     pub vis: hir::Visibility,
@@ -179,7 +180,7 @@ pub struct Static {
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
     pub depr: Option<attr::Deprecation>,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub whence: Span,
 }
 
@@ -191,7 +192,7 @@ pub struct Constant {
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
     pub depr: Option<attr::Deprecation>,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub whence: Span,
 }
 
@@ -203,7 +204,7 @@ pub struct Trait {
     pub generics: hir::Generics,
     pub bounds: hir::HirVec<hir::GenericBound>,
     pub attrs: hir::HirVec<ast::Attribute>,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub whence: Span,
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
@@ -215,7 +216,7 @@ pub struct TraitAlias {
     pub generics: hir::Generics,
     pub bounds: hir::HirVec<hir::GenericBound>,
     pub attrs: hir::HirVec<ast::Attribute>,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
     pub whence: Span,
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
@@ -236,7 +237,7 @@ pub struct Impl {
     pub vis: hir::Visibility,
     pub stab: Option<attr::Stability>,
     pub depr: Option<attr::Deprecation>,
-    pub id: ast::NodeId,
+    pub id: hir::HirId,
 }
 
 // For Macro we store the DefId instead of the NodeId, since we also create
@@ -263,7 +264,7 @@ pub struct ExternCrate {
 
 pub struct Import {
     pub name: Name,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub vis: hir::Visibility,
     pub attrs: hir::HirVec<ast::Attribute>,
     pub path: hir::Path,
@@ -273,7 +274,7 @@ pub struct Import {
 
 pub struct ProcMacro {
     pub name: Name,
-    pub id: NodeId,
+    pub id: hir::HirId,
     pub kind: MacroKind,
     pub helpers: Vec<Name>,
     pub attrs: hir::HirVec<ast::Attribute>,

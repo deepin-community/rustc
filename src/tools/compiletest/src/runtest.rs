@@ -4,13 +4,13 @@ use crate::common::{output_base_dir, output_base_name, output_testname_unique};
 use crate::common::{Codegen, CodegenUnits, DebugInfoBoth, DebugInfoGdb, DebugInfoLldb, Rustdoc};
 use crate::common::{CompileFail, Pretty, RunFail, RunPass, RunPassValgrind};
 use crate::common::{Config, TestPaths};
-use crate::common::{Incremental, MirOpt, RunMake, Ui, JsDocTest};
+use crate::common::{Incremental, MirOpt, RunMake, Ui, JsDocTest, Assembly};
 use diff;
 use crate::errors::{self, Error, ErrorKind};
 use filetime::FileTime;
 use crate::header::TestProps;
 use crate::json;
-use regex::Regex;
+use regex::{Captures, Regex};
 use rustfix::{apply_suggestions, get_suggestions_from_json, Filter};
 use crate::util::{logv, PathBufExt};
 
@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fmt;
-use std::fs::{self, create_dir_all, File};
+use std::fs::{self, create_dir_all, File, OpenOptions};
 use std::hash::{Hash, Hasher};
 use std::io::prelude::*;
 use std::io::{self, BufReader};
@@ -275,6 +275,7 @@ impl<'test> TestCx<'test> {
             RunMake => self.run_rmake_test(),
             RunPass | Ui => self.run_ui_test(),
             MirOpt => self.run_mir_opt_test(),
+            Assembly => self.run_assembly_test(),
             JsDocTest => self.run_js_doc_test(),
         }
     }
@@ -1606,6 +1607,7 @@ impl<'test> TestCx<'test> {
                 || self.config.target.contains("emscripten")
                 || (self.config.target.contains("musl") && !aux_props.force_host)
                 || self.config.target.contains("wasm32")
+                || self.config.target.contains("nvptx")
             {
                 // We primarily compile all auxiliary libraries as dynamic libraries
                 // to avoid code size bloat and large binaries as much as possible
@@ -1805,7 +1807,7 @@ impl<'test> TestCx<'test> {
                 rustc.arg(dir_opt);
             }
             RunFail | RunPassValgrind | Pretty | DebugInfoBoth | DebugInfoGdb | DebugInfoLldb
-            | Codegen | Rustdoc | RunMake | CodegenUnits | JsDocTest => {
+            | Codegen | Rustdoc | RunMake | CodegenUnits | JsDocTest | Assembly => {
                 // do not use JSON output
             }
         }
@@ -2100,12 +2102,37 @@ impl<'test> TestCx<'test> {
         self.compose_and_run_compiler(rustc, None)
     }
 
-    fn check_ir_with_filecheck(&self) -> ProcRes {
-        let irfile = self.output_base_name().with_extension("ll");
+    fn compile_test_and_save_assembly(&self) -> (ProcRes, PathBuf) {
+        // This works with both `--emit asm` (as default output name for the assembly)
+        // and `ptx-linker` because the latter can write output at requested location.
+        let output_path = self.output_base_name().with_extension("s");
+
+        let output_file = TargetLocation::ThisFile(output_path.clone());
+        let mut rustc = self.make_compile_args(&self.testpaths.file, output_file);
+
+        rustc.arg("-L").arg(self.aux_output_dir_name());
+
+        match self.props.assembly_output.as_ref().map(AsRef::as_ref) {
+            Some("emit-asm") => {
+                rustc.arg("--emit=asm");
+            }
+
+            Some("ptx-linker") => {
+                // No extra flags needed.
+            }
+
+            Some(_) => self.fatal("unknown 'assembly-output' header"),
+            None => self.fatal("missing 'assembly-output' header"),
+        }
+
+        (self.compose_and_run_compiler(rustc, None), output_path)
+    }
+
+    fn verify_with_filecheck(&self, output: &Path) -> ProcRes {
         let mut filecheck = Command::new(self.config.llvm_filecheck.as_ref().unwrap());
         filecheck
             .arg("--input-file")
-            .arg(irfile)
+            .arg(output)
             .arg(&self.testpaths.file);
         // It would be more appropriate to make most of the arguments configurable through
         // a comment-attribute similar to `compile-flags`. For example, --check-prefixes is a very
@@ -2124,12 +2151,29 @@ impl<'test> TestCx<'test> {
             self.fatal("missing --llvm-filecheck");
         }
 
-        let mut proc_res = self.compile_test_and_save_ir();
+        let proc_res = self.compile_test_and_save_ir();
         if !proc_res.status.success() {
             self.fatal_proc_rec("compilation failed!", &proc_res);
         }
 
-        proc_res = self.check_ir_with_filecheck();
+        let output_path = self.output_base_name().with_extension("ll");
+        let proc_res = self.verify_with_filecheck(&output_path);
+        if !proc_res.status.success() {
+            self.fatal_proc_rec("verification with 'FileCheck' failed", &proc_res);
+        }
+    }
+
+    fn run_assembly_test(&self) {
+        if self.config.llvm_filecheck.is_none() {
+            self.fatal("missing --llvm-filecheck");
+        }
+
+        let (proc_res, output_path) = self.compile_test_and_save_assembly();
+        if !proc_res.status.success() {
+            self.fatal_proc_rec("compilation failed!", &proc_res);
+        }
+
+        let proc_res = self.verify_with_filecheck(&output_path);
         if !proc_res.status.success() {
             self.fatal_proc_rec("verification with 'FileCheck' failed", &proc_res);
         }
@@ -2774,6 +2818,34 @@ impl<'test> TestCx<'test> {
 
         if self.config.compare_mode.is_some() {
             // don't test rustfix with nll right now
+        } else if self.config.rustfix_coverage {
+            // Find out which tests have `MachineApplicable` suggestions but are missing
+            // `run-rustfix` or `run-rustfix-only-machine-applicable` headers.
+            //
+            // This will return an empty `Vec` in case the executed test file has a
+            // `compile-flags: --error-format=xxxx` header with a value other than `json`.
+            let suggestions = get_suggestions_from_json(
+                &proc_res.stderr,
+                &HashSet::new(),
+                Filter::MachineApplicableOnly
+            ).unwrap_or_default();
+            if suggestions.len() > 0
+                && !self.props.run_rustfix
+                && !self.props.rustfix_only_machine_applicable {
+                    let mut coverage_file_path = self.config.build_base.clone();
+                    coverage_file_path.push("rustfix_missing_coverage.txt");
+                    debug!("coverage_file_path: {}", coverage_file_path.display());
+
+                    let mut file = OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(coverage_file_path.as_path())
+                        .expect("could not create or open file");
+
+                    if let Err(_) = writeln!(file, "{}", self.testpaths.file.display()) {
+                        panic!("couldn't write to {}", coverage_file_path.display());
+                    }
+            }
         } else if self.props.run_rustfix {
             // Apply suggestions from rustc to the code itself
             let unfixed_code = self
@@ -3103,15 +3175,49 @@ impl<'test> TestCx<'test> {
         normalized = Regex::new("SRC_DIR(.+):\\d+:\\d+").unwrap()
             .replace_all(&normalized, "SRC_DIR$1:LL:COL").into_owned();
 
-        normalized = normalized.replace("\\\\", "\\") // denormalize for paths on windows
-              .replace("\\", "/") // normalize for paths on windows
-              .replace("\r\n", "\n") // normalize for linebreaks on windows
-              .replace("\t", "\\t"); // makes tabs visible
+        normalized = Self::normalize_platform_differences(&normalized);
+        normalized = normalized.replace("\t", "\\t"); // makes tabs visible
+
+        // Remove test annotations like `//~ ERROR text` from the output,
+        // since they duplicate actual errors and make the output hard to read.
+        normalized = Regex::new("\\s*//(\\[.*\\])?~.*").unwrap()
+            .replace_all(&normalized, "").into_owned();
+
         for rule in custom_rules {
             let re = Regex::new(&rule.0).expect("bad regex in custom normalization rule");
             normalized = re.replace_all(&normalized, &rule.1[..]).into_owned();
         }
         normalized
+    }
+
+    /// Normalize output differences across platforms. Generally changes Windows output to be more
+    /// Unix-like.
+    ///
+    /// Replaces backslashes in paths with forward slashes, and replaces CRLF line endings
+    /// with LF.
+    fn normalize_platform_differences(output: &str) -> String {
+        lazy_static! {
+            /// Used to find Windows paths.
+            ///
+            /// It's not possible to detect paths in the error messages generally, but this is a
+            /// decent enough heuristic.
+            static ref PATH_BACKSLASH_RE: Regex = Regex::new(r#"(?x)
+                (?:
+                  # Match paths that don't include spaces.
+                  (?:\\[\pL\pN\.\-_']+)+\.\pL+
+                |
+                  # If the path starts with a well-known root, then allow spaces.
+                  \$(?:DIR|SRC_DIR|TEST_BUILD_DIR|BUILD_DIR|LIB_DIR)(?:\\[\pL\pN\.\-_' ]+)+
+                )"#
+            ).unwrap();
+        }
+
+        let output = output.replace(r"\\", r"\");
+
+        PATH_BACKSLASH_RE.replace_all(&output, |caps: &Captures<'_>| {
+            println!("{}", &caps[0]);
+            caps[0].replace(r"\", "/")
+        }).replace("\r\n", "\n")
     }
 
     fn expected_output_path(&self, kind: &str) -> PathBuf {
@@ -3444,4 +3550,69 @@ fn read2_abbreviated(mut child: Child) -> io::Result<Output> {
         stdout: stdout.into_bytes(),
         stderr: stderr.into_bytes(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TestCx;
+
+    #[test]
+    fn normalize_platform_differences() {
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\foo.rs"),
+            "$DIR/foo.rs"
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$BUILD_DIR\..\parser.rs"),
+            "$BUILD_DIR/../parser.rs"
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\bar.rs hello\nworld"),
+            r"$DIR/bar.rs hello\nworld"
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"either bar\baz.rs or bar\baz\mod.rs"),
+            r"either bar/baz.rs or bar/baz/mod.rs",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"`.\some\path.rs`"),
+            r"`./some/path.rs`",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"`some\path.rs`"),
+            r"`some/path.rs`",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\path-with-dashes.rs"),
+            r"$DIR/path-with-dashes.rs"
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\path_with_underscores.rs"),
+            r"$DIR/path_with_underscores.rs",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\foo.rs:12:11"), "$DIR/foo.rs:12:11",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\path with spaces 'n' quotes"),
+            "$DIR/path with spaces 'n' quotes",
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r"$DIR\file_with\no_extension"),
+            "$DIR/file_with/no_extension",
+        );
+
+        assert_eq!(TestCx::normalize_platform_differences(r"\n"), r"\n");
+        assert_eq!(TestCx::normalize_platform_differences(r"{ \n"), r"{ \n");
+        assert_eq!(TestCx::normalize_platform_differences(r"`\]`"), r"`\]`");
+        assert_eq!(TestCx::normalize_platform_differences(r#""\{""#), r#""\{""#);
+        assert_eq!(
+            TestCx::normalize_platform_differences(r#"write!(&mut v, "Hello\n")"#),
+            r#"write!(&mut v, "Hello\n")"#
+        );
+        assert_eq!(
+            TestCx::normalize_platform_differences(r#"println!("test\ntest")"#),
+            r#"println!("test\ntest")"#,
+        );
+    }
 }

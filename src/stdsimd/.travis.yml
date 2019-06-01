@@ -37,39 +37,55 @@ matrix:
       env: TARGET=aarch64-linux-android STDSIMD_DISABLE_ASSERT_INSTR=1
     - name: "powerpc-unknown-linux-gnu - no assert_instr"
       env: TARGET=powerpc-unknown-linux-gnu STDSIMD_DISABLE_ASSERT_INSTR=1
-    - name: "powerpc64-unknown-linux-gnu - no assert_instr, no simd_test"
-      env: TARGET=powerpc64-unknown-linux-gnu STDSIMD_DISABLE_ASSERT_INSTR=1 STDSIMD_TEST_NORUN=1
-    - name: "powerpc64le-unknown-linux-gnu - no assert_instr, no simd_test"
-      env: TARGET=powerpc64le-unknown-linux-gnu STDSIMD_DISABLE_ASSERT_INSTR=1 STDSIMD_TEST_NORUN=1
-    - name: "s390x-unknown-linux-gnu - build-only"
-      env: TARGET=s390x-unknown-linux-gnu NORUN=1
+    - name: "powerpc64-unknown-linux-gnu - no assert_instr"
+      env: TARGET=powerpc64-unknown-linux-gnu STDSIMD_DISABLE_ASSERT_INSTR=1
+    - name: "powerpc64le-unknown-linux-gnu - no assert_instr"
+      env: TARGET=powerpc64le-unknown-linux-gnu STDSIMD_DISABLE_ASSERT_INSTR=1
+    - name: "s390x-unknown-linux-gnu"
+      env: TARGET=s390x-unknown-linux-gnu
     - name: "i686-apple-darwin"
-      env: TARGET=i686-apple-darwin
+      env: TARGET=i686-apple-darwin NO_DOCKER=1
       os: osx
       osx_image: xcode10
-      script: ci/run.sh
     - name: "x86_64-apple-darwin"
-      env: TARGET=x86_64-apple-darwin
+      env: TARGET=x86_64-apple-darwin NO_DOCKER=1
       os: osx
       osx_image: xcode10
       install: true
-      script: ci/run.sh
     - name: "wasm32-unknown-unknown"
       env: TARGET=wasm32-unknown-unknown
     - name: "nvptx64-nvidia-cuda - cross compiled, build libcore only"
       env: TARGET=nvptx64-nvidia-cuda NORUN=1 NOSTD=1
     - name: "thumbv6m-none-eabi - build libcore only"
-      env: TARGET=thumbv6m-none-eabi NORUN=1 NOSTD=1
-      script: ci/run.sh
+      env: TARGET=thumbv6m-none-eabi NORUN=1 NOSTD=1 NO_DOCKER=1
     - name: "thumbv7m-none-eabi - build libcore only"
-      env: TARGET=thumbv7m-none-eabi NORUN=1 NOSTD=1
-      script: ci/run.sh
+      env: TARGET=thumbv7m-none-eabi NORUN=1 NOSTD=1 NO_DOCKER=1
     - name: "thumbv7em-none-eabi - build libcore only"
-      env: TARGET=thumbv7em-none-eabi NORUN=1 NOSTD=1
-      script: ci/run.sh
+      env: TARGET=thumbv7em-none-eabi NORUN=1 NOSTD=1 NO_DOCKER=1
     - name: "thumbv7em-none-eabihf - build libcore only"
-      env: TARGET=thumbv7em-none-eabihf NORUN=1 NOSTD=1
-      script: ci/run.sh
+      env: TARGET=thumbv7em-none-eabihf NORUN=1 NOSTD=1 NO_DOCKER=1
+    - name: "Game Boy Advance - build libcore only"
+      env: NORUN=1 NOSTD=1 NO_DOCKER=1
+      install:
+        - rustup component add rust-src
+        - cargo install xargo
+      script:
+        # Obtain the devkitPro tools, using `target/` as a temp directory. This
+        # is required because we need to use their linker. `lld` uses the `BLX`
+        # instruction, which was not available in thumb state code until ARMv5.
+        - mkdir -p target
+        - cd target
+        - wget https://github.com/devkitPro/pacman/releases/download/devkitpro-pacman-1.0.1/devkitpro-pacman.deb
+        - sudo dpkg -i devkitpro-pacman.deb
+        - sudo dkp-pacman -Sy
+        - sudo dkp-pacman -Syu
+        - sudo dkp-pacman -S -v --noconfirm gba-tools devkitARM
+        - export PATH="$PATH:/opt/devkitpro/devkitARM/bin"
+        - export PATH="$PATH:/opt/devkitpro/tools/bin"
+        - cd ..
+        # Pull the target spec up into the current directory and then build
+        - mv ci/gba.json gba.json
+        - xargo build --all --target=gba
     - name: "Documentation"
       install: true
       script: ci/dox.sh
@@ -77,8 +93,11 @@ matrix:
       script: cargo test --manifest-path crates/stdsimd-verify/Cargo.toml
       install: true
     - name: "rustfmt"
-      install: rustup component add rustfmt-preview
-      script: cargo fmt --all -- --check
+      install: true
+      script: |
+        if rustup component add rustfmt-preview ; then
+            cargo fmt --all -- --check
+        fi
       rust: stable
     - name: "clippy"
       install: true
@@ -92,14 +111,16 @@ matrix:
         - shellcheck --version
         - shellcheck ci/*.sh
 
-  allow_failures:
-    # FIXME: https://github.com/rust-lang-nursery/stdsimd/issues/669
-    - name: "powerpc-unknown-linux-gnu - no assert_instr"
-
 install: travis_retry rustup target add $TARGET
 script:
   - cargo generate-lockfile
-  - ci/run-docker.sh $TARGET
+  - |
+    if [ "${NO_DOCKER}" = "1" ]; then
+        ci/run.sh $TARGET
+    else
+        ci/run-docker.sh $TARGET
+    fi
+  
 
 notifications:
   email:

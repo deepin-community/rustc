@@ -2968,7 +2968,7 @@ impl str {
     ///
     /// The returned iterator will be a [`DoubleEndedIterator`] if the pattern
     /// allows a reverse search and forward/reverse search yields the same
-    /// elements. This is true for, eg, [`char`] but not for `&str`.
+    /// elements. This is true for, e.g., [`char`], but not for `&str`.
     ///
     /// [`DoubleEndedIterator`]: iter/trait.DoubleEndedIterator.html
     ///
@@ -3143,7 +3143,7 @@ impl str {
     ///
     /// The returned iterator will be a [`DoubleEndedIterator`] if the pattern
     /// allows a reverse search and forward/reverse search yields the same
-    /// elements. This is true for, eg, [`char`] but not for `&str`.
+    /// elements. This is true for, e.g., [`char`], but not for `&str`.
     ///
     /// [`DoubleEndedIterator`]: iter/trait.DoubleEndedIterator.html
     ///
@@ -3326,7 +3326,7 @@ impl str {
     ///
     /// The returned iterator will be a [`DoubleEndedIterator`] if the pattern
     /// allows a reverse search and forward/reverse search yields the same
-    /// elements. This is true for, eg, [`char`] but not for `&str`.
+    /// elements. This is true for, e.g., [`char`], but not for `&str`.
     ///
     /// [`DoubleEndedIterator`]: iter/trait.DoubleEndedIterator.html
     ///
@@ -3402,7 +3402,7 @@ impl str {
     ///
     /// The returned iterator will be a [`DoubleEndedIterator`] if the pattern
     /// allows a reverse search and forward/reverse search yields the same
-    /// elements. This is true for, eg, [`char`] but not for `&str`.
+    /// elements. This is true for, e.g., [`char`], but not for `&str`.
     ///
     /// [`DoubleEndedIterator`]: iter/trait.DoubleEndedIterator.html
     ///
@@ -3601,7 +3601,11 @@ impl str {
     /// assert!(Some('ע') == s.trim_left().chars().next());
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[rustc_deprecated(reason = "superseded by `trim_start`", since = "1.33.0")]
+    #[rustc_deprecated(
+        since = "1.33.0",
+        reason = "superseded by `trim_start`",
+        suggestion = "trim_start",
+    )]
     pub fn trim_left(&self) -> &str {
         self.trim_start()
     }
@@ -3638,7 +3642,11 @@ impl str {
     /// assert!(Some('ת') == s.trim_right().chars().rev().next());
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[rustc_deprecated(reason = "superseded by `trim_end`", since = "1.33.0")]
+    #[rustc_deprecated(
+        since = "1.33.0",
+        reason = "superseded by `trim_end`",
+        suggestion = "trim_end",
+    )]
     pub fn trim_right(&self) -> &str {
         self.trim_end()
     }
@@ -3802,7 +3810,11 @@ impl str {
     /// assert_eq!("12foo1bar12".trim_left_matches(x), "foo1bar12");
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[rustc_deprecated(reason = "superseded by `trim_start_matches`", since = "1.33.0")]
+    #[rustc_deprecated(
+        since = "1.33.0",
+        reason = "superseded by `trim_start_matches`",
+        suggestion = "trim_start_matches",
+    )]
     pub fn trim_left_matches<'a, P: Pattern<'a>>(&'a self, pat: P) -> &'a str {
         self.trim_start_matches(pat)
     }
@@ -3840,7 +3852,11 @@ impl str {
     /// assert_eq!("1fooX".trim_right_matches(|c| c == '1' || c == 'X'), "1foo");
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[rustc_deprecated(reason = "superseded by `trim_end_matches`", since = "1.33.0")]
+    #[rustc_deprecated(
+        since = "1.33.0",
+        reason = "superseded by `trim_end_matches`",
+        suggestion = "trim_end_matches",
+    )]
     pub fn trim_right_matches<'a, P: Pattern<'a>>(&'a self, pat: P) -> &'a str
         where P::Searcher: ReverseSearcher<'a>
     {
@@ -3965,7 +3981,7 @@ impl str {
         me.make_ascii_lowercase()
     }
 
-    /// Return an iterator that escapes each char in `s` with [`char::escape_debug`].
+    /// Return an iterator that escapes each char in `self` with [`char::escape_debug`].
     ///
     /// Note: only extended grapheme codepoints that begin the string will be
     /// escaped.
@@ -4013,7 +4029,7 @@ impl str {
         }
     }
 
-    /// Return an iterator that escapes each char in `s` with [`char::escape_default`].
+    /// Return an iterator that escapes each char in `self` with [`char::escape_default`].
     ///
     /// [`char::escape_default`]: ../std/primitive.char.html#method.escape_default
     ///
@@ -4051,7 +4067,7 @@ impl str {
         EscapeDefault { inner: self.chars().flat_map(CharEscapeDefault) }
     }
 
-    /// Return an iterator that escapes each char in `s` with [`char::escape_unicode`].
+    /// Return an iterator that escapes each char in `self` with [`char::escape_unicode`].
     ///
     /// [`char::escape_unicode`]: ../std/primitive.char.html#method.escape_unicode
     ///

@@ -11,19 +11,21 @@ There are two general Embedded Programming classifications:
 
 ## Hosted Environments
 These kinds of environments are close to a normal PC environment.
-What this means is you are provided with a System Interface [E.G. POSIX](https://en.wikipedia.org/wiki/POSIX)
+What this means is that you are provided with a System Interface [E.G. POSIX](https://en.wikipedia.org/wiki/POSIX)
 that provides you with primitives to interact with various systems, such as file systems, networking, memory management, threads, etc.
 Standard libraries in turn usually depend on these primitives to implement their functionality.
 You may also have some sort of sysroot and restrictions on RAM/ROM-usage, and perhaps some
 special HW or I/Os. Overall it feels like coding on a special-purpose PC environment.
 
 ## Bare Metal Environments
-In a bare metal environment there will be no high-level OS running and hosting our code.
-This means there will be no primitives, which means there's also no standard library by default.
-By marking our code with `no_std` we indicate that our code is capable of running in such an environment.
-This means the rust [libstd](https://doc.rust-lang.org/std/) and dynamic memory allocation can't be used by such code.
-However, such code can use [libcore](https://doc.rust-lang.org/core/), which can easily be made available
-in any kind of environment by providing just a few symbols (for details see [libcore](https://doc.rust-lang.org/core/)).
+In a bare metal environment no code has been loaded before your program.
+Without the software provided by an OS we can not load the standard library.
+Instead the program, along with the crates it uses, can only use the hardware (bare metal) to run.
+To prevent rust from loading the standard library use `no_std`.
+The platform-agnostic parts of the standard library are available through [libcore](https://doc.rust-lang.org/core/).
+libcore also excludes things which are not always desirable in an embedded environment.
+One of these things is a memory allocator for dynamic memory allocation.
+If you require this or any other functionalities there are often crates which provide these.
 
 ### The libstd Runtime
 As mentioned before using [libstd](https://doc.rust-lang.org/std/) requires some sort of system integration, but this is not only because
@@ -59,5 +61,4 @@ bootstrapping (stage 0) code like bootloaders, firmware or kernels.
 [alloc-cortex-m]: https://github.com/rust-embedded/alloc-cortex-m
 
 ## See Also
-* [FAQ](https://www.rust-lang.org/en-US/faq.html#does-rust-work-without-the-standard-library)
 * [RFC-1184](https://github.com/rust-lang/rfcs/blob/master/text/1184-stabilize-no_std.md)

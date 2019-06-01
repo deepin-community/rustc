@@ -10,7 +10,7 @@ use std::ops::{Add, Mul, Sub};
 macro_rules! assert_equal_len {
     // The `tt` (token tree) designator is used for
     // operators and tokens.
-    ($a:ident, $b: ident, $func:ident, $op:tt) => (
+    ($a:ident, $b:ident, $func:ident, $op:tt) => (
         assert!($a.len() == $b.len(),
                 "{:?}: dimension mismatch: {:?} {:?} {:?}",
                 stringify!($func),
@@ -41,7 +41,7 @@ op!(sub_assign, Sub, -=, sub);
 mod test {
     use std::iter;
     macro_rules! test {
-        ($func: ident, $x:expr, $y:expr, $z:expr) => {
+        ($func:ident, $x:expr, $y:expr, $z:expr) => {
             #[test]
             fn $func() {
                 for size in 0usize..10 {
@@ -57,7 +57,7 @@ mod test {
         }
     }
 
-    // Test `add_assign`, `mul_assign` and `sub_assign`
+    // Test `add_assign`, `mul_assign`, and `sub_assign`.
     test!(add_assign, 1u32, 2u32, 3u32);
     test!(mul_assign, 2u32, 3u32, 6u32);
     test!(sub_assign, 3u32, 2u32, 1u32);

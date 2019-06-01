@@ -3,11 +3,11 @@
                                       be to be stable",
             issue = "27709")]
 
-use cmp::Ordering;
-use fmt;
-use hash;
-use sys::net::netc as c;
-use sys_common::{AsInner, FromInner};
+use crate::cmp::Ordering;
+use crate::fmt;
+use crate::hash;
+use crate::sys::net::netc as c;
+use crate::sys_common::{AsInner, FromInner};
 
 /// An IP address, either IPv4 or IPv6.
 ///
@@ -658,7 +658,7 @@ impl Ipv4Addr {
 
 #[stable(feature = "ip_addr", since = "1.7.0")]
 impl fmt::Display for IpAddr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IpAddr::V4(ip) => ip.fmt(fmt),
             IpAddr::V6(ip) => ip.fmt(fmt),
@@ -682,7 +682,7 @@ impl From<Ipv6Addr> for IpAddr {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Display for Ipv4Addr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let octets = self.octets();
         write!(fmt, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3])
     }
@@ -690,7 +690,7 @@ impl fmt::Display for Ipv4Addr {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Debug for Ipv4Addr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, fmt)
     }
 }
@@ -1229,7 +1229,7 @@ impl Ipv6Addr {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Display for Ipv6Addr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.segments() {
             // We need special cases for :: and ::1, otherwise they're formatted
             // as ::0.0.0.[01]
@@ -1276,7 +1276,7 @@ impl fmt::Display for Ipv6Addr {
                 let (zeros_at, zeros_len) = find_zero_slice(&self.segments());
 
                 if zeros_len > 1 {
-                    fn fmt_subslice(segments: &[u16], fmt: &mut fmt::Formatter) -> fmt::Result {
+                    fn fmt_subslice(segments: &[u16], fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                         if !segments.is_empty() {
                             write!(fmt, "{:x}", segments[0])?;
                             for &seg in &segments[1..] {
@@ -1301,7 +1301,7 @@ impl fmt::Display for Ipv6Addr {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Debug for Ipv6Addr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, fmt)
     }
 }
@@ -1509,9 +1509,9 @@ impl From<[u16; 8]> for IpAddr {
 // Tests for this module
 #[cfg(all(test, not(target_os = "emscripten")))]
 mod tests {
-    use net::*;
-    use net::Ipv6MulticastScope::*;
-    use net::test::{tsa, sa6, sa4};
+    use crate::net::*;
+    use crate::net::Ipv6MulticastScope::*;
+    use crate::net::test::{tsa, sa6, sa4};
 
     #[test]
     fn test_from_str_ipv4() {

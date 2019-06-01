@@ -106,7 +106,7 @@ fn add_move_for_packed_drop<'a, 'tcx>(
     };
 
     let source_info = terminator.source_info;
-    let ty = location.ty(mir, tcx).to_ty(tcx);
+    let ty = location.ty(mir, tcx).ty;
     let temp = patch.new_temp(ty, terminator.source_info.span);
 
     let storage_dead_block = patch.new_block(BasicBlockData {
@@ -121,10 +121,10 @@ fn add_move_for_packed_drop<'a, 'tcx>(
 
     patch.add_statement(
         loc, StatementKind::StorageLive(temp));
-    patch.add_assign(loc, Place::Local(temp),
+    patch.add_assign(loc, Place::Base(PlaceBase::Local(temp)),
                      Rvalue::Use(Operand::Move(location.clone())));
     patch.patch_terminator(loc.block, TerminatorKind::Drop {
-        location: Place::Local(temp),
+        location: Place::Base(PlaceBase::Local(temp)),
         target: storage_dead_block,
         unwind
     });

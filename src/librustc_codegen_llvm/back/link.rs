@@ -18,7 +18,7 @@ use rustc::session::Session;
 use rustc::middle::cstore::{NativeLibrary, NativeLibraryKind};
 use rustc::middle::dependency_format::Linkage;
 use rustc_codegen_ssa::CodegenResults;
-use rustc::util::common::time;
+use rustc::util::common::{time, time_ext};
 use rustc_fs_util::fix_windows_verbatim_for_gcc;
 use rustc::hir::def_id::CrateNum;
 use tempfile::{Builder as TempFileBuilder, TempDir};
@@ -698,7 +698,6 @@ fn link_natively(sess: &Session,
     }
 
     if sess.opts.target_triple.triple() == "wasm32-unknown-unknown" {
-        wasm::rewrite_imports(&out_filename, &codegen_results.crate_info.wasm_imports);
         wasm::add_producer_section(
             &out_filename,
             &sess.edition().to_string(),
@@ -1320,7 +1319,7 @@ fn add_upstream_rust_crates(cmd: &mut dyn Linker,
         let name = cratepath.file_name().unwrap().to_str().unwrap();
         let name = &name[3..name.len() - 5]; // chop off lib/.rlib
 
-        time(sess, &format!("altering {}.rlib", name), || {
+        time_ext(sess.time_extended(), Some(sess), &format!("altering {}.rlib", name), || {
             let cfg = archive_config(sess, &dst, Some(cratepath));
             let mut archive = ArchiveBuilder::new(cfg);
             archive.update_symbols();
@@ -1397,10 +1396,6 @@ fn add_upstream_rust_crates(cmd: &mut dyn Linker,
 
     // Same thing as above, but for dynamic crates instead of static crates.
     fn add_dynamic_crate(cmd: &mut dyn Linker, sess: &Session, cratepath: &Path) {
-        // If we're performing LTO, then it should have been previously required
-        // that all upstream rust dependencies were available in an rlib format.
-        assert!(!are_upstream_rust_objects_already_included(sess));
-
         // Just need to tell the linker about where the library lives and
         // what its name is
         let parent = cratepath.parent();

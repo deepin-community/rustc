@@ -1,8 +1,8 @@
 #![allow(missing_copy_implementations)]
 
-use fmt;
-use io::{self, Read, Initializer, Write, ErrorKind, BufRead, IoVec, IoVecMut};
-use mem;
+use crate::fmt;
+use crate::io::{self, Read, Initializer, Write, ErrorKind, BufRead, IoVec, IoVecMut};
+use crate::mem;
 
 /// Copies the entire contents of a reader into a writer.
 ///
@@ -111,7 +111,7 @@ impl BufRead for Empty {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Empty {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Empty { .. }")
     }
 }
@@ -169,7 +169,7 @@ impl Read for Repeat {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Repeat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Repeat { .. }")
     }
 }
@@ -217,15 +217,15 @@ impl Write for Sink {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Sink {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Sink { .. }")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use io::prelude::*;
-    use io::{copy, sink, empty, repeat};
+    use crate::io::prelude::*;
+    use crate::io::{copy, sink, empty, repeat};
 
     #[test]
     fn copy_copies() {

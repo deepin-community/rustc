@@ -1,6 +1,6 @@
 use rustc::hir;
 use rustc::mir::ProjectionElem;
-use rustc::mir::{Local, Mir, Place, Mutability};
+use rustc::mir::{Local, Mir, Place, PlaceBase, Mutability, Static, StaticKind};
 use rustc::ty::{self, TyCtxt};
 use crate::borrow_check::borrow_set::LocalsStateAtExit;
 
@@ -30,8 +30,6 @@ impl<'tcx> PlaceExt<'tcx> for Place<'tcx> {
         locals_state_at_exit: &LocalsStateAtExit,
     ) -> bool {
         match self {
-            Place::Promoted(_) => false,
-
             // If a local variable is immutable, then we only need to track borrows to guard
             // against two kinds of errors:
             // * The variable being dropped while still borrowed (e.g., because the fn returns
@@ -40,7 +38,7 @@ impl<'tcx> PlaceExt<'tcx> for Place<'tcx> {
             //
             // In particular, the variable cannot be mutated -- the "access checks" will fail --
             // so we don't have to worry about mutation while borrowed.
-            Place::Local(index) => {
+            Place::Base(PlaceBase::Local(index)) => {
                 match locals_state_at_exit {
                     LocalsStateAtExit::AllAreInvalidated => false,
                     LocalsStateAtExit::SomeAreInvalidated { has_storage_dead_or_moved } => {
@@ -51,8 +49,10 @@ impl<'tcx> PlaceExt<'tcx> for Place<'tcx> {
                     }
                 }
             }
-            Place::Static(static_) => {
-                tcx.is_static(static_.def_id) == Some(hir::Mutability::MutMutable)
+            Place::Base(PlaceBase::Static(box Static{ kind: StaticKind::Promoted(_), .. })) =>
+                false,
+            Place::Base(PlaceBase::Static(box Static{ kind: StaticKind::Static(def_id), .. })) => {
+                tcx.is_static(*def_id) == Some(hir::Mutability::MutMutable)
             }
             Place::Projection(proj) => match proj.elem {
                 ProjectionElem::Field(..)
@@ -63,7 +63,7 @@ impl<'tcx> PlaceExt<'tcx> for Place<'tcx> {
                     tcx, mir, locals_state_at_exit),
 
                 ProjectionElem::Deref => {
-                    let ty = proj.base.ty(mir, tcx).to_ty(tcx);
+                    let ty = proj.base.ty(mir, tcx).ty;
                     match ty.sty {
                         // For both derefs of raw pointers and `&T`
                         // references, the original path is `Copy` and
@@ -88,9 +88,8 @@ impl<'tcx> PlaceExt<'tcx> for Place<'tcx> {
         loop {
             match p {
                 Place::Projection(pi) => p = &pi.base,
-                Place::Promoted(_) |
-                Place::Static(_) => return None,
-                Place::Local(l) => return Some(*l),
+                Place::Base(PlaceBase::Static(_)) => return None,
+                Place::Base(PlaceBase::Local(l)) => return Some(*l),
             }
         }
     }

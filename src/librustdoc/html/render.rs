@@ -61,7 +61,7 @@ use crate::doctree;
 use crate::fold::DocFolder;
 use crate::html::escape::Escape;
 use crate::html::format::{AsyncSpace, ConstnessSpace};
-use crate::html::format::{GenericBounds, WhereClause, href, AbiSpace};
+use crate::html::format::{GenericBounds, WhereClause, href, AbiSpace, DefaultSpace};
 use crate::html::format::{VisSpace, Function, UnsafetySpace, MutableSpace};
 use crate::html::format::fmt_impl_for_trait_page;
 use crate::html::item_type::ItemType;
@@ -271,7 +271,7 @@ pub struct Cache {
     /// Mapping of typaram ids to the name of the type parameter. This is used
     /// when pretty-printing a type (so pretty-printing doesn't have to
     /// painfully maintain a context like this)
-    pub typarams: FxHashMap<DefId, String>,
+    pub param_names: FxHashMap<DefId, String>,
 
     /// Maps a type ID to all known implementations for that type. This is only
     /// recognized for intra-crate `ResolvedPath` types, and is used to print
@@ -368,7 +368,7 @@ pub struct Cache {
 pub struct RenderInfo {
     pub inlined: FxHashSet<DefId>,
     pub external_paths: crate::core::ExternalPaths,
-    pub external_typarams: FxHashMap<DefId, String>,
+    pub external_param_names: FxHashMap<DefId, String>,
     pub exact_paths: FxHashMap<DefId, Vec<String>>,
     pub access_levels: AccessLevels<DefId>,
     pub deref_trait_did: Option<DefId>,
@@ -446,7 +446,7 @@ impl ToJson for Type {
                 }
                 Json::Array(data)
             }
-            None => Json::Null
+            None => Json::Null,
         }
     }
 }
@@ -455,19 +455,27 @@ impl ToJson for Type {
 #[derive(Debug)]
 struct IndexItemFunctionType {
     inputs: Vec<Type>,
-    output: Option<Type>,
+    output: Option<Vec<Type>>,
 }
 
 impl ToJson for IndexItemFunctionType {
     fn to_json(&self) -> Json {
         // If we couldn't figure out a type, just write `null`.
-        if self.inputs.iter().chain(self.output.iter()).any(|ref i| i.name.is_none()) {
+        let mut iter = self.inputs.iter();
+        if match self.output {
+            Some(ref output) => iter.chain(output.iter()).any(|ref i| i.name.is_none()),
+            None => iter.any(|ref i| i.name.is_none()),
+        } {
             Json::Null
         } else {
             let mut data = Vec::with_capacity(2);
             data.push(self.inputs.to_json());
             if let Some(ref output) = self.output {
-                data.push(output.to_json());
+                if output.len() > 1 {
+                    data.push(output.to_json());
+                } else {
+                    data.push(output[0].to_json());
+                }
             }
             Json::Array(data)
         }
@@ -562,23 +570,23 @@ pub fn run(mut krate: clean::Crate,
     // going to emit HTML
     if let Some(attrs) = krate.module.as_ref().map(|m| &m.attrs) {
         for attr in attrs.lists("doc") {
-            match (attr.ident_str(), attr.value_str()) {
-                (Some("html_favicon_url"), Some(s)) => {
+            match (attr.name_or_empty().get(), attr.value_str()) {
+                ("html_favicon_url", Some(s)) => {
                     scx.layout.favicon = s.to_string();
                 }
-                (Some("html_logo_url"), Some(s)) => {
+                ("html_logo_url", Some(s)) => {
                     scx.layout.logo = s.to_string();
                 }
-                (Some("html_playground_url"), Some(s)) => {
+                ("html_playground_url", Some(s)) => {
                     markdown::PLAYGROUND.with(|slot| {
                         let name = krate.name.clone();
                         *slot.borrow_mut() = Some((Some(name), s.to_string()));
                     });
                 }
-                (Some("issue_tracker_base_url"), Some(s)) => {
+                ("issue_tracker_base_url", Some(s)) => {
                     scx.issue_tracker_base_url = Some(s.to_string());
                 }
-                (Some("html_no_source"), None) if attr.is_word() => {
+                ("html_no_source", None) if attr.is_word() => {
                     scx.include_sources = false;
                 }
                 _ => {}
@@ -601,7 +609,7 @@ pub fn run(mut krate: clean::Crate,
     let RenderInfo {
         inlined: _,
         external_paths,
-        external_typarams,
+        external_param_names,
         exact_paths,
         access_levels,
         deref_trait_did,
@@ -635,7 +643,7 @@ pub fn run(mut krate: clean::Crate,
         deref_mut_trait_did,
         owned_box_did,
         masked_crates: mem::replace(&mut krate.masked_crates, Default::default()),
-        typarams: external_typarams,
+        param_names: external_param_names,
         aliases: Default::default(),
     };
 
@@ -957,7 +965,11 @@ themePicker.onblur = handleThemeButtonsBlur;
                 if for_search_index && line.starts_with("var R") {
                     variables.push(line.clone());
                     // We need to check if the crate name has been put into a variable as well.
-                    let tokens = js::simple_minify(&line).apply(js::clean_tokens);
+                    let tokens: js::Tokens<'_> = js::simple_minify(&line)
+                                                    .into_iter()
+                                                    .filter(js::clean_token)
+                                                    .collect::<Vec<_>>()
+                                                    .into();
                     let mut pos = 0;
                     while pos < tokens.len() {
                         if let Some((var_pos, Some(value_pos))) =
@@ -1061,8 +1073,6 @@ themePicker.onblur = handleThemeButtonsBlur;
     }
 
     if cx.shared.include_sources {
-        use std::path::Component;
-
         let mut hierarchy = Hierarchy::new(OsString::new());
         for source in cx.shared.local_sources.iter()
                                              .filter_map(|p| p.0.strip_prefix(&cx.shared.src_root)
@@ -1116,11 +1126,7 @@ themePicker.onblur = handleThemeButtonsBlur;
     // with rustdoc running in parallel.
     all_indexes.sort();
     let mut w = try_err!(File::create(&dst), &dst);
-    if options.enable_minification {
-        try_err!(writeln!(&mut w, "var N=null,E=\"\",T=\"t\",U=\"u\",searchIndex={{}};"), &dst);
-    } else {
-        try_err!(writeln!(&mut w, "var searchIndex={{}};"), &dst);
-    }
+    try_err!(writeln!(&mut w, "var N=null,E=\"\",T=\"t\",U=\"u\",searchIndex={{}};"), &dst);
     try_err!(write_minify_replacer(&mut w,
                                    &format!("{}\n{}", variables.join(""), all_indexes.join("\n")),
                                    options.enable_minification),
@@ -1286,46 +1292,51 @@ fn write_minify_replacer<W: Write>(
     contents: &str,
     enable_minification: bool,
 ) -> io::Result<()> {
-    use minifier::js::{Keyword, ReservedChar, Token};
+    use minifier::js::{simple_minify, Keyword, ReservedChar, Token, Tokens};
 
     if enable_minification {
         writeln!(dst, "{}",
-                 minifier::js::simple_minify(contents)
-                              .apply(|f| {
-                                  // We keep backlines.
-                                  minifier::js::clean_tokens_except(f, |c| {
-                                      c.get_char() != Some(ReservedChar::Backline)
-                                  })
-                              })
-                              .apply(|f| {
-                                  minifier::js::replace_token_with(f, |t| {
-                                      match *t {
-                                          Token::Keyword(Keyword::Null) => Some(Token::Other("N")),
-                                          Token::String(s) => {
-                                              let s = &s[1..s.len() -1]; // The quotes are included
-                                              if s.is_empty() {
-                                                  Some(Token::Other("E"))
-                                              } else if s == "t" {
-                                                  Some(Token::Other("T"))
-                                              } else if s == "u" {
-                                                  Some(Token::Other("U"))
-                                              } else {
-                                                  None
-                                              }
-                                          }
-                                          _ => None,
-                                      }
-                                  })
-                              })
-                              .apply(|f| {
-                                  // We add a backline after the newly created variables.
-                                  minifier::js::aggregate_strings_into_array_with_separation(
-                                      f,
-                                      "R",
-                                      Token::Char(ReservedChar::Backline),
-                                  )
-                              })
-                              .to_string())
+                 {
+                    let tokens: Tokens<'_> = simple_minify(contents)
+                        .into_iter()
+                        .filter(|f| {
+                            // We keep backlines.
+                            minifier::js::clean_token_except(f, &|c: &Token<'_>| {
+                                c.get_char() != Some(ReservedChar::Backline)
+                            })
+                        })
+                        .map(|f| {
+                            minifier::js::replace_token_with(f, &|t: &Token<'_>| {
+                                match *t {
+                                    Token::Keyword(Keyword::Null) => Some(Token::Other("N")),
+                                    Token::String(s) => {
+                                        let s = &s[1..s.len() -1]; // The quotes are included
+                                        if s.is_empty() {
+                                            Some(Token::Other("E"))
+                                        } else if s == "t" {
+                                            Some(Token::Other("T"))
+                                        } else if s == "u" {
+                                            Some(Token::Other("U"))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                }
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                        .into();
+                    tokens.apply(|f| {
+                        // We add a backline after the newly created variables.
+                        minifier::js::aggregate_strings_into_array_with_separation(
+                            f,
+                            "R",
+                            Token::Char(ReservedChar::Backline),
+                        )
+                    })
+                    .to_string()
+                })
     } else {
         writeln!(dst, "{}", contents)
     }
@@ -1755,7 +1766,7 @@ impl<'a> Cache {
                 clean::GenericParamDefKind::Lifetime => {}
                 clean::GenericParamDefKind::Type { did, .. } |
                 clean::GenericParamDefKind::Const { did, .. } => {
-                    self.typarams.insert(did, param.name.clone());
+                    self.param_names.insert(did, param.name.clone());
                 }
             }
         }
@@ -2600,7 +2611,15 @@ fn document_non_exhaustive_header(item: &clean::Item) -> &str {
 fn document_non_exhaustive(w: &mut fmt::Formatter<'_>, item: &clean::Item) -> fmt::Result {
     if item.is_non_exhaustive() {
         write!(w, "<div class='docblock non-exhaustive non-exhaustive-{}'>", {
-            if item.is_struct() { "struct" } else if item.is_enum() { "enum" } else { "type" }
+            if item.is_struct() {
+                "struct"
+            } else if item.is_enum() {
+                "enum"
+            } else if item.is_variant() {
+                "variant"
+            } else {
+                "type"
+            }
         })?;
 
         if item.is_struct() {
@@ -2613,6 +2632,10 @@ fn document_non_exhaustive(w: &mut fmt::Formatter<'_>, item: &clean::Item) -> fm
             write!(w, "Non-exhaustive enums could have additional variants added in future. \
                        Therefore, when matching against variants of non-exhaustive enums, an \
                        extra wildcard arm must be added to account for any future variants.")?;
+        } else if item.is_variant() {
+            write!(w, "Non-exhaustive enum variants could have additional fields added in future. \
+                       Therefore, non-exhaustive enum variants cannot be constructed in external \
+                       crates and cannot be matched against.")?;
         } else {
             write!(w, "This type will require a wildcard arm in any match statements or \
                        constructors.")?;
@@ -3433,11 +3456,12 @@ fn render_assoc_item(w: &mut fmt::Formatter<'_>,
             }
         };
         let mut header_len = format!(
-            "{}{}{}{}{:#}fn {}{:#}",
+            "{}{}{}{}{}{:#}fn {}{:#}",
             VisSpace(&meth.visibility),
             ConstnessSpace(header.constness),
             UnsafetySpace(header.unsafety),
             AsyncSpace(header.asyncness),
+            DefaultSpace(meth.is_default()),
             AbiSpace(header.abi),
             name,
             *g
@@ -3449,12 +3473,13 @@ fn render_assoc_item(w: &mut fmt::Formatter<'_>,
             (0, true)
         };
         render_attributes(w, meth)?;
-        write!(w, "{}{}{}{}{}fn <a href='{href}' class='fnname'>{name}</a>\
+        write!(w, "{}{}{}{}{}{}fn <a href='{href}' class='fnname'>{name}</a>\
                    {generics}{decl}{where_clause}",
                VisSpace(&meth.visibility),
                ConstnessSpace(header.constness),
                UnsafetySpace(header.unsafety),
                AsyncSpace(header.asyncness),
+               DefaultSpace(meth.is_default()),
                AbiSpace(header.abi),
                href = href,
                name = name,
@@ -3673,6 +3698,7 @@ fn item_enum(w: &mut fmt::Formatter<'_>, cx: &Context, it: &clean::Item,
             }
             write!(w, "</code></span>")?;
             document(w, cx, variant)?;
+            document_non_exhaustive(w, variant)?;
 
             use crate::clean::{Variant, VariantKind};
             if let clean::VariantItem(Variant {
@@ -3717,7 +3743,7 @@ fn item_enum(w: &mut fmt::Formatter<'_>, cx: &Context, it: &clean::Item,
 }
 
 fn render_attribute(attr: &ast::MetaItem) -> Option<String> {
-    let path = attr.ident.to_string();
+    let path = attr.path.to_string();
 
     if attr.is_word() {
         Some(path)
@@ -3753,7 +3779,7 @@ fn render_attributes(w: &mut fmt::Formatter<'_>, it: &clean::Item) -> fmt::Resul
     let mut attrs = String::new();
 
     for attr in &it.attrs.other_attrs {
-        if !attr.ident_str().map_or(false, |name| ATTRIBUTE_WHITELIST.contains(&name)) {
+        if !ATTRIBUTE_WHITELIST.contains(&attr.name_or_empty().get()) {
             continue;
         }
         if let Some(s) = render_attribute(&attr.meta().unwrap()) {
@@ -5027,20 +5053,26 @@ fn make_item_keywords(it: &clean::Item) -> String {
 }
 
 fn get_index_search_type(item: &clean::Item) -> Option<IndexItemFunctionType> {
-    let decl = match item.inner {
-        clean::FunctionItem(ref f) => &f.decl,
-        clean::MethodItem(ref m) => &m.decl,
-        clean::TyMethodItem(ref m) => &m.decl,
-        _ => return None
+    let (all_types, ret_types) = match item.inner {
+        clean::FunctionItem(ref f) => (&f.all_types, &f.ret_types),
+        clean::MethodItem(ref m) => (&m.all_types, &m.ret_types),
+        clean::TyMethodItem(ref m) => (&m.all_types, &m.ret_types),
+        _ => return None,
     };
 
-    let inputs = decl.inputs.values.iter().map(|arg| get_index_type(&arg.type_)).collect();
-    let output = match decl.output {
-        clean::FunctionRetTy::Return(ref return_type) => Some(get_index_type(return_type)),
-        _ => None
+    let inputs = all_types.iter().map(|arg| {
+        get_index_type(&arg)
+    }).filter(|a| a.name.is_some()).collect();
+    let output = ret_types.iter().map(|arg| {
+        get_index_type(&arg)
+    }).filter(|a| a.name.is_some()).collect::<Vec<_>>();
+    let output = if output.is_empty() {
+        None
+    } else {
+        Some(output)
     };
 
-    Some(IndexItemFunctionType { inputs: inputs, output: output })
+    Some(IndexItemFunctionType { inputs, output })
 }
 
 fn get_index_type(clean_type: &clean::Type) -> Type {

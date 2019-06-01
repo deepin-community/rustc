@@ -423,7 +423,7 @@ impl Foo for Bar {
 
 E0049: r##"
 This error indicates that an attempted implementation of a trait method
-has the wrong number of type parameters.
+has the wrong number of type or const parameters.
 
 For example, the trait below has a method `foo` with a type parameter `T`,
 but the implementation of `foo` for the type `Bar` is missing this parameter:
@@ -1032,6 +1032,7 @@ enum NightsWatch {}
 ```
 "##,
 
+// FIXME(const_generics:docs): example of inferring const parameter.
 E0087: r##"
 #### Note: this error code is no longer emitted by the compiler.
 
@@ -1152,8 +1153,8 @@ fn main() {
 "##,
 
 E0091: r##"
-You gave an unnecessary type parameter in a type alias. Erroneous code
-example:
+You gave an unnecessary type or const parameter in a type alias. Erroneous
+code example:
 
 ```compile_fail,E0091
 type Foo<T> = u32; // error: type parameter `T` is unused
@@ -1161,7 +1162,7 @@ type Foo<T> = u32; // error: type parameter `T` is unused
 type Foo<A,B> = Box<A>; // error: type parameter `B` is unused
 ```
 
-Please check you didn't write too many type parameters. Example:
+Please check you didn't write too many parameters. Example:
 
 ```
 type Foo = u32; // ok!
@@ -1289,45 +1290,34 @@ fn main() {
 "##,
 
 E0109: r##"
-You tried to give a type parameter to a type which doesn't need it. Erroneous
-code example:
+You tried to provide a generic argument to a type which doesn't need it.
+Erroneous code example:
 
 ```compile_fail,E0109
-type X = u32<i32>; // error: type arguments are not allowed on this entity
+type X = u32<i32>; // error: type arguments are not allowed for this type
+type Y = bool<'static>; // error: lifetime parameters are not allowed on
+                        //        this type
 ```
 
-Please check that you used the correct type and recheck its definition. Perhaps
-it doesn't need the type parameter.
+Check that you used the correct argument and that the definition is correct.
 
 Example:
 
 ```
-type X = u32; // this compiles
+type X = u32; // ok!
+type Y = bool; // ok!
 ```
 
-Note that type parameters for enum-variant constructors go after the variant,
-not after the enum (`Option::None::<u32>`, not `Option::<u32>::None`).
+Note that generic arguments for enum variant constructors go after the variant,
+not after the enum. For example, you would write `Option::None::<u32>`,
+rather than `Option::<u32>::None`.
 "##,
 
 E0110: r##"
-You tried to give a lifetime parameter to a type which doesn't need it.
-Erroneous code example:
+#### Note: this error code is no longer emitted by the compiler.
 
-```compile_fail,E0110
-type X = u32<'static>; // error: lifetime parameters are not allowed on
-                       //        this type
-```
-
-Please check that the correct type was used and recheck its definition; perhaps
-it doesn't need the lifetime parameter. Example:
-
-```
-type X = u32; // ok!
-```
-"##,
-
-E0111: r##"
-You tried to give a const parameter to a type which doesn't need it.
+You tried to provide a lifetime to a type which doesn't need it.
+See `E0109` for more details.
 "##,
 
 E0116: r##"
@@ -4351,11 +4341,12 @@ foo.method(); // Ok!
 "##,
 
 E0638: r##"
-This error indicates that the struct or enum must be matched non-exhaustively
-as it has been marked as `non_exhaustive`.
+This error indicates that the struct, enum or enum variant must be matched
+non-exhaustively as it has been marked as `non_exhaustive`.
 
 When applied within a crate, downstream users of the crate will need to use the
 `_` pattern when matching enums and use the `..` pattern when matching structs.
+Downstream crates cannot match against non-exhaustive enum variants.
 
 For example, in the below example, since the enum is marked as
 `non_exhaustive`, it is required that downstream crates match non-exhaustively
@@ -4400,10 +4391,10 @@ Similarly, for structs, match with `..` to avoid this error.
 "##,
 
 E0639: r##"
-This error indicates that the struct or enum cannot be instantiated from
-outside of the defining crate as it has been marked as `non_exhaustive` and as
-such more fields/variants may be added in future that could cause adverse side
-effects for this code.
+This error indicates that the struct, enum or enum variant cannot be
+instantiated from outside of the defining crate as it has been marked
+as `non_exhaustive` and as such more fields/variants may be added in
+future that could cause adverse side effects for this code.
 
 It is recommended that you look for a `new` function or equivalent in the
 crate's documentation.

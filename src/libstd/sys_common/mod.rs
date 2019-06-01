@@ -15,16 +15,25 @@
 #![allow(missing_docs)]
 #![allow(missing_debug_implementations)]
 
-use sync::Once;
-use sys;
+use crate::sync::Once;
+use crate::sys;
 
 macro_rules! rtabort {
-    ($($t:tt)*) => (::sys_common::util::abort(format_args!($($t)*)))
+    ($($t:tt)*) => (crate::sys_common::util::abort(format_args!($($t)*)))
 }
 
 macro_rules! rtassert {
     ($e:expr) => (if !$e {
         rtabort!(concat!("assertion failed: ", stringify!($e)));
+    })
+}
+
+#[allow(unused_macros)] // not used on all platforms
+macro_rules! rtunwrap {
+    ($ok:ident, $e:expr) => (if let $ok(v) = $e {
+        v
+    } else {
+        rtabort!(concat!("unwrap failed: ", stringify!($e)));
     })
 }
 
@@ -35,6 +44,13 @@ pub mod backtrace;
 pub mod condvar;
 pub mod io;
 pub mod mutex;
+#[cfg(any(rustdoc, // see `mod os`, docs are generated for multiple platforms
+          unix,
+          target_os = "redox",
+          target_os = "cloudabi",
+          target_arch = "wasm32",
+          all(target_vendor = "fortanix", target_env = "sgx")))]
+pub mod os_str_bytes;
 pub mod poison;
 pub mod remutex;
 pub mod rwlock;
@@ -45,6 +61,7 @@ pub mod util;
 pub mod wtf8;
 pub mod bytestring;
 pub mod process;
+pub mod fs;
 
 cfg_if! {
     if #[cfg(any(target_os = "cloudabi",
@@ -52,7 +69,7 @@ cfg_if! {
                  target_os = "redox",
                  all(target_arch = "wasm32", not(target_os = "emscripten")),
                  all(target_vendor = "fortanix", target_env = "sgx")))] {
-        pub use sys::net;
+        pub use crate::sys::net;
     } else {
         pub mod net;
     }

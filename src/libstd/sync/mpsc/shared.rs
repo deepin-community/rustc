@@ -14,16 +14,16 @@ use core::cmp;
 use core::intrinsics::abort;
 use core::isize;
 
-use cell::UnsafeCell;
-use ptr;
-use sync::atomic::{AtomicUsize, AtomicIsize, AtomicBool, Ordering};
-use sync::mpsc::blocking::{self, SignalToken};
-use sync::mpsc::mpsc_queue as mpsc;
-use sync::mpsc::select::StartResult::*;
-use sync::mpsc::select::StartResult;
-use sync::{Mutex, MutexGuard};
-use thread;
-use time::Instant;
+use crate::cell::UnsafeCell;
+use crate::ptr;
+use crate::sync::atomic::{AtomicUsize, AtomicIsize, AtomicBool, Ordering};
+use crate::sync::mpsc::blocking::{self, SignalToken};
+use crate::sync::mpsc::mpsc_queue as mpsc;
+use crate::sync::mpsc::select::StartResult::*;
+use crate::sync::mpsc::select::StartResult;
+use crate::sync::{Mutex, MutexGuard};
+use crate::thread;
+use crate::time::Instant;
 
 const DISCONNECTED: isize = isize::MIN;
 const FUDGE: isize = 1024;
@@ -78,7 +78,7 @@ impl<T> Packet<T> {
     // In other case mutex data will be duplicated while cloning
     // and that could cause problems on platforms where it is
     // represented by opaque data structure
-    pub fn postinit_lock(&self) -> MutexGuard<()> {
+    pub fn postinit_lock(&self) -> MutexGuard<'_, ()> {
         self.select_lock.lock().unwrap()
     }
 
@@ -89,7 +89,7 @@ impl<T> Packet<T> {
     // This can only be called at channel-creation time
     pub fn inherit_blocker(&self,
                            token: Option<SignalToken>,
-                           guard: MutexGuard<()>) {
+                           guard: MutexGuard<'_, ()>) {
         token.map(|token| {
             assert_eq!(self.cnt.load(Ordering::SeqCst), 0);
             assert_eq!(self.to_wake.load(Ordering::SeqCst), 0);

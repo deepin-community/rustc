@@ -354,7 +354,7 @@ declare_lint! {
 
 declare_lint! {
     pub DUPLICATE_MATCHER_BINDING_NAME,
-    Warn,
+    Deny,
     "duplicate macro matcher binding name"
 }
 
@@ -392,80 +392,79 @@ declare_lint! {
     "nested occurrence of `impl Trait` type"
 }
 
-/// Does nothing as a lint pass, but registers some `Lint`s
-/// that are used by other parts of the compiler.
-#[derive(Copy, Clone)]
-pub struct HardwiredLints;
+declare_lint! {
+    pub MUTABLE_BORROW_RESERVATION_CONFLICT,
+    Warn,
+    "reservation of a two-phased borrow conflicts with other shared borrows"
+}
 
-impl LintPass for HardwiredLints {
-    fn name(&self) -> &'static str {
-        "HardwiredLints"
-    }
-
-    fn get_lints(&self) -> LintArray {
-        lint_array!(
-            ILLEGAL_FLOATING_POINT_LITERAL_PATTERN,
-            EXCEEDING_BITSHIFTS,
-            UNUSED_IMPORTS,
-            UNUSED_EXTERN_CRATES,
-            UNUSED_QUALIFICATIONS,
-            UNKNOWN_LINTS,
-            UNUSED_VARIABLES,
-            UNUSED_ASSIGNMENTS,
-            DEAD_CODE,
-            UNREACHABLE_CODE,
-            UNREACHABLE_PATTERNS,
-            UNUSED_MACROS,
-            WARNINGS,
-            UNUSED_FEATURES,
-            STABLE_FEATURES,
-            UNKNOWN_CRATE_TYPES,
-            TRIVIAL_CASTS,
-            TRIVIAL_NUMERIC_CASTS,
-            PRIVATE_IN_PUBLIC,
-            EXPORTED_PRIVATE_DEPENDENCIES,
-            PUB_USE_OF_PRIVATE_EXTERN_CRATE,
-            INVALID_TYPE_PARAM_DEFAULT,
-            CONST_ERR,
-            RENAMED_AND_REMOVED_LINTS,
-            SAFE_EXTERN_STATICS,
-            SAFE_PACKED_BORROWS,
-            PATTERNS_IN_FNS_WITHOUT_BODY,
-            LEGACY_DIRECTORY_OWNERSHIP,
-            LEGACY_CONSTRUCTOR_VISIBILITY,
-            MISSING_FRAGMENT_SPECIFIER,
-            PARENTHESIZED_PARAMS_IN_TYPES_AND_MODULES,
-            LATE_BOUND_LIFETIME_ARGUMENTS,
-            INCOHERENT_FUNDAMENTAL_IMPLS,
-            ORDER_DEPENDENT_TRAIT_OBJECTS,
-            DEPRECATED,
-            UNUSED_UNSAFE,
-            UNUSED_MUT,
-            UNCONDITIONAL_RECURSION,
-            SINGLE_USE_LIFETIMES,
-            UNUSED_LIFETIMES,
-            UNUSED_LABELS,
-            TYVAR_BEHIND_RAW_POINTER,
-            ELIDED_LIFETIMES_IN_PATHS,
-            BARE_TRAIT_OBJECTS,
-            ABSOLUTE_PATHS_NOT_STARTING_WITH_CRATE,
-            UNSTABLE_NAME_COLLISIONS,
-            IRREFUTABLE_LET_PATTERNS,
-            DUPLICATE_MACRO_EXPORTS,
-            INTRA_DOC_LINK_RESOLUTION_FAILURE,
-            MISSING_DOC_CODE_EXAMPLES,
-            PRIVATE_DOC_TESTS,
-            WHERE_CLAUSES_OBJECT_SAFETY,
-            PROC_MACRO_DERIVE_RESOLUTION_FALLBACK,
-            MACRO_USE_EXTERN_CRATE,
-            MACRO_EXPANDED_MACRO_EXPORTS_ACCESSED_BY_ABSOLUTE_PATHS,
-            parser::QUESTION_MARK_MACRO_SEP,
-            parser::ILL_FORMED_ATTRIBUTE_INPUT,
-            DEPRECATED_IN_FUTURE,
-            AMBIGUOUS_ASSOCIATED_ITEMS,
-            NESTED_IMPL_TRAIT,
-        )
-    }
+declare_lint_pass! {
+    /// Does nothing as a lint pass, but registers some `Lint`s
+    /// that are used by other parts of the compiler.
+    HardwiredLints => [
+        ILLEGAL_FLOATING_POINT_LITERAL_PATTERN,
+        EXCEEDING_BITSHIFTS,
+        UNUSED_IMPORTS,
+        UNUSED_EXTERN_CRATES,
+        UNUSED_QUALIFICATIONS,
+        UNKNOWN_LINTS,
+        UNUSED_VARIABLES,
+        UNUSED_ASSIGNMENTS,
+        DEAD_CODE,
+        UNREACHABLE_CODE,
+        UNREACHABLE_PATTERNS,
+        UNUSED_MACROS,
+        WARNINGS,
+        UNUSED_FEATURES,
+        STABLE_FEATURES,
+        UNKNOWN_CRATE_TYPES,
+        TRIVIAL_CASTS,
+        TRIVIAL_NUMERIC_CASTS,
+        PRIVATE_IN_PUBLIC,
+        EXPORTED_PRIVATE_DEPENDENCIES,
+        PUB_USE_OF_PRIVATE_EXTERN_CRATE,
+        INVALID_TYPE_PARAM_DEFAULT,
+        CONST_ERR,
+        RENAMED_AND_REMOVED_LINTS,
+        SAFE_EXTERN_STATICS,
+        SAFE_PACKED_BORROWS,
+        PATTERNS_IN_FNS_WITHOUT_BODY,
+        LEGACY_DIRECTORY_OWNERSHIP,
+        LEGACY_CONSTRUCTOR_VISIBILITY,
+        MISSING_FRAGMENT_SPECIFIER,
+        PARENTHESIZED_PARAMS_IN_TYPES_AND_MODULES,
+        LATE_BOUND_LIFETIME_ARGUMENTS,
+        INCOHERENT_FUNDAMENTAL_IMPLS,
+        ORDER_DEPENDENT_TRAIT_OBJECTS,
+        DEPRECATED,
+        UNUSED_UNSAFE,
+        UNUSED_MUT,
+        UNCONDITIONAL_RECURSION,
+        SINGLE_USE_LIFETIMES,
+        UNUSED_LIFETIMES,
+        UNUSED_LABELS,
+        TYVAR_BEHIND_RAW_POINTER,
+        ELIDED_LIFETIMES_IN_PATHS,
+        BARE_TRAIT_OBJECTS,
+        ABSOLUTE_PATHS_NOT_STARTING_WITH_CRATE,
+        UNSTABLE_NAME_COLLISIONS,
+        IRREFUTABLE_LET_PATTERNS,
+        DUPLICATE_MACRO_EXPORTS,
+        INTRA_DOC_LINK_RESOLUTION_FAILURE,
+        MISSING_DOC_CODE_EXAMPLES,
+        PRIVATE_DOC_TESTS,
+        WHERE_CLAUSES_OBJECT_SAFETY,
+        PROC_MACRO_DERIVE_RESOLUTION_FALLBACK,
+        MACRO_USE_EXTERN_CRATE,
+        MACRO_EXPANDED_MACRO_EXPORTS_ACCESSED_BY_ABSOLUTE_PATHS,
+        parser::QUESTION_MARK_MACRO_SEP,
+        parser::ILL_FORMED_ATTRIBUTE_INPUT,
+        DEPRECATED_IN_FUTURE,
+        AMBIGUOUS_ASSOCIATED_ITEMS,
+        NESTED_IMPL_TRAIT,
+        DUPLICATE_MATCHER_BINDING_NAME,
+        MUTABLE_BORROW_RESERVATION_CONFLICT,
+    ]
 }
 
 // this could be a closure, but then implementing derive traits
@@ -482,6 +481,7 @@ pub enum BuiltinLintDiagnostics {
     UnknownCrateTypes(Span, String, String),
     UnusedImports(String, Vec<(Span, String)>),
     NestedImplTrait { outer_impl_trait_span: Span, inner_impl_trait_span: Span },
+    RedundantImport(Vec<(Span, bool)>, ast::Ident),
 }
 
 impl BuiltinLintDiagnostics {
@@ -577,6 +577,15 @@ impl BuiltinLintDiagnostics {
             } => {
                 db.span_label(outer_impl_trait_span, "outer `impl Trait`");
                 db.span_label(inner_impl_trait_span, "nested `impl Trait` here");
+            }
+            BuiltinLintDiagnostics::RedundantImport(spans, ident) => {
+                for (span, is_imported) in spans {
+                    let introduced = if is_imported { "imported" } else { "defined" };
+                    db.span_label(
+                        span,
+                        format!("the item `{}` is already {} here", ident, introduced)
+                    );
+                }
             }
         }
     }

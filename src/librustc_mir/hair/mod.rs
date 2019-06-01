@@ -8,11 +8,10 @@ use rustc::mir::{BinOp, BorrowKind, Field, UnOp};
 use rustc::hir::def_id::DefId;
 use rustc::infer::canonical::Canonical;
 use rustc::middle::region;
-use rustc::ty::subst::Substs;
-use rustc::ty::{AdtDef, UpvarSubsts, Ty, Const, LazyConst, UserType};
+use rustc::ty::subst::SubstsRef;
+use rustc::ty::{AdtDef, UpvarSubsts, Ty, Const, UserType};
 use rustc::ty::layout::VariantIdx;
 use rustc::hir;
-use syntax::ast;
 use syntax_pos::Span;
 use self::cx::Cx;
 
@@ -28,7 +27,7 @@ mod util;
 #[derive(Copy, Clone, Debug)]
 pub enum LintLevel {
     Inherited,
-    Explicit(ast::NodeId)
+    Explicit(hir::HirId)
 }
 
 impl LintLevel {
@@ -54,7 +53,7 @@ pub struct Block<'tcx> {
 #[derive(Copy, Clone, Debug)]
 pub enum BlockSafety {
     Safe,
-    ExplicitUnsafe(ast::NodeId),
+    ExplicitUnsafe(hir::HirId),
     PushUnsafe,
     PopUnsafe
 }
@@ -186,8 +185,12 @@ pub enum ExprKind<'tcx> {
     },
     ClosureFnPointer {
         source: ExprRef<'tcx>,
+        unsafety: hir::Unsafety,
     },
     UnsafeFnPointer {
+        source: ExprRef<'tcx>,
+    },
+    MutToConstPointer {
         source: ExprRef<'tcx>,
     },
     Unsize {
@@ -227,7 +230,7 @@ pub enum ExprKind<'tcx> {
         index: ExprRef<'tcx>,
     },
     VarRef {
-        id: ast::NodeId,
+        id: hir::HirId,
     },
     /// first argument, used for self in a closure
     SelfRef,
@@ -261,7 +264,7 @@ pub enum ExprKind<'tcx> {
     Adt {
         adt_def: &'tcx AdtDef,
         variant_index: VariantIdx,
-        substs: &'tcx Substs<'tcx>,
+        substs: SubstsRef<'tcx>,
 
         /// Optional user-given substs: for something like `let x =
         /// Bar::<T> { ... }`.
@@ -287,7 +290,7 @@ pub enum ExprKind<'tcx> {
         movability: Option<hir::GeneratorMovability>,
     },
     Literal {
-        literal: &'tcx LazyConst<'tcx>,
+        literal: &'tcx Const<'tcx>,
         user_ty: Option<Canonical<'tcx, UserType<'tcx>>>,
     },
     InlineAsm {

@@ -27,7 +27,7 @@ struct VarianceTest<'a, 'tcx: 'a> {
 
 impl<'a, 'tcx> ItemLikeVisitor<'tcx> for VarianceTest<'a, 'tcx> {
     fn visit_item(&mut self, item: &'tcx hir::Item) {
-        let item_def_id = self.tcx.hir().local_def_id(item.id);
+        let item_def_id = self.tcx.hir().local_def_id_from_hir_id(item.hir_id);
 
         if let ItemKind::Ty(..) = item.node {
             for attr in self.tcx.get_attrs(item_def_id).iter() {
@@ -53,8 +53,7 @@ impl<'a, 'tcx> VarianceTest<'a, 'tcx> {
                 // The `..` are the names of fields to dump.
                 let meta_items = attr.meta_item_list().unwrap_or_default();
                 for meta_item in meta_items {
-                    let name = meta_item.ident_str().unwrap_or("");
-                    match name {
+                    match meta_item.name_or_empty().get() {
                         "abi" => {
                             self.tcx
                                 .sess
@@ -84,9 +83,9 @@ impl<'a, 'tcx> VarianceTest<'a, 'tcx> {
                             );
                         }
 
-                        _ => {
+                        name => {
                             self.tcx.sess.span_err(
-                                meta_item.span,
+                                meta_item.span(),
                                 &format!("unrecognized field name `{}`", name),
                             );
                         }

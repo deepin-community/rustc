@@ -3,6 +3,7 @@
 
 use DeadlockHandler;
 use log::Event::*;
+use registry::Registry;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::thread;
@@ -113,7 +114,12 @@ impl Sleep {
     }
 
     #[inline]
-    pub fn no_work_found(&self, worker_index: usize, yields: usize, deadlock_handler: &Option<Box<DeadlockHandler>>) -> usize {
+    pub fn no_work_found(
+        &self,
+        worker_index: usize,
+        yields: usize,
+        registry: &Registry,
+    ) -> usize {
         log!(DidNotFindWork {
             worker: worker_index,
             yields: yields,
@@ -133,12 +139,14 @@ impl Sleep {
             if self.still_sleepy(worker_index) {
                 yields + 1
             } else {
-                log!(GotInterrupted { worker: worker_index });
+                log!(GotInterrupted {
+                    worker: worker_index
+                });
                 0
             }
         } else {
             debug_assert_eq!(yields, ROUNDS_UNTIL_ASLEEP);
-            self.sleep(worker_index, deadlock_handler);
+            self.sleep(worker_index, registry);
             0
         }
     }
@@ -195,11 +203,13 @@ impl Sleep {
             });
             if self.any_worker_is_sleepy(state) {
                 // somebody else is already sleepy, so we'll just wait our turn
-                debug_assert!(!self.worker_is_sleepy(state, worker_index),
-                              "worker {} called `is_sleepy()`, \
-                               but they are already sleepy (state={})",
-                              worker_index,
-                              state);
+                debug_assert!(
+                    !self.worker_is_sleepy(state, worker_index),
+                    "worker {} called `is_sleepy()`, \
+                     but they are already sleepy (state={})",
+                    worker_index,
+                    state
+                );
                 return false;
             } else {
                 // make ourselves the sleepy one
@@ -218,9 +228,11 @@ impl Sleep {
                 //
                 // The failure ordering doesn't matter since we are
                 // about to spin around and do a fresh load.
-                if self.state
+                if self
+                    .state
                     .compare_exchange(state, new_state, Ordering::SeqCst, Ordering::Relaxed)
-                    .is_ok() {
+                    .is_ok()
+                {
                     log!(GotSleepy {
                         worker: worker_index,
                         old_state: state,
@@ -237,7 +249,11 @@ impl Sleep {
         self.worker_is_sleepy(state, worker_index)
     }
 
-    fn sleep(&self, worker_index: usize, deadlock_handler: &Option<Box<DeadlockHandler>>) {
+    fn sleep(
+        &self,
+        worker_index: usize,
+        registry: &Registry,
+    ) {
         loop {
             // Acquire here suffices. If we observe that the current worker is still
             // sleepy, then in fact we know that no writes have occurred, and anyhow
@@ -299,27 +315,38 @@ impl Sleep {
                 //
                 // The failure ordering doesn't matter since we are
                 // about to spin around and do a fresh load.
-                if self.state
+                if self
+                    .state
                     .compare_exchange(state, SLEEPING, Ordering::SeqCst, Ordering::Relaxed)
-                    .is_ok() {
+                    .is_ok()
+                {
                     // Don't do this in a loop. If we do it in a loop, we need
                     // some way to distinguish the ABA scenario where the pool
                     // was awoken but before we could process it somebody went
                     // to sleep. Note that if we get a false wakeup it's not a
                     // problem for us, we'll just loop around and maybe get
                     // sleepy again.
-                    log!(FellAsleep { worker: worker_index });
+                    log!(FellAsleep {
+                        worker: worker_index
+                    });
 
                     // Decrement the number of active threads and check for a deadlock
                     data.active_threads -= 1;
-                    data.deadlock_check(deadlock_handler);
+                    data.deadlock_check(&registry.deadlock_handler);
+
+                    registry.release_thread();
 
                     let _ = self.tickle.wait(data).unwrap();
-                    log!(GotAwoken { worker: worker_index });
+                    log!(GotAwoken {
+                        worker: worker_index
+                    });
+                    registry.acquire_thread();
                     return;
                 }
             } else {
-                log!(GotInterrupted { worker: worker_index });
+                log!(GotInterrupted {
+                    worker: worker_index
+                });
                 return;
             }
         }

@@ -187,7 +187,7 @@
 //! [`sync`]: sync/index.html
 //! [`thread`]: thread/index.html
 //! [`use std::env`]: env/index.html
-//! [`use`]: ../book/ch07-02-modules-and-use-to-control-scope-and-privacy.html#the-use-keyword-to-bring-paths-into-a-scope
+//! [`use`]: ../book/ch07-02-defining-modules-to-control-scope-and-privacy.html
 //! [crates.io]: https://crates.io
 //! [deref-coercions]: ../book/ch15-02-deref.html#implicit-deref-coercions-with-functions-and-methods
 //! [files]: fs/struct.File.html
@@ -209,15 +209,18 @@
 #![deny(intra_doc_link_resolution_failure)]
 #![deny(missing_debug_implementations)]
 
+#![deny(rust_2018_idioms)]
+#![allow(explicit_outlives_requirements)]
+
 // Tell the compiler to link to either panic_abort or panic_unwind
 #![needs_panic_runtime]
 
 // std may use features in a platform-specific way
 #![allow(unused_features)]
 
-#![cfg_attr(test, feature(test, update_panic_count))]
+#![cfg_attr(test, feature(print_internals, set_stdio, test, update_panic_count))]
 #![cfg_attr(all(target_vendor = "fortanix", target_env = "sgx"),
-            feature(global_asm, range_contains, slice_index_methods,
+            feature(global_asm, slice_index_methods,
                     decl_macro, coerce_unsized, sgx_platform, ptr_wrapping_offset_from))]
 
 // std is implemented with unstable features, many of which are internal
@@ -241,6 +244,7 @@
 #![feature(cfg_target_thread_local)]
 #![feature(char_error_internals)]
 #![feature(checked_duration_since)]
+#![feature(clamp)]
 #![feature(compiler_builtins_lib)]
 #![feature(concat_idents)]
 #![feature(const_cstr_unchecked)]
@@ -256,7 +260,6 @@
 #![feature(exact_size_is_empty)]
 #![feature(exhaustive_patterns)]
 #![feature(external_doc)]
-#![feature(fixed_size_array)]
 #![feature(fn_traits)]
 #![feature(fnbox)]
 #![feature(futures_api)]
@@ -296,6 +299,7 @@
 #![feature(stmt_expr_attributes)]
 #![feature(str_internals)]
 #![feature(thread_local)]
+#![feature(todo_macro)]
 #![feature(toowned_clone_into)]
 #![feature(try_reserve)]
 #![feature(unboxed_closures)]
@@ -313,28 +317,24 @@ use prelude::v1::*;
 
 // Access to Bencher, etc.
 #[cfg(test)] extern crate test;
-#[cfg(test)] extern crate rand;
 
 // Re-export a few macros from core
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne};
 #[stable(feature = "rust1", since = "1.0.0")]
-pub use core::{unreachable, unimplemented, write, writeln, try};
+pub use core::{unreachable, unimplemented, write, writeln, r#try, todo};
 
 #[allow(unused_imports)] // macros from `alloc` are not used on all platforms
 #[macro_use]
 extern crate alloc as alloc_crate;
 #[doc(masked)]
+#[allow(unused_extern_crates)]
 extern crate libc;
-extern crate rustc_demangle;
 
 // We always need an unwinder currently for backtraces
 #[doc(masked)]
 #[allow(unused_extern_crates)]
 extern crate unwind;
-
-#[cfg(feature = "backtrace")]
-extern crate backtrace_sys;
 
 // During testing, this crate is not actually the "real" std library, but rather
 // it links to the real std library, which was compiled from this same source
@@ -343,9 +343,6 @@ extern crate backtrace_sys;
 // _not_ the globals used by "real" std. So this import, defined only during
 // testing gives test-std access to real-std lang items and globals. See #2912
 #[cfg(test)] extern crate std as realstd;
-
-#[cfg(all(target_vendor = "fortanix", target_env = "sgx"))]
-extern crate fortanix_sgx_abi;
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]
@@ -438,6 +435,8 @@ pub use core::char;
 pub use core::u128;
 #[stable(feature = "core_hint", since = "1.27.0")]
 pub use core::hint;
+#[stable(feature = "core_array", since = "1.36.0")]
+pub use core::array;
 
 pub mod f32;
 pub mod f64;

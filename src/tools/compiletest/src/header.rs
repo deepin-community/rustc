@@ -333,8 +333,12 @@ pub struct TestProps {
     pub normalize_stdout: Vec<(String, String)>,
     pub normalize_stderr: Vec<(String, String)>,
     pub failure_status: i32,
+    // Whether or not `rustfix` should apply the `CodeSuggestion`s of this test and compile the
+    // resulting Rust code.
     pub run_rustfix: bool,
+    // If true, `rustfix` will only apply `MachineApplicable` suggestions.
     pub rustfix_only_machine_applicable: bool,
+    pub assembly_output: Option<String>,
 }
 
 impl TestProps {
@@ -370,6 +374,7 @@ impl TestProps {
             failure_status: -1,
             run_rustfix: false,
             rustfix_only_machine_applicable: false,
+            assembly_output: None,
         }
     }
 
@@ -517,6 +522,10 @@ impl TestProps {
                 self.rustfix_only_machine_applicable =
                     config.parse_rustfix_only_machine_applicable(ln);
             }
+
+            if self.assembly_output.is_none() {
+                self.assembly_output = config.parse_assembly_output(ln);
+            }
         });
 
         if self.failure_status == -1 {
@@ -594,6 +603,7 @@ impl Config {
 
     fn parse_aux_build(&self, line: &str) -> Option<String> {
         self.parse_name_value_directive(line, "aux-build")
+            .map(|r| r.trim().to_string())
     }
 
     fn parse_compile_flags(&self, line: &str) -> Option<String> {
@@ -674,6 +684,11 @@ impl Config {
 
     fn parse_skip_codegen(&self, line: &str) -> bool {
         self.parse_name_directive(line, "skip-codegen")
+    }
+
+    fn parse_assembly_output(&self, line: &str) -> Option<String> {
+        self.parse_name_value_directive(line, "assembly-output")
+            .map(|r| r.trim().to_string())
     }
 
     fn parse_env(&self, line: &str, name: &str) -> Option<(String, String)> {

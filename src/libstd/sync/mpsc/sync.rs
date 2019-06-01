@@ -31,11 +31,11 @@ use core::isize;
 use core::mem;
 use core::ptr;
 
-use sync::atomic::{Ordering, AtomicUsize};
-use sync::mpsc::blocking::{self, WaitToken, SignalToken};
-use sync::mpsc::select::StartResult::{self, Installed, Abort};
-use sync::{Mutex, MutexGuard};
-use time::Instant;
+use crate::sync::atomic::{Ordering, AtomicUsize};
+use crate::sync::mpsc::blocking::{self, WaitToken, SignalToken};
+use crate::sync::mpsc::select::StartResult::{self, Installed, Abort};
+use crate::sync::{Mutex, MutexGuard};
+use crate::time::Instant;
 
 const MAX_REFCOUNT: usize = (isize::MAX) as usize;
 
@@ -153,7 +153,7 @@ fn abort_selection<'a, T>(guard: &mut MutexGuard<'a , State<T>>) -> bool {
 }
 
 /// Wakes up a thread, dropping the lock at the correct time
-fn wakeup<T>(token: SignalToken, guard: MutexGuard<State<T>>) {
+fn wakeup<T>(token: SignalToken, guard: MutexGuard<'_, State<T>>) {
     // We need to be careful to wake up the waiting thread *outside* of the mutex
     // in case it incurs a context switch.
     drop(guard);
@@ -184,7 +184,7 @@ impl<T> Packet<T> {
 
     // wait until a send slot is available, returning locked access to
     // the channel state.
-    fn acquire_send_slot(&self) -> MutexGuard<State<T>> {
+    fn acquire_send_slot(&self) -> MutexGuard<'_, State<T>> {
         let mut node = Node { token: None, next: ptr::null_mut() };
         loop {
             let mut guard = self.lock.lock().unwrap();
@@ -316,7 +316,7 @@ impl<T> Packet<T> {
     // * `waited` - flag if the receiver blocked to receive some data, or if it
     //              just picked up some data on the way out
     // * `guard` - the lock guard that is held over this channel's lock
-    fn wakeup_senders(&self, waited: bool, mut guard: MutexGuard<State<T>>) {
+    fn wakeup_senders(&self, waited: bool, mut guard: MutexGuard<'_, State<T>>) {
         let pending_sender1: Option<SignalToken> = guard.queue.dequeue();
 
         // If this is a no-buffer channel (cap == 0), then if we didn't wait we

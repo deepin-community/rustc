@@ -1,17 +1,17 @@
-use os::windows::prelude::*;
+use crate::os::windows::prelude::*;
 
-use ffi::OsStr;
-use io;
-use mem;
-use path::Path;
-use ptr;
-use slice;
-use sync::atomic::Ordering::SeqCst;
-use sync::atomic::AtomicUsize;
-use sys::c;
-use sys::fs::{File, OpenOptions};
-use sys::handle::Handle;
-use sys::hashmap_random_keys;
+use crate::ffi::OsStr;
+use crate::io;
+use crate::mem;
+use crate::path::Path;
+use crate::ptr;
+use crate::slice;
+use crate::sync::atomic::Ordering::SeqCst;
+use crate::sync::atomic::AtomicUsize;
+use crate::sys::c;
+use crate::sys::fs::{File, OpenOptions};
+use crate::sys::handle::Handle;
+use crate::sys::hashmap_random_keys;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Anonymous pipes
@@ -37,9 +37,9 @@ pub struct Pipes {
 ///
 /// The ours/theirs pipes are *not* specifically readable or writable. Each
 /// one only supports a read or a write, but which is which depends on the
-/// boolean flag given. If `ours_readable` is true then `ours` is readable where
-/// `theirs` is writable. Conversely if `ours_readable` is false then `ours` is
-/// writable where `theirs` is readable.
+/// boolean flag given. If `ours_readable` is `true`, then `ours` is readable and
+/// `theirs` is writable. Conversely, if `ours_readable` is `false`, then `ours`
+/// is writable and `theirs` is readable.
 ///
 /// Also note that the `ours` pipe is always a handle opened up in overlapped
 /// mode. This means that technically speaking it should only ever be used

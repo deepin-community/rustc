@@ -2,11 +2,18 @@
 
 > **<sup>Syntax:<sup>**\
 > _ExternCrate_ :\
-> &nbsp;&nbsp; `extern` `crate` [IDENTIFIER]&nbsp;(`as` ( [IDENTIFIER] | `_` ) )<sup>?</sup> `;`
+> &nbsp;&nbsp; `extern` `crate` _CrateRef_ _AsClause_<sup>?</sup> `;`
+>
+> _CrateRef_ :\
+> &nbsp;&nbsp; [IDENTIFIER] | `self`
+>
+> _AsClause_ :\
+> &nbsp;&nbsp; `as` ( [IDENTIFIER] | `_` )
 
 An _`extern crate` declaration_ specifies a dependency on an external crate.
 The external crate is then bound into the declaring scope as the [identifier]
-provided in the `extern crate` declaration.
+provided in the `extern crate` declaration. The `as` clause can be used to
+bind the imported crate to a different name.
 
 The external crate is resolved to a specific `soname` at compile time, and a
 runtime linkage requirement to that `soname` is passed to the linker for
@@ -15,6 +22,9 @@ compiler's library path and matching the optional `crateid` provided against
 the `crateid` attributes that were declared on the external crate when it was
 compiled. If no `crateid` is provided, a default `name` attribute is assumed,
 equal to the [identifier] given in the `extern crate` declaration.
+
+The `self` crate may be imported which creates a binding to the current crate.
+In this case the `as` clause must be used to specify the name to bind it to.
 
 Three examples of `extern crate` declarations:
 
@@ -83,12 +93,18 @@ by using an underscore with the form `extern crate foo as _`. This may be
 useful for crates that only need to be linked, but are never referenced, and
 will avoid being reported as unused.
 
-The [`#[macro_use]` attribute] will work as usual and import the macro names
+The [`macro_use` attribute] works as usual and import the macro names
 into the macro-use prelude.
+
+## The `no_link` attribute
+
+The *`no_link` attribute* may be specified on an `extern crate` item to
+prevent linking the crate into the output. This is commonly used to load a
+crate to access only its macros.
 
 [IDENTIFIER]: identifiers.html
 [RFC 940]: https://github.com/rust-lang/rfcs/blob/master/text/0940-hyphens-considered-harmful.md
-[`#[macro_use]` attribute]: attributes.html#macro-related-attributes
+[`macro_use` attribute]: macros-by-example.html#the-macro_use-attribute
 [`alloc`]: https://doc.rust-lang.org/alloc/
 [`crate::`]: paths.html#crate
 [`no_implicit_prelude`]: items/modules.html#prelude-items

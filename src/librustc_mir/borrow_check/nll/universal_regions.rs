@@ -17,13 +17,12 @@ use rustc::hir::def_id::DefId;
 use rustc::hir::{self, BodyOwnerKind, HirId};
 use rustc::infer::{InferCtxt, NLLRegionVariableOrigin};
 use rustc::ty::fold::TypeFoldable;
-use rustc::ty::subst::Substs;
+use rustc::ty::subst::{InternalSubsts, SubstsRef};
 use rustc::ty::{self, ClosureSubsts, GeneratorSubsts, RegionVid, Ty, TyCtxt};
 use rustc::util::nodemap::FxHashMap;
 use rustc_data_structures::indexed_vec::{Idx, IndexVec};
 use rustc_errors::DiagnosticBuilder;
 use std::iter;
-use syntax::ast;
 
 use super::ToRegionVid;
 
@@ -94,12 +93,12 @@ pub enum DefiningTy<'tcx> {
 
     /// The MIR is a fn item with the given `DefId` and substs. The signature
     /// of the function can be bound then with the `fn_sig` query.
-    FnDef(DefId, &'tcx Substs<'tcx>),
+    FnDef(DefId, SubstsRef<'tcx>),
 
     /// The MIR represents some form of constant. The signature then
     /// is that it has no inputs and a single return value, which is
     /// the value of the constant.
-    Const(DefId, &'tcx Substs<'tcx>),
+    Const(DefId, SubstsRef<'tcx>),
 }
 
 impl<'tcx> DefiningTy<'tcx> {
@@ -138,7 +137,7 @@ struct UniversalRegionIndices<'tcx> {
     /// used because trait matching and type-checking will feed us
     /// region constraints that reference those regions and we need to
     /// be able to map them our internal `RegionVid`. This is
-    /// basically equivalent to a `Substs`, except that it also
+    /// basically equivalent to a `InternalSubsts`, except that it also
     /// contains an entry for `ReStatic` -- it might be nice to just
     /// use a substs, and then handle `ReStatic` another way.
     indices: FxHashMap<ty::Region<'tcx>, RegionVid>,
@@ -200,12 +199,10 @@ impl<'tcx> UniversalRegions<'tcx> {
         param_env: ty::ParamEnv<'tcx>,
     ) -> Self {
         let tcx = infcx.tcx;
-        let mir_node_id = tcx.hir().as_local_node_id(mir_def_id).unwrap();
-        let mir_hir_id = tcx.hir().node_to_hir_id(mir_node_id);
+        let mir_hir_id = tcx.hir().as_local_hir_id(mir_def_id).unwrap();
         UniversalRegionsBuilder {
             infcx,
             mir_def_id,
-            mir_node_id,
             mir_hir_id,
             param_env,
         }.build()
@@ -222,7 +219,7 @@ impl<'tcx> UniversalRegions<'tcx> {
     /// `V[1]: V[2]`.
     pub fn closure_mapping(
         tcx: TyCtxt<'_, '_, 'tcx>,
-        closure_substs: &'tcx Substs<'tcx>,
+        closure_substs: SubstsRef<'tcx>,
         expected_num_vars: usize,
         closure_base_def_id: DefId,
     ) -> IndexVec<RegionVid, ty::Region<'tcx>> {
@@ -370,7 +367,6 @@ struct UniversalRegionsBuilder<'cx, 'gcx: 'tcx, 'tcx: 'cx> {
     infcx: &'cx InferCtxt<'cx, 'gcx, 'tcx>,
     mir_def_id: DefId,
     mir_hir_id: HirId,
-    mir_node_id: ast::NodeId,
     param_env: ty::ParamEnv<'tcx>,
 }
 
@@ -475,7 +471,7 @@ impl<'cx, 'gcx, 'tcx> UniversalRegionsBuilder<'cx, 'gcx, 'tcx> {
         let tcx = self.infcx.tcx;
         let closure_base_def_id = tcx.closure_base_def_id(self.mir_def_id);
 
-        match tcx.hir().body_owner_kind(self.mir_node_id) {
+        match tcx.hir().body_owner_kind_by_hir_id(self.mir_hir_id) {
             BodyOwnerKind::Closure |
             BodyOwnerKind::Fn => {
                 let defining_ty = if self.mir_def_id == closure_base_def_id {
@@ -507,7 +503,7 @@ impl<'cx, 'gcx, 'tcx> UniversalRegionsBuilder<'cx, 'gcx, 'tcx> {
 
             BodyOwnerKind::Const | BodyOwnerKind::Static(..) => {
                 assert_eq!(closure_base_def_id, self.mir_def_id);
-                let identity_substs = Substs::identity_for_item(tcx, closure_base_def_id);
+                let identity_substs = InternalSubsts::identity_for_item(tcx, closure_base_def_id);
                 let substs = self.infcx
                     .replace_free_regions_with_nll_infer_vars(FR, &identity_substs);
                 DefiningTy::Const(self.mir_def_id, substs)
@@ -527,7 +523,7 @@ impl<'cx, 'gcx, 'tcx> UniversalRegionsBuilder<'cx, 'gcx, 'tcx> {
         let tcx = self.infcx.tcx;
         let gcx = tcx.global_tcx();
         let closure_base_def_id = tcx.closure_base_def_id(self.mir_def_id);
-        let identity_substs = Substs::identity_for_item(gcx, closure_base_def_id);
+        let identity_substs = InternalSubsts::identity_for_item(gcx, closure_base_def_id);
         let fr_substs = match defining_ty {
             DefiningTy::Closure(_, ClosureSubsts { ref substs })
             | DefiningTy::Generator(_, GeneratorSubsts { ref substs }, _) => {
