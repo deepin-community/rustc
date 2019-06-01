@@ -26,7 +26,7 @@ Forwarded: not-needed
    "src/tools/rustdoc-themes",
  ]
  exclude = [
-@@ -46,19 +39,7 @@
+@@ -46,27 +39,8 @@
  debug = false
  debug-assertions = false
  
@@ -43,10 +43,11 @@ Forwarded: not-needed
 -# that we're shipping as well (to ensure that the rustfmt in RLS and the
 -# `rustfmt` executable are the same exact version).
 -rustfmt-nightly = { path = "src/tools/rustfmt" }
+-
+-# See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
+-# here
+-rustc-workspace-hack = { path = 'src/tools/rustc-workspace-hack' }
  
- # See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
- # here
-@@ -67,6 +48,3 @@
  # See comments in `tools/rustc-std-workspace-core/README.md` for what's going on
  # here
  rustc-std-workspace-core = { path = 'src/tools/rustc-std-workspace-core' }
@@ -55,7 +56,7 @@ Forwarded: not-needed
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -638,10 +638,6 @@
+@@ -642,10 +642,6 @@
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -68,7 +69,7 @@ Forwarded: not-needed
      def build_triple(self):
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -1149,10 +1149,7 @@
+@@ -1179,10 +1179,7 @@
              }
          }
  
