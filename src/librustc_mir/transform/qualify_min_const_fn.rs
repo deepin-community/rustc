@@ -152,8 +152,11 @@ fn check_rvalue(
                 _ => check_operand(tcx, mir, operand, span),
             }
         }
+        Rvalue::Cast(CastKind::MutToConstPointer, operand, _) => {
+            check_operand(tcx, mir, operand, span)
+        }
         Rvalue::Cast(CastKind::UnsafeFnPointer, _, _) |
-        Rvalue::Cast(CastKind::ClosureFnPointer, _, _) |
+        Rvalue::Cast(CastKind::ClosureFnPointer(_), _, _) |
         Rvalue::Cast(CastKind::ReifyFnPointer, _, _) => Err((
             span,
             "function pointer casts are not allowed in const fn".into(),
@@ -252,10 +255,11 @@ fn check_place(
     span: Span,
 ) -> McfResult {
     match place {
-        Place::Local(_) => Ok(()),
+        Place::Base(PlaceBase::Local(_)) => Ok(()),
         // promoteds are always fine, they are essentially constants
-        Place::Promoted(_) => Ok(()),
-        Place::Static(_) => Err((span, "cannot access `static` items in const fn".into())),
+        Place::Base(PlaceBase::Static(box Static { kind: StaticKind::Promoted(_), .. })) => Ok(()),
+        Place::Base(PlaceBase::Static(box Static { kind: StaticKind::Static(_), .. })) =>
+            Err((span, "cannot access `static` items in const fn".into())),
         Place::Projection(proj) => {
             match proj.elem {
                 | ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. }

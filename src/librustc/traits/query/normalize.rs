@@ -5,11 +5,11 @@
 use crate::infer::at::At;
 use crate::infer::canonical::OriginalQueryValues;
 use crate::infer::{InferCtxt, InferOk};
-use crate::mir::interpret::GlobalId;
+use crate::mir::interpret::{GlobalId, ConstValue};
 use crate::traits::project::Normalized;
 use crate::traits::{Obligation, ObligationCause, PredicateObligation, Reveal};
 use crate::ty::fold::{TypeFoldable, TypeFolder};
-use crate::ty::subst::{Subst, Substs};
+use crate::ty::subst::{Subst, InternalSubsts};
 use crate::ty::{self, Ty, TyCtxt};
 
 use super::NoSolution;
@@ -188,12 +188,12 @@ impl<'cx, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for QueryNormalizer<'cx, 'gcx, 'tcx
         }
     }
 
-    fn fold_const(&mut self, constant: &'tcx ty::LazyConst<'tcx>) -> &'tcx ty::LazyConst<'tcx> {
-        if let ty::LazyConst::Unevaluated(def_id, substs) = *constant {
+    fn fold_const(&mut self, constant: &'tcx ty::Const<'tcx>) -> &'tcx ty::Const<'tcx> {
+        if let ConstValue::Unevaluated(def_id, substs) = constant.val {
             let tcx = self.infcx.tcx.global_tcx();
             if let Some(param_env) = self.tcx().lift_to_global(&self.param_env) {
                 if substs.needs_infer() || substs.has_placeholders() {
-                    let identity_substs = Substs::identity_for_item(tcx, def_id);
+                    let identity_substs = InternalSubsts::identity_for_item(tcx, def_id);
                     let instance = ty::Instance::resolve(tcx, param_env, def_id, identity_substs);
                     if let Some(instance) = instance {
                         let cid = GlobalId {
@@ -202,8 +202,9 @@ impl<'cx, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for QueryNormalizer<'cx, 'gcx, 'tcx
                         };
                         if let Ok(evaluated) = tcx.const_eval(param_env.and(cid)) {
                             let substs = tcx.lift_to_global(&substs).unwrap();
+                            let evaluated = tcx.mk_const(evaluated);
                             let evaluated = evaluated.subst(tcx, substs);
-                            return tcx.mk_lazy_const(ty::LazyConst::Evaluated(evaluated));
+                            return evaluated;
                         }
                     }
                 } else {
@@ -215,7 +216,7 @@ impl<'cx, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for QueryNormalizer<'cx, 'gcx, 'tcx
                                 promoted: None,
                             };
                             if let Ok(evaluated) = tcx.const_eval(param_env.and(cid)) {
-                                return tcx.mk_lazy_const(ty::LazyConst::Evaluated(evaluated));
+                                return tcx.mk_const(evaluated);
                             }
                         }
                     }

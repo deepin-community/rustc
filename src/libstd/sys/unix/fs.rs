@@ -1,17 +1,18 @@
-use os::unix::prelude::*;
+use crate::os::unix::prelude::*;
 
-use ffi::{CString, CStr, OsString, OsStr};
-use fmt;
-use io::{self, Error, ErrorKind, SeekFrom};
-use libc::{self, c_int, mode_t};
-use mem;
-use path::{Path, PathBuf};
-use ptr;
-use sync::Arc;
-use sys::fd::FileDesc;
-use sys::time::SystemTime;
-use sys::{cvt, cvt_r};
-use sys_common::{AsInner, FromInner};
+use crate::ffi::{CString, CStr, OsString, OsStr};
+use crate::fmt;
+use crate::io::{self, Error, ErrorKind, SeekFrom};
+use crate::mem;
+use crate::path::{Path, PathBuf};
+use crate::ptr;
+use crate::sync::Arc;
+use crate::sys::fd::FileDesc;
+use crate::sys::time::SystemTime;
+use crate::sys::{cvt, cvt_r};
+use crate::sys_common::{AsInner, FromInner};
+
+use libc::{c_int, mode_t};
 
 #[cfg(any(target_os = "linux", target_os = "emscripten", target_os = "l4re"))]
 use libc::{stat64, fstat64, lstat64, off64_t, ftruncate64, lseek64, dirent64, readdir64_r, open64};
@@ -34,6 +35,8 @@ use libc::{stat as stat64, fstat as fstat64, lstat as lstat64, off_t as off64_t,
               target_os = "l4re",
               target_os = "fuchsia")))]
 use libc::{readdir_r as readdir64_r};
+
+pub use crate::sys_common::fs::remove_dir_all;
 
 pub struct File(FileDesc);
 
@@ -205,7 +208,7 @@ impl FromInner<u32> for FilePermissions {
 }
 
 impl fmt::Debug for ReadDir {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // This will only be called from std::fs::ReadDir, which will add a "ReadDir()" frame.
         // Thus the result will be e g 'ReadDir("/home")'
         fmt::Debug::fmt(&*self.inner.root, f)
@@ -217,6 +220,8 @@ impl Iterator for ReadDir {
 
     #[cfg(any(target_os = "solaris", target_os = "fuchsia"))]
     fn next(&mut self) -> Option<io::Result<DirEntry>> {
+        use crate::slice;
+
         unsafe {
             loop {
                 // Although readdir_r(3) would be a correct function to use here because
@@ -239,8 +244,8 @@ impl Iterator for ReadDir {
 
                 let ret = DirEntry {
                     entry: *entry_ptr,
-                    name: ::slice::from_raw_parts(name as *const u8,
-                                                  namelen as usize).to_owned().into_boxed_slice(),
+                    name: slice::from_raw_parts(name as *const u8,
+                                                namelen as usize).to_owned().into_boxed_slice(),
                     dir: self.clone()
                 };
                 if ret.name_bytes() != b"." && ret.name_bytes() != b".." {
@@ -365,9 +370,10 @@ impl DirEntry {
               target_os = "dragonfly",
               target_os = "bitrig"))]
     fn name_bytes(&self) -> &[u8] {
+        use crate::slice;
         unsafe {
-            ::slice::from_raw_parts(self.entry.d_name.as_ptr() as *const u8,
-                                    self.entry.d_namlen as usize)
+            slice::from_raw_parts(self.entry.d_name.as_ptr() as *const u8,
+                                  self.entry.d_namlen as usize)
         }
     }
     #[cfg(any(target_os = "android",
@@ -475,7 +481,7 @@ impl File {
         // that we support, so we only do this on Linux currently.
         #[cfg(target_os = "linux")]
         fn ensure_cloexec(fd: &FileDesc) -> io::Result<()> {
-            use sync::atomic::{AtomicUsize, Ordering};
+            use crate::sync::atomic::{AtomicUsize, Ordering};
 
             const OPEN_CLOEXEC_UNKNOWN: usize = 0;
             const OPEN_CLOEXEC_SUPPORTED: usize = 1;
@@ -542,7 +548,7 @@ impl File {
 
     pub fn truncate(&self, size: u64) -> io::Result<()> {
         #[cfg(target_os = "android")]
-        return ::sys::android::ftruncate64(self.0.raw(), size);
+        return crate::sys::android::ftruncate64(self.0.raw(), size);
 
         #[cfg(not(target_os = "android"))]
         return cvt_r(|| unsafe {
@@ -623,7 +629,7 @@ impl FromInner<c_int> for File {
 }
 
 impl fmt::Debug for File {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(target_os = "linux")]
         fn get_path(fd: c_int) -> Option<PathBuf> {
             let mut p = PathBuf::from("/proc/self/fd");
@@ -730,27 +736,6 @@ pub fn rmdir(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn remove_dir_all(path: &Path) -> io::Result<()> {
-    let filetype = lstat(path)?.file_type();
-    if filetype.is_symlink() {
-        unlink(path)
-    } else {
-        remove_dir_all_recursive(path)
-    }
-}
-
-fn remove_dir_all_recursive(path: &Path) -> io::Result<()> {
-    for child in readdir(path)? {
-        let child = child?;
-        if child.file_type()?.is_dir() {
-            remove_dir_all_recursive(&child.path())?;
-        } else {
-            unlink(&child.path())?;
-        }
-    }
-    rmdir(path)
-}
-
 pub fn readlink(p: &Path) -> io::Result<PathBuf> {
     let c_path = cstr(p)?;
     let p = c_path.as_ptr();
@@ -823,28 +808,55 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     Ok(PathBuf::from(OsString::from_vec(buf)))
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
-pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
-    use fs::File;
-    if !from.is_file() {
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "the source path is not an existing regular file"))
+fn open_and_set_permissions(
+    from: &Path,
+    to: &Path,
+) -> io::Result<(crate::fs::File, crate::fs::File, u64, crate::fs::Metadata)> {
+    use crate::fs::{File, OpenOptions};
+    use crate::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+    let reader = File::open(from)?;
+    let (perm, len) = {
+        let metadata = reader.metadata()?;
+        if !metadata.is_file() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "the source path is not an existing regular file",
+            ));
+        }
+        (metadata.permissions(), metadata.len())
+    };
+    let writer = OpenOptions::new()
+        // create the file with the correct mode right away
+        .mode(perm.mode())
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(to)?;
+    let writer_metadata = writer.metadata()?;
+    if writer_metadata.is_file() {
+        // Set the correct file permissions, in case the file already existed.
+        // Don't set the permissions on already existing non-files like
+        // pipes/FIFOs or device nodes.
+        writer.set_permissions(perm)?;
     }
+    Ok((reader, writer, len, writer_metadata))
+}
 
-    let mut reader = File::open(from)?;
-    let mut writer = File::create(to)?;
-    let perm = reader.metadata()?.permissions();
+#[cfg(not(any(target_os = "linux",
+              target_os = "android",
+              target_os = "macos",
+              target_os = "ios")))]
+pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
+    let (mut reader, mut writer, _, _) = open_and_set_permissions(from, to)?;
 
-    let ret = io::copy(&mut reader, &mut writer)?;
-    writer.set_permissions(perm)?;
-    Ok(ret)
+    io::copy(&mut reader, &mut writer)
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
-    use cmp;
-    use fs::File;
-    use sync::atomic::{AtomicBool, Ordering};
+    use crate::cmp;
+    use crate::sync::atomic::{AtomicBool, Ordering};
 
     // Kernel prior to 4.5 don't have copy_file_range
     // We store the availability in a global to avoid unnecessary syscalls
@@ -869,17 +881,7 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
         )
     }
 
-    if !from.is_file() {
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "the source path is not an existing regular file"))
-    }
-
-    let mut reader = File::open(from)?;
-    let mut writer = File::create(to)?;
-    let (perm, len) = {
-        let metadata = reader.metadata()?;
-        (metadata.permissions(), metadata.size())
-    };
+    let (mut reader, mut writer, len, _) = open_and_set_permissions(from, to)?;
 
     let has_copy_file_range = HAS_COPY_FILE_RANGE.load(Ordering::Relaxed);
     let mut written = 0u64;
@@ -889,13 +891,14 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
             let copy_result = unsafe {
                 // We actually don't have to adjust the offsets,
                 // because copy_file_range adjusts the file offset automatically
-                cvt(copy_file_range(reader.as_raw_fd(),
-                                    ptr::null_mut(),
-                                    writer.as_raw_fd(),
-                                    ptr::null_mut(),
-                                    bytes_to_copy,
-                                    0)
-                    )
+                cvt(copy_file_range(
+                    reader.as_raw_fd(),
+                    ptr::null_mut(),
+                    writer.as_raw_fd(),
+                    ptr::null_mut(),
+                    bytes_to_copy,
+                    0,
+                ))
             };
             if let Err(ref copy_err) = copy_result {
                 match copy_err.raw_os_error() {
@@ -913,23 +916,109 @@ pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
             Ok(ret) => written += ret as u64,
             Err(err) => {
                 match err.raw_os_error() {
-                    Some(os_err) if os_err == libc::ENOSYS
-                                 || os_err == libc::EXDEV
-                                 || os_err == libc::EPERM => {
-                        // Try fallback io::copy if either:
-                        // - Kernel version is < 4.5 (ENOSYS)
-                        // - Files are mounted on different fs (EXDEV)
-                        // - copy_file_range is disallowed, for example by seccomp (EPERM)
-                        assert_eq!(written, 0);
-                        let ret = io::copy(&mut reader, &mut writer)?;
-                        writer.set_permissions(perm)?;
-                        return Ok(ret)
-                    },
+                    Some(os_err)
+                    if os_err == libc::ENOSYS
+                        || os_err == libc::EXDEV
+                        || os_err == libc::EINVAL
+                        || os_err == libc::EPERM =>
+                        {
+                            // Try fallback io::copy if either:
+                            // - Kernel version is < 4.5 (ENOSYS)
+                            // - Files are mounted on different fs (EXDEV)
+                            // - copy_file_range is disallowed, for example by seccomp (EPERM)
+                            // - copy_file_range cannot be used with pipes or device nodes (EINVAL)
+                            assert_eq!(written, 0);
+                            return io::copy(&mut reader, &mut writer);
+                        }
                     _ => return Err(err),
                 }
             }
         }
     }
-    writer.set_permissions(perm)?;
     Ok(written)
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
+    const COPYFILE_ACL: u32 = 1 << 0;
+    const COPYFILE_STAT: u32 = 1 << 1;
+    const COPYFILE_XATTR: u32 = 1 << 2;
+    const COPYFILE_DATA: u32 = 1 << 3;
+
+    const COPYFILE_SECURITY: u32 = COPYFILE_STAT | COPYFILE_ACL;
+    const COPYFILE_METADATA: u32 = COPYFILE_SECURITY | COPYFILE_XATTR;
+    const COPYFILE_ALL: u32 = COPYFILE_METADATA | COPYFILE_DATA;
+
+    const COPYFILE_STATE_COPIED: u32 = 8;
+
+    #[allow(non_camel_case_types)]
+    type copyfile_state_t = *mut libc::c_void;
+    #[allow(non_camel_case_types)]
+    type copyfile_flags_t = u32;
+
+    extern "C" {
+        fn fcopyfile(
+            from: libc::c_int,
+            to: libc::c_int,
+            state: copyfile_state_t,
+            flags: copyfile_flags_t,
+        ) -> libc::c_int;
+        fn copyfile_state_alloc() -> copyfile_state_t;
+        fn copyfile_state_free(state: copyfile_state_t) -> libc::c_int;
+        fn copyfile_state_get(
+            state: copyfile_state_t,
+            flag: u32,
+            dst: *mut libc::c_void,
+        ) -> libc::c_int;
+    }
+
+    struct FreeOnDrop(copyfile_state_t);
+    impl Drop for FreeOnDrop {
+        fn drop(&mut self) {
+            // The code below ensures that `FreeOnDrop` is never a null pointer
+            unsafe {
+                // `copyfile_state_free` returns -1 if the `to` or `from` files
+                // cannot be closed. However, this is not considerd this an
+                // error.
+                copyfile_state_free(self.0);
+            }
+        }
+    }
+
+    let (reader, writer, _, writer_metadata) = open_and_set_permissions(from, to)?;
+
+    // We ensure that `FreeOnDrop` never contains a null pointer so it is
+    // always safe to call `copyfile_state_free`
+    let state = unsafe {
+        let state = copyfile_state_alloc();
+        if state.is_null() {
+            return Err(crate::io::Error::last_os_error());
+        }
+        FreeOnDrop(state)
+    };
+
+    let flags = if writer_metadata.is_file() {
+        COPYFILE_ALL
+    } else {
+        COPYFILE_DATA
+    };
+
+    cvt(unsafe {
+        fcopyfile(
+            reader.as_raw_fd(),
+            writer.as_raw_fd(),
+            state.0,
+            flags,
+        )
+    })?;
+
+    let mut bytes_copied: libc::off_t = 0;
+    cvt(unsafe {
+        copyfile_state_get(
+            state.0,
+            COPYFILE_STATE_COPIED,
+            &mut bytes_copied as *mut libc::off_t as *mut libc::c_void,
+        )
+    })?;
+    Ok(bytes_copied as u64)
 }

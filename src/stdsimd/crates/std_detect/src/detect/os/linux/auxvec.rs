@@ -2,7 +2,7 @@
 #![cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
 
 #[cfg(feature = "std_detect_file_io")]
-use ::{fs::File, io::Read};
+use crate::{fs::File, io::Read};
 
 /// Key to access the CPU Hardware capabilities bitfield.
 pub(crate) const AT_HWCAP: usize = 16;
@@ -134,7 +134,7 @@ fn getauxval(key: usize) -> Result<usize, ()> {
 fn auxv_from_file(file: &str) -> Result<AuxVec, ()> {
     let mut file = File::open(file).map_err(|_| ())?;
 
-    // See https://github.com/torvalds/linux/blob/v3.19/include/uapi/linux/auxvec.h
+    // See <https://github.com/torvalds/linux/blob/v3.19/include/uapi/linux/auxvec.h>.
     //
     // The auxiliary vector contains at most 32 (key,value) fields: from
     // `AT_EXECFN = 31` to `AT_NULL = 0`. That is, a buffer of

@@ -5,10 +5,10 @@
 //!
 //! [intel64_ref]: http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
 
-use core_arch::x86::__m128i;
+use crate::core_arch::x86::__m128i;
 
 #[cfg(test)]
-use stdsimd_test::assert_instr;
+use crate::stdsimd_test::assert_instr;
 
 #[allow(improper_ctypes)]
 extern "C" {
@@ -16,7 +16,7 @@ extern "C" {
     fn pclmulqdq(a: __m128i, round_key: __m128i, imm8: u8) -> __m128i;
 }
 
-/// Perform a carry-less multiplication of two 64-bit polynomials over the
+/// Performs a carry-less multiplication of two 64-bit polynomials over the
 /// finite field GF(2^k).
 ///
 /// The immediate byte is used for determining which halves of `a` and `b`
@@ -50,7 +50,7 @@ mod tests {
 
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "pclmulqdq")]
     unsafe fn test_mm_clmulepi64_si128() {

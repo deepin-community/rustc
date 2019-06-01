@@ -24,9 +24,8 @@ being a `hair::ExprKind::Neg(hair::Expr)` it is a `hair::ExprKind::Neg(hir::Expr
 This shallowness enables the `HAIR` to represent all datatypes that [HIR] has, but
 without having to create an in-memory copy of the entire [HIR].
 [MIR] lowering will first convert the topmost expression from
-[HIR] to [HAIR] (in
-[https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/hair/cx/expr/index.html])
-and then process the [HAIR] expressions recursively.
+[HIR] to [HAIR] (in [rustc_mir::hair::cx::expr]) and then process
+the [HAIR] expressions recursively.
 
 The lowering creates local variables for every argument as specified in the signature.
 Next it creates local variables for every binding specified (e.g. `(a, b): (i32, String)`)
@@ -93,6 +92,13 @@ There are essentially four kinds of representations one might want of an express
 * `Operand` is an argument to e.g. a `+` operation or a function call
 * a temporary variable containing a copy of the value
 
+These following image depicts a general overview of the interactions between the
+representations:
+
+<img src="mir_overview.svg">
+
+[Click here for a more detailed view](mir_detailed.svg)
+
 We start out with lowering the function body to an `Rvalue` so we can create an
 assignment to `RETURN_PLACE`, This `Rvalue` lowering will in turn trigger lowering to
 `Operand` for its arguments (if any). `Operand` lowering either produces a `const`
@@ -147,4 +153,6 @@ case of `enum`s.
 [MIR]: ./index.html
 [HIR]: ../hir.html
 [HAIR]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/hair/index.html
+
+[rustc_mir::hair::cx::expr]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/hair/cx/expr/index.html
 [`mir_built`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/transform/fn.mir_built.html

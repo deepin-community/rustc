@@ -1,6 +1,6 @@
 //! `x86_64` Streaming SIMD Extensions (SSE)
 
-use core_arch::x86::*;
+use crate::core_arch::x86::*;
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
@@ -15,7 +15,7 @@ extern "C" {
     fn cvtsi642ss(a: __m128, b: i64) -> __m128;
 }
 
-/// Convert the lowest 32 bit float in the input vector to a 64 bit integer.
+/// Converts the lowest 32 bit float in the input vector to a 64 bit integer.
 ///
 /// The result is rounded according to the current rounding mode. If the result
 /// cannot be represented as a 64 bit integer the result will be
@@ -34,7 +34,7 @@ pub unsafe fn _mm_cvtss_si64(a: __m128) -> i64 {
     cvtss2si64(a)
 }
 
-/// Convert the lowest 32 bit float in the input vector to a 64 bit integer
+/// Converts the lowest 32 bit float in the input vector to a 64 bit integer
 /// with truncation.
 ///
 /// The result is rounded always using truncation (round towards zero). If the
@@ -53,7 +53,7 @@ pub unsafe fn _mm_cvttss_si64(a: __m128) -> i64 {
     cvttss2si64(a)
 }
 
-/// Convert a 64 bit integer to a 32 bit float. The result vector is the input
+/// Converts a 64 bit integer to a 32 bit float. The result vector is the input
 /// vector `a` with the lowest 32 bit float replaced by the converted integer.
 ///
 /// This intrinsic corresponds to the `CVTSI2SS` instruction (with 64 bit
@@ -70,12 +70,9 @@ pub unsafe fn _mm_cvtsi64_ss(a: __m128, b: i64) -> __m128 {
 
 #[cfg(test)]
 mod tests {
-    use std::f32::NAN;
-    use std::i64::MIN;
-
+    use crate::core_arch::arch::x86_64::*;
+    use std::{f32::NAN, i64::MIN};
     use stdsimd_test::simd_test;
-
-    use core_arch::arch::x86_64::*;
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_cvtss_si64() {

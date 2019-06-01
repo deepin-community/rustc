@@ -11,7 +11,6 @@ via [`From`][from].
 ```rust,editable
 use std::error;
 use std::fmt;
-use std::num::ParseIntError;
 
 // Change the alias to `Box<error::Error>`.
 type Result<T> = std::result::Result<T, Box<error::Error>>;
@@ -38,15 +37,17 @@ impl error::Error for EmptyVec {
 
 fn double_first(vec: Vec<&str>) -> Result<i32> {
     vec.first()
-       .ok_or_else(|| EmptyVec.into())  // Converts to Box
-       .and_then(|s| s.parse::<i32>()
-            .map_err(|e| e.into())  // Converts to Box
-            .map(|i| 2 * i))
+        .ok_or_else(|| EmptyVec.into()) // Converts to Box
+        .and_then(|s| {
+            s.parse::<i32>()
+                .map_err(|e| e.into()) // Converts to Box
+                .map(|i| 2 * i)
+        })
 }
 
 fn print(result: Result<i32>) {
     match result {
-        Ok(n)  => println!("The first doubled is {}", n),
+        Ok(n) => println!("The first doubled is {}", n),
         Err(e) => println!("Error: {}", e),
     }
 }
@@ -67,6 +68,6 @@ fn main() {
 [Dynamic dispatch][dynamic_dispatch] and [`Error` trait][error]
 
 [box]: https://doc.rust-lang.org/std/boxed/struct.Box.html
-[dynamic_dispatch]: https://doc.rust-lang.org/book/second-edition/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch
+[dynamic_dispatch]: https://doc.rust-lang.org/book/ch17-02-trait-objects.html#trait-objects-perform-dynamic-dispatch
 [error]: https://doc.rust-lang.org/std/error/trait.Error.html
 [from]: https://doc.rust-lang.org/std/convert/trait.From.html

@@ -50,7 +50,7 @@ pub unsafe fn _andn_u32(a: u32, b: u32) -> u32 {
     !a & b
 }
 
-/// Extract lowest set isolated bit.
+/// Extracts lowest set isolated bit.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_blsi_u32)
 #[inline]
@@ -61,7 +61,7 @@ pub unsafe fn _blsi_u32(x: u32) -> u32 {
     x & x.wrapping_neg()
 }
 
-/// Get mask up to lowest set bit.
+/// Gets mask up to lowest set bit.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_blsmsk_u32)
 #[inline]
@@ -87,7 +87,7 @@ pub unsafe fn _blsr_u32(x: u32) -> u32 {
 
 /// Counts the number of trailing least significant zero bits.
 ///
-/// When the source operand is 0, it returns its size in bits.
+/// When the source operand is `0`, it returns its size in bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_tzcnt_u32)
 #[inline]
@@ -100,7 +100,7 @@ pub unsafe fn _tzcnt_u32(x: u32) -> u32 {
 
 /// Counts the number of trailing least significant zero bits.
 ///
-/// When the source operand is 0, it returns its size in bits.
+/// When the source operand is `0`, it returns its size in bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_tzcnt_32)
 #[inline]
@@ -120,7 +120,7 @@ extern "C" {
 mod tests {
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "bmi1")]
     unsafe fn test_bextr_u32() {
@@ -164,7 +164,7 @@ mod tests {
 
     #[simd_test(enable = "bmi1")]
     unsafe fn test_blsr_u32() {
-        // TODO: test the behavior when the input is 0
+        // TODO: test the behavior when the input is `0`.
         let r = _blsr_u32(0b0011_0000u32);
         assert_eq!(r, 0b0010_0000u32);
     }

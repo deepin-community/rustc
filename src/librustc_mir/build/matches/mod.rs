@@ -10,12 +10,13 @@ use crate::build::ForGuard::{self, OutsideGuard, RefWithinGuard};
 use crate::build::{BlockAnd, BlockAndExtension, Builder};
 use crate::build::{GuardFrame, GuardFrameLocal, LocalsForNode};
 use crate::hair::{self, *};
+use rustc::hir::HirId;
 use rustc::mir::*;
 use rustc::ty::{self, CanonicalUserTypeAnnotation, Ty};
 use rustc::ty::layout::VariantIdx;
 use rustc_data_structures::bit_set::BitSet;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
-use syntax::ast::{Name, NodeId};
+use syntax::ast::Name;
 use syntax_pos::Span;
 
 // helper functions, broken out by category:
@@ -373,7 +374,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 let ty_source_info = self.source_info(user_ty_span);
                 let user_ty = box pat_ascription_ty.user_ty(
                     &mut self.canonical_user_type_annotations,
-                    place.ty(&self.local_decls, self.hir.tcx()).to_ty(self.hir.tcx()),
+                    place.ty(&self.local_decls, self.hir.tcx()).ty,
                     ty_source_info.span,
                 );
                 self.cfg.push(
@@ -438,11 +439,17 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         self.simplify_candidate(&mut candidate);
 
         if !candidate.match_pairs.is_empty() {
-            span_bug!(
+            // ICE if no other errors have been emitted. This used to be a hard error that wouldn't
+            // be reached because `hair::pattern::check_match::check_match` wouldn't have let the
+            // compiler continue. In our tests this is only ever hit by
+            // `ui/consts/const-match-check.rs` with `--cfg eval1`, and that file already generates
+            // a different error before hand.
+            self.hir.tcx().sess.delay_span_bug(
                 candidate.match_pairs[0].pattern.span,
-                "match pairs {:?} remaining after simplifying \
-                 irrefutable pattern",
-                candidate.match_pairs
+                &format!(
+                    "match pairs {:?} remaining after simplifying irrefutable pattern",
+                    candidate.match_pairs,
+                ),
             );
         }
 
@@ -530,7 +537,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
     pub fn storage_live_binding(
         &mut self,
         block: BasicBlock,
-        var: NodeId,
+        var: HirId,
         span: Span,
         for_guard: ForGuard,
     ) -> Place<'tcx> {
@@ -543,23 +550,21 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 kind: StatementKind::StorageLive(local_id),
             },
         );
-        let place = Place::Local(local_id);
+        let place = Place::Base(PlaceBase::Local(local_id));
         let var_ty = self.local_decls[local_id].ty;
-        let hir_id = self.hir.tcx().hir().node_to_hir_id(var);
-        let region_scope = self.hir.region_scope_tree.var_scope(hir_id.local_id);
+        let region_scope = self.hir.region_scope_tree.var_scope(var.local_id);
         self.schedule_drop(span, region_scope, &place, var_ty, DropKind::Storage);
         place
     }
 
-    pub fn schedule_drop_for_binding(&mut self, var: NodeId, span: Span, for_guard: ForGuard) {
+    pub fn schedule_drop_for_binding(&mut self, var: HirId, span: Span, for_guard: ForGuard) {
         let local_id = self.var_local_id(var, for_guard);
         let var_ty = self.local_decls[local_id].ty;
-        let hir_id = self.hir.tcx().hir().node_to_hir_id(var);
-        let region_scope = self.hir.region_scope_tree.var_scope(hir_id.local_id);
+        let region_scope = self.hir.region_scope_tree.var_scope(var.local_id);
         self.schedule_drop(
             span,
             region_scope,
-            &Place::Local(local_id),
+            &Place::Base(PlaceBase::Local(local_id)),
             var_ty,
             DropKind::Value {
                 cached_block: CachedBlock::default(),
@@ -570,16 +575,16 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
     pub(super) fn visit_bindings(
         &mut self,
         pattern: &Pattern<'tcx>,
-        pattern_user_ty: UserTypeProjections<'tcx>,
+        pattern_user_ty: UserTypeProjections,
         f: &mut impl FnMut(
             &mut Self,
             Mutability,
             Name,
             BindingMode,
-            NodeId,
+            HirId,
             Span,
             Ty<'tcx>,
-            UserTypeProjections<'tcx>,
+            UserTypeProjections,
         ),
     ) {
         debug!("visit_bindings: pattern={:?} pattern_user_ty={:?}", pattern, pattern_user_ty);
@@ -703,7 +708,7 @@ struct Binding<'tcx> {
     span: Span,
     source: Place<'tcx>,
     name: Name,
-    var_id: NodeId,
+    var_id: HirId,
     var_ty: Ty<'tcx>,
     mutability: Mutability,
     binding_mode: BindingMode,
@@ -1288,7 +1293,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         debug!("add_fake_borrows all_fake_borrows = {:?}", all_fake_borrows);
 
         all_fake_borrows.into_iter().map(|matched_place| {
-            let fake_borrow_deref_ty = matched_place.ty(&self.local_decls, tcx).to_ty(tcx);
+            let fake_borrow_deref_ty = matched_place.ty(&self.local_decls, tcx).ty;
             let fake_borrow_ty = tcx.mk_imm_ref(tcx.types.re_erased, fake_borrow_deref_ty);
             let fake_borrow_temp = self.local_decls.push(
                 LocalDecl::new_temp(fake_borrow_ty, temp_span)
@@ -1452,7 +1457,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 self.cfg.push_assign(
                     block,
                     scrutinee_source_info,
-                    &Place::Local(temp),
+                    &Place::Base(PlaceBase::Local(temp)),
                     borrow,
                 );
             }
@@ -1478,7 +1483,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                     source_info: guard_end,
                     kind: StatementKind::FakeRead(
                         FakeReadCause::ForMatchGuard,
-                        Place::Local(temp),
+                        Place::Base(PlaceBase::Local(temp)),
                     ),
                 });
             }
@@ -1529,7 +1534,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 // place they refer to can't be modified by the guard.
                 for binding in by_value_bindings.clone() {
                     let local_id = self.var_local_id(binding.var_id, RefWithinGuard);
-                    let place = Place::Local(local_id);
+                    let place = Place::Base(PlaceBase::Local(local_id));
                     self.cfg.push(
                         block,
                         Statement {
@@ -1582,7 +1587,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
 
             let user_ty = box ascription.user_ty.clone().user_ty(
                 &mut self.canonical_user_type_annotations,
-                ascription.source.ty(&self.local_decls, self.hir.tcx()).to_ty(self.hir.tcx()),
+                ascription.source.ty(&self.local_decls, self.hir.tcx()).ty,
                 source_info.span
             );
             self.cfg.push(
@@ -1694,9 +1699,9 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         mutability: Mutability,
         name: Name,
         mode: BindingMode,
-        var_id: NodeId,
+        var_id: HirId,
         var_ty: Ty<'tcx>,
-        user_ty: UserTypeProjections<'tcx>,
+        user_ty: UserTypeProjections,
         has_guard: ArmHasGuard,
         opt_match_place: Option<(Option<Place<'tcx>>, Span)>,
         pat_span: Span,

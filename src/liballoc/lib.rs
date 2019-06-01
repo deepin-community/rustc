@@ -107,6 +107,7 @@
 #![feature(unboxed_closures)]
 #![feature(unicode_internals)]
 #![feature(unsize)]
+#![feature(unsized_locals)]
 #![feature(allocator_internals)]
 #![feature(on_unimplemented)]
 #![feature(rustc_const_unstable)]
@@ -115,6 +116,7 @@
 #![feature(maybe_uninit, maybe_uninit_slice, maybe_uninit_array)]
 #![feature(alloc_layout_extra)]
 #![feature(try_trait)]
+#![feature(iter_nth_back)]
 
 // Allow testing this library
 

@@ -15,17 +15,18 @@ use super::util;
 use crate::hir::def_id::DefId;
 use crate::infer::{InferCtxt, InferOk, LateBoundRegionConversionTime};
 use crate::infer::type_variable::TypeVariableOrigin;
-use crate::mir::interpret::{GlobalId};
+use crate::mir::interpret::{GlobalId, ConstValue};
 use rustc_data_structures::snapshot_map::{Snapshot, SnapshotMap};
+use rustc_macros::HashStable;
 use syntax::ast::Ident;
-use crate::ty::subst::{Subst, Substs};
+use crate::ty::subst::{Subst, InternalSubsts};
 use crate::ty::{self, ToPredicate, ToPolyTraitRef, Ty, TyCtxt};
 use crate::ty::fold::{TypeFoldable, TypeFolder};
 use crate::util::common::FN_OUTPUT_NAME;
 
 /// Depending on the stage of compilation, we want projection to be
 /// more or less conservative.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, HashStable)]
 pub enum Reveal {
     /// At type-checking time, we refuse to project any associated
     /// type that is marked `default`. Non-`default` ("final") types
@@ -396,12 +397,12 @@ impl<'a, 'b, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for AssociatedTypeNormalizer<'a,
         }
     }
 
-    fn fold_const(&mut self, constant: &'tcx ty::LazyConst<'tcx>) -> &'tcx ty::LazyConst<'tcx> {
-        if let ty::LazyConst::Unevaluated(def_id, substs) = *constant {
+    fn fold_const(&mut self, constant: &'tcx ty::Const<'tcx>) -> &'tcx ty::Const<'tcx> {
+        if let ConstValue::Unevaluated(def_id, substs) = constant.val {
             let tcx = self.selcx.tcx().global_tcx();
             if let Some(param_env) = self.tcx().lift_to_global(&self.param_env) {
                 if substs.needs_infer() || substs.has_placeholders() {
-                    let identity_substs = Substs::identity_for_item(tcx, def_id);
+                    let identity_substs = InternalSubsts::identity_for_item(tcx, def_id);
                     let instance = ty::Instance::resolve(tcx, param_env, def_id, identity_substs);
                     if let Some(instance) = instance {
                         let cid = GlobalId {
@@ -410,8 +411,9 @@ impl<'a, 'b, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for AssociatedTypeNormalizer<'a,
                         };
                         if let Ok(evaluated) = tcx.const_eval(param_env.and(cid)) {
                             let substs = tcx.lift_to_global(&substs).unwrap();
+                            let evaluated = tcx.mk_const(evaluated);
                             let evaluated = evaluated.subst(tcx, substs);
-                            return tcx.mk_lazy_const(ty::LazyConst::Evaluated(evaluated));
+                            return evaluated;
                         }
                     }
                 } else {
@@ -423,7 +425,7 @@ impl<'a, 'b, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for AssociatedTypeNormalizer<'a,
                                 promoted: None
                             };
                             if let Ok(evaluated) = tcx.const_eval(param_env.and(cid)) {
-                                return tcx.mk_lazy_const(ty::LazyConst::Evaluated(evaluated));
+                                return tcx.mk_const(evaluated);
                             }
                         }
                     }
@@ -1452,13 +1454,18 @@ fn confirm_param_env_candidate<'cx, 'gcx, 'tcx>(
             }
         }
         Err(e) => {
-            span_bug!(
-                obligation.cause.span,
-                "Failed to unify obligation `{:?}` \
-                 with poly_projection `{:?}`: {:?}",
+            let msg = format!(
+                "Failed to unify obligation `{:?}` with poly_projection `{:?}`: {:?}",
                 obligation,
                 poly_cache_entry,
-                e);
+                e,
+            );
+            debug!("confirm_param_env_candidate: {}", msg);
+            infcx.tcx.sess.delay_span_bug(obligation.cause.span, &msg);
+            Progress {
+                ty: infcx.tcx.types.err,
+                obligations: vec![],
+            }
         }
     }
 }
@@ -1490,7 +1497,7 @@ fn confirm_impl_candidate<'cx, 'gcx, 'tcx>(
     }
     let substs = translate_substs(selcx.infcx(), param_env, impl_def_id, substs, assoc_ty.node);
     let ty = if let ty::AssociatedKind::Existential = assoc_ty.item.kind {
-        let item_substs = Substs::identity_for_item(tcx, assoc_ty.item.def_id);
+        let item_substs = InternalSubsts::identity_for_item(tcx, assoc_ty.item.def_id);
         tcx.mk_opaque(assoc_ty.item.def_id, item_substs)
     } else {
         tcx.type_of(assoc_ty.item.def_id)
@@ -1548,7 +1555,7 @@ fn assoc_ty_def<'cx, 'gcx, 'tcx>(
         // should have failed in astconv.
         bug!("No associated type `{}` for {}",
              assoc_ty_name,
-             tcx.item_path_str(impl_def_id))
+             tcx.def_path_str(impl_def_id))
     }
 }
 

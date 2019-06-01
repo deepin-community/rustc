@@ -94,7 +94,7 @@ impl<'a, 'tcx> CheckAttrVisitor<'a, 'tcx> {
     /// Checks any attribute.
     fn check_attributes(&self, item: &hir::Item, target: Target) {
         if target == Target::Fn || target == Target::Const {
-            self.tcx.codegen_fn_attrs(self.tcx.hir().local_def_id(item.id));
+            self.tcx.codegen_fn_attrs(self.tcx.hir().local_def_id_from_hir_id(item.hir_id));
         } else if let Some(a) = item.attrs.iter().find(|a| a.check_name("target_feature")) {
             self.tcx.sess.struct_span_err(a.span, "attribute should be applied to a function")
                 .span_label(item.span, "not a function")
@@ -177,16 +177,8 @@ impl<'a, 'tcx> CheckAttrVisitor<'a, 'tcx> {
         let mut is_transparent = false;
 
         for hint in &hints {
-            let name = if let Some(name) = hint.ident_str() {
-                name
-            } else {
-                // Invalid repr hint like repr(42). We don't check for unrecognized hints here
-                // (libsyntax does that), so just ignore it.
-                continue;
-            };
-
-            let (article, allowed_targets) = match name {
-                "C" | "align" => {
+            let (article, allowed_targets) = match hint.name_or_empty().get() {
+                name @ "C" | name @ "align" => {
                     is_c |= name == "C";
                     if target != Target::Struct &&
                             target != Target::Union &&
@@ -233,7 +225,7 @@ impl<'a, 'tcx> CheckAttrVisitor<'a, 'tcx> {
                 _ => continue,
             };
             self.emit_repr_error(
-                hint.span,
+                hint.span(),
                 item.span,
                 &format!("attribute should be applied to {}", allowed_targets),
                 &format!("not {} {}", article, allowed_targets),
@@ -242,7 +234,7 @@ impl<'a, 'tcx> CheckAttrVisitor<'a, 'tcx> {
 
         // Just point at all repr hints if there are any incompatibilities.
         // This is not ideal, but tracking precisely which ones are at fault is a huge hassle.
-        let hint_spans = hints.iter().map(|hint| hint.span);
+        let hint_spans = hints.iter().map(|hint| hint.span());
 
         // Error on repr(transparent, <anything else>).
         if is_transparent && hints.len() > 1 {
@@ -341,12 +333,6 @@ impl<'a, 'tcx> Visitor<'tcx> for CheckAttrVisitor<'a, 'tcx> {
     fn visit_expr(&mut self, expr: &'tcx hir::Expr) {
         self.check_expr_attributes(expr);
         intravisit::walk_expr(self, expr)
-    }
-}
-
-pub fn check_crate<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
-    for &module in tcx.hir().krate().modules.keys() {
-        tcx.ensure().check_mod_attrs(tcx.hir().local_def_id(module));
     }
 }
 

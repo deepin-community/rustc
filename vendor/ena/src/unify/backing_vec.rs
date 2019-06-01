@@ -1,7 +1,7 @@
 #[cfg(feature = "persistent")]
 use dogged::DVec;
 use snapshot_vec as sv;
-use std::ops;
+use std::ops::{self, Range};
 use std::marker::PhantomData;
 
 use super::{VarValue, UnifyKey, UnifyValue};
@@ -25,6 +25,8 @@ pub trait UnificationStore:
     fn rollback_to(&mut self, snapshot: Self::Snapshot);
 
     fn commit(&mut self, snapshot: Self::Snapshot);
+
+    fn values_since_snapshot(&self, snapshot: &Self::Snapshot) -> Range<usize>;
 
     fn reset_unifications(
         &mut self,
@@ -80,6 +82,11 @@ impl<K: UnifyKey> UnificationStore for InPlace<K> {
     }
 
     #[inline]
+    fn values_since_snapshot(&self, snapshot: &Self::Snapshot) -> Range<usize> {
+        snapshot.value_count..self.len()
+    }
+
+    #[inline]
     fn reset_unifications(
         &mut self,
         mut value: impl FnMut(u32) -> VarValue<Self::Key>,
@@ -87,7 +94,6 @@ impl<K: UnifyKey> UnificationStore for InPlace<K> {
         self.values.set_all(|i| value(i as u32));
     }
 
-    #[inline]
     fn len(&self) -> usize {
         self.values.len()
     }
@@ -160,7 +166,11 @@ impl<K: UnifyKey> UnificationStore for Persistent<K> {
     }
 
     #[inline]
-    fn commit(&mut self, _snapshot: Self::Snapshot) {
+    fn commit(&mut self, _snapshot: Self::Snapshot) {}
+
+    #[inline]
+    fn values_since_snapshot(&self, snapshot: &Self::Snapshot) -> Range<usize> {
+        snapshot.len()..self.len()
     }
 
     #[inline]
@@ -176,7 +186,6 @@ impl<K: UnifyKey> UnificationStore for Persistent<K> {
         }
     }
 
-    #[inline]
     fn len(&self) -> usize {
         self.values.len()
     }

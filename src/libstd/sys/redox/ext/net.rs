@@ -2,13 +2,13 @@
 
 //! Unix-specific networking functionality
 
-use fmt;
-use io::{self, Error, ErrorKind, Initializer};
-use net::Shutdown;
-use os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
-use path::Path;
-use time::Duration;
-use sys::{cvt, fd::FileDesc, syscall};
+use crate::fmt;
+use crate::io::{self, Error, ErrorKind, Initializer};
+use crate::net::Shutdown;
+use crate::os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
+use crate::path::Path;
+use crate::time::Duration;
+use crate::sys::{cvt, fd::FileDesc, syscall};
 
 /// An address associated with a Unix socket.
 ///
@@ -90,7 +90,7 @@ impl SocketAddr {
 }
 #[stable(feature = "unix_socket_redox", since = "1.29")]
 impl fmt::Debug for SocketAddr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "SocketAddr")
     }
 }
@@ -114,7 +114,7 @@ pub struct UnixStream(FileDesc);
 
 #[stable(feature = "unix_socket_redox", since = "1.29")]
 impl fmt::Debug for UnixStream {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixStream");
         builder.field("fd", &self.0.raw());
         if let Ok(addr) = self.local_addr() {
@@ -503,7 +503,7 @@ pub struct UnixListener(FileDesc);
 
 #[stable(feature = "unix_socket_redox", since = "1.29")]
 impl fmt::Debug for UnixListener {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixListener");
         builder.field("fd", &self.0.raw());
         if let Ok(addr) = self.local_addr() {

@@ -18,6 +18,8 @@ pub use self::crypto::*;
 mod crc;
 pub use self::crc::*;
 
+pub use super::acle::*;
+
 #[cfg(test)]
 use stdsimd_test::assert_instr;
 
@@ -25,5 +27,5 @@ use stdsimd_test::assert_instr;
 #[cfg_attr(test, assert_instr(brk))]
 #[inline]
 pub unsafe fn brk() -> ! {
-    ::intrinsics::abort()
+    crate::intrinsics::abort()
 }

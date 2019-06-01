@@ -299,7 +299,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                     }
                     let eq_def_id = self.hir.tcx().lang_items().eq_trait().unwrap();
                     let (mty, method) = self.hir.trait_method(eq_def_id, "eq", ty, &[ty.into()]);
-                    let method = self.hir.tcx().mk_lazy_const(ty::LazyConst::Evaluated(method));
+                    let method = self.hir.tcx().mk_const(method);
 
                     let re_erased = self.hir.tcx().types.re_erased;
                     // take the argument by reference
@@ -693,7 +693,8 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         // So, if we have a match-pattern like `x @ Enum::Variant(P1, P2)`,
         // we want to create a set of derived match-patterns like
         // `(x as Variant).0 @ P1` and `(x as Variant).1 @ P1`.
-        let elem = ProjectionElem::Downcast(adt_def, variant_index);
+        let elem = ProjectionElem::Downcast(
+            Some(adt_def.variants[variant_index].ident.name), variant_index);
         let downcast_place = match_pair.place.elem(elem); // `(x as Variant)`
         let consequent_match_pairs =
             subpatterns.iter()

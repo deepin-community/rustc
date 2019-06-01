@@ -90,6 +90,25 @@ Example values:
 * `"arm"`
 * `"aarch64"`
 
+### `target_feature`
+
+Key-value option set for each platform feature available for the current
+compilation target.
+
+Example values:
+
+* `"avx"`
+* `"avx2"`
+* `"crt-static"`
+* `"rdrand"`
+* `"sse"`
+* `"sse2"`
+* `"sse4.1"`
+
+See the [`target_feature` attribute] for more details on the available
+features. An additional feature of `crt-static` is available to the
+`target_feature` option to indicate that a [static C runtime] is available.
+
 ### `target_os`
 
 Key-value option set once with the target's operating system. This value is
@@ -104,7 +123,7 @@ Example values:
 * `"android"`
 * `"freebsd"`
 * `"dragonfly"`
-* `"bitrig"` 
+* `"bitrig"`
 * `"openbsd"`
 * `"netbsd"`
 
@@ -138,6 +157,7 @@ Example values:
 * `"gnu"`
 * `"msvc"`
 * `"musl"`
+* `"sgx"`
 
 ### `target_endian`
 
@@ -150,21 +170,7 @@ Key-value option set once with the target's pointer width in bits. For example,
 for targets with 32-bit pointers, this is set to `"32"`. Likewise, it is set
 to `"64"` for targets with 64-bit pointers.
 
-<!-- Are there targets that have a different bit number? --> 
-
-### `target_has_atomic`
-
-Key-value option set for each integer size on which the target can perform
-atomic operations.
-
-Possible values:
-
-* `"8"`
-* `"16"`
-* `"32"`
-* `"64"`
-* `"128"`
-* `"ptr"`
+<!-- Are there targets that have a different bit number? -->
 
 ### `target_vendor`
 
@@ -173,14 +179,14 @@ Key-value option set once with the vendor of the target.
 Example values:
 
 * `"apple"`
+* `"fortanix"`
 * `"pc"`
-* `"sgx"`
 * `"unknown"`
 
 ### `test`
 
 Enabled when compiling the test harness. Done with `rustc` by using the
-[`--test`] flag.
+[`--test`] flag. See [Testing] for more on testing support.
 
 ### `debug_assertions`
 
@@ -248,22 +254,35 @@ generic parameters.
 
 > **<sup>Syntax</sup>**\
 > _CfgAttrAttribute_ :\
-> &nbsp;&nbsp; `cfg_attr` `(` _ConfigurationPredicate_ `,` [_MetaItem_] `,`<sup>?</sup> `)`
+> &nbsp;&nbsp; `cfg_attr` `(` _ConfigurationPredicate_ `,` _CfgAttrs_<sup>?</sup> `)`
+>
+> _CfgAttrs_ :\
+> &nbsp;&nbsp; [_Attr_]&nbsp;(`,` [_Attr_])<sup>\*</sup> `,`<sup>?</sup>
 
 The `cfg_attr` [attribute] conditionally includes [attributes] based on a
 configuration predicate.
 
-It is written as `cfg_attr` followed by `(`, a configuration predicate, a
-[metaitem], an optional `,`, and finally a `)`.
-
-When the configuration predicate is true, this attribute expands out to be an
-attribute of the attribute metaitem. For example, the following module will
+When the configuration predicate is true, this attribute expands out to the
+attributes listed after the predicate. For example, the following module will
 either be found at `linux.rs` or `windows.rs` based on the target.
 
 ```rust,ignore
 #[cfg_attr(linux, path = "linux.rs")]
 #[cfg_attr(windows, path = "windows.rs")]
 mod os;
+```
+
+Zero, one, or more attributes may be listed. Multiple attributes will each be
+expanded into separate attributes. For example:
+
+```rust,ignore
+#[cfg_attr(feature = "magic", sparkles, crackles)]
+fn bewitched() {}
+
+// When the `magic` feature flag is enabled, the above will expand to:
+#[sparkles]
+#[crackles]
+fn bewitched() {}
 ```
 
 > **Note**: The `cfg_attr` can expand to another `cfg_attr`. For example,
@@ -297,16 +316,16 @@ println!("I'm running on a {} machine!", machine_kind);
 [IDENTIFIER]: identifiers.html
 [RAW_STRING_LITERAL]: tokens.html#raw-string-literals
 [STRING_LITERAL]: tokens.html#string-literals
-[_MetaItem_]: attributes.html
+[Testing]: attributes/testing.html
+[_Attr_]: attributes.html
 [`--cfg`]: ../rustc/command-line-arguments.html#a--cfg-configure-the-compilation-environment
 [`--test`]: ../rustc/command-line-arguments.html#a--test-build-a-test-harness
 [`cfg`]: #the-cfg-attribute
 [`cfg` macro]: #the-cfg-macro
 [`cfg_attr`]: #the-cfg_attr-attribute
 [`debug_assert!`]: ../std/macro.debug_assert.html
+[`target_feature` attribute]: attributes/codegen.html#the-target_feature-attribute
 [attribute]: attributes.html
 [attributes]: attributes.html
 [crate type]: linkage.html
-[expressions]: expressions.html
-[items]: items.html
-[metaitem]: attributes.html
+[static C runtime]: linkage.html#static-and-dynamic-c-runtimes

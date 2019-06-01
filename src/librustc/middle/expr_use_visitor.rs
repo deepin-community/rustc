@@ -9,17 +9,16 @@ pub use self::MatchMode::*;
 use self::TrackMatchMode::*;
 use self::OverloadedCallType::*;
 
-use crate::hir::def::Def;
+use crate::hir::def::{CtorOf, Def};
 use crate::hir::def_id::DefId;
 use crate::infer::InferCtxt;
 use crate::middle::mem_categorization as mc;
 use crate::middle::region;
-use crate::ty::{self, TyCtxt, adjustment};
+use crate::ty::{self, DefIdTree, TyCtxt, adjustment};
 
 use crate::hir::{self, PatKind};
 use rustc_data_structures::sync::Lrc;
 use std::rc::Rc;
-use syntax::ast;
 use syntax::ptr::P;
 use syntax_pos::Span;
 use crate::util::nodemap::ItemLocalSet;
@@ -33,7 +32,7 @@ pub trait Delegate<'tcx> {
     // The value found at `cmt` is either copied or moved, depending
     // on mode.
     fn consume(&mut self,
-               consume_id: ast::NodeId,
+               consume_id: hir::HirId,
                consume_span: Span,
                cmt: &mc::cmt_<'tcx>,
                mode: ConsumeMode);
@@ -65,7 +64,7 @@ pub trait Delegate<'tcx> {
     // The value found at `borrow` is being borrowed at the point
     // `borrow_id` for the region `loan_region` with kind `bk`.
     fn borrow(&mut self,
-              borrow_id: ast::NodeId,
+              borrow_id: hir::HirId,
               borrow_span: Span,
               cmt: &mc::cmt_<'tcx>,
               loan_region: ty::Region<'tcx>,
@@ -74,12 +73,12 @@ pub trait Delegate<'tcx> {
 
     // The local variable `id` is declared but not initialized.
     fn decl_without_init(&mut self,
-                         id: ast::NodeId,
+                         id: hir::HirId,
                          span: Span);
 
     // The path at `cmt` is being assigned to.
     fn mutate(&mut self,
-              assignment_id: ast::NodeId,
+              assignment_id: hir::HirId,
               assignment_span: Span,
               assignee_cmt: &mc::cmt_<'tcx>,
               mode: MutateMode);
@@ -332,7 +331,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
     }
 
     fn delegate_consume(&mut self,
-                        consume_id: ast::NodeId,
+                        consume_id: hir::HirId,
                         consume_span: Span,
                         cmt: &mc::cmt_<'tcx>) {
         debug!("delegate_consume(consume_id={}, cmt={:?})",
@@ -352,7 +351,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
         debug!("consume_expr(expr={:?})", expr);
 
         let cmt = return_if_err!(self.mc.cat_expr(expr));
-        self.delegate_consume(expr.id, expr.span, &cmt);
+        self.delegate_consume(expr.hir_id, expr.span, &cmt);
         self.walk_expr(expr);
     }
 
@@ -362,7 +361,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                    expr: &hir::Expr,
                    mode: MutateMode) {
         let cmt = return_if_err!(self.mc.cat_expr(expr));
-        self.delegate.mutate(assignment_expr.id, span, &cmt, mode);
+        self.delegate.mutate(assignment_expr.hir_id, span, &cmt, mode);
         self.walk_expr(expr);
     }
 
@@ -375,7 +374,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                expr, r, bk);
 
         let cmt = return_if_err!(self.mc.cat_expr(expr));
-        self.delegate.borrow(expr.id, expr.span, &cmt, r, bk, cause);
+        self.delegate.borrow(expr.hir_id, expr.span, &cmt, r, bk, cause);
 
         self.walk_expr(expr)
     }
@@ -560,8 +559,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
             }
             ty::Error => { }
             _ => {
-                if let Some(def) = self.mc.tables.type_dependent_defs().get(call.hir_id) {
-                    let def_id = def.def_id();
+                if let Some(def_id) = self.mc.tables.type_dependent_def_id(call.hir_id) {
                     let call_scope = region::Scope {
                         id: call.hir_id.local_id,
                         data: region::ScopeData::Node
@@ -613,8 +611,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
         match local.init {
             None => {
                 local.pat.each_binding(|_, hir_id, span, _| {
-                    let node_id = self.mc.tcx.hir().hir_to_node_id(hir_id);
-                    self.delegate.decl_without_init(node_id, span);
+                    self.delegate.decl_without_init(hir_id, span);
                 })
             }
 
@@ -633,7 +630,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
     /// Indicates that the value of `blk` will be consumed, meaning either copied or moved
     /// depending on its type.
     fn walk_block(&mut self, blk: &hir::Block) {
-        debug!("walk_block(blk.id={})", blk.id);
+        debug!("walk_block(blk.hir_id={})", blk.hir_id);
 
         for stmt in &blk.stmts {
             self.walk_stmt(stmt);
@@ -666,7 +663,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                 // Consume those fields of the with expression that are needed.
                 for (f_index, with_field) in adt.non_enum_variant().fields.iter().enumerate() {
                     let is_mentioned = fields.iter().any(|f| {
-                        self.tcx().field_index(f.id, self.mc.tables) == f_index
+                        self.tcx().field_index(f.hir_id, self.mc.tables) == f_index
                     });
                     if !is_mentioned {
                         let cmt_field = self.mc.cat_field(
@@ -676,7 +673,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                             with_field.ident,
                             with_field.ty(self.tcx(), substs)
                         );
-                        self.delegate_consume(with_expr.id, with_expr.span, &cmt_field);
+                        self.delegate_consume(with_expr.hir_id, with_expr.span, &cmt_field);
                     }
                 }
             }
@@ -710,12 +707,12 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                 adjustment::Adjust::NeverToAny |
                 adjustment::Adjust::ReifyFnPointer |
                 adjustment::Adjust::UnsafeFnPointer |
-                adjustment::Adjust::ClosureFnPointer |
+                adjustment::Adjust::ClosureFnPointer(_) |
                 adjustment::Adjust::MutToConstPointer |
                 adjustment::Adjust::Unsize => {
                     // Creating a closure/fn-pointer or unsizing consumes
                     // the input and stores it into the resulting rvalue.
-                    self.delegate_consume(expr.id, expr.span, &cmt);
+                    self.delegate_consume(expr.hir_id, expr.span, &cmt);
                 }
 
                 adjustment::Adjust::Deref(None) => {}
@@ -727,7 +724,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                 // this is an autoref of `x`.
                 adjustment::Adjust::Deref(Some(ref deref)) => {
                     let bk = ty::BorrowKind::from_mutbl(deref.mutbl);
-                    self.delegate.borrow(expr.id, expr.span, &cmt, deref.region, bk, AutoRef);
+                    self.delegate.borrow(expr.hir_id, expr.span, &cmt, deref.region, bk, AutoRef);
                 }
 
                 adjustment::Adjust::Borrow(ref autoref) => {
@@ -745,14 +742,14 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                     expr: &hir::Expr,
                     cmt_base: &mc::cmt_<'tcx>,
                     autoref: &adjustment::AutoBorrow<'tcx>) {
-        debug!("walk_autoref(expr.id={} cmt_base={:?} autoref={:?})",
-               expr.id,
+        debug!("walk_autoref(expr.hir_id={} cmt_base={:?} autoref={:?})",
+               expr.hir_id,
                cmt_base,
                autoref);
 
         match *autoref {
             adjustment::AutoBorrow::Ref(r, m) => {
-                self.delegate.borrow(expr.id,
+                self.delegate.borrow(expr.hir_id,
                                      expr.span,
                                      cmt_base,
                                      r,
@@ -761,8 +758,8 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
             }
 
             adjustment::AutoBorrow::RawPtr(m) => {
-                debug!("walk_autoref: expr.id={} cmt_base={:?}",
-                       expr.id,
+                debug!("walk_autoref: expr.hir_id={} cmt_base={:?}",
+                       expr.hir_id,
                        cmt_base);
 
                 // Converting from a &T to *T (or &mut T to *mut T) is
@@ -774,7 +771,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                         data: region::ScopeData::Node
                     }));
 
-                self.delegate.borrow(expr.id,
+                self.delegate.borrow(expr.hir_id,
                                      expr.span,
                                      cmt_base,
                                      r,
@@ -866,9 +863,9 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
 
                     // Each match binding is effectively an assignment to the
                     // binding being produced.
-                    let def = Def::Local(canonical_id);
+                    let def = Def::Local(mc.tcx.hir().hir_to_node_id(canonical_id));
                     if let Ok(ref binding_cmt) = mc.cat_def(pat.hir_id, pat.span, pat_ty, def) {
-                        delegate.mutate(pat.id, pat.span, binding_cmt, MutateMode::Init);
+                        delegate.mutate(pat.hir_id, pat.span, binding_cmt, MutateMode::Init);
                     }
 
                     // It is also a borrow or copy/move of the value being matched.
@@ -876,7 +873,7 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                         ty::BindByReference(m) => {
                             if let ty::Ref(r, _, _) = pat_ty.sty {
                                 let bk = ty::BorrowKind::from_mutbl(m);
-                                delegate.borrow(pat.id, pat.span, &cmt_pat, r, bk, RefBinding);
+                                delegate.borrow(pat.hir_id, pat.span, &cmt_pat, r, bk, RefBinding);
                             }
                         }
                         ty::BindByValue(..) => {
@@ -904,14 +901,20 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
             };
             let def = mc.tables.qpath_def(qpath, pat.hir_id);
             match def {
-                Def::Variant(variant_did) |
-                Def::VariantCtor(variant_did, ..) => {
+                Def::Ctor(variant_ctor_did, CtorOf::Variant, ..) => {
+                    let variant_did = mc.tcx.parent(variant_ctor_did).unwrap();
+                    let downcast_cmt = mc.cat_downcast_if_needed(pat, cmt_pat, variant_did);
+
+                    debug!("variantctor downcast_cmt={:?} pat={:?}", downcast_cmt, pat);
+                    delegate.matched_pat(pat, &downcast_cmt, match_mode);
+                }
+                Def::Variant(variant_did) => {
                     let downcast_cmt = mc.cat_downcast_if_needed(pat, cmt_pat, variant_did);
 
                     debug!("variant downcast_cmt={:?} pat={:?}", downcast_cmt, pat);
                     delegate.matched_pat(pat, &downcast_cmt, match_mode);
                 }
-                Def::Struct(..) | Def::StructCtor(..) | Def::Union(..) |
+                Def::Struct(..) | Def::Ctor(..) | Def::Union(..) |
                 Def::TyAlias(..) | Def::AssociatedTy(..) | Def::SelfTy(..) => {
                     debug!("struct cmt_pat={:?} pat={:?}", cmt_pat, pat);
                     delegate.matched_pat(pat, &cmt_pat, match_mode);
@@ -924,10 +927,10 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
     fn walk_captures(&mut self, closure_expr: &hir::Expr, fn_decl_span: Span) {
         debug!("walk_captures({:?})", closure_expr);
 
-        self.tcx().with_freevars(closure_expr.id, |freevars| {
+        let closure_def_id = self.tcx().hir().local_def_id_from_hir_id(closure_expr.hir_id);
+        self.tcx().with_freevars(closure_expr.hir_id, |freevars| {
             for freevar in freevars {
                 let var_hir_id = self.tcx().hir().node_to_hir_id(freevar.var_id());
-                let closure_def_id = self.tcx().hir().local_def_id(closure_expr.id);
                 let upvar_id = ty::UpvarId {
                     var_path: ty::UpvarPath { hir_id: var_hir_id },
                     closure_expr_id: closure_def_id.to_local(),
@@ -942,10 +945,10 @@ impl<'a, 'gcx, 'tcx> ExprUseVisitor<'a, 'gcx, 'tcx> {
                                                 self.param_env,
                                                 &cmt_var,
                                                 CaptureMove);
-                        self.delegate.consume(closure_expr.id, freevar.span, &cmt_var, mode);
+                        self.delegate.consume(closure_expr.hir_id, freevar.span, &cmt_var, mode);
                     }
                     ty::UpvarCapture::ByRef(upvar_borrow) => {
-                        self.delegate.borrow(closure_expr.id,
+                        self.delegate.borrow(closure_expr.hir_id,
                                              fn_decl_span,
                                              &cmt_var,
                                              upvar_borrow.region,

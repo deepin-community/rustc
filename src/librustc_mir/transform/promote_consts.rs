@@ -178,7 +178,7 @@ impl<'a, 'tcx> Promoter<'a, 'tcx> {
                 span,
                 scope: OUTERMOST_SOURCE_SCOPE
             },
-            kind: StatementKind::Assign(Place::Local(dest), box rvalue)
+            kind: StatementKind::Assign(Place::Base(PlaceBase::Local(dest)), box rvalue)
         });
     }
 
@@ -268,7 +268,9 @@ impl<'a, 'tcx> Promoter<'a, 'tcx> {
                             func,
                             args,
                             cleanup: None,
-                            destination: Some((Place::Local(new_temp), new_target)),
+                            destination: Some(
+                                (Place::Base(PlaceBase::Local(new_temp)), new_target)
+                            ),
                             from_hir_call,
                         },
                         ..terminator
@@ -290,9 +292,10 @@ impl<'a, 'tcx> Promoter<'a, 'tcx> {
             let promoted_id = Promoted::new(self.source.promoted.len());
             let mut promoted_place = |ty, span| {
                 promoted.span = span;
-                promoted.local_decls[RETURN_PLACE] =
-                    LocalDecl::new_return_place(ty, span);
-                Place::Promoted(box (promoted_id, ty))
+                promoted.local_decls[RETURN_PLACE] = LocalDecl::new_return_place(ty, span);
+                Place::Base(
+                    PlaceBase::Static(box Static{ kind: StaticKind::Promoted(promoted_id), ty })
+                )
             };
             let (blocks, local_decls) = self.source.basic_blocks_and_local_decls_mut();
             match candidate {
@@ -307,7 +310,7 @@ impl<'a, 'tcx> Promoter<'a, 'tcx> {
                                 place = &mut proj.base;
                             };
 
-                            let ty = place.ty(local_decls, self.tcx).to_ty(self.tcx);
+                            let ty = place.ty(local_decls, self.tcx).ty;
                             let span = statement.source_info.span;
 
                             Operand::Move(mem::replace(place, promoted_place(ty, span)))
@@ -373,7 +376,7 @@ pub fn promote_candidates<'a, 'tcx>(mir: &mut Mir<'tcx>,
         match candidate {
             Candidate::Ref(Location { block, statement_index }) => {
                 match mir[block].statements[statement_index].kind {
-                    StatementKind::Assign(Place::Local(local), _) => {
+                    StatementKind::Assign(Place::Base(PlaceBase::Local(local)), _) => {
                         if temps[local] == TempState::PromotedOut {
                             // Already promoted.
                             continue;
@@ -420,7 +423,7 @@ pub fn promote_candidates<'a, 'tcx>(mir: &mut Mir<'tcx>,
     for block in mir.basic_blocks_mut() {
         block.statements.retain(|statement| {
             match statement.kind {
-                StatementKind::Assign(Place::Local(index), _) |
+                StatementKind::Assign(Place::Base(PlaceBase::Local(index)), _) |
                 StatementKind::StorageLive(index) |
                 StatementKind::StorageDead(index) => {
                     !promoted(index)
@@ -430,7 +433,7 @@ pub fn promote_candidates<'a, 'tcx>(mir: &mut Mir<'tcx>,
         });
         let terminator = block.terminator_mut();
         match terminator.kind {
-            TerminatorKind::Drop { location: Place::Local(index), target, .. } => {
+            TerminatorKind::Drop { location: Place::Base(PlaceBase::Local(index)), target, .. } => {
                 if promoted(index) {
                     terminator.kind = TerminatorKind::Goto {
                         target,

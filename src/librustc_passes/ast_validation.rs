@@ -192,14 +192,6 @@ impl<'a> AstValidator<'a> {
         }
     }
 
-    fn invalid_non_exhaustive_attribute(&self, variant: &Variant) {
-        let has_non_exhaustive = attr::contains_name(&variant.node.attrs, "non_exhaustive");
-        if has_non_exhaustive {
-            self.err_handler().span_err(variant.span,
-                                        "#[non_exhaustive] is not yet supported on variants");
-        }
-    }
-
     fn invalid_visibility(&self, vis: &Visibility, note: Option<&str>) {
         if let VisibilityKind::Inherited = vis.node {
             return
@@ -360,8 +352,16 @@ enum GenericPosition {
 }
 
 fn validate_generics_order<'a>(
+    sess: &Session,
     handler: &errors::Handler,
-    generics: impl Iterator<Item = (ParamKindOrd, Span, Option<String>)>,
+    generics: impl Iterator<
+        Item = (
+            ParamKindOrd,
+            Option<&'a [GenericBound]>,
+            Span,
+            Option<String>
+        ),
+    >,
     pos: GenericPosition,
     span: Span,
 ) {
@@ -369,9 +369,9 @@ fn validate_generics_order<'a>(
     let mut out_of_order = FxHashMap::default();
     let mut param_idents = vec![];
 
-    for (kind, span, ident) in generics {
+    for (kind, bounds, span, ident) in generics {
         if let Some(ident) = ident {
-            param_idents.push((kind, param_idents.len(), ident));
+            param_idents.push((kind, bounds, param_idents.len(), ident));
         }
         let max_param = &mut max_param;
         match max_param {
@@ -385,13 +385,19 @@ fn validate_generics_order<'a>(
 
     let mut ordered_params = "<".to_string();
     if !out_of_order.is_empty() {
-        param_idents.sort_by_key(|&(po, i, _)| (po, i));
+        param_idents.sort_by_key(|&(po, _, i, _)| (po, i));
         let mut first = true;
-        for (_, _, ident) in param_idents {
+        for (_, bounds, _, ident) in param_idents {
             if !first {
                 ordered_params += ", ";
             }
             ordered_params += &ident;
+            if let Some(bounds) = bounds {
+                if !bounds.is_empty() {
+                    ordered_params += ": ";
+                    ordered_params += &pprust::bounds_to_string(&bounds);
+                }
+            }
             first = false;
         }
     }
@@ -413,7 +419,11 @@ fn validate_generics_order<'a>(
         if let GenericPosition::Param = pos {
             err.span_suggestion(
                 span,
-                &format!("reorder the {}s: lifetimes, then types, then consts", pos_str),
+                &format!(
+                    "reorder the {}s: lifetimes, then types{}",
+                    pos_str,
+                    if sess.features_untracked().const_generics { ", then consts" } else { "" },
+                ),
                 ordered_params.clone(),
                 Applicability::MachineApplicable,
             );
@@ -560,7 +570,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                     self.invalid_visibility(&impl_item.vis, None);
                     if let ImplItemKind::Method(ref sig, _) = impl_item.node {
                         self.check_trait_fn_not_const(sig.header.constness);
-                        self.check_trait_fn_not_async(impl_item.span, sig.header.asyncness);
+                        self.check_trait_fn_not_async(impl_item.span, sig.header.asyncness.node);
                     }
                 }
             }
@@ -579,9 +589,10 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                         .note("only trait implementations may be annotated with default").emit();
                 }
             }
-            ItemKind::Fn(_, header, ref generics, _) => {
+            ItemKind::Fn(_, ref header, ref generics, _) => {
                 // We currently do not permit const generics in `const fn`, as
                 // this is tantamount to allowing compile-time dependent typing.
+                self.visit_fn_header(header);
                 if header.constness.node == Constness::Const {
                     // Look for const generics and error if we find any.
                     for param in &generics.params {
@@ -607,7 +618,6 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             }
             ItemKind::Enum(ref def, _) => {
                 for variant in &def.variants {
-                    self.invalid_non_exhaustive_attribute(variant);
                     for field in variant.node.data.fields() {
                         self.invalid_visibility(&field.vis, None);
                     }
@@ -632,7 +642,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                 self.no_questions_in_bounds(bounds, "supertraits", true);
                 for trait_item in trait_items {
                     if let TraitItemKind::Method(ref sig, ref block) = trait_item.node {
-                        self.check_trait_fn_not_async(trait_item.span, sig.header.asyncness);
+                        self.check_trait_fn_not_async(trait_item.span, sig.header.asyncness.node);
                         self.check_trait_fn_not_const(sig.header.constness);
                         if block.is_none() {
                             self.check_decl_no_pat(&sig.decl, |span, mut_ident| {
@@ -660,7 +670,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                 }
             }
             ItemKind::Union(ref vdata, _) => {
-                if !vdata.is_struct() {
+                if let VariantData::Tuple(..) | VariantData::Unit(..) = vdata {
                     self.err_handler().span_err(item.span,
                                                 "tuple and unit unions are not permitted");
                 }
@@ -695,13 +705,19 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
         match *generic_args {
             GenericArgs::AngleBracketed(ref data) => {
                 walk_list!(self, visit_generic_arg, &data.args);
-                validate_generics_order(self.err_handler(), data.args.iter().map(|arg| {
-                    (match arg {
-                        GenericArg::Lifetime(..) => ParamKindOrd::Lifetime,
-                        GenericArg::Type(..) => ParamKindOrd::Type,
-                        GenericArg::Const(..) => ParamKindOrd::Const,
-                    }, arg.span(), None)
-                }), GenericPosition::Arg, generic_args.span());
+                validate_generics_order(
+                    self.session,
+                    self.err_handler(),
+                    data.args.iter().map(|arg| {
+                        (match arg {
+                            GenericArg::Lifetime(..) => ParamKindOrd::Lifetime,
+                            GenericArg::Type(..) => ParamKindOrd::Type,
+                            GenericArg::Const(..) => ParamKindOrd::Const,
+                        }, None, arg.span(), None)
+                    }),
+                    GenericPosition::Arg,
+                    generic_args.span(),
+                );
 
                 // Type bindings such as `Item=impl Debug` in `Iterator<Item=Debug>`
                 // are allowed to contain nested `impl Trait`.
@@ -734,18 +750,24 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             }
         }
 
-        validate_generics_order(self.err_handler(), generics.params.iter().map(|param| {
-            let span = param.ident.span;
-            let ident = Some(param.ident.to_string());
-            match &param.kind {
-                GenericParamKind::Lifetime { .. } => (ParamKindOrd::Lifetime, span, ident),
-                GenericParamKind::Type { .. } => (ParamKindOrd::Type, span, ident),
-                GenericParamKind::Const { ref ty } => {
-                    let ty = pprust::ty_to_string(ty);
-                    (ParamKindOrd::Const, span, Some(format!("const {}: {}", param.ident, ty)))
-                }
-            }
-        }), GenericPosition::Param, generics.span);
+        validate_generics_order(
+            self.session,
+            self.err_handler(),
+            generics.params.iter().map(|param| {
+                let ident = Some(param.ident.to_string());
+                let (kind, ident) = match &param.kind {
+                    GenericParamKind::Lifetime { .. } => (ParamKindOrd::Lifetime, ident),
+                    GenericParamKind::Type { .. } => (ParamKindOrd::Type, ident),
+                    GenericParamKind::Const { ref ty } => {
+                        let ty = pprust::ty_to_string(ty);
+                        (ParamKindOrd::Const, Some(format!("const {}: {}", param.ident, ty)))
+                    }
+                };
+                (kind, Some(&*param.bounds), param.ident.span, ident)
+            }),
+            GenericPosition::Param,
+            generics.span,
+        );
 
         for predicate in &generics.where_clause.predicates {
             if let WherePredicate::EqPredicate(ref predicate) = *predicate {
@@ -799,6 +821,13 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
         self.session.diagnostic()
             .span_bug(mac.span, "macro invocation missed in expansion; did you forget to override \
                                  the relevant `fold_*()` method in `PlaceholderExpander`?");
+    }
+
+    fn visit_fn_header(&mut self, header: &'a FnHeader) {
+        if header.asyncness.node.is_async() && self.session.rust_2015() {
+            struct_span_err!(self.session, header.asyncness.span, E0670,
+                             "`async fn` is not permitted in the 2015 edition").emit();
+        }
     }
 }
 

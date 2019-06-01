@@ -6,7 +6,7 @@ highlight how things you might already be used to in C are different in Rust.
 
 ## Preprocessor
 
-In embedded C it is very common to use the preprocessor for a varity of
+In embedded C it is very common to use the preprocessor for a variety of
 purposes, such as:
 
 * Compile-time selection of code blocks with `#ifdef`
@@ -52,7 +52,7 @@ pub mod iir;
 ```
 
 You can similarly include code blocks only if a feature is _not_ enabled, or if
-any combination or features is or is not enabled.
+any combination of features are or are not enabled.
 
 Additionally, Rust provides a number of automatically-set conditions you can
 use, such as `target_arch` to select different code based on architecture. For
@@ -62,7 +62,7 @@ full details of the conditional compilation support, refer to the
 [conditional compilation]: https://doc.rust-lang.org/reference/conditional-compilation.html
 
 The conditional compilation will only apply to the next statement or block. If
-a block can not be used in the current scope then then `cfg` attribute will
+a block can not be used in the current scope then the `cfg` attribute will
 need to be used multiple times.  It's worth noting that most of the time it is
 better to simply include all the code and allow the compiler to remove dead
 code when optimising: it's simpler for you and your users, and in general the
@@ -79,7 +79,7 @@ for example:
 const fn array_size() -> usize {
     #[cfg(feature="use_more_ram")]
     { 1024 }
-    #[cfg(not(feature="use_more_ram")]
+    #[cfg(not(feature="use_more_ram"))]
     { 128 }
 }
 
@@ -102,7 +102,7 @@ item, or pattern. Procedural macros are more complex but permit extremely
 powerful additions to the Rust language: they can transform arbitrary Rust
 syntax into new Rust syntax.
 
-[macro system]: https://doc.rust-lang.org/book/second-edition/appendix-04-macros.html
+[macro system]: https://doc.rust-lang.org/book/ch19-06-macros.html
 
 In general, where you might have used a C preprocessor macro, you probably want
 to see if a macro-by-example can do the job instead. They can be defined in
@@ -180,7 +180,7 @@ happily index outside the array.
 
 Instead, use iterators:
 
-```rust
+```rust,ignore
 let arr = [0u16; 16];
 for element in arr.iter() {
     process(*element);
@@ -194,7 +194,7 @@ data processing code.
 
 See the [Iterators in the Book] and [Iterator documentation] for more details.
 
-[Iterators in the Book]: https://doc.rust-lang.org/book/second-edition/ch13-02-iterators.html
+[Iterators in the Book]: https://doc.rust-lang.org/book/ch13-02-iterators.html
 [Iterator documentation]: https://doc.rust-lang.org/core/iter/trait.Iterator.html
 
 ## References vs Pointers
@@ -259,7 +259,7 @@ void driver() {
 
 The equivalent in Rust would use volatile methods on each access:
 
-```rust
+```rust,ignore
 static mut SIGNALLED: bool = false;
 
 #[interrupt]

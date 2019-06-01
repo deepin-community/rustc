@@ -369,7 +369,7 @@ impl<T, E> Result<T, E> {
     // Adapter for working with references
     /////////////////////////////////////////////////////////////////////////
 
-    /// Converts from `Result<T, E>` to `Result<&T, &E>`.
+    /// Converts from `&Result<T, E>` to `Result<&T, &E>`.
     ///
     /// Produces a new `Result`, containing a reference
     /// into the original, leaving the original in place.
@@ -394,7 +394,7 @@ impl<T, E> Result<T, E> {
         }
     }
 
-    /// Converts from `Result<T, E>` to `Result<&mut T, &mut E>`.
+    /// Converts from `&mut Result<T, E>` to `Result<&mut T, &mut E>`.
     ///
     /// # Examples
     ///
@@ -1200,8 +1200,36 @@ impl<A, E, V: FromIterator<A>> FromIterator<Result<A, E>> for Result<V, E> {
     /// let res: Result<Vec<u32>, &'static str> = v.iter().map(|x: &u32|
     ///     x.checked_add(1).ok_or("Overflow!")
     /// ).collect();
-    /// assert!(res == Ok(vec![2, 3]));
+    /// assert_eq!(res, Ok(vec![2, 3]));
     /// ```
+    ///
+    /// Here is another example that tries to subtract one from another list
+    /// of integers, this time checking for underflow:
+    ///
+    /// ```
+    /// let v = vec![1, 2, 0];
+    /// let res: Result<Vec<u32>, &'static str> = v.iter().map(|x: &u32|
+    ///     x.checked_sub(1).ok_or("Underflow!")
+    /// ).collect();
+    /// assert_eq!(res, Err("Underflow!"));
+    /// ```
+    ///
+    /// Here is a variation on the previous example, showing that no
+    /// further elements are taken from `iter` after the first `Err`.
+    ///
+    /// ```
+    /// let v = vec![3, 2, 1, 10];
+    /// let mut shared = 0;
+    /// let res: Result<Vec<u32>, &'static str> = v.iter().map(|x: &u32| {
+    ///     shared += x;
+    ///     x.checked_sub(2).ok_or("Underflow!")
+    /// }).collect();
+    /// assert_eq!(res, Err("Underflow!"));
+    /// assert_eq!(shared, 6);
+    /// ```
+    ///
+    /// Since the third element caused an underflow, no further elements were taken,
+    /// so the final value of `shared` is 6 (= `3 + 2 + 1`), not 16.
     #[inline]
     fn from_iter<I: IntoIterator<Item=Result<A, E>>>(iter: I) -> Result<V, E> {
         // FIXME(#11084): This could be replaced with Iterator::scan when this

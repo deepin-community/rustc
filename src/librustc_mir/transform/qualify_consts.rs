@@ -16,6 +16,7 @@ use rustc::ty::{self, TyCtxt, Ty, TypeFoldable};
 use rustc::ty::cast::CastTy;
 use rustc::ty::query::Providers;
 use rustc::mir::*;
+use rustc::mir::interpret::ConstValue;
 use rustc::mir::traversal::ReversePostorder;
 use rustc::mir::visit::{PlaceContext, Visitor, MutatingUseContext, NonMutatingUseContext};
 use rustc::middle::lang_items;
@@ -167,7 +168,7 @@ trait Qualif {
             cx,
             proj.base.ty(cx.mir, cx.tcx)
                 .projection_ty(cx.tcx, &proj.elem)
-                .to_ty(cx.tcx),
+                .ty,
         );
         match proj.elem {
             ProjectionElem::Deref |
@@ -186,9 +187,12 @@ trait Qualif {
 
     fn in_place(cx: &ConstCx<'_, 'tcx>, place: &Place<'tcx>) -> bool {
         match *place {
-            Place::Local(local) => Self::in_local(cx, local),
-            Place::Promoted(_) => bug!("qualifying already promoted MIR"),
-            Place::Static(ref static_) => Self::in_static(cx, static_),
+            Place::Base(PlaceBase::Local(local)) => Self::in_local(cx, local),
+            Place::Base(PlaceBase::Static(box Static {kind: StaticKind::Promoted(_), .. })) =>
+                bug!("qualifying already promoted MIR"),
+            Place::Base(PlaceBase::Static(ref static_)) => {
+                Self::in_static(cx, static_)
+            },
             Place::Projection(ref proj) => Self::in_projection(cx, proj),
         }
     }
@@ -199,12 +203,12 @@ trait Qualif {
             Operand::Move(ref place) => Self::in_place(cx, place),
 
             Operand::Constant(ref constant) => {
-                if let ty::LazyConst::Unevaluated(def_id, _) = constant.literal {
+                if let ConstValue::Unevaluated(def_id, _) = constant.literal.val {
                     // Don't peek inside trait associated constants.
-                    if cx.tcx.trait_of_item(*def_id).is_some() {
+                    if cx.tcx.trait_of_item(def_id).is_some() {
                         Self::in_any_value_of_ty(cx, constant.ty).unwrap_or(false)
                     } else {
-                        let (bits, _) = cx.tcx.at(constant.span).mir_const_qualif(*def_id);
+                        let (bits, _) = cx.tcx.at(constant.span).mir_const_qualif(def_id);
 
                         let qualif = PerQualif::decode_from_bits(bits).0[Self::IDX];
 
@@ -241,7 +245,7 @@ trait Qualif {
                 // Special-case reborrows to be more like a copy of the reference.
                 if let Place::Projection(ref proj) = *place {
                     if let ProjectionElem::Deref = proj.elem {
-                        let base_ty = proj.base.ty(cx.mir, cx.tcx).to_ty(cx.tcx);
+                        let base_ty = proj.base.ty(cx.mir, cx.tcx).ty;
                         if let ty::Ref(..) = base_ty.sty {
                             return Self::in_place(cx, &proj.base);
                         }
@@ -297,7 +301,7 @@ impl Qualif for HasMutInterior {
             // allowed in constants (and the `Checker` will error), and/or it
             // won't be promoted, due to `&mut ...` or interior mutability.
             Rvalue::Ref(_, kind, ref place) => {
-                let ty = place.ty(cx.mir, cx.tcx).to_ty(cx.tcx);
+                let ty = place.ty(cx.mir, cx.tcx).ty;
 
                 if let BorrowKind::Mut { .. } = kind {
                     // In theory, any zero-sized value could be borrowed
@@ -369,11 +373,18 @@ impl Qualif for IsNotConst {
     const IDX: usize = 2;
 
     fn in_static(cx: &ConstCx<'_, 'tcx>, static_: &Static<'tcx>) -> bool {
-        // Only allow statics (not consts) to refer to other statics.
-        let allowed = cx.mode == Mode::Static || cx.mode == Mode::StaticMut;
+        match static_.kind {
+            StaticKind::Promoted(_) => unreachable!(),
+            StaticKind::Static(def_id) => {
+                // Only allow statics (not consts) to refer to other statics.
+                let allowed = cx.mode == Mode::Static || cx.mode == Mode::StaticMut;
 
-        !allowed ||
-            cx.tcx.get_attrs(static_.def_id).iter().any(|attr| attr.check_name("thread_local"))
+                !allowed ||
+                    cx.tcx.get_attrs(def_id).iter().any(
+                        |attr| attr.check_name("thread_local"
+                    ))
+            }
+        }
     }
 
     fn in_projection(cx: &ConstCx<'_, 'tcx>, proj: &PlaceProjection<'tcx>) -> bool {
@@ -387,7 +398,7 @@ impl Qualif for IsNotConst {
 
             ProjectionElem::Field(..) => {
                 if cx.mode == Mode::Fn {
-                    let base_ty = proj.base.ty(cx.mir, cx.tcx).to_ty(cx.tcx);
+                    let base_ty = proj.base.ty(cx.mir, cx.tcx).ty;
                     if let Some(def) = base_ty.ty_adt_def() {
                         if def.is_union() {
                             return true;
@@ -717,7 +728,10 @@ impl<'a, 'tcx> Checker<'a, 'tcx> {
                                    interior mutability, create a static instead");
                     }
                 }
-            } else {
+            } else if let BorrowKind::Mut { .. } | BorrowKind::Shared = kind {
+                // Don't promote BorrowKind::Shallow borrows, as they don't
+                // reach codegen.
+
                 // We might have a candidate for promotion.
                 let candidate = Candidate::Ref(location);
                 // We can only promote interior borrows of promotable temps.
@@ -729,7 +743,7 @@ impl<'a, 'tcx> Checker<'a, 'tcx> {
                     place = &proj.base;
                 }
                 debug!("qualify_consts: promotion candidate: place={:?}", place);
-                if let Place::Local(local) = *place {
+                if let Place::Base(PlaceBase::Local(local)) = *place {
                     if self.mir.local_kind(local) == LocalKind::Temp {
                         debug!("qualify_consts: promotion candidate: local={:?}", local);
                         // The borrowed place doesn't have `HasMutInterior`
@@ -753,7 +767,7 @@ impl<'a, 'tcx> Checker<'a, 'tcx> {
         let index = loop {
             match dest {
                 // We treat all locals equal in constants
-                Place::Local(index) => break *index,
+                Place::Base(PlaceBase::Local(index)) => break *index,
                 // projections are transparent for assignments
                 // we qualify the entire destination at once, even if just a field would have
                 // stricter qualification
@@ -767,8 +781,9 @@ impl<'a, 'tcx> Checker<'a, 'tcx> {
                     );
                     dest = &proj.base;
                 },
-                Place::Promoted(..) => bug!("promoteds don't exist yet during promotion"),
-                Place::Static(..) => {
+                Place::Base(PlaceBase::Static(box Static{ kind: StaticKind::Promoted(_), .. })) =>
+                    bug!("promoteds don't exist yet during promotion"),
+                Place::Base(PlaceBase::Static(box Static{ kind: _, .. })) => {
                     // Catch more errors in the destination. `visit_place` also checks that we
                     // do not try to access statics from constants or try to mutate statics
                     self.visit_place(
@@ -877,7 +892,10 @@ impl<'a, 'tcx> Checker<'a, 'tcx> {
             match *candidate {
                 Candidate::Ref(Location { block: bb, statement_index: stmt_idx }) => {
                     match self.mir[bb].statements[stmt_idx].kind {
-                        StatementKind::Assign(_, box Rvalue::Ref(_, _, Place::Local(index))) => {
+                        StatementKind::Assign(
+                            _,
+                            box Rvalue::Ref(_, _, Place::Base(PlaceBase::Local(index)))
+                        ) => {
                             promoted_temps.insert(index);
                         }
                         _ => {}
@@ -914,11 +932,13 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
         debug!("visit_place: place={:?} context={:?} location={:?}", place, context, location);
         self.super_place(place, context, location);
         match *place {
-            Place::Local(_) |
-            Place::Promoted(_) => {}
-            Place::Static(ref global) => {
+            Place::Base(PlaceBase::Local(_)) => {}
+            Place::Base(PlaceBase::Static(box Static{ kind: StaticKind::Promoted(_), .. })) => {
+                unreachable!()
+            }
+            Place::Base(PlaceBase::Static(box Static{ kind: StaticKind::Static(def_id), .. })) => {
                 if self.tcx
-                       .get_attrs(global.def_id)
+                       .get_attrs(def_id)
                        .iter()
                        .any(|attr| attr.check_name("thread_local")) {
                     if self.mode != Mode::Fn {
@@ -968,7 +988,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
                             // `not_const` errors out in const contexts
                             self.not_const()
                         }
-                        let base_ty = proj.base.ty(self.mir, self.tcx).to_ty(self.tcx);
+                        let base_ty = proj.base.ty(self.mir, self.tcx).ty;
                         match self.mode {
                             Mode::Fn => {},
                             _ => {
@@ -992,7 +1012,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
                     ProjectionElem::Subslice {..} |
                     ProjectionElem::Field(..) |
                     ProjectionElem::Index(_) => {
-                        let base_ty = proj.base.ty(self.mir, self.tcx).to_ty(self.tcx);
+                        let base_ty = proj.base.ty(self.mir, self.tcx).ty;
                         if let Some(def) = base_ty.ty_adt_def() {
                             if def.is_union() {
                                 match self.mode {
@@ -1031,7 +1051,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
         match *operand {
             Operand::Move(ref place) => {
                 // Mark the consumed locals to indicate later drops are noops.
-                if let Place::Local(local) = *place {
+                if let Place::Base(PlaceBase::Local(local)) = *place {
                     self.cx.per_local[NeedsDrop].remove(local);
                 }
             }
@@ -1049,7 +1069,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
             let mut is_reborrow = false;
             if let Place::Projection(ref proj) = *place {
                 if let ProjectionElem::Deref = proj.elem {
-                    let base_ty = proj.base.ty(self.mir, self.tcx).to_ty(self.tcx);
+                    let base_ty = proj.base.ty(self.mir, self.tcx).ty;
                     if let ty::Ref(..) = base_ty.sty {
                         is_reborrow = true;
                     }
@@ -1088,8 +1108,9 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
             Rvalue::CheckedBinaryOp(..) |
             Rvalue::Cast(CastKind::ReifyFnPointer, ..) |
             Rvalue::Cast(CastKind::UnsafeFnPointer, ..) |
-            Rvalue::Cast(CastKind::ClosureFnPointer, ..) |
+            Rvalue::Cast(CastKind::ClosureFnPointer(_), ..) |
             Rvalue::Cast(CastKind::Unsize, ..) |
+            Rvalue::Cast(CastKind::MutToConstPointer, ..) |
             Rvalue::Discriminant(..) |
             Rvalue::Len(_) |
             Rvalue::Ref(..) |
@@ -1172,7 +1193,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
                 self.assign(dest, ValueSource::Call {
                     callee: func,
                     args,
-                    return_ty: dest.ty(self.mir, self.tcx).to_ty(self.tcx),
+                    return_ty: dest.ty(self.mir, self.tcx).ty,
                 }, location);
             }
 
@@ -1248,7 +1269,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
                                     if !self.span.allows_unstable(&feature.as_str()) {
                                         let mut err = self.tcx.sess.struct_span_err(self.span,
                                             &format!("`{}` is not yet stable as a const fn",
-                                                    self.tcx.item_path_str(def_id)));
+                                                    self.tcx.def_path_str(def_id)));
                                         if nightly_options::is_nightly_build() {
                                             help!(&mut err,
                                                   "add `#![feature({})]` to the \
@@ -1334,7 +1355,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
                 unleash_miri!(self);
                 // HACK(eddyb): emulate a bit of dataflow analysis,
                 // conservatively, that drop elaboration will do.
-                let needs_drop = if let Place::Local(local) = *place {
+                let needs_drop = if let Place::Base(PlaceBase::Local(local)) = *place {
                     if NeedsDrop::in_local(self, local) {
                         Some(self.mir.local_decls[local].source_info.span)
                     } else {
@@ -1346,7 +1367,7 @@ impl<'a, 'tcx> Visitor<'tcx> for Checker<'a, 'tcx> {
 
                 if let Some(span) = needs_drop {
                     // Double-check the type being dropped, to minimize false positives.
-                    let ty = place.ty(self.mir, self.tcx).to_ty(self.tcx);
+                    let ty = place.ty(self.mir, self.tcx).ty;
                     if ty.needs_drop(self.tcx, self.param_env) {
                         struct_span_err!(self.tcx.sess, span, E0493,
                                          "destructors cannot be evaluated at compile-time")
@@ -1564,7 +1585,11 @@ impl MirPass for QualifyAndPromoteConstants {
                 });
                 let terminator = block.terminator_mut();
                 match terminator.kind {
-                    TerminatorKind::Drop { location: Place::Local(index), target, .. } => {
+                    TerminatorKind::Drop {
+                        location: Place::Base(PlaceBase::Local(index)),
+                        target,
+                        ..
+                    } => {
                         if promoted_temps.contains(index) {
                             terminator.kind = TerminatorKind::Goto {
                                 target,

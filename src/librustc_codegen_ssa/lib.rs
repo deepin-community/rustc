@@ -2,14 +2,19 @@
 
 #![feature(box_patterns)]
 #![feature(box_syntax)]
+#![feature(core_intrinsics)]
 #![feature(custom_attribute)]
 #![feature(libc)]
 #![feature(rustc_diagnostic_macros)]
+#![feature(stmt_expr_attributes)]
+#![feature(try_blocks)]
 #![feature(in_band_lifetimes)]
 #![feature(nll)]
+#![feature(trusted_len)]
 #![allow(unused_attributes)]
 #![allow(dead_code)]
 #![deny(rust_2018_idioms)]
+#![cfg_attr(not(stage0), deny(internal))]
 #![allow(explicit_outlives_requirements)]
 
 #![recursion_limit="256"]
@@ -20,6 +25,7 @@
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate rustc;
+#[macro_use] extern crate rustc_data_structures;
 #[macro_use] extern crate syntax;
 
 use std::path::PathBuf;
@@ -138,7 +144,6 @@ pub struct CrateInfo {
     pub used_crate_source: FxHashMap<CrateNum, Lrc<CrateSource>>,
     pub used_crates_static: Vec<(CrateNum, LibSource)>,
     pub used_crates_dynamic: Vec<(CrateNum, LibSource)>,
-    pub wasm_imports: FxHashMap<String, String>,
     pub lang_item_to_crate: FxHashMap<LangItem, CrateNum>,
     pub missing_lang_items: FxHashMap<CrateNum, Vec<LangItem>>,
 }

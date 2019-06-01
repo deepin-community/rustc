@@ -12,7 +12,7 @@ provides three kinds of material:
 <div class="warning">
 
 Warning: This book is incomplete. Documenting everything takes a while. See
-the [undocumented] page for what is not documented in this book.
+the [GitHub issues] for what is not documented in this book.
 
 </div>
 
@@ -127,14 +127,14 @@ We welcome contributions of all kinds.
 You can contribute to this book by opening an issue or sending a pull
 request to [the Rust Reference repository]. If this book does not answer
 your question, and you think its answer is in scope of it, please do not
-hesitate to file an issue or ask about it in the Rust docs channels on IRC or
-discord. Knowing what people use this book for the most helps direct our
+hesitate to file an issue or ask about it in the `#docs` channels on
+[Discord]. Knowing what people use this book for the most helps direct our
 attention to making those sections the best that they can be.
 
 [book]: ../book/index.html
+[github issues]: https://github.com/rust-lang-nursery/reference/issues
 [standard library]: ../std/index.html
 [the Rust Reference repository]: https://github.com/rust-lang-nursery/reference/
-[big issue]: https://github.com/rust-lang-nursery/reference/issues/9
 [Unstable Book]: https://doc.rust-lang.org/nightly/unstable-book/
 [_Expression_]: expressions.html
 [cargo book]: ../cargo/index.html
@@ -143,5 +143,5 @@ attention to making those sections the best that they can be.
 [lifetime of temporaries]: expressions.html#temporary-lifetimes
 [linkage]: linkage.html
 [rustc book]: ../rustc/index.html
-[undocumented]: undocumented.html
 [Notation]: notation.html
+[Discord]: https://discord.gg/rust-lang

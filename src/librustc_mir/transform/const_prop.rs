@@ -3,14 +3,14 @@
 
 
 use rustc::hir::def::Def;
-use rustc::mir::{Constant, Location, Place, Mir, Operand, Rvalue, Local};
-use rustc::mir::{NullOp, UnOp, StatementKind, Statement, BasicBlock, LocalKind};
+use rustc::mir::{Constant, Location, Place, PlaceBase, Mir, Operand, Rvalue, Local};
+use rustc::mir::{NullOp, UnOp, StatementKind, Statement, BasicBlock, LocalKind, Static, StaticKind};
 use rustc::mir::{TerminatorKind, ClearCrossCrate, SourceInfo, BinOp, ProjectionElem};
 use rustc::mir::visit::{Visitor, PlaceContext, MutatingUseContext, NonMutatingUseContext};
-use rustc::mir::interpret::{EvalErrorKind, Scalar, GlobalId, EvalResult};
+use rustc::mir::interpret::{InterpError, Scalar, GlobalId, EvalResult};
 use rustc::ty::{TyCtxt, self, Instance};
 use syntax::source_map::{Span, DUMMY_SP};
-use rustc::ty::subst::Substs;
+use rustc::ty::subst::InternalSubsts;
 use rustc_data_structures::indexed_vec::IndexVec;
 use rustc::ty::ParamEnv;
 use rustc::ty::layout::{
@@ -18,7 +18,7 @@ use rustc::ty::layout::{
     HasTyCtxt, TargetDataLayout, HasDataLayout,
 };
 
-use crate::interpret::{EvalContext, ScalarMaybeUndef, Immediate, OpTy, ImmTy, MemoryKind};
+use crate::interpret::{InterpretCx, ScalarMaybeUndef, Immediate, OpTy, ImmTy, MemoryKind};
 use crate::const_eval::{
     CompileTimeInterpreter, error_to_const_error, eval_promoted, mk_eval_cx,
 };
@@ -37,10 +37,10 @@ impl MirPass for ConstProp {
         }
 
         use rustc::hir::map::blocks::FnLikeNode;
-        let node_id = tcx.hir().as_local_node_id(source.def_id())
-                             .expect("Non-local call to local provider is_const_fn");
+        let hir_id = tcx.hir().as_local_hir_id(source.def_id())
+                              .expect("Non-local call to local provider is_const_fn");
 
-        let is_fn_like = FnLikeNode::from_node(tcx.hir().get(node_id)).is_some();
+        let is_fn_like = FnLikeNode::from_node(tcx.hir().get_by_hir_id(hir_id)).is_some();
         let is_assoc_const = match tcx.describe_def(source.def_id()) {
             Some(Def::AssociatedConst(_)) => true,
             _ => false,
@@ -70,7 +70,7 @@ type Const<'tcx> = (OpTy<'tcx>, Span);
 
 /// Finds optimization opportunities on the MIR.
 struct ConstPropagator<'a, 'mir, 'tcx:'a+'mir> {
-    ecx: EvalContext<'a, 'mir, 'tcx, CompileTimeInterpreter<'a, 'mir, 'tcx>>,
+    ecx: InterpretCx<'a, 'mir, 'tcx, CompileTimeInterpreter<'a, 'mir, 'tcx>>,
     mir: &'mir Mir<'tcx>,
     tcx: TyCtxt<'a, 'tcx, 'tcx>,
     source: MirSource<'tcx>,
@@ -144,7 +144,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
             Ok(val) => Some(val),
             Err(error) => {
                 let diagnostic = error_to_const_error(&self.ecx, error);
-                use rustc::mir::interpret::EvalErrorKind::*;
+                use rustc::mir::interpret::InterpError::*;
                 match diagnostic.error {
                     // don't report these, they make no sense in a const prop context
                     | MachineError(_)
@@ -237,6 +237,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
                             self.ecx.tcx,
                             "this expression will panic at runtime",
                             lint_root,
+                            None,
                         );
                     }
                 }
@@ -253,7 +254,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
         source_info: SourceInfo,
     ) -> Option<Const<'tcx>> {
         self.ecx.tcx.span = source_info.span;
-        match self.ecx.eval_lazy_const_to_op(*c.literal, None) {
+        match self.ecx.eval_const_to_op(*c.literal, None) {
             Ok(op) => {
                 Some((op, c.span))
             },
@@ -267,7 +268,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
 
     fn eval_place(&mut self, place: &Place<'tcx>, source_info: SourceInfo) -> Option<Const<'tcx>> {
         match *place {
-            Place::Local(loc) => self.places[loc].clone(),
+            Place::Base(PlaceBase::Local(loc)) => self.places[loc].clone(),
             Place::Projection(ref proj) => match proj.elem {
                 ProjectionElem::Field(field, _) => {
                     trace!("field proj on {:?}", proj.base);
@@ -282,17 +283,19 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
                 // an `Index` projection would throw us off-track.
                 _ => None,
             },
-            Place::Promoted(ref promoted) => {
+            Place::Base(
+                PlaceBase::Static(box Static {kind: StaticKind::Promoted(promoted), ..})
+            ) => {
                 let generics = self.tcx.generics_of(self.source.def_id());
                 if generics.requires_monomorphization(self.tcx) {
                     // FIXME: can't handle code with generics
                     return None;
                 }
-                let substs = Substs::identity_for_item(self.tcx, self.source.def_id());
+                let substs = InternalSubsts::identity_for_item(self.tcx, self.source.def_id());
                 let instance = Instance::new(self.source.def_id(), substs);
                 let cid = GlobalId {
                     instance,
-                    promoted: Some(promoted.0),
+                    promoted: Some(promoted),
                 };
                 // cannot use `const_eval` here, because that would require having the MIR
                 // for the current function available, but we're producing said MIR right now
@@ -430,10 +433,10 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
                         } else {
                             "left"
                         };
-                        let node_id = source_scope_local_data[source_info.scope].lint_root;
-                        self.tcx.lint_node(
+                        let hir_id = source_scope_local_data[source_info.scope].lint_root;
+                        self.tcx.lint_hir(
                             ::rustc::lint::builtin::EXCEEDING_BITSHIFTS,
-                            node_id,
+                            hir_id,
                             span,
                             &format!("attempt to shift {} with overflow", dir));
                         return None;
@@ -454,7 +457,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
                     )
                 } else {
                     if overflow {
-                        let err = EvalErrorKind::Overflow(op).into();
+                        let err = InterpError::Overflow(op).into();
                         let _: Option<()> = self.use_ecx(source_info, |_| Err(err));
                         return None;
                     }
@@ -553,10 +556,10 @@ impl<'b, 'a, 'tcx> Visitor<'tcx> for ConstPropagator<'b, 'a, 'tcx> {
         if let StatementKind::Assign(ref place, ref rval) = statement.kind {
             let place_ty: ty::Ty<'tcx> = place
                 .ty(&self.mir.local_decls, self.tcx)
-                .to_ty(self.tcx);
+                .ty;
             if let Ok(place_layout) = self.tcx.layout_of(self.param_env.and(place_ty)) {
                 if let Some(value) = self.const_prop(rval, place_layout, statement.source_info) {
-                    if let Place::Local(local) = *place {
+                    if let Place::Base(PlaceBase::Local(local)) = *place {
                         trace!("checking whether {:?} can be stored to {:?}", value, local);
                         if self.can_const_prop[local] {
                             trace!("storing {:?} to {:?}", value, local);
@@ -591,7 +594,7 @@ impl<'b, 'a, 'tcx> Visitor<'tcx> for ConstPropagator<'b, 'a, 'tcx> {
                             while let Place::Projection(ref proj) = *place {
                                 place = &proj.base;
                             }
-                            if let Place::Local(local) = *place {
+                            if let Place::Base(PlaceBase::Local(local)) = *place {
                                 self.places[local] = None;
                             }
                         },
@@ -603,12 +606,12 @@ impl<'b, 'a, 'tcx> Visitor<'tcx> for ConstPropagator<'b, 'a, 'tcx> {
                         .unwrap()
                         .source_info
                         .span;
-                    let node_id = self
+                    let hir_id = self
                         .tcx
                         .hir()
-                        .as_local_node_id(self.source.def_id())
+                        .as_local_hir_id(self.source.def_id())
                         .expect("some part of a failing const eval must be local");
-                    use rustc::mir::interpret::EvalErrorKind::*;
+                    use rustc::mir::interpret::InterpError::*;
                     let msg = match msg {
                         Overflow(_) |
                         OverflowNeg |
@@ -643,9 +646,9 @@ impl<'b, 'a, 'tcx> Visitor<'tcx> for ConstPropagator<'b, 'a, 'tcx> {
                         // Need proper const propagator for these
                         _ => return,
                     };
-                    self.tcx.lint_node(
+                    self.tcx.lint_hir(
                         ::rustc::lint::builtin::CONST_ERR,
-                        node_id,
+                        hir_id,
                         span,
                         &msg,
                     );

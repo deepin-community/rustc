@@ -109,7 +109,7 @@ impl<'a> CollectProcMacros<'a> {
             None => return,
         };
         if list.len() != 1 && list.len() != 2 {
-            self.handler.span_err(attr.span(),
+            self.handler.span_err(attr.span,
                                   "attribute must have either one or two arguments");
             return
         }
@@ -128,8 +128,8 @@ impl<'a> CollectProcMacros<'a> {
             }
         };
 
-        if trait_ident.is_path_segment_keyword() {
-            self.handler.span_err(trait_attr.span(),
+        if !trait_ident.can_be_raw() {
+            self.handler.span_err(trait_attr.span,
                                   &format!("`{}` cannot be a name of derive macro", trait_ident));
         }
         if deriving::is_builtin_trait(trait_ident.name) {
@@ -162,9 +162,9 @@ impl<'a> CollectProcMacros<'a> {
                         return None;
                     }
                 };
-                if ident.is_path_segment_keyword() {
+                if !ident.can_be_raw() {
                     self.handler.span_err(
-                        attr.span(),
+                        attr.span,
                         &format!("`{}` cannot be a name of derive helper attribute", ident),
                     );
                 }
@@ -262,8 +262,8 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
                                 to the same function", attr.path, prev_attr.path)
                     };
 
-                    self.handler.struct_span_err(attr.span(), &msg)
-                        .span_note(prev_attr.span(), "Previous attribute here")
+                    self.handler.struct_span_err(attr.span, &msg)
+                        .span_note(prev_attr.span, "Previous attribute here")
                         .emit();
 
                     return;
@@ -288,7 +288,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
             let msg = format!("the `#[{}]` attribute may only be used on bare functions",
                               attr.path);
 
-            self.handler.span_err(attr.span(), &msg);
+            self.handler.span_err(attr.span, &msg);
             return;
         }
 
@@ -300,7 +300,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
             let msg = format!("the `#[{}]` attribute is only usable with crates of the \
                               `proc-macro` crate type", attr.path);
 
-            self.handler.span_err(attr.span(), &msg);
+            self.handler.span_err(attr.span, &msg);
             return;
         }
 
@@ -317,7 +317,7 @@ impl<'a> Visitor<'a> for CollectProcMacros<'a> {
         self.in_root = prev_in_root;
     }
 
-    fn visit_mac(&mut self, mac: &ast::Mac) {
+    fn visit_mac(&mut self, mac: &'a ast::Mac) {
         visit::walk_mac(self, mac)
     }
 }

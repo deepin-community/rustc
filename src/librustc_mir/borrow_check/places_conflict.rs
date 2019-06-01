@@ -2,8 +2,7 @@ use crate::borrow_check::ArtificialField;
 use crate::borrow_check::Overlap;
 use crate::borrow_check::{Deep, Shallow, AccessDepth};
 use rustc::hir;
-use rustc::mir::{BorrowKind, Mir, Place};
-use rustc::mir::{Projection, ProjectionElem};
+use rustc::mir::{BorrowKind, Mir, Place, PlaceBase, Projection, ProjectionElem, StaticKind};
 use rustc::ty::{self, TyCtxt};
 use std::cmp::max;
 
@@ -60,8 +59,8 @@ pub(super) fn borrow_conflicts_with_place<'gcx, 'tcx>(
 
     // This Local/Local case is handled by the more general code below, but
     // it's so common that it's a speed win to check for it first.
-    if let Place::Local(l1) = borrow_place {
-        if let Place::Local(l2) = access_place {
+    if let Place::Base(PlaceBase::Local(l1)) = borrow_place {
+        if let Place::Base(PlaceBase::Local(l2)) = access_place {
             return l1 == l2;
         }
     }
@@ -192,7 +191,7 @@ fn place_components_conflict<'gcx, 'tcx>(
                     Place::Projection(box Projection { base, elem }) => (base, elem),
                     _ => bug!("place has no base?"),
                 };
-                let base_ty = base.ty(mir, tcx).to_ty(tcx);
+                let base_ty = base.ty(mir, tcx).ty;
 
                 match (elem, &base_ty.sty, access) {
                     (_, _, Shallow(Some(ArtificialField::ArrayLength)))
@@ -339,8 +338,7 @@ fn unroll_place<'tcx, R>(
             op,
         ),
 
-        Place::Promoted(_) |
-        Place::Local(_) | Place::Static(_) => {
+        Place::Base(PlaceBase::Local(_)) | Place::Base(PlaceBase::Static(_)) => {
             let list = PlaceComponents {
                 component: place,
                 next,
@@ -361,7 +359,7 @@ fn place_element_conflict<'a, 'gcx: 'tcx, 'tcx>(
     bias: PlaceConflictBias,
 ) -> Overlap {
     match (elem1, elem2) {
-        (Place::Local(l1), Place::Local(l2)) => {
+        (Place::Base(PlaceBase::Local(l1)), Place::Base(PlaceBase::Local(l2))) => {
             if l1 == l2 {
                 // the same local - base case, equal
                 debug!("place_element_conflict: DISJOINT-OR-EQ-LOCAL");
@@ -372,40 +370,47 @@ fn place_element_conflict<'a, 'gcx: 'tcx, 'tcx>(
                 Overlap::Disjoint
             }
         }
-        (Place::Static(static1), Place::Static(static2)) => {
-            if static1.def_id != static2.def_id {
-                debug!("place_element_conflict: DISJOINT-STATIC");
-                Overlap::Disjoint
-            } else if tcx.is_static(static1.def_id) == Some(hir::Mutability::MutMutable) {
-                // We ignore mutable statics - they can only be unsafe code.
-                debug!("place_element_conflict: IGNORE-STATIC-MUT");
-                Overlap::Disjoint
-            } else {
-                debug!("place_element_conflict: DISJOINT-OR-EQ-STATIC");
-                Overlap::EqualOrDisjoint
-            }
-        }
-        (Place::Promoted(p1), Place::Promoted(p2)) => {
-            if p1.0 == p2.0 {
-                if let ty::Array(_, size) = p1.1.sty {
-                    if size.unwrap_usize(tcx) == 0 {
-                        // Ignore conflicts with promoted [T; 0].
-                        debug!("place_element_conflict: IGNORE-LEN-0-PROMOTED");
-                        return Overlap::Disjoint;
+        (Place::Base(PlaceBase::Static(s1)), Place::Base(PlaceBase::Static(s2))) => {
+            match (&s1.kind, &s2.kind) {
+                (StaticKind::Static(def_id_1), StaticKind::Static(def_id_2)) => {
+                    if def_id_1 != def_id_2 {
+                        debug!("place_element_conflict: DISJOINT-STATIC");
+                        Overlap::Disjoint
+                    } else if tcx.is_static(*def_id_1) == Some(hir::Mutability::MutMutable) {
+                        // We ignore mutable statics - they can only be unsafe code.
+                        debug!("place_element_conflict: IGNORE-STATIC-MUT");
+                        Overlap::Disjoint
+                    } else {
+                        debug!("place_element_conflict: DISJOINT-OR-EQ-STATIC");
+                        Overlap::EqualOrDisjoint
                     }
+                },
+                (StaticKind::Promoted(promoted_1), StaticKind::Promoted(promoted_2)) => {
+                    if promoted_1 == promoted_2 {
+                        if let ty::Array(_, size) = s1.ty.sty {
+                            if size.unwrap_usize(tcx) == 0 {
+                                // Ignore conflicts with promoted [T; 0].
+                                debug!("place_element_conflict: IGNORE-LEN-0-PROMOTED");
+                                return Overlap::Disjoint;
+                            }
+                        }
+                        // the same promoted - base case, equal
+                        debug!("place_element_conflict: DISJOINT-OR-EQ-PROMOTED");
+                        Overlap::EqualOrDisjoint
+                    } else {
+                        // different promoteds - base case, disjoint
+                        debug!("place_element_conflict: DISJOINT-PROMOTED");
+                        Overlap::Disjoint
+                    }
+                },
+                (_, _) => {
+                    debug!("place_element_conflict: DISJOINT-STATIC-PROMOTED");
+                    Overlap::Disjoint
                 }
-                // the same promoted - base case, equal
-                debug!("place_element_conflict: DISJOINT-OR-EQ-PROMOTED");
-                Overlap::EqualOrDisjoint
-            } else {
-                // different promoteds - base case, disjoint
-                debug!("place_element_conflict: DISJOINT-PROMOTED");
-                Overlap::Disjoint
             }
         }
-        (Place::Local(_), Place::Promoted(_)) | (Place::Promoted(_), Place::Local(_)) |
-        (Place::Promoted(_), Place::Static(_)) | (Place::Static(_), Place::Promoted(_)) |
-        (Place::Local(_), Place::Static(_)) | (Place::Static(_), Place::Local(_)) => {
+        (Place::Base(PlaceBase::Local(_)), Place::Base(PlaceBase::Static(_))) |
+        (Place::Base(PlaceBase::Static(_)), Place::Base(PlaceBase::Local(_))) => {
             debug!("place_element_conflict: DISJOINT-STATIC-LOCAL-PROMOTED");
             Overlap::Disjoint
         }
@@ -422,7 +427,7 @@ fn place_element_conflict<'a, 'gcx: 'tcx, 'tcx>(
                         debug!("place_element_conflict: DISJOINT-OR-EQ-FIELD");
                         Overlap::EqualOrDisjoint
                     } else {
-                        let ty = pi1.base.ty(mir, tcx).to_ty(tcx);
+                        let ty = pi1.base.ty(mir, tcx).ty;
                         match ty.sty {
                             ty::Adt(def, _) if def.is_union() => {
                                 // Different fields of a union, we are basically stuck.

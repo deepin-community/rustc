@@ -360,15 +360,13 @@ fn hash_token<'a, 'gcx, W: StableHasherResult>(
     }
 }
 
-impl_stable_hash_for_spanned!(::syntax::ast::NestedMetaItemKind);
-
-impl_stable_hash_for!(enum ::syntax::ast::NestedMetaItemKind {
+impl_stable_hash_for!(enum ::syntax::ast::NestedMetaItem {
     MetaItem(meta_item),
     Literal(lit)
 });
 
 impl_stable_hash_for!(struct ::syntax::ast::MetaItem {
-    ident,
+    path,
     node,
     span
 });

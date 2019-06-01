@@ -190,6 +190,7 @@ impl Sig for ast::Ty {
                 Ok(replace_text(nested, text))
             }
             ast::TyKind::Never => Ok(text_sig("!".to_owned())),
+            ast::TyKind::CVarArgs => Ok(text_sig("...".to_owned())),
             ast::TyKind::Tup(ref ts) => {
                 let mut text = "(".to_owned();
                 let mut defs = vec![];
@@ -378,7 +379,7 @@ impl Sig for ast::Item {
                 if header.constness.node == ast::Constness::Const {
                     text.push_str("const ");
                 }
-                if header.asyncness.is_async() {
+                if header.asyncness.node.is_async() {
                     text.push_str("async ");
                 }
                 if header.unsafety == ast::Unsafety::Unsafe {
@@ -585,7 +586,7 @@ impl Sig for ast::Path {
                     refs: vec![],
                 })
             }
-            Def::AssociatedConst(..) | Def::Variant(..) | Def::VariantCtor(..) => {
+            Def::AssociatedConst(..) | Def::Variant(..) | Def::Ctor(..) => {
                 let len = self.segments.len();
                 if len < 2 {
                     return Err("Bad path");
@@ -699,10 +700,11 @@ impl Sig for ast::StructField {
 
 
 impl Sig for ast::Variant_ {
-    fn make(&self, offset: usize, _parent_id: Option<NodeId>, scx: &SaveContext<'_, '_>) -> Result {
+    fn make(&self, offset: usize, parent_id: Option<NodeId>, scx: &SaveContext<'_, '_>) -> Result {
         let mut text = self.ident.to_string();
         match self.data {
-            ast::VariantData::Struct(ref fields, id) => {
+            ast::VariantData::Struct(ref fields, r) => {
+                let id = parent_id.unwrap();
                 let name_def = SigElement {
                     id: id_from_node_id(id, scx),
                     start: offset,
@@ -711,12 +713,16 @@ impl Sig for ast::Variant_ {
                 text.push_str(" { ");
                 let mut defs = vec![name_def];
                 let mut refs = vec![];
-                for f in fields {
-                    let field_sig = f.make(offset + text.len(), Some(id), scx)?;
-                    text.push_str(&field_sig.text);
-                    text.push_str(", ");
-                    defs.extend(field_sig.defs.into_iter());
-                    refs.extend(field_sig.refs.into_iter());
+                if r {
+                    text.push_str("/* parse error */ ");
+                } else {
+                    for f in fields {
+                        let field_sig = f.make(offset + text.len(), Some(id), scx)?;
+                        text.push_str(&field_sig.text);
+                        text.push_str(", ");
+                        defs.extend(field_sig.defs.into_iter());
+                        refs.extend(field_sig.refs.into_iter());
+                    }
                 }
                 text.push('}');
                 Ok(Signature { text, defs, refs })
@@ -936,7 +942,7 @@ fn make_method_signature(
     if m.header.constness.node == ast::Constness::Const {
         text.push_str("const ");
     }
-    if m.header.asyncness.is_async() {
+    if m.header.asyncness.node.is_async() {
         text.push_str("async ");
     }
     if m.header.unsafety == ast::Unsafety::Unsafe {

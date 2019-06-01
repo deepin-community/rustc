@@ -14,7 +14,6 @@ use rustc::middle::mem_categorization::Categorization;
 use rustc::middle::region;
 use rustc::ty::{self, TyCtxt};
 
-use syntax::ast;
 use syntax_pos::Span;
 use rustc::hir;
 use log::debug;
@@ -68,7 +67,7 @@ struct GatherLoanCtxt<'a, 'tcx: 'a> {
 
 impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
     fn consume(&mut self,
-               consume_id: ast::NodeId,
+               consume_id: hir::HirId,
                _consume_span: Span,
                cmt: &mc::cmt_<'tcx>,
                mode: euv::ConsumeMode) {
@@ -79,7 +78,7 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
             euv::Move(move_reason) => {
                 gather_moves::gather_move_from_expr(
                     self.bccx, &self.move_data, &mut self.move_error_collector,
-                    self.bccx.tcx.hir().node_to_hir_id(consume_id).local_id, cmt, move_reason);
+                    consume_id.local_id, cmt, move_reason);
             }
             euv::Copy => { }
         }
@@ -115,7 +114,7 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
     }
 
     fn borrow(&mut self,
-              borrow_id: ast::NodeId,
+              borrow_id: hir::HirId,
               borrow_span: Span,
               cmt: &mc::cmt_<'tcx>,
               loan_region: ty::Region<'tcx>,
@@ -126,8 +125,8 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
                bk={:?}, loan_cause={:?})",
                borrow_id, cmt, loan_region,
                bk, loan_cause);
-        let hir_id = self.bccx.tcx.hir().node_to_hir_id(borrow_id);
-        self.guarantee_valid(hir_id.local_id,
+
+        self.guarantee_valid(borrow_id.local_id,
                              borrow_span,
                              cmt,
                              bk,
@@ -136,7 +135,7 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
     }
 
     fn mutate(&mut self,
-              assignment_id: ast::NodeId,
+              assignment_id: hir::HirId,
               assignment_span: Span,
               assignee_cmt: &mc::cmt_<'tcx>,
               _: euv::MutateMode)
@@ -146,10 +145,10 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for GatherLoanCtxt<'a, 'tcx> {
                                         assignee_cmt);
     }
 
-    fn decl_without_init(&mut self, id: ast::NodeId, _span: Span) {
+    fn decl_without_init(&mut self, id: hir::HirId, _span: Span) {
         let ty = self.bccx
                      .tables
-                     .node_type(self.bccx.tcx.hir().node_to_hir_id(id));
+                     .node_type(id);
         gather_moves::gather_decl(self.bccx, &self.move_data, id, ty);
     }
 
@@ -255,7 +254,7 @@ impl<'a, 'tcx> GatherLoanCtxt<'a, 'tcx> {
 
     /// Guarantees that `cmt` is assignable, or reports an error.
     fn guarantee_assignment_valid(&mut self,
-                                  assignment_id: ast::NodeId,
+                                  assignment_id: hir::HirId,
                                   assignment_span: Span,
                                   cmt: &mc::cmt_<'tcx>) {
 
@@ -289,8 +288,7 @@ impl<'a, 'tcx> GatherLoanCtxt<'a, 'tcx> {
                     self.mark_loan_path_as_mutated(&lp);
                 }
                 gather_moves::gather_assignment(self.bccx, &self.move_data,
-                                                self.bccx.tcx.hir().node_to_hir_id(assignment_id)
-                                                    .local_id,
+                                                assignment_id.local_id,
                                                 assignment_span,
                                                 lp);
             }
@@ -455,9 +453,8 @@ impl<'a, 'tcx> GatherLoanCtxt<'a, 'tcx> {
 
         while let Some(current_path) = wrapped_path {
             wrapped_path = match current_path.kind {
-                LpVar(local_id) => {
+                LpVar(hir_id) => {
                     if !through_borrow {
-                        let hir_id = self.bccx.tcx.hir().node_to_hir_id(local_id);
                         self.bccx.used_mut_nodes.borrow_mut().insert(hir_id);
                     }
                     None

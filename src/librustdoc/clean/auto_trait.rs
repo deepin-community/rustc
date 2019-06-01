@@ -3,17 +3,17 @@ use rustc::traits::auto_trait as auto;
 use rustc::ty::{self, TypeFoldable};
 use std::fmt::Debug;
 
-use self::def_ctor::{get_def_from_def_id, get_def_from_node_id};
+use self::def_ctor::{get_def_from_def_id, get_def_from_hir_id};
 
 use super::*;
 
-pub struct AutoTraitFinder<'a, 'tcx: 'a, 'rcx: 'a> {
-    pub cx: &'a core::DocContext<'a, 'tcx, 'rcx>,
+pub struct AutoTraitFinder<'a, 'tcx> {
+    pub cx: &'a core::DocContext<'tcx>,
     pub f: auto::AutoTraitFinder<'a, 'tcx>,
 }
 
-impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
-    pub fn new(cx: &'a core::DocContext<'a, 'tcx, 'rcx>) -> Self {
+impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
+    pub fn new(cx: &'a core::DocContext<'tcx>) -> Self {
         let f = auto::AutoTraitFinder::new(&cx.tcx);
 
         AutoTraitFinder { cx, f }
@@ -25,9 +25,9 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
         })
     }
 
-    pub fn get_with_node_id(&self, id: ast::NodeId, name: String) -> Vec<Item> {
-        get_def_from_node_id(&self.cx, id, name, &|def_ctor, name| {
-            let did = self.cx.tcx.hir().local_def_id(id);
+    pub fn get_with_hir_id(&self, id: hir::HirId, name: String) -> Vec<Item> {
+        get_def_from_hir_id(&self.cx, id, name, &|def_ctor, name| {
+            let did = self.cx.tcx.hir().local_def_id_from_hir_id(id);
             self.get_auto_trait_impls(did, &def_ctor, Some(name))
         })
     }
@@ -115,7 +115,6 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
         if result.is_auto() {
             let trait_ = hir::TraitRef {
                 path: get_path_for_type(self.cx.tcx, trait_def_id, hir::def::Def::Trait),
-                ref_id: ast::DUMMY_NODE_ID,
                 hir_ref_id: hir::DUMMY_HIR_ID,
             };
 
@@ -436,7 +435,7 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
                     let new_ty = match &poly_trait.trait_ {
                         &Type::ResolvedPath {
                             ref path,
-                            ref typarams,
+                            ref param_names,
                             ref did,
                             ref is_generic,
                         } => {
@@ -445,7 +444,13 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
                                                                 .expect("segments were empty");
 
                             let (old_input, old_output) = match last_segment.args {
-                                GenericArgs::AngleBracketed { types, .. } => (types, None),
+                                GenericArgs::AngleBracketed { args, .. } => {
+                                    let types = args.iter().filter_map(|arg| match arg {
+                                        GenericArg::Type(ty) => Some(ty.clone()),
+                                        _ => None,
+                                    }).collect();
+                                    (types, None)
+                                }
                                 GenericArgs::Parenthesized { inputs, output, .. } => {
                                     (inputs, output)
                                 }
@@ -470,7 +475,7 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
 
                             Type::ResolvedPath {
                                 path: new_path,
-                                typarams: typarams.clone(),
+                                param_names: param_names.clone(),
                                 did: did.clone(),
                                 is_generic: *is_generic,
                             }
@@ -563,7 +568,7 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
                 (replaced.clone(), replaced.clean(self.cx))
             });
 
-        let full_generics = (&type_generics, &tcx.predicates_of(did));
+        let full_generics = (&type_generics, &tcx.explicit_predicates_of(did));
         let Generics {
             params: mut generic_params,
             ..
@@ -670,7 +675,7 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
                             match **trait_ {
                                 Type::ResolvedPath {
                                     path: ref trait_path,
-                                    ref typarams,
+                                    ref param_names,
                                     ref did,
                                     ref is_generic,
                                 } => {
@@ -725,7 +730,7 @@ impl<'a, 'tcx, 'rcx> AutoTraitFinder<'a, 'tcx, 'rcx> {
                                         PolyTrait {
                                             trait_: Type::ResolvedPath {
                                                 path: new_trait_path,
-                                                typarams: typarams.clone(),
+                                                param_names: param_names.clone(),
                                                 did: did.clone(),
                                                 is_generic: *is_generic,
                                             },

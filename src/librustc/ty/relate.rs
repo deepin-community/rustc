@@ -5,10 +5,10 @@
 //! subtyping, type equality, etc.
 
 use crate::hir::def_id::DefId;
-use crate::ty::subst::{Kind, UnpackedKind, Substs};
+use crate::ty::subst::{Kind, UnpackedKind, SubstsRef};
 use crate::ty::{self, Ty, TyCtxt, TypeFoldable};
 use crate::ty::error::{ExpectedFound, TypeError};
-use crate::mir::interpret::GlobalId;
+use crate::mir::interpret::{GlobalId, ConstValue};
 use crate::util::common::ErrorReported;
 use syntax_pos::DUMMY_SP;
 use std::rc::Rc;
@@ -50,9 +50,9 @@ pub trait TypeRelation<'a, 'gcx: 'a+'tcx, 'tcx: 'a> : Sized {
     /// accordingly.
     fn relate_item_substs(&mut self,
                           item_def_id: DefId,
-                          a_subst: &'tcx Substs<'tcx>,
-                          b_subst: &'tcx Substs<'tcx>)
-                          -> RelateResult<'tcx, &'tcx Substs<'tcx>>
+                          a_subst: SubstsRef<'tcx>,
+                          b_subst: SubstsRef<'tcx>)
+                          -> RelateResult<'tcx, SubstsRef<'tcx>>
     {
         debug!("relate_item_substs(item_def_id={:?}, a_subst={:?}, b_subst={:?})",
                item_def_id,
@@ -123,9 +123,9 @@ impl<'tcx> Relate<'tcx> for ty::TypeAndMut<'tcx> {
 
 pub fn relate_substs<'a, 'gcx, 'tcx, R>(relation: &mut R,
                                         variances: Option<&Vec<ty::Variance>>,
-                                        a_subst: &'tcx Substs<'tcx>,
-                                        b_subst: &'tcx Substs<'tcx>)
-                                        -> RelateResult<'tcx, &'tcx Substs<'tcx>>
+                                        a_subst: SubstsRef<'tcx>,
+                                        b_subst: SubstsRef<'tcx>)
+                                        -> RelateResult<'tcx, SubstsRef<'tcx>>
     where R: TypeRelation<'a, 'gcx, 'tcx>, 'gcx: 'a+'tcx, 'tcx: 'a
 {
     let tcx = relation.tcx();
@@ -147,9 +147,9 @@ impl<'tcx> Relate<'tcx> for ty::FnSig<'tcx> {
     {
         let tcx = relation.tcx();
 
-        if a.variadic != b.variadic {
+        if a.c_variadic != b.c_variadic {
             return Err(TypeError::VariadicMismatch(
-                expected_found(relation, &a.variadic, &b.variadic)));
+                expected_found(relation, &a.c_variadic, &b.c_variadic)));
         }
         let unsafety = relation.relate(&a.unsafety, &b.unsafety)?;
         let abi = relation.relate(&a.abi, &b.abi)?;
@@ -171,7 +171,7 @@ impl<'tcx> Relate<'tcx> for ty::FnSig<'tcx> {
             });
         Ok(ty::FnSig {
             inputs_and_output: tcx.mk_type_list(inputs_and_output)?,
-            variadic: a.variadic,
+            c_variadic: a.c_variadic,
             unsafety,
             abi,
         })
@@ -351,10 +351,8 @@ pub fn super_relate_tys<'a, 'gcx, 'tcx, R>(relation: &mut R,
     where R: TypeRelation<'a, 'gcx, 'tcx>, 'gcx: 'a+'tcx, 'tcx: 'a
 {
     let tcx = relation.tcx();
-    let a_sty = &a.sty;
-    let b_sty = &b.sty;
-    debug!("super_relate_tys: a_sty={:?} b_sty={:?}", a_sty, b_sty);
-    match (a_sty, b_sty) {
+    debug!("super_relate_tys: a={:?} b={:?}", a, b);
+    match (&a.sty, &b.sty) {
         (&ty::Infer(_), _) |
         (_, &ty::Infer(_)) =>
         {
@@ -468,9 +466,9 @@ pub fn super_relate_tys<'a, 'gcx, 'tcx, R>(relation: &mut R,
         (&ty::Array(a_t, sz_a), &ty::Array(b_t, sz_b)) =>
         {
             let t = relation.relate(&a_t, &b_t)?;
-            let to_u64 = |x: ty::LazyConst<'tcx>| -> Result<u64, ErrorReported> {
-                match x {
-                    ty::LazyConst::Unevaluated(def_id, substs) => {
+            let to_u64 = |x: ty::Const<'tcx>| -> Result<u64, ErrorReported> {
+                match x.val {
+                    ConstValue::Unevaluated(def_id, substs) => {
                         // FIXME(eddyb) get the right param_env.
                         let param_env = ty::ParamEnv::empty();
                         if let Some(substs) = tcx.lift_to_global(&substs) {
@@ -496,7 +494,7 @@ pub fn super_relate_tys<'a, 'gcx, 'tcx, R>(relation: &mut R,
                             "array length could not be evaluated");
                         Err(ErrorReported)
                     }
-                    ty::LazyConst::Evaluated(c) => c.assert_usize(tcx).ok_or_else(|| {
+                    _ => x.assert_usize(tcx).ok_or_else(|| {
                         tcx.sess.delay_span_bug(DUMMY_SP,
                             "array length could not be evaluated");
                         ErrorReported
@@ -624,11 +622,11 @@ impl<'tcx> Relate<'tcx> for ty::GeneratorSubsts<'tcx> {
     }
 }
 
-impl<'tcx> Relate<'tcx> for &'tcx Substs<'tcx> {
+impl<'tcx> Relate<'tcx> for SubstsRef<'tcx> {
     fn relate<'a, 'gcx, R>(relation: &mut R,
-                           a: &&'tcx Substs<'tcx>,
-                           b: &&'tcx Substs<'tcx>)
-                           -> RelateResult<'tcx, &'tcx Substs<'tcx>>
+                           a: &SubstsRef<'tcx>,
+                           b: &SubstsRef<'tcx>)
+                           -> RelateResult<'tcx, SubstsRef<'tcx>>
         where R: TypeRelation<'a, 'gcx, 'tcx>, 'gcx: 'a+'tcx, 'tcx: 'a
     {
         relate_substs(relation, None, a, b)
@@ -704,6 +702,9 @@ impl<'tcx> Relate<'tcx> for Kind<'tcx> {
             }
             (UnpackedKind::Type(unpacked), x) => {
                 bug!("impossible case reached: can't relate: {:?} with {:?}", unpacked, x)
+            }
+            (UnpackedKind::Const(_), _) => {
+                unimplemented!() // FIXME(const_generics)
             }
         }
     }

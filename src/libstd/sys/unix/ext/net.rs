@@ -15,19 +15,19 @@ mod libc {
     pub struct sockaddr_un;
 }
 
-use ascii;
-use ffi::OsStr;
-use fmt;
-use io::{self, Initializer, IoVec, IoVecMut};
-use mem;
-use net::{self, Shutdown};
-use os::unix::ffi::OsStrExt;
-use os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
-use path::Path;
-use time::Duration;
-use sys::{self, cvt};
-use sys::net::Socket;
-use sys_common::{self, AsInner, FromInner, IntoInner};
+use crate::ascii;
+use crate::ffi::OsStr;
+use crate::fmt;
+use crate::io::{self, Initializer, IoVec, IoVecMut};
+use crate::mem;
+use crate::net::{self, Shutdown};
+use crate::os::unix::ffi::OsStrExt;
+use crate::os::unix::io::{RawFd, AsRawFd, FromRawFd, IntoRawFd};
+use crate::path::Path;
+use crate::time::Duration;
+use crate::sys::{self, cvt};
+use crate::sys::net::Socket;
+use crate::sys_common::{self, AsInner, FromInner, IntoInner};
 
 #[cfg(any(target_os = "linux", target_os = "android",
           target_os = "dragonfly", target_os = "freebsd",
@@ -219,7 +219,7 @@ impl SocketAddr {
 
 #[stable(feature = "unix_socket", since = "1.10.0")]
 impl fmt::Debug for SocketAddr {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.address() {
             AddressKind::Unnamed => write!(fmt, "(unnamed)"),
             AddressKind::Abstract(name) => write!(fmt, "{} (abstract)", AsciiEscaped(name)),
@@ -231,7 +231,7 @@ impl fmt::Debug for SocketAddr {
 struct AsciiEscaped<'a>(&'a [u8]);
 
 impl<'a> fmt::Display for AsciiEscaped<'a> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "\"")?;
         for byte in self.0.iter().cloned().flat_map(ascii::escape_default) {
             write!(fmt, "{}", byte as char)?;
@@ -259,7 +259,7 @@ pub struct UnixStream(Socket);
 
 #[stable(feature = "unix_socket", since = "1.10.0")]
 impl fmt::Debug for UnixStream {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixStream");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -719,7 +719,7 @@ pub struct UnixListener(Socket);
 
 #[stable(feature = "unix_socket", since = "1.10.0")]
 impl fmt::Debug for UnixListener {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixListener");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -998,7 +998,7 @@ pub struct UnixDatagram(Socket);
 
 #[stable(feature = "unix_socket", since = "1.10.0")]
 impl fmt::Debug for UnixDatagram {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut builder = fmt.debug_struct("UnixDatagram");
         builder.field("fd", self.0.as_inner());
         if let Ok(addr) = self.local_addr() {
@@ -1481,11 +1481,11 @@ impl IntoRawFd for UnixDatagram {
 
 #[cfg(all(test, not(target_os = "emscripten")))]
 mod test {
-    use thread;
-    use io::{self, ErrorKind};
-    use io::prelude::*;
-    use time::Duration;
-    use sys_common::io::test::tmpdir;
+    use crate::thread;
+    use crate::io::{self, ErrorKind};
+    use crate::io::prelude::*;
+    use crate::time::Duration;
+    use crate::sys_common::io::test::tmpdir;
 
     use super::*;
 

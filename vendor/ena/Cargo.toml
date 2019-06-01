@@ -3,7 +3,7 @@
 # When uploading crates to the registry Cargo will automatically
 # "normalize" Cargo.toml files for maximal compatibility
 # with all versions of Cargo and also rewrite `path` dependencies
-# to registry (e.g. crates.io) dependencies
+# to registry (e.g., crates.io) dependencies
 #
 # If you believe there's an error in this file please file an
 # issue against the rust-lang/cargo repository. If you're
@@ -12,7 +12,7 @@
 
 [package]
 name = "ena"
-version = "0.11.0"
+version = "0.13.0"
 authors = ["Niko Matsakis <niko@alum.mit.edu>"]
 description = "Union-find, congruence closure, and other unification code. Based on code from rustc."
 homepage = "https://github.com/nikomatsakis/ena"

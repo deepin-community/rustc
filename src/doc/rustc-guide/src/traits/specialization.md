@@ -40,3 +40,12 @@ will use at trans time. Thus, we take special care to avoid projecting
 associated types unless either (1) the associated type does not use
 `default` and thus cannot be overridden or (2) all input types are
 known concretely.
+
+## Additional Resources
+
+[This talk][talk] by @sunjay may be useful. Keep in mind that the talk only
+gives a broad overview of the problem and the solution (it was presented about
+halfway through @sunjay's work). Also, it was given in June 2018, and some
+things may have changed by the time you watch it.
+
+[talk]: https://www.youtube.com/watch?v=rZqS4bLPL24
