@@ -17,6 +17,13 @@ The upstream source package embeds many external libraries. We make a great
 effort to remove them and use system versions where possible, but there are a
 few more remaining:
 
+ * compiler-rt from https://github.com/rust-lang/compiler-rt
+   -> system-wide compiler-rt fails during linkage
+
+   Bug reported upstream, still to be fixed, see:
+    - https://github.com/rust-lang/rust/issues/15054
+    - https://github.com/rust-lang/rust/issues/15708
+
  * vendor/backtrace-sys, vendor/dlmalloc, vendor/walkdir
 
    These are small C libraries designed to be statically linked; their upstream
