@@ -345,6 +345,7 @@ Files: vendor/backtrace/*
        vendor/socket2/*
        vendor/tar/*
        vendor/toml/*
+       vendor/toml-0*/*
        vendor/xz2/*
 Copyright: 2014-2019 Alex Crichton <alex@alexcrichton.com>
            2015-2017 The Rust Project Developers
