@@ -1,9 +1,9 @@
-rustc (1.35.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.35.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * Don't use system compiler-rt, it's not ready yet.
   * New upstream release.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 31 May 2019 19:19:40 -0700
+ -- Ximin Luo <infinity0@debian.org>  Sun, 09 Jun 2019 23:20:52 -0700
 
 rustc (1.34.2+dfsg1-1~exp2) experimental; urgency=medium
 
