@@ -9,6 +9,7 @@ u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
 u-mips-fixes.diff
+u-sparc64-ffi-abi.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-reproducible-dl-stage0.patch
