@@ -18,10 +18,10 @@
 //! [wiki_avx]: https://en.wikipedia.org/wiki/Advanced_Vector_Extensions
 //! [wiki_fma]: https://en.wikipedia.org/wiki/Fused_multiply-accumulate
 
-use core_arch::simd::*;
-use core_arch::simd_llvm::*;
-use core_arch::x86::*;
-use mem;
+use crate::{
+    core_arch::{simd::*, simd_llvm::*, x86::*},
+    mem::transmute,
+};
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
@@ -34,7 +34,7 @@ use stdsimd_test::assert_instr;
 #[cfg_attr(test, assert_instr(vpabsd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_abs_epi32(a: __m256i) -> __m256i {
-    mem::transmute(pabsd(a.as_i32x8()))
+    transmute(pabsd(a.as_i32x8()))
 }
 
 /// Computes the absolute values of packed 16-bit integers in `a`.
@@ -45,7 +45,7 @@ pub unsafe fn _mm256_abs_epi32(a: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpabsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_abs_epi16(a: __m256i) -> __m256i {
-    mem::transmute(pabsw(a.as_i16x16()))
+    transmute(pabsw(a.as_i16x16()))
 }
 
 /// Computes the absolute values of packed 8-bit integers in `a`.
@@ -56,10 +56,10 @@ pub unsafe fn _mm256_abs_epi16(a: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpabsb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_abs_epi8(a: __m256i) -> __m256i {
-    mem::transmute(pabsb(a.as_i8x32()))
+    transmute(pabsb(a.as_i8x32()))
 }
 
-/// Add packed 64-bit integers in `a` and `b`.
+/// Adds packed 64-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_add_epi64)
 #[inline]
@@ -67,10 +67,10 @@ pub unsafe fn _mm256_abs_epi8(a: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_add_epi64(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_add(a.as_i64x4(), b.as_i64x4()))
+    transmute(simd_add(a.as_i64x4(), b.as_i64x4()))
 }
 
-/// Add packed 32-bit integers in `a` and `b`.
+/// Adds packed 32-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_add_epi32)
 #[inline]
@@ -78,10 +78,10 @@ pub unsafe fn _mm256_add_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_add_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_add(a.as_i32x8(), b.as_i32x8()))
+    transmute(simd_add(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Add packed 16-bit integers in `a` and `b`.
+/// Adds packed 16-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_add_epi16)
 #[inline]
@@ -89,10 +89,10 @@ pub unsafe fn _mm256_add_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_add_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_add(a.as_i16x16(), b.as_i16x16()))
+    transmute(simd_add(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Add packed 8-bit integers in `a` and `b`.
+/// Adds packed 8-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_add_epi8)
 #[inline]
@@ -100,10 +100,10 @@ pub unsafe fn _mm256_add_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_add_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_add(a.as_i8x32(), b.as_i8x32()))
+    transmute(simd_add(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Add packed 8-bit integers in `a` and `b` using saturation.
+/// Adds packed 8-bit integers in `a` and `b` using saturation.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_adds_epi8)
 #[inline]
@@ -111,10 +111,10 @@ pub unsafe fn _mm256_add_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddsb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_adds_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(paddsb(a.as_i8x32(), b.as_i8x32()))
+    transmute(paddsb(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Add packed 16-bit integers in `a` and `b` using saturation.
+/// Adds packed 16-bit integers in `a` and `b` using saturation.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_adds_epi16)
 #[inline]
@@ -122,10 +122,10 @@ pub unsafe fn _mm256_adds_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_adds_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(paddsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(paddsw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Add packed unsigned 8-bit integers in `a` and `b` using saturation.
+/// Adds packed unsigned 8-bit integers in `a` and `b` using saturation.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_adds_epu8)
 #[inline]
@@ -133,10 +133,10 @@ pub unsafe fn _mm256_adds_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddusb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_adds_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(paddusb(a.as_u8x32(), b.as_u8x32()))
+    transmute(paddusb(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Add packed unsigned 16-bit integers in `a` and `b` using saturation.
+/// Adds packed unsigned 16-bit integers in `a` and `b` using saturation.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_adds_epu16)
 #[inline]
@@ -144,11 +144,11 @@ pub unsafe fn _mm256_adds_epu8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpaddusw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_adds_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(paddusw(a.as_u16x16(), b.as_u16x16()))
+    transmute(paddusw(a.as_u16x16(), b.as_u16x16()))
 }
 
-/// Concatenate pairs of 16-byte blocks in `a` and `b` into a 32-byte temporary
-/// result, shift the result right by `n` bytes, and return the low 16 bytes.
+/// Concatenates pairs of 16-byte blocks in `a` and `b` into a 32-byte temporary
+/// result, shifts the result right by `n` bytes, and returns the low 16 bytes.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_alignr_epi8)
 #[inline]
@@ -158,12 +158,12 @@ pub unsafe fn _mm256_adds_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_alignr_epi8(a: __m256i, b: __m256i, n: i32) -> __m256i {
     let n = n as u32;
-    // If palignr is shifting the pair of vectors more than the size of two
+    // If `palignr` is shifting the pair of vectors more than the size of two
     // lanes, emit zero.
     if n > 32 {
         return _mm256_set1_epi8(0);
     }
-    // If palignr is shifting the pair of input vectors more than one lane,
+    // If `palignr` is shifting the pair of input vectors more than one lane,
     // but less than two lanes, convert to shifting in zeroes.
     let (a, b, n) = if n > 16 {
         (_mm256_set1_epi8(0), a, n - 16)
@@ -305,10 +305,10 @@ pub unsafe fn _mm256_alignr_epi8(a: __m256i, b: __m256i, n: i32) -> __m256i {
         ),
         _ => b,
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Compute the bitwise AND of 256 bits (representing integer data)
+/// Computes the bitwise AND of 256 bits (representing integer data)
 /// in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_and_si256)
@@ -317,10 +317,10 @@ pub unsafe fn _mm256_alignr_epi8(a: __m256i, b: __m256i, n: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vandps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_and_si256(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_and(a.as_i64x4(), b.as_i64x4()))
+    transmute(simd_and(a.as_i64x4(), b.as_i64x4()))
 }
 
-/// Compute the bitwise NOT of 256 bits (representing integer data)
+/// Computes the bitwise NOT of 256 bits (representing integer data)
 /// in `a` and then AND with `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_andnot_si256)
@@ -330,13 +330,13 @@ pub unsafe fn _mm256_and_si256(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_andnot_si256(a: __m256i, b: __m256i) -> __m256i {
     let all_ones = _mm256_set1_epi8(-1);
-    mem::transmute(simd_and(
+    transmute(simd_and(
         simd_xor(a.as_i64x4(), all_ones.as_i64x4()),
         b.as_i64x4(),
     ))
 }
 
-/// Average packed unsigned 16-bit integers in `a` and `b`.
+/// Averages packed unsigned 16-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_avg_epu16)
 #[inline]
@@ -344,10 +344,10 @@ pub unsafe fn _mm256_andnot_si256(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpavgw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_avg_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pavgw(a.as_u16x16(), b.as_u16x16()))
+    transmute(pavgw(a.as_u16x16(), b.as_u16x16()))
 }
 
-/// Average packed unsigned 8-bit integers in `a` and `b`.
+/// Averages packed unsigned 8-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_avg_epu8)
 #[inline]
@@ -355,10 +355,10 @@ pub unsafe fn _mm256_avg_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpavgb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_avg_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pavgb(a.as_u8x32(), b.as_u8x32()))
+    transmute(pavgb(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Blend packed 32-bit integers from `a` and `b` using control mask `imm8`.
+/// Blends packed 32-bit integers from `a` and `b` using control mask `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_blend_epi32)
 #[inline]
@@ -391,10 +391,10 @@ pub unsafe fn _mm_blend_epi32(a: __m128i, b: __m128i, imm8: i32) -> __m128i {
         0b10 => blend1!(0, 5),
         _ => blend1!(4, 5),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Blend packed 32-bit integers from `a` and `b` using control mask `imm8`.
+/// Blends packed 32-bit integers from `a` and `b` using control mask `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_blend_epi32)
 #[inline]
@@ -456,10 +456,10 @@ pub unsafe fn _mm256_blend_epi32(a: __m256i, b: __m256i, imm8: i32) -> __m256i {
         0b10 => blend1!(0, 9),
         _ => blend1!(8, 9),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Blend packed 16-bit integers from `a` and `b` using control mask `imm8`.
+/// Blends packed 16-bit integers from `a` and `b` using control mask `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_blend_epi16)
 #[inline]
@@ -561,10 +561,10 @@ pub unsafe fn _mm256_blend_epi16(a: __m256i, b: __m256i, imm8: i32) -> __m256i {
         0b10 => blend1!(0, 17, 8, 25),
         _ => blend1!(16, 17, 24, 25),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Blend packed 8-bit integers from `a` and `b` using `mask`.
+/// Blends packed 8-bit integers from `a` and `b` using `mask`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_blendv_epi8)
 #[inline]
@@ -572,10 +572,10 @@ pub unsafe fn _mm256_blend_epi16(a: __m256i, b: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpblendvb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_blendv_epi8(a: __m256i, b: __m256i, mask: __m256i) -> __m256i {
-    mem::transmute(pblendvb(a.as_i8x32(), b.as_i8x32(), mask.as_i8x32()))
+    transmute(pblendvb(a.as_i8x32(), b.as_i8x32(), mask.as_i8x32()))
 }
 
-/// Broadcast the low packed 8-bit integer from `a` to all elements of
+/// Broadcasts the low packed 8-bit integer from `a` to all elements of
 /// the 128-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastb_epi8)
@@ -586,10 +586,10 @@ pub unsafe fn _mm256_blendv_epi8(a: __m256i, b: __m256i, mask: __m256i) -> __m25
 pub unsafe fn _mm_broadcastb_epi8(a: __m128i) -> __m128i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle16(a.as_i8x16(), zero.as_i8x16(), [0_u32; 16]);
-    mem::transmute::<i8x16, _>(ret)
+    transmute::<i8x16, _>(ret)
 }
 
-/// Broadcast the low packed 8-bit integer from `a` to all elements of
+/// Broadcasts the low packed 8-bit integer from `a` to all elements of
 /// the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastb_epi8)
@@ -600,12 +600,12 @@ pub unsafe fn _mm_broadcastb_epi8(a: __m128i) -> __m128i {
 pub unsafe fn _mm256_broadcastb_epi8(a: __m128i) -> __m256i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle32(a.as_i8x16(), zero.as_i8x16(), [0_u32; 32]);
-    mem::transmute::<i8x32, _>(ret)
+    transmute::<i8x32, _>(ret)
 }
 
-// NB: simd_shuffle4 with integer data types for `a` and `b` is
-// often compiled to vbroadcastss.
-/// Broadcast the low packed 32-bit integer from `a` to all elements of
+// N.B., `simd_shuffle4` with integer data types for `a` and `b` is
+// often compiled to `vbroadcastss`.
+/// Broadcasts the low packed 32-bit integer from `a` to all elements of
 /// the 128-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastd_epi32)
@@ -616,12 +616,12 @@ pub unsafe fn _mm256_broadcastb_epi8(a: __m128i) -> __m256i {
 pub unsafe fn _mm_broadcastd_epi32(a: __m128i) -> __m128i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle4(a.as_i32x4(), zero.as_i32x4(), [0_u32; 4]);
-    mem::transmute::<i32x4, _>(ret)
+    transmute::<i32x4, _>(ret)
 }
 
-// NB: simd_shuffle4 with integer data types for `a` and `b` is
-// often compiled to vbroadcastss.
-/// Broadcast the low packed 32-bit integer from `a` to all elements of
+// N.B., `simd_shuffle4`` with integer data types for `a` and `b` is
+// often compiled to `vbroadcastss`.
+/// Broadcasts the low packed 32-bit integer from `a` to all elements of
 /// the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastd_epi32)
@@ -632,10 +632,10 @@ pub unsafe fn _mm_broadcastd_epi32(a: __m128i) -> __m128i {
 pub unsafe fn _mm256_broadcastd_epi32(a: __m128i) -> __m256i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle8(a.as_i32x4(), zero.as_i32x4(), [0_u32; 8]);
-    mem::transmute::<i32x8, _>(ret)
+    transmute::<i32x8, _>(ret)
 }
 
-/// Broadcast the low packed 64-bit integer from `a` to all elements of
+/// Broadcasts the low packed 64-bit integer from `a` to all elements of
 /// the 128-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastq_epi64)
@@ -646,12 +646,12 @@ pub unsafe fn _mm256_broadcastd_epi32(a: __m128i) -> __m256i {
 pub unsafe fn _mm_broadcastq_epi64(a: __m128i) -> __m128i {
     let zero = _mm_setzero_si128().as_i64x2();
     let ret = simd_shuffle2(a.as_i64x2(), zero, [0_u32; 2]);
-    mem::transmute::<i64x2, _>(ret)
+    transmute::<i64x2, _>(ret)
 }
 
-// NB: simd_shuffle4 with integer data types for `a` and `b` is
-// often compiled to vbroadcastsd.
-/// Broadcast the low packed 64-bit integer from `a` to all elements of
+// N.B. `simd_shuffle4` with integer data types for `a` and `b` is
+// often compiled to `vbroadcastsd`.
+/// Broadcasts the low packed 64-bit integer from `a` to all elements of
 /// the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastq_epi64)
@@ -662,10 +662,10 @@ pub unsafe fn _mm_broadcastq_epi64(a: __m128i) -> __m128i {
 pub unsafe fn _mm256_broadcastq_epi64(a: __m128i) -> __m256i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle4(a.as_i64x2(), zero.as_i64x2(), [0_u32; 4]);
-    mem::transmute::<i64x4, _>(ret)
+    transmute::<i64x4, _>(ret)
 }
 
-/// Broadcast the low double-precision (64-bit) floating-point element
+/// Broadcasts the low double-precision (64-bit) floating-point element
 /// from `a` to all elements of the 128-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastsd_pd)
@@ -677,7 +677,7 @@ pub unsafe fn _mm_broadcastsd_pd(a: __m128d) -> __m128d {
     simd_shuffle2(a, _mm_setzero_pd(), [0_u32; 2])
 }
 
-/// Broadcast the low double-precision (64-bit) floating-point element
+/// Broadcasts the low double-precision (64-bit) floating-point element
 /// from `a` to all elements of the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastsd_pd)
@@ -689,9 +689,9 @@ pub unsafe fn _mm256_broadcastsd_pd(a: __m128d) -> __m256d {
     simd_shuffle4(a, _mm_setzero_pd(), [0_u32; 4])
 }
 
-// NB: broadcastsi128_si256 is often compiled to vinsertf128 or
-// vbroadcastf128.
-/// Broadcast 128 bits of integer data from a to all 128-bit lanes in
+// N.B., `broadcastsi128_si256` is often compiled to `vinsertf128` or
+// `vbroadcastf128`.
+/// Broadcasts 128 bits of integer data from a to all 128-bit lanes in
 /// the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastsi128_si256)
@@ -701,10 +701,10 @@ pub unsafe fn _mm256_broadcastsd_pd(a: __m128d) -> __m256d {
 pub unsafe fn _mm256_broadcastsi128_si256(a: __m128i) -> __m256i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle4(a.as_i64x2(), zero.as_i64x2(), [0, 1, 0, 1]);
-    mem::transmute::<i64x4, _>(ret)
+    transmute::<i64x4, _>(ret)
 }
 
-/// Broadcast the low single-precision (32-bit) floating-point element
+/// Broadcasts the low single-precision (32-bit) floating-point element
 /// from `a` to all elements of the 128-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastss_ps)
@@ -716,7 +716,7 @@ pub unsafe fn _mm_broadcastss_ps(a: __m128) -> __m128 {
     simd_shuffle4(a, _mm_setzero_ps(), [0_u32; 4])
 }
 
-/// Broadcast the low single-precision (32-bit) floating-point element
+/// Broadcasts the low single-precision (32-bit) floating-point element
 /// from `a` to all elements of the 256-bit returned value.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastss_ps)
@@ -728,7 +728,7 @@ pub unsafe fn _mm256_broadcastss_ps(a: __m128) -> __m256 {
     simd_shuffle8(a, _mm_setzero_ps(), [0_u32; 8])
 }
 
-/// Broadcast the low packed 16-bit integer from a to all elements of
+/// Broadcasts the low packed 16-bit integer from a to all elements of
 /// the 128-bit returned value
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_broadcastw_epi16)
@@ -739,10 +739,10 @@ pub unsafe fn _mm256_broadcastss_ps(a: __m128) -> __m256 {
 pub unsafe fn _mm_broadcastw_epi16(a: __m128i) -> __m128i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle8(a.as_i16x8(), zero.as_i16x8(), [0_u32; 8]);
-    mem::transmute::<i16x8, _>(ret)
+    transmute::<i16x8, _>(ret)
 }
 
-/// Broadcast the low packed 16-bit integer from a to all elements of
+/// Broadcasts the low packed 16-bit integer from a to all elements of
 /// the 256-bit returned value
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_broadcastw_epi16)
@@ -753,10 +753,10 @@ pub unsafe fn _mm_broadcastw_epi16(a: __m128i) -> __m128i {
 pub unsafe fn _mm256_broadcastw_epi16(a: __m128i) -> __m256i {
     let zero = _mm_setzero_si128();
     let ret = simd_shuffle16(a.as_i16x8(), zero.as_i16x8(), [0_u32; 16]);
-    mem::transmute::<i16x16, _>(ret)
+    transmute::<i16x16, _>(ret)
 }
 
-/// Compare packed 64-bit integers in `a` and `b` for equality.
+/// Compares packed 64-bit integers in `a` and `b` for equality.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpeq_epi64)
 #[inline]
@@ -764,10 +764,10 @@ pub unsafe fn _mm256_broadcastw_epi16(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpeqq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpeq_epi64(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i64x4, _>(simd_eq(a.as_i64x4(), b.as_i64x4()))
+    transmute::<i64x4, _>(simd_eq(a.as_i64x4(), b.as_i64x4()))
 }
 
-/// Compare packed 32-bit integers in `a` and `b` for equality.
+/// Compares packed 32-bit integers in `a` and `b` for equality.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpeq_epi32)
 #[inline]
@@ -775,10 +775,10 @@ pub unsafe fn _mm256_cmpeq_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpeqd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpeq_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i32x8, _>(simd_eq(a.as_i32x8(), b.as_i32x8()))
+    transmute::<i32x8, _>(simd_eq(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Compare packed 16-bit integers in `a` and `b` for equality.
+/// Compares packed 16-bit integers in `a` and `b` for equality.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpeq_epi16)
 #[inline]
@@ -786,10 +786,10 @@ pub unsafe fn _mm256_cmpeq_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpeqw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpeq_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i16x16, _>(simd_eq(a.as_i16x16(), b.as_i16x16()))
+    transmute::<i16x16, _>(simd_eq(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Compare packed 8-bit integers in `a` and `b` for equality.
+/// Compares packed 8-bit integers in `a` and `b` for equality.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpeq_epi8)
 #[inline]
@@ -797,10 +797,10 @@ pub unsafe fn _mm256_cmpeq_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpeqb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpeq_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i8x32, _>(simd_eq(a.as_i8x32(), b.as_i8x32()))
+    transmute::<i8x32, _>(simd_eq(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Compare packed 64-bit integers in `a` and `b` for greater-than.
+/// Compares packed 64-bit integers in `a` and `b` for greater-than.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpgt_epi64)
 #[inline]
@@ -808,10 +808,10 @@ pub unsafe fn _mm256_cmpeq_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpgtq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpgt_epi64(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i64x4, _>(simd_gt(a.as_i64x4(), b.as_i64x4()))
+    transmute::<i64x4, _>(simd_gt(a.as_i64x4(), b.as_i64x4()))
 }
 
-/// Compare packed 32-bit integers in `a` and `b` for greater-than.
+/// Compares packed 32-bit integers in `a` and `b` for greater-than.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpgt_epi32)
 #[inline]
@@ -819,10 +819,10 @@ pub unsafe fn _mm256_cmpgt_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpgtd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpgt_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i32x8, _>(simd_gt(a.as_i32x8(), b.as_i32x8()))
+    transmute::<i32x8, _>(simd_gt(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Compare packed 16-bit integers in `a` and `b` for greater-than.
+/// Compares packed 16-bit integers in `a` and `b` for greater-than.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpgt_epi16)
 #[inline]
@@ -830,10 +830,10 @@ pub unsafe fn _mm256_cmpgt_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpgtw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpgt_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i16x16, _>(simd_gt(a.as_i16x16(), b.as_i16x16()))
+    transmute::<i16x16, _>(simd_gt(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Compare packed 8-bit integers in `a` and `b` for greater-than.
+/// Compares packed 8-bit integers in `a` and `b` for greater-than.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cmpgt_epi8)
 #[inline]
@@ -841,7 +841,7 @@ pub unsafe fn _mm256_cmpgt_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpcmpgtb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cmpgt_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute::<i8x32, _>(simd_gt(a.as_i8x32(), b.as_i8x32()))
+    transmute::<i8x32, _>(simd_gt(a.as_i8x32(), b.as_i8x32()))
 }
 
 /// Sign-extend 16-bit integers to 32-bit integers.
@@ -852,7 +852,7 @@ pub unsafe fn _mm256_cmpgt_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovsxwd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepi16_epi32(a: __m128i) -> __m256i {
-    mem::transmute::<i32x8, _>(simd_cast(a.as_i16x8()))
+    transmute::<i32x8, _>(simd_cast(a.as_i16x8()))
 }
 
 /// Sign-extend 16-bit integers to 64-bit integers.
@@ -865,7 +865,7 @@ pub unsafe fn _mm256_cvtepi16_epi32(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepi16_epi64(a: __m128i) -> __m256i {
     let a = a.as_i16x8();
     let v64: i16x4 = simd_shuffle4(a, a, [0, 1, 2, 3]);
-    mem::transmute::<i64x4, _>(simd_cast(v64))
+    transmute::<i64x4, _>(simd_cast(v64))
 }
 
 /// Sign-extend 32-bit integers to 64-bit integers.
@@ -876,7 +876,7 @@ pub unsafe fn _mm256_cvtepi16_epi64(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovsxdq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepi32_epi64(a: __m128i) -> __m256i {
-    mem::transmute::<i64x4, _>(simd_cast(a.as_i32x4()))
+    transmute::<i64x4, _>(simd_cast(a.as_i32x4()))
 }
 
 /// Sign-extend 8-bit integers to 16-bit integers.
@@ -887,7 +887,7 @@ pub unsafe fn _mm256_cvtepi32_epi64(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovsxbw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepi8_epi16(a: __m128i) -> __m256i {
-    mem::transmute::<i16x16, _>(simd_cast(a.as_i8x16()))
+    transmute::<i16x16, _>(simd_cast(a.as_i8x16()))
 }
 
 /// Sign-extend 8-bit integers to 32-bit integers.
@@ -900,7 +900,7 @@ pub unsafe fn _mm256_cvtepi8_epi16(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepi8_epi32(a: __m128i) -> __m256i {
     let a = a.as_i8x16();
     let v64: i8x8 = simd_shuffle8(a, a, [0, 1, 2, 3, 4, 5, 6, 7]);
-    mem::transmute::<i32x8, _>(simd_cast(v64))
+    transmute::<i32x8, _>(simd_cast(v64))
 }
 
 /// Sign-extend 8-bit integers to 64-bit integers.
@@ -913,11 +913,11 @@ pub unsafe fn _mm256_cvtepi8_epi32(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepi8_epi64(a: __m128i) -> __m256i {
     let a = a.as_i8x16();
     let v32: i8x4 = simd_shuffle4(a, a, [0, 1, 2, 3]);
-    mem::transmute::<i64x4, _>(simd_cast(v32))
+    transmute::<i64x4, _>(simd_cast(v32))
 }
 
-/// Zero extend packed unsigned 16-bit integers in `a` to packed 32-bit
-/// integers, and store the results in dst.
+/// Zeroes extend packed unsigned 16-bit integers in `a` to packed 32-bit
+/// integers, and stores the results in `dst`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_cvtepu16_epi32)
 #[inline]
@@ -925,7 +925,7 @@ pub unsafe fn _mm256_cvtepi8_epi64(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovzxwd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepu16_epi32(a: __m128i) -> __m256i {
-    mem::transmute::<i32x8, _>(simd_cast(a.as_u16x8()))
+    transmute::<i32x8, _>(simd_cast(a.as_u16x8()))
 }
 
 /// Zero-extend the lower four unsigned 16-bit integers in `a` to 64-bit
@@ -939,7 +939,7 @@ pub unsafe fn _mm256_cvtepu16_epi32(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepu16_epi64(a: __m128i) -> __m256i {
     let a = a.as_u16x8();
     let v64: u16x4 = simd_shuffle4(a, a, [0, 1, 2, 3]);
-    mem::transmute::<i64x4, _>(simd_cast(v64))
+    transmute::<i64x4, _>(simd_cast(v64))
 }
 
 /// Zero-extend unsigned 32-bit integers in `a` to 64-bit integers.
@@ -950,7 +950,7 @@ pub unsafe fn _mm256_cvtepu16_epi64(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovzxdq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepu32_epi64(a: __m128i) -> __m256i {
-    mem::transmute::<i64x4, _>(simd_cast(a.as_u32x4()))
+    transmute::<i64x4, _>(simd_cast(a.as_u32x4()))
 }
 
 /// Zero-extend unsigned 8-bit integers in `a` to 16-bit integers.
@@ -961,7 +961,7 @@ pub unsafe fn _mm256_cvtepu32_epi64(a: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmovzxbw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_cvtepu8_epi16(a: __m128i) -> __m256i {
-    mem::transmute::<i16x16, _>(simd_cast(a.as_u8x16()))
+    transmute::<i16x16, _>(simd_cast(a.as_u8x16()))
 }
 
 /// Zero-extend the lower eight unsigned 8-bit integers in `a` to 32-bit
@@ -975,7 +975,7 @@ pub unsafe fn _mm256_cvtepu8_epi16(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepu8_epi32(a: __m128i) -> __m256i {
     let a = a.as_u8x16();
     let v64: u8x8 = simd_shuffle8(a, a, [0, 1, 2, 3, 4, 5, 6, 7]);
-    mem::transmute::<i32x8, _>(simd_cast(v64))
+    transmute::<i32x8, _>(simd_cast(v64))
 }
 
 /// Zero-extend the lower four unsigned 8-bit integers in `a` to 64-bit
@@ -989,10 +989,10 @@ pub unsafe fn _mm256_cvtepu8_epi32(a: __m128i) -> __m256i {
 pub unsafe fn _mm256_cvtepu8_epi64(a: __m128i) -> __m256i {
     let a = a.as_u8x16();
     let v32: u8x4 = simd_shuffle4(a, a, [0, 1, 2, 3]);
-    mem::transmute::<i64x4, _>(simd_cast(v32))
+    transmute::<i64x4, _>(simd_cast(v32))
 }
 
-/// Extract 128 bits (of integer data) from `a` selected with `imm8`.
+/// Extracts 128 bits (of integer data) from `a` selected with `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_extracti128_si256)
 #[inline]
@@ -1010,10 +1010,10 @@ pub unsafe fn _mm256_extracti128_si256(a: __m256i, imm8: i32) -> __m128i {
         0 => simd_shuffle2(a, b, [0, 1]),
         _ => simd_shuffle2(a, b, [2, 3]),
     };
-    mem::transmute(dst)
+    transmute(dst)
 }
 
-/// Horizontally add adjacent pairs of 16-bit integers in `a` and `b`.
+/// Horizontally adds adjacent pairs of 16-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_hadd_epi16)
 #[inline]
@@ -1021,10 +1021,10 @@ pub unsafe fn _mm256_extracti128_si256(a: __m256i, imm8: i32) -> __m128i {
 #[cfg_attr(test, assert_instr(vphaddw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hadd_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phaddw(a.as_i16x16(), b.as_i16x16()))
+    transmute(phaddw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Horizontally add adjacent pairs of 32-bit integers in `a` and `b`.
+/// Horizontally adds adjacent pairs of 32-bit integers in `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_hadd_epi32)
 #[inline]
@@ -1032,10 +1032,10 @@ pub unsafe fn _mm256_hadd_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vphaddd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hadd_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phaddd(a.as_i32x8(), b.as_i32x8()))
+    transmute(phaddd(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Horizontally add adjacent pairs of 16-bit integers in `a` and `b`
+/// Horizontally adds adjacent pairs of 16-bit integers in `a` and `b`
 /// using saturation.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_hadds_epi16)
@@ -1044,7 +1044,7 @@ pub unsafe fn _mm256_hadd_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vphaddsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hadds_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phaddsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(phaddsw(a.as_i16x16(), b.as_i16x16()))
 }
 
 /// Horizontally subtract adjacent pairs of 16-bit integers in `a` and `b`.
@@ -1055,7 +1055,7 @@ pub unsafe fn _mm256_hadds_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vphsubw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hsub_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phsubw(a.as_i16x16(), b.as_i16x16()))
+    transmute(phsubw(a.as_i16x16(), b.as_i16x16()))
 }
 
 /// Horizontally subtract adjacent pairs of 32-bit integers in `a` and `b`.
@@ -1066,7 +1066,7 @@ pub unsafe fn _mm256_hsub_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vphsubd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hsub_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phsubd(a.as_i32x8(), b.as_i32x8()))
+    transmute(phsubd(a.as_i32x8(), b.as_i32x8()))
 }
 
 /// Horizontally subtract adjacent pairs of 16-bit integers in `a` and `b`
@@ -1078,10 +1078,10 @@ pub unsafe fn _mm256_hsub_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vphsubsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_hsubs_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(phsubsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(phsubsw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1102,10 +1102,10 @@ pub unsafe fn _mm_i32gather_epi32(slice: *const i32, offsets: __m128i, scale: i3
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1133,10 +1133,10 @@ pub unsafe fn _mm_mask_i32gather_epi32(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1157,10 +1157,10 @@ pub unsafe fn _mm256_i32gather_epi32(slice: *const i32, offsets: __m256i, scale:
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1188,10 +1188,10 @@ pub unsafe fn _mm256_mask_i32gather_epi32(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1214,7 +1214,7 @@ pub unsafe fn _mm_i32gather_ps(slice: *const f32, offsets: __m128i, scale: i32) 
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1242,7 +1242,7 @@ pub unsafe fn _mm_mask_i32gather_ps(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1265,7 +1265,7 @@ pub unsafe fn _mm256_i32gather_ps(slice: *const f32, offsets: __m256i, scale: i3
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1293,7 +1293,7 @@ pub unsafe fn _mm256_mask_i32gather_ps(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1314,10 +1314,10 @@ pub unsafe fn _mm_i32gather_epi64(slice: *const i64, offsets: __m128i, scale: i3
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1345,10 +1345,10 @@ pub unsafe fn _mm_mask_i32gather_epi64(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1369,10 +1369,10 @@ pub unsafe fn _mm256_i32gather_epi64(slice: *const i64, offsets: __m128i, scale:
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1400,10 +1400,10 @@ pub unsafe fn _mm256_mask_i32gather_epi64(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1426,7 +1426,7 @@ pub unsafe fn _mm_i32gather_pd(slice: *const f64, offsets: __m128i, scale: i32) 
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1454,7 +1454,7 @@ pub unsafe fn _mm_mask_i32gather_pd(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1477,7 +1477,7 @@ pub unsafe fn _mm256_i32gather_pd(slice: *const f64, offsets: __m128i, scale: i3
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1505,7 +1505,7 @@ pub unsafe fn _mm256_mask_i32gather_pd(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1526,10 +1526,10 @@ pub unsafe fn _mm_i64gather_epi32(slice: *const i32, offsets: __m128i, scale: i3
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1557,10 +1557,10 @@ pub unsafe fn _mm_mask_i64gather_epi32(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1581,10 +1581,10 @@ pub unsafe fn _mm256_i64gather_epi32(slice: *const i32, offsets: __m256i, scale:
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1612,10 +1612,10 @@ pub unsafe fn _mm256_mask_i64gather_epi32(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1638,7 +1638,7 @@ pub unsafe fn _mm_i64gather_ps(slice: *const f32, offsets: __m128i, scale: i32) 
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1666,7 +1666,7 @@ pub unsafe fn _mm_mask_i64gather_ps(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1689,7 +1689,7 @@ pub unsafe fn _mm256_i64gather_ps(slice: *const f32, offsets: __m256i, scale: i3
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1717,7 +1717,7 @@ pub unsafe fn _mm256_mask_i64gather_ps(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1738,10 +1738,10 @@ pub unsafe fn _mm_i64gather_epi64(slice: *const i64, offsets: __m128i, scale: i3
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1769,10 +1769,10 @@ pub unsafe fn _mm_mask_i64gather_epi64(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1793,10 +1793,10 @@ pub unsafe fn _mm256_i64gather_epi64(slice: *const i64, offsets: __m256i, scale:
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1824,10 +1824,10 @@ pub unsafe fn _mm256_mask_i64gather_epi64(
         };
     }
     let r = constify_imm8!(scale, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1850,7 +1850,7 @@ pub unsafe fn _mm_i64gather_pd(slice: *const f64, offsets: __m128i, scale: i32) 
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1878,7 +1878,7 @@ pub unsafe fn _mm_mask_i64gather_pd(
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8.
 ///
@@ -1901,7 +1901,7 @@ pub unsafe fn _mm256_i64gather_pd(slice: *const f64, offsets: __m256i, scale: i3
     constify_imm8!(scale, call)
 }
 
-/// Return values from `slice` at offsets determined by `offsets * scale`,
+/// Returns values from `slice` at offsets determined by `offsets * scale`,
 /// where
 /// `scale` is between 1 and 8. If mask is set, load the value from `src` in
 /// that position instead.
@@ -1929,7 +1929,7 @@ pub unsafe fn _mm256_mask_i64gather_pd(
     constify_imm8!(scale, call)
 }
 
-/// Copy `a` to `dst`, then insert 128 bits (of integer data) from `b` at the
+/// Copies `a` to `dst`, then insert 128 bits (of integer data) from `b` at the
 /// location specified by `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_inserti128_si256)
@@ -1948,10 +1948,10 @@ pub unsafe fn _mm256_inserti128_si256(a: __m256i, b: __m128i, imm8: i32) -> __m2
         0 => simd_shuffle4(a, b, [4, 5, 2, 3]),
         _ => simd_shuffle4(a, b, [0, 1, 4, 5]),
     };
-    mem::transmute(dst)
+    transmute(dst)
 }
 
-/// Multiply packed signed 16-bit integers in `a` and `b`, producing
+/// Multiplies packed signed 16-bit integers in `a` and `b`, producing
 /// intermediate signed 32-bit integers. Horizontally add adjacent pairs
 /// of intermediate 32-bit integers.
 ///
@@ -1961,10 +1961,10 @@ pub unsafe fn _mm256_inserti128_si256(a: __m256i, b: __m128i, imm8: i32) -> __m2
 #[cfg_attr(test, assert_instr(vpmaddwd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_madd_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaddwd(a.as_i16x16(), b.as_i16x16()))
+    transmute(pmaddwd(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Vertically multiply each unsigned 8-bit integer from `a` with the
+/// Vertically multiplies each unsigned 8-bit integer from `a` with the
 /// corresponding signed 8-bit integer from `b`, producing intermediate
 /// signed 16-bit integers. Horizontally add adjacent pairs of intermediate
 /// signed 16-bit integers
@@ -1975,10 +1975,10 @@ pub unsafe fn _mm256_madd_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaddubsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_maddubs_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaddubsw(a.as_u8x32(), b.as_u8x32()))
+    transmute(pmaddubsw(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Load packed 32-bit integers from memory pointed by `mem_addr` using `mask`
+/// Loads packed 32-bit integers from memory pointed by `mem_addr` using `mask`
 /// (elements are zeroed out when the highest bit is not set in the
 /// corresponding element).
 ///
@@ -1988,10 +1988,10 @@ pub unsafe fn _mm256_maddubs_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaskmovd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_maskload_epi32(mem_addr: *const i32, mask: __m128i) -> __m128i {
-    mem::transmute(maskloadd(mem_addr as *const i8, mask.as_i32x4()))
+    transmute(maskloadd(mem_addr as *const i8, mask.as_i32x4()))
 }
 
-/// Load packed 32-bit integers from memory pointed by `mem_addr` using `mask`
+/// Loads packed 32-bit integers from memory pointed by `mem_addr` using `mask`
 /// (elements are zeroed out when the highest bit is not set in the
 /// corresponding element).
 ///
@@ -2001,10 +2001,10 @@ pub unsafe fn _mm_maskload_epi32(mem_addr: *const i32, mask: __m128i) -> __m128i
 #[cfg_attr(test, assert_instr(vpmaskmovd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_maskload_epi32(mem_addr: *const i32, mask: __m256i) -> __m256i {
-    mem::transmute(maskloadd256(mem_addr as *const i8, mask.as_i32x8()))
+    transmute(maskloadd256(mem_addr as *const i8, mask.as_i32x8()))
 }
 
-/// Load packed 64-bit integers from memory pointed by `mem_addr` using `mask`
+/// Loads packed 64-bit integers from memory pointed by `mem_addr` using `mask`
 /// (elements are zeroed out when the highest bit is not set in the
 /// corresponding element).
 ///
@@ -2014,10 +2014,10 @@ pub unsafe fn _mm256_maskload_epi32(mem_addr: *const i32, mask: __m256i) -> __m2
 #[cfg_attr(test, assert_instr(vpmaskmovq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_maskload_epi64(mem_addr: *const i64, mask: __m128i) -> __m128i {
-    mem::transmute(maskloadq(mem_addr as *const i8, mask.as_i64x2()))
+    transmute(maskloadq(mem_addr as *const i8, mask.as_i64x2()))
 }
 
-/// Load packed 64-bit integers from memory pointed by `mem_addr` using `mask`
+/// Loads packed 64-bit integers from memory pointed by `mem_addr` using `mask`
 /// (elements are zeroed out when the highest bit is not set in the
 /// corresponding element).
 ///
@@ -2027,10 +2027,10 @@ pub unsafe fn _mm_maskload_epi64(mem_addr: *const i64, mask: __m128i) -> __m128i
 #[cfg_attr(test, assert_instr(vpmaskmovq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_maskload_epi64(mem_addr: *const i64, mask: __m256i) -> __m256i {
-    mem::transmute(maskloadq256(mem_addr as *const i8, mask.as_i64x4()))
+    transmute(maskloadq256(mem_addr as *const i8, mask.as_i64x4()))
 }
 
-/// Store packed 32-bit integers from `a` into memory pointed by `mem_addr`
+/// Stores packed 32-bit integers from `a` into memory pointed by `mem_addr`
 /// using `mask` (elements are not stored when the highest bit is not set
 /// in the corresponding element).
 ///
@@ -2043,7 +2043,7 @@ pub unsafe fn _mm_maskstore_epi32(mem_addr: *mut i32, mask: __m128i, a: __m128i)
     maskstored(mem_addr as *mut i8, mask.as_i32x4(), a.as_i32x4())
 }
 
-/// Store packed 32-bit integers from `a` into memory pointed by `mem_addr`
+/// Stores packed 32-bit integers from `a` into memory pointed by `mem_addr`
 /// using `mask` (elements are not stored when the highest bit is not set
 /// in the corresponding element).
 ///
@@ -2056,7 +2056,7 @@ pub unsafe fn _mm256_maskstore_epi32(mem_addr: *mut i32, mask: __m256i, a: __m25
     maskstored256(mem_addr as *mut i8, mask.as_i32x8(), a.as_i32x8())
 }
 
-/// Store packed 64-bit integers from `a` into memory pointed by `mem_addr`
+/// Stores packed 64-bit integers from `a` into memory pointed by `mem_addr`
 /// using `mask` (elements are not stored when the highest bit is not set
 /// in the corresponding element).
 ///
@@ -2069,7 +2069,7 @@ pub unsafe fn _mm_maskstore_epi64(mem_addr: *mut i64, mask: __m128i, a: __m128i)
     maskstoreq(mem_addr as *mut i8, mask.as_i64x2(), a.as_i64x2())
 }
 
-/// Store packed 64-bit integers from `a` into memory pointed by `mem_addr`
+/// Stores packed 64-bit integers from `a` into memory pointed by `mem_addr`
 /// using `mask` (elements are not stored when the highest bit is not set
 /// in the corresponding element).
 ///
@@ -2082,7 +2082,7 @@ pub unsafe fn _mm256_maskstore_epi64(mem_addr: *mut i64, mask: __m256i, a: __m25
     maskstoreq256(mem_addr as *mut i8, mask.as_i64x4(), a.as_i64x4())
 }
 
-/// Compare packed 16-bit integers in `a` and `b`, and return the packed
+/// Compares packed 16-bit integers in `a` and `b`, and returns the packed
 /// maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epi16)
@@ -2091,10 +2091,10 @@ pub unsafe fn _mm256_maskstore_epi64(mem_addr: *mut i64, mask: __m256i, a: __m25
 #[cfg_attr(test, assert_instr(vpmaxsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(pmaxsw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Compare packed 32-bit integers in `a` and `b`, and return the packed
+/// Compares packed 32-bit integers in `a` and `b`, and returns the packed
 /// maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epi32)
@@ -2103,10 +2103,10 @@ pub unsafe fn _mm256_max_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaxsd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxsd(a.as_i32x8(), b.as_i32x8()))
+    transmute(pmaxsd(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Compare packed 8-bit integers in `a` and `b`, and return the packed
+/// Compares packed 8-bit integers in `a` and `b`, and returns the packed
 /// maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epi8)
@@ -2115,10 +2115,10 @@ pub unsafe fn _mm256_max_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaxsb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxsb(a.as_i8x32(), b.as_i8x32()))
+    transmute(pmaxsb(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Compare packed unsigned 16-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 16-bit integers in `a` and `b`, and returns
 /// the packed maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epu16)
@@ -2127,10 +2127,10 @@ pub unsafe fn _mm256_max_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaxuw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxuw(a.as_u16x16(), b.as_u16x16()))
+    transmute(pmaxuw(a.as_u16x16(), b.as_u16x16()))
 }
 
-/// Compare packed unsigned 32-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 32-bit integers in `a` and `b`, and returns
 /// the packed maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epu32)
@@ -2139,10 +2139,10 @@ pub unsafe fn _mm256_max_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaxud))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epu32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxud(a.as_u32x8(), b.as_u32x8()))
+    transmute(pmaxud(a.as_u32x8(), b.as_u32x8()))
 }
 
-/// Compare packed unsigned 8-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 8-bit integers in `a` and `b`, and returns
 /// the packed maximum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_max_epu8)
@@ -2151,10 +2151,10 @@ pub unsafe fn _mm256_max_epu32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmaxub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_max_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmaxub(a.as_u8x32(), b.as_u8x32()))
+    transmute(pmaxub(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Compare packed 16-bit integers in `a` and `b`, and return the packed
+/// Compares packed 16-bit integers in `a` and `b`, and returns the packed
 /// minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epi16)
@@ -2163,10 +2163,10 @@ pub unsafe fn _mm256_max_epu8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(pminsw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Compare packed 32-bit integers in `a` and `b`, and return the packed
+/// Compares packed 32-bit integers in `a` and `b`, and returns the packed
 /// minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epi32)
@@ -2175,10 +2175,10 @@ pub unsafe fn _mm256_min_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminsd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminsd(a.as_i32x8(), b.as_i32x8()))
+    transmute(pminsd(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Compare packed 8-bit integers in `a` and `b`, and return the packed
+/// Compares packed 8-bit integers in `a` and `b`, and returns the packed
 /// minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epi8)
@@ -2187,10 +2187,10 @@ pub unsafe fn _mm256_min_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminsb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminsb(a.as_i8x32(), b.as_i8x32()))
+    transmute(pminsb(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Compare packed unsigned 16-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 16-bit integers in `a` and `b`, and returns
 /// the packed minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epu16)
@@ -2199,10 +2199,10 @@ pub unsafe fn _mm256_min_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminuw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminuw(a.as_u16x16(), b.as_u16x16()))
+    transmute(pminuw(a.as_u16x16(), b.as_u16x16()))
 }
 
-/// Compare packed unsigned 32-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 32-bit integers in `a` and `b`, and returns
 /// the packed minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epu32)
@@ -2211,10 +2211,10 @@ pub unsafe fn _mm256_min_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminud))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epu32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminud(a.as_u32x8(), b.as_u32x8()))
+    transmute(pminud(a.as_u32x8(), b.as_u32x8()))
 }
 
-/// Compare packed unsigned 8-bit integers in `a` and `b`, and return
+/// Compares packed unsigned 8-bit integers in `a` and `b`, and returns
 /// the packed minimum values.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_min_epu8)
@@ -2223,10 +2223,10 @@ pub unsafe fn _mm256_min_epu32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpminub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_min_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pminub(a.as_u8x32(), b.as_u8x32()))
+    transmute(pminub(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Create mask from the most significant bit of each 8-bit element in `a`,
+/// Creates mask from the most significant bit of each 8-bit element in `a`,
 /// return the result.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_movemask_epi8)
@@ -2238,8 +2238,8 @@ pub unsafe fn _mm256_movemask_epi8(a: __m256i) -> i32 {
     pmovmskb(a.as_i8x32())
 }
 
-/// Compute the sum of absolute differences (SADs) of quadruplets of unsigned
-/// 8-bit integers in `a` compared to those in `b`, and store the 16-bit
+/// Computes the sum of absolute differences (SADs) of quadruplets of unsigned
+/// 8-bit integers in `a` compared to those in `b`, and stores the 16-bit
 /// results in dst. Eight SADs are performed for each 128-bit lane using one
 /// quadruplet from `b` and eight quadruplets from `a`. One quadruplet is
 /// selected from `b` starting at on the offset specified in `imm8`. Eight
@@ -2261,13 +2261,13 @@ pub unsafe fn _mm256_mpsadbw_epu8(a: __m256i, b: __m256i, imm8: i32) -> __m256i 
         };
     }
     let r = constify_imm8!(imm8, call);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Multiply the low 32-bit integers from each packed 64-bit element in
+/// Multiplies the low 32-bit integers from each packed 64-bit element in
 /// `a` and `b`
 ///
-/// Return the 64-bit results.
+/// Returns the 64-bit results.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_mul_epi32)
 #[inline]
@@ -2275,13 +2275,13 @@ pub unsafe fn _mm256_mpsadbw_epu8(a: __m256i, b: __m256i, imm8: i32) -> __m256i 
 #[cfg_attr(test, assert_instr(vpmuldq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mul_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmuldq(a.as_i32x8(), b.as_i32x8()))
+    transmute(pmuldq(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Multiply the low unsigned 32-bit integers from each packed 64-bit
+/// Multiplies the low unsigned 32-bit integers from each packed 64-bit
 /// element in `a` and `b`
 ///
-/// Return the unsigned 64-bit results.
+/// Returns the unsigned 64-bit results.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_mul_epu32)
 #[inline]
@@ -2289,10 +2289,10 @@ pub unsafe fn _mm256_mul_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmuludq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mul_epu32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmuludq(a.as_u32x8(), b.as_u32x8()))
+    transmute(pmuludq(a.as_u32x8(), b.as_u32x8()))
 }
 
-/// Multiply the packed 16-bit integers in `a` and `b`, producing
+/// Multiplies the packed 16-bit integers in `a` and `b`, producing
 /// intermediate 32-bit integers and returning the high 16 bits of the
 /// intermediate integers.
 ///
@@ -2302,10 +2302,10 @@ pub unsafe fn _mm256_mul_epu32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmulhw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mulhi_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmulhw(a.as_i16x16(), b.as_i16x16()))
+    transmute(pmulhw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Multiply the packed unsigned 16-bit integers in `a` and `b`, producing
+/// Multiplies the packed unsigned 16-bit integers in `a` and `b`, producing
 /// intermediate 32-bit integers and returning the high 16 bits of the
 /// intermediate integers.
 ///
@@ -2315,11 +2315,11 @@ pub unsafe fn _mm256_mulhi_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmulhuw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mulhi_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmulhuw(a.as_u16x16(), b.as_u16x16()))
+    transmute(pmulhuw(a.as_u16x16(), b.as_u16x16()))
 }
 
-/// Multiply the packed 16-bit integers in `a` and `b`, producing
-/// intermediate 32-bit integers, and return the low 16 bits of the
+/// Multiplies the packed 16-bit integers in `a` and `b`, producing
+/// intermediate 32-bit integers, and returns the low 16 bits of the
 /// intermediate integers
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_mullo_epi16)
@@ -2328,11 +2328,11 @@ pub unsafe fn _mm256_mulhi_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmullw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mullo_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_mul(a.as_i16x16(), b.as_i16x16()))
+    transmute(simd_mul(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Multiply the packed 32-bit integers in `a` and `b`, producing
-/// intermediate 64-bit integers, and return the low 16 bits of the
+/// Multiplies the packed 32-bit integers in `a` and `b`, producing
+/// intermediate 64-bit integers, and returns the low 16 bits of the
 /// intermediate integers
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_mullo_epi32)
@@ -2341,10 +2341,10 @@ pub unsafe fn _mm256_mullo_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmulld))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mullo_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_mul(a.as_i32x8(), b.as_i32x8()))
+    transmute(simd_mul(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Multiply packed 16-bit integers in `a` and `b`, producing
+/// Multiplies packed 16-bit integers in `a` and `b`, producing
 /// intermediate signed 32-bit integers. Truncate each intermediate
 /// integer to the 18 most significant bits, round by adding 1, and
 /// return bits `[16:1]`.
@@ -2355,10 +2355,10 @@ pub unsafe fn _mm256_mullo_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpmulhrsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_mulhrs_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pmulhrsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(pmulhrsw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Compute the bitwise OR of 256 bits (representing integer data) in `a`
+/// Computes the bitwise OR of 256 bits (representing integer data) in `a`
 /// and `b`
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_or_si256)
@@ -2367,10 +2367,10 @@ pub unsafe fn _mm256_mulhrs_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vorps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_or_si256(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_or(a.as_i32x8(), b.as_i32x8()))
+    transmute(simd_or(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Convert packed 16-bit integers from `a` and `b` to packed 8-bit integers
+/// Converts packed 16-bit integers from `a` and `b` to packed 8-bit integers
 /// using signed saturation
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_packs_epi16)
@@ -2379,10 +2379,10 @@ pub unsafe fn _mm256_or_si256(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpacksswb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_packs_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(packsswb(a.as_i16x16(), b.as_i16x16()))
+    transmute(packsswb(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Convert packed 32-bit integers from `a` and `b` to packed 16-bit integers
+/// Converts packed 32-bit integers from `a` and `b` to packed 16-bit integers
 /// using signed saturation
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_packs_epi32)
@@ -2391,10 +2391,10 @@ pub unsafe fn _mm256_packs_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpackssdw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_packs_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(packssdw(a.as_i32x8(), b.as_i32x8()))
+    transmute(packssdw(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Convert packed 16-bit integers from `a` and `b` to packed 8-bit integers
+/// Converts packed 16-bit integers from `a` and `b` to packed 8-bit integers
 /// using unsigned saturation
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_packus_epi16)
@@ -2403,10 +2403,10 @@ pub unsafe fn _mm256_packs_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpackuswb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_packus_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(packuswb(a.as_i16x16(), b.as_i16x16()))
+    transmute(packuswb(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Convert packed 32-bit integers from `a` and `b` to packed 16-bit integers
+/// Converts packed 32-bit integers from `a` and `b` to packed 16-bit integers
 /// using unsigned saturation
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_packus_epi32)
@@ -2415,7 +2415,7 @@ pub unsafe fn _mm256_packus_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpackusdw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_packus_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(packusdw(a.as_i32x8(), b.as_i32x8()))
+    transmute(packusdw(a.as_i32x8(), b.as_i32x8()))
 }
 
 /// Permutes packed 32-bit integers from `a` according to the content of `b`.
@@ -2429,7 +2429,7 @@ pub unsafe fn _mm256_packus_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpermps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_permutevar8x32_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(permd(a.as_u32x8(), b.as_u32x8()))
+    transmute(permd(a.as_u32x8(), b.as_u32x8()))
 }
 
 /// Permutes 64-bit integers from `a` using control mask `imm8`.
@@ -2485,10 +2485,10 @@ pub unsafe fn _mm256_permute4x64_epi64(a: __m256i, imm8: i32) -> __m256i {
         0b10 => permute1!(2),
         _ => permute1!(3),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Shuffle 128-bits of integer data selected by `imm8` from `a` and `b`.
+/// Shuffles 128-bits of integer data selected by `imm8` from `a` and `b`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_permute2x128_si256)
 #[inline]
@@ -2504,10 +2504,10 @@ pub unsafe fn _mm256_permute2x128_si256(a: __m256i, b: __m256i, imm8: i32) -> __
             vperm2i128(a, b, $imm8)
         };
     }
-    mem::transmute(constify_imm8!(imm8, call))
+    transmute(constify_imm8!(imm8, call))
 }
 
-/// Shuffle 64-bit floating-point elements in `a` across lanes using the
+/// Shuffles 64-bit floating-point elements in `a` across lanes using the
 /// control in `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_permute4x64_pd)
@@ -2562,7 +2562,7 @@ pub unsafe fn _mm256_permute4x64_pd(a: __m256d, imm8: i32) -> __m256d {
     }
 }
 
-/// Shuffle eight 32-bit foating-point elements in `a` across lanes using
+/// Shuffles eight 32-bit foating-point elements in `a` across lanes using
 /// the corresponding 32-bit integer index in `idx`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_permutevar8x32_ps)
@@ -2574,7 +2574,7 @@ pub unsafe fn _mm256_permutevar8x32_ps(a: __m256, idx: __m256i) -> __m256 {
     permps(a, idx.as_i32x8())
 }
 
-/// Compute the absolute differences of packed unsigned 8-bit integers in `a`
+/// Computes the absolute differences of packed unsigned 8-bit integers in `a`
 /// and `b`, then horizontally sum each consecutive 8 differences to
 /// produce four unsigned 16-bit integers, and pack these unsigned 16-bit
 /// integers in the low 16 bits of the 64-bit return value
@@ -2585,10 +2585,10 @@ pub unsafe fn _mm256_permutevar8x32_ps(a: __m256, idx: __m256i) -> __m256 {
 #[cfg_attr(test, assert_instr(vpsadbw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sad_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psadbw(a.as_u8x32(), b.as_u8x32()))
+    transmute(psadbw(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Shuffle bytes from `a` according to the content of `b`.
+/// Shuffles bytes from `a` according to the content of `b`.
 ///
 /// The last 4 bits of each byte of `b` are used as addresses into the 32 bytes
 /// of `a`.
@@ -2624,10 +2624,10 @@ pub unsafe fn _mm256_sad_epu8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpshufb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_shuffle_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(pshufb(a.as_u8x32(), b.as_u8x32()))
+    transmute(pshufb(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Shuffle 32-bit integers in 128-bit lanes of `a` using the control in
+/// Shuffles 32-bit integers in 128-bit lanes of `a` using the control in
 /// `imm8`.
 ///
 /// ```rust
@@ -2727,10 +2727,10 @@ pub unsafe fn _mm256_shuffle_epi32(a: __m256i, imm8: i32) -> __m256i {
         0b10 => shuffle_x23!(2),
         _ => shuffle_x23!(3),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Shuffle 16-bit integers in the high 64 bits of 128-bit lanes of `a` using
+/// Shuffles 16-bit integers in the high 64 bits of 128-bit lanes of `a` using
 /// the control in `imm8`. The low 64 bits of 128-bit lanes of `a` are copied
 /// to the output.
 ///
@@ -2788,10 +2788,10 @@ pub unsafe fn _mm256_shufflehi_epi16(a: __m256i, imm8: i32) -> __m256i {
         0b10 => shuffle_x23!(2),
         _ => shuffle_x23!(3),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Shuffle 16-bit integers in the low 64 bits of 128-bit lanes of `a` using
+/// Shuffles 16-bit integers in the low 64 bits of 128-bit lanes of `a` using
 /// the control in `imm8`. The high 64 bits of 128-bit lanes of `a` are copied
 /// to the output.
 ///
@@ -2849,11 +2849,11 @@ pub unsafe fn _mm256_shufflelo_epi16(a: __m256i, imm8: i32) -> __m256i {
         0b10 => shuffle_x23!(2),
         _ => shuffle_x23!(3),
     };
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Negate packed 16-bit integers in `a` when the corresponding signed
-/// 16-bit integer in `b` is negative, and return the results.
+/// Negates packed 16-bit integers in `a` when the corresponding signed
+/// 16-bit integer in `b` is negative, and returns the results.
 /// Results are zeroed out when the corresponding element in `b` is zero.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sign_epi16)
@@ -2862,11 +2862,11 @@ pub unsafe fn _mm256_shufflelo_epi16(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsignw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sign_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psignw(a.as_i16x16(), b.as_i16x16()))
+    transmute(psignw(a.as_i16x16(), b.as_i16x16()))
 }
 
-/// Negate packed 32-bit integers in `a` when the corresponding signed
-/// 32-bit integer in `b` is negative, and return the results.
+/// Negates packed 32-bit integers in `a` when the corresponding signed
+/// 32-bit integer in `b` is negative, and returns the results.
 /// Results are zeroed out when the corresponding element in `b` is zero.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sign_epi32)
@@ -2875,11 +2875,11 @@ pub unsafe fn _mm256_sign_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsignd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sign_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psignd(a.as_i32x8(), b.as_i32x8()))
+    transmute(psignd(a.as_i32x8(), b.as_i32x8()))
 }
 
-/// Negate packed 8-bit integers in `a` when the corresponding signed
-/// 8-bit integer in `b` is negative, and return the results.
+/// Negates packed 8-bit integers in `a` when the corresponding signed
+/// 8-bit integer in `b` is negative, and returns the results.
 /// Results are zeroed out when the corresponding element in `b` is zero.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sign_epi8)
@@ -2888,11 +2888,11 @@ pub unsafe fn _mm256_sign_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsignb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sign_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psignb(a.as_i8x32(), b.as_i8x32()))
+    transmute(psignb(a.as_i8x32(), b.as_i8x32()))
 }
 
-/// Shift packed 16-bit integers in `a` left by `count` while
-/// shifting in zeros, and return the result
+/// Shifts packed 16-bit integers in `a` left by `count` while
+/// shifting in zeros, and returns the result
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sll_epi16)
 #[inline]
@@ -2900,11 +2900,11 @@ pub unsafe fn _mm256_sign_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sll_epi16(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psllw(a.as_i16x16(), count.as_i16x8()))
+    transmute(psllw(a.as_i16x16(), count.as_i16x8()))
 }
 
-/// Shift packed 32-bit integers in `a` left by `count` while
-/// shifting in zeros, and return the result
+/// Shifts packed 32-bit integers in `a` left by `count` while
+/// shifting in zeros, and returns the result
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sll_epi32)
 #[inline]
@@ -2912,11 +2912,11 @@ pub unsafe fn _mm256_sll_epi16(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpslld))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sll_epi32(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(pslld(a.as_i32x8(), count.as_i32x4()))
+    transmute(pslld(a.as_i32x8(), count.as_i32x4()))
 }
 
-/// Shift packed 64-bit integers in `a` left by `count` while
-/// shifting in zeros, and return the result
+/// Shifts packed 64-bit integers in `a` left by `count` while
+/// shifting in zeros, and returns the result
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sll_epi64)
 #[inline]
@@ -2924,10 +2924,10 @@ pub unsafe fn _mm256_sll_epi32(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sll_epi64(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psllq(a.as_i64x4(), count.as_i64x2()))
+    transmute(psllq(a.as_i64x4(), count.as_i64x2()))
 }
 
-/// Shift packed 16-bit integers in `a` left by `imm8` while
+/// Shifts packed 16-bit integers in `a` left by `imm8` while
 /// shifting in zeros, return the results;
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_slli_epi16)
@@ -2936,10 +2936,10 @@ pub unsafe fn _mm256_sll_epi64(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_slli_epi16(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(pslliw(a.as_i16x16(), imm8))
+    transmute(pslliw(a.as_i16x16(), imm8))
 }
 
-/// Shift packed 32-bit integers in `a` left by `imm8` while
+/// Shifts packed 32-bit integers in `a` left by `imm8` while
 /// shifting in zeros, return the results;
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_slli_epi32)
@@ -2948,10 +2948,10 @@ pub unsafe fn _mm256_slli_epi16(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpslld))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_slli_epi32(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psllid(a.as_i32x8(), imm8))
+    transmute(psllid(a.as_i32x8(), imm8))
 }
 
-/// Shift packed 64-bit integers in `a` left by `imm8` while
+/// Shifts packed 64-bit integers in `a` left by `imm8` while
 /// shifting in zeros, return the results;
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_slli_epi64)
@@ -2960,10 +2960,10 @@ pub unsafe fn _mm256_slli_epi32(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_slli_epi64(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(pslliq(a.as_i64x4(), imm8))
+    transmute(pslliq(a.as_i64x4(), imm8))
 }
 
-/// Shift 128-bit lanes in `a` left by `imm8` bytes while shifting in zeros.
+/// Shifts 128-bit lanes in `a` left by `imm8` bytes while shifting in zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_slli_si256)
 #[inline]
@@ -2978,10 +2978,10 @@ pub unsafe fn _mm256_slli_si256(a: __m256i, imm8: i32) -> __m256i {
             vpslldq(a, $imm8)
         };
     }
-    mem::transmute(constify_imm8!(imm8 * 8, call))
+    transmute(constify_imm8!(imm8 * 8, call))
 }
 
-/// Shift 128-bit lanes in `a` left by `imm8` bytes while shifting in zeros.
+/// Shifts 128-bit lanes in `a` left by `imm8` bytes while shifting in zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_bslli_epi128)
 #[inline]
@@ -2996,12 +2996,12 @@ pub unsafe fn _mm256_bslli_epi128(a: __m256i, imm8: i32) -> __m256i {
             vpslldq(a, $imm8)
         };
     }
-    mem::transmute(constify_imm8!(imm8 * 8, call))
+    transmute(constify_imm8!(imm8 * 8, call))
 }
 
-/// Shift packed 32-bit integers in `a` left by the amount
+/// Shifts packed 32-bit integers in `a` left by the amount
 /// specified by the corresponding element in `count` while
-/// shifting in zeros, and return the result.
+/// shifting in zeros, and returns the result.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_sllv_epi32)
 #[inline]
@@ -3009,12 +3009,12 @@ pub unsafe fn _mm256_bslli_epi128(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllvd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sllv_epi32(a: __m128i, count: __m128i) -> __m128i {
-    mem::transmute(psllvd(a.as_i32x4(), count.as_i32x4()))
+    transmute(psllvd(a.as_i32x4(), count.as_i32x4()))
 }
 
-/// Shift packed 32-bit integers in `a` left by the amount
+/// Shifts packed 32-bit integers in `a` left by the amount
 /// specified by the corresponding element in `count` while
-/// shifting in zeros, and return the result.
+/// shifting in zeros, and returns the result.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sllv_epi32)
 #[inline]
@@ -3022,12 +3022,12 @@ pub unsafe fn _mm_sllv_epi32(a: __m128i, count: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(vpsllvd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sllv_epi32(a: __m256i, count: __m256i) -> __m256i {
-    mem::transmute(psllvd256(a.as_i32x8(), count.as_i32x8()))
+    transmute(psllvd256(a.as_i32x8(), count.as_i32x8()))
 }
 
-/// Shift packed 64-bit integers in `a` left by the amount
+/// Shifts packed 64-bit integers in `a` left by the amount
 /// specified by the corresponding element in `count` while
-/// shifting in zeros, and return the result.
+/// shifting in zeros, and returns the result.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_sllv_epi64)
 #[inline]
@@ -3035,12 +3035,12 @@ pub unsafe fn _mm256_sllv_epi32(a: __m256i, count: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsllvq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sllv_epi64(a: __m128i, count: __m128i) -> __m128i {
-    mem::transmute(psllvq(a.as_i64x2(), count.as_i64x2()))
+    transmute(psllvq(a.as_i64x2(), count.as_i64x2()))
 }
 
-/// Shift packed 64-bit integers in `a` left by the amount
+/// Shifts packed 64-bit integers in `a` left by the amount
 /// specified by the corresponding element in `count` while
-/// shifting in zeros, and return the result.
+/// shifting in zeros, and returns the result.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sllv_epi64)
 #[inline]
@@ -3048,10 +3048,10 @@ pub unsafe fn _mm_sllv_epi64(a: __m128i, count: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(vpsllvq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sllv_epi64(a: __m256i, count: __m256i) -> __m256i {
-    mem::transmute(psllvq256(a.as_i64x4(), count.as_i64x4()))
+    transmute(psllvq256(a.as_i64x4(), count.as_i64x4()))
 }
 
-/// Shift packed 16-bit integers in `a` right by `count` while
+/// Shifts packed 16-bit integers in `a` right by `count` while
 /// shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sra_epi16)
@@ -3060,10 +3060,10 @@ pub unsafe fn _mm256_sllv_epi64(a: __m256i, count: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsraw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sra_epi16(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psraw(a.as_i16x16(), count.as_i16x8()))
+    transmute(psraw(a.as_i16x16(), count.as_i16x8()))
 }
 
-/// Shift packed 32-bit integers in `a` right by `count` while
+/// Shifts packed 32-bit integers in `a` right by `count` while
 /// shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_sra_epi32)
@@ -3072,10 +3072,10 @@ pub unsafe fn _mm256_sra_epi16(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrad))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sra_epi32(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psrad(a.as_i32x8(), count.as_i32x4()))
+    transmute(psrad(a.as_i32x8(), count.as_i32x4()))
 }
 
-/// Shift packed 16-bit integers in `a` right by `imm8` while
+/// Shifts packed 16-bit integers in `a` right by `imm8` while
 /// shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srai_epi16)
@@ -3084,10 +3084,10 @@ pub unsafe fn _mm256_sra_epi32(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsraw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srai_epi16(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psraiw(a.as_i16x16(), imm8))
+    transmute(psraiw(a.as_i16x16(), imm8))
 }
 
-/// Shift packed 32-bit integers in `a` right by `imm8` while
+/// Shifts packed 32-bit integers in `a` right by `imm8` while
 /// shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srai_epi32)
@@ -3096,10 +3096,10 @@ pub unsafe fn _mm256_srai_epi16(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrad))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srai_epi32(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psraid(a.as_i32x8(), imm8))
+    transmute(psraid(a.as_i32x8(), imm8))
 }
 
-/// Shift packed 32-bit integers in `a` right by the amount specified by the
+/// Shifts packed 32-bit integers in `a` right by the amount specified by the
 /// corresponding element in `count` while shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_srav_epi32)
@@ -3108,10 +3108,10 @@ pub unsafe fn _mm256_srai_epi32(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsravd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_srav_epi32(a: __m128i, count: __m128i) -> __m128i {
-    mem::transmute(psravd(a.as_i32x4(), count.as_i32x4()))
+    transmute(psravd(a.as_i32x4(), count.as_i32x4()))
 }
 
-/// Shift packed 32-bit integers in `a` right by the amount specified by the
+/// Shifts packed 32-bit integers in `a` right by the amount specified by the
 /// corresponding element in `count` while shifting in sign bits.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srav_epi32)
@@ -3120,10 +3120,10 @@ pub unsafe fn _mm_srav_epi32(a: __m128i, count: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(vpsravd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srav_epi32(a: __m256i, count: __m256i) -> __m256i {
-    mem::transmute(psravd256(a.as_i32x8(), count.as_i32x8()))
+    transmute(psravd256(a.as_i32x8(), count.as_i32x8()))
 }
 
-/// Shift 128-bit lanes in `a` right by `imm8` bytes while shifting in zeros.
+/// Shifts 128-bit lanes in `a` right by `imm8` bytes while shifting in zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srli_si256)
 #[inline]
@@ -3138,10 +3138,10 @@ pub unsafe fn _mm256_srli_si256(a: __m256i, imm8: i32) -> __m256i {
             vpsrldq(a, $imm8)
         };
     }
-    mem::transmute(constify_imm8!(imm8 * 8, call))
+    transmute(constify_imm8!(imm8 * 8, call))
 }
 
-/// Shift 128-bit lanes in `a` right by `imm8` bytes while shifting in zeros.
+/// Shifts 128-bit lanes in `a` right by `imm8` bytes while shifting in zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_bsrli_epi128)
 #[inline]
@@ -3156,10 +3156,10 @@ pub unsafe fn _mm256_bsrli_epi128(a: __m256i, imm8: i32) -> __m256i {
             vpsrldq(a, $imm8)
         };
     }
-    mem::transmute(constify_imm8!(imm8 * 8, call))
+    transmute(constify_imm8!(imm8 * 8, call))
 }
 
-/// Shift packed 16-bit integers in `a` right by `count` while shifting in
+/// Shifts packed 16-bit integers in `a` right by `count` while shifting in
 /// zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srl_epi16)
@@ -3168,10 +3168,10 @@ pub unsafe fn _mm256_bsrli_epi128(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srl_epi16(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psrlw(a.as_i16x16(), count.as_i16x8()))
+    transmute(psrlw(a.as_i16x16(), count.as_i16x8()))
 }
 
-/// Shift packed 32-bit integers in `a` right by `count` while shifting in
+/// Shifts packed 32-bit integers in `a` right by `count` while shifting in
 /// zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srl_epi32)
@@ -3180,10 +3180,10 @@ pub unsafe fn _mm256_srl_epi16(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrld))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srl_epi32(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psrld(a.as_i32x8(), count.as_i32x4()))
+    transmute(psrld(a.as_i32x8(), count.as_i32x4()))
 }
 
-/// Shift packed 64-bit integers in `a` right by `count` while shifting in
+/// Shifts packed 64-bit integers in `a` right by `count` while shifting in
 /// zeros.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srl_epi64)
@@ -3192,10 +3192,10 @@ pub unsafe fn _mm256_srl_epi32(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srl_epi64(a: __m256i, count: __m128i) -> __m256i {
-    mem::transmute(psrlq(a.as_i64x4(), count.as_i64x2()))
+    transmute(psrlq(a.as_i64x4(), count.as_i64x2()))
 }
 
-/// Shift packed 16-bit integers in `a` right by `imm8` while shifting in
+/// Shifts packed 16-bit integers in `a` right by `imm8` while shifting in
 /// zeros
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srli_epi16)
@@ -3204,10 +3204,10 @@ pub unsafe fn _mm256_srl_epi64(a: __m256i, count: __m128i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srli_epi16(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psrliw(a.as_i16x16(), imm8))
+    transmute(psrliw(a.as_i16x16(), imm8))
 }
 
-/// Shift packed 32-bit integers in `a` right by `imm8` while shifting in
+/// Shifts packed 32-bit integers in `a` right by `imm8` while shifting in
 /// zeros
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srli_epi32)
@@ -3216,10 +3216,10 @@ pub unsafe fn _mm256_srli_epi16(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrld))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srli_epi32(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psrlid(a.as_i32x8(), imm8))
+    transmute(psrlid(a.as_i32x8(), imm8))
 }
 
-/// Shift packed 64-bit integers in `a` right by `imm8` while shifting in
+/// Shifts packed 64-bit integers in `a` right by `imm8` while shifting in
 /// zeros
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srli_epi64)
@@ -3228,10 +3228,10 @@ pub unsafe fn _mm256_srli_epi32(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srli_epi64(a: __m256i, imm8: i32) -> __m256i {
-    mem::transmute(psrliq(a.as_i64x4(), imm8))
+    transmute(psrliq(a.as_i64x4(), imm8))
 }
 
-/// Shift packed 32-bit integers in `a` right by the amount specified by
+/// Shifts packed 32-bit integers in `a` right by the amount specified by
 /// the corresponding element in `count` while shifting in zeros,
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_srlv_epi32)
@@ -3240,10 +3240,10 @@ pub unsafe fn _mm256_srli_epi64(a: __m256i, imm8: i32) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlvd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_srlv_epi32(a: __m128i, count: __m128i) -> __m128i {
-    mem::transmute(psrlvd(a.as_i32x4(), count.as_i32x4()))
+    transmute(psrlvd(a.as_i32x4(), count.as_i32x4()))
 }
 
-/// Shift packed 32-bit integers in `a` right by the amount specified by
+/// Shifts packed 32-bit integers in `a` right by the amount specified by
 /// the corresponding element in `count` while shifting in zeros,
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srlv_epi32)
@@ -3252,10 +3252,10 @@ pub unsafe fn _mm_srlv_epi32(a: __m128i, count: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(vpsrlvd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srlv_epi32(a: __m256i, count: __m256i) -> __m256i {
-    mem::transmute(psrlvd256(a.as_i32x8(), count.as_i32x8()))
+    transmute(psrlvd256(a.as_i32x8(), count.as_i32x8()))
 }
 
-/// Shift packed 64-bit integers in `a` right by the amount specified by
+/// Shifts packed 64-bit integers in `a` right by the amount specified by
 /// the corresponding element in `count` while shifting in zeros,
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_srlv_epi64)
@@ -3264,10 +3264,10 @@ pub unsafe fn _mm256_srlv_epi32(a: __m256i, count: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsrlvq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_srlv_epi64(a: __m128i, count: __m128i) -> __m128i {
-    mem::transmute(psrlvq(a.as_i64x2(), count.as_i64x2()))
+    transmute(psrlvq(a.as_i64x2(), count.as_i64x2()))
 }
 
-/// Shift packed 64-bit integers in `a` right by the amount specified by
+/// Shifts packed 64-bit integers in `a` right by the amount specified by
 /// the corresponding element in `count` while shifting in zeros,
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_srlv_epi64)
@@ -3276,7 +3276,7 @@ pub unsafe fn _mm_srlv_epi64(a: __m128i, count: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(vpsrlvq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_srlv_epi64(a: __m256i, count: __m256i) -> __m256i {
-    mem::transmute(psrlvq256(a.as_i64x4(), count.as_i64x4()))
+    transmute(psrlvq256(a.as_i64x4(), count.as_i64x4()))
 }
 
 // TODO _mm256_stream_load_si256 (__m256i const* mem_addr)
@@ -3289,7 +3289,7 @@ pub unsafe fn _mm256_srlv_epi64(a: __m256i, count: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sub_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_sub(a.as_i16x16(), b.as_i16x16()))
+    transmute(simd_sub(a.as_i16x16(), b.as_i16x16()))
 }
 
 /// Subtract packed 32-bit integers in `b` from packed 16-bit integers in `a`
@@ -3300,7 +3300,7 @@ pub unsafe fn _mm256_sub_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sub_epi32(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_sub(a.as_i32x8(), b.as_i32x8()))
+    transmute(simd_sub(a.as_i32x8(), b.as_i32x8()))
 }
 
 /// Subtract packed 64-bit integers in `b` from packed 16-bit integers in `a`
@@ -3311,7 +3311,7 @@ pub unsafe fn _mm256_sub_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sub_epi64(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_sub(a.as_i64x4(), b.as_i64x4()))
+    transmute(simd_sub(a.as_i64x4(), b.as_i64x4()))
 }
 
 /// Subtract packed 8-bit integers in `b` from packed 16-bit integers in `a`
@@ -3322,7 +3322,7 @@ pub unsafe fn _mm256_sub_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_sub_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_sub(a.as_i8x32(), b.as_i8x32()))
+    transmute(simd_sub(a.as_i8x32(), b.as_i8x32()))
 }
 
 /// Subtract packed 16-bit integers in `b` from packed 16-bit integers in
@@ -3334,7 +3334,7 @@ pub unsafe fn _mm256_sub_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubsw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_subs_epi16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psubsw(a.as_i16x16(), b.as_i16x16()))
+    transmute(psubsw(a.as_i16x16(), b.as_i16x16()))
 }
 
 /// Subtract packed 8-bit integers in `b` from packed 8-bit integers in
@@ -3346,7 +3346,7 @@ pub unsafe fn _mm256_subs_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubsb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_subs_epi8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psubsb(a.as_i8x32(), b.as_i8x32()))
+    transmute(psubsb(a.as_i8x32(), b.as_i8x32()))
 }
 
 /// Subtract packed unsigned 16-bit integers in `b` from packed 16-bit
@@ -3358,7 +3358,7 @@ pub unsafe fn _mm256_subs_epi8(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubusw))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_subs_epu16(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psubusw(a.as_u16x16(), b.as_u16x16()))
+    transmute(psubusw(a.as_u16x16(), b.as_u16x16()))
 }
 
 /// Subtract packed unsigned 8-bit integers in `b` from packed 8-bit
@@ -3370,10 +3370,10 @@ pub unsafe fn _mm256_subs_epu16(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vpsubusb))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_subs_epu8(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(psubusb(a.as_u8x32(), b.as_u8x32()))
+    transmute(psubusb(a.as_u8x32(), b.as_u8x32()))
 }
 
-/// Unpack and interleave 8-bit integers from the high half of each
+/// Unpacks and interleave 8-bit integers from the high half of each
 /// 128-bit lane in `a` and `b`.
 ///
 /// ```rust
@@ -3424,10 +3424,10 @@ pub unsafe fn _mm256_unpackhi_epi8(a: __m256i, b: __m256i) -> __m256i {
             24, 56, 25, 57, 26, 58, 27, 59,
             28, 60, 29, 61, 30, 62, 31, 63,
     ]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 8-bit integers from the low half of each
+/// Unpacks and interleave 8-bit integers from the low half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3477,10 +3477,10 @@ pub unsafe fn _mm256_unpacklo_epi8(a: __m256i, b: __m256i) -> __m256i {
         16, 48, 17, 49, 18, 50, 19, 51,
         20, 52, 21, 53, 22, 54, 23, 55,
     ]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 16-bit integers from the high half of each
+/// Unpacks and interleave 16-bit integers from the high half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3524,10 +3524,10 @@ pub unsafe fn _mm256_unpackhi_epi16(a: __m256i, b: __m256i) -> __m256i {
         b.as_i16x16(),
         [4, 20, 5, 21, 6, 22, 7, 23, 12, 28, 13, 29, 14, 30, 15, 31],
     );
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 16-bit integers from the low half of each
+/// Unpacks and interleave 16-bit integers from the low half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3572,10 +3572,10 @@ pub unsafe fn _mm256_unpacklo_epi16(a: __m256i, b: __m256i) -> __m256i {
         b.as_i16x16(),
         [0, 16, 1, 17, 2, 18, 3, 19, 8, 24, 9, 25, 10, 26, 11, 27],
     );
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 32-bit integers from the high half of each
+/// Unpacks and interleave 32-bit integers from the high half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3609,10 +3609,10 @@ pub unsafe fn _mm256_unpacklo_epi16(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_unpackhi_epi32(a: __m256i, b: __m256i) -> __m256i {
     let r: i32x8 = simd_shuffle8(a.as_i32x8(), b.as_i32x8(), [2, 10, 3, 11, 6, 14, 7, 15]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 32-bit integers from the low half of each
+/// Unpacks and interleave 32-bit integers from the low half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3646,10 +3646,10 @@ pub unsafe fn _mm256_unpackhi_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_unpacklo_epi32(a: __m256i, b: __m256i) -> __m256i {
     let r: i32x8 = simd_shuffle8(a.as_i32x8(), b.as_i32x8(), [0, 8, 1, 9, 4, 12, 5, 13]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 64-bit integers from the high half of each
+/// Unpacks and interleave 64-bit integers from the high half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3683,10 +3683,10 @@ pub unsafe fn _mm256_unpacklo_epi32(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_unpackhi_epi64(a: __m256i, b: __m256i) -> __m256i {
     let r: i64x4 = simd_shuffle4(a.as_i64x4(), b.as_i64x4(), [1, 5, 3, 7]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Unpack and interleave 64-bit integers from the low half of each
+/// Unpacks and interleave 64-bit integers from the low half of each
 /// 128-bit lane of `a` and `b`.
 ///
 /// ```rust
@@ -3720,10 +3720,10 @@ pub unsafe fn _mm256_unpackhi_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_unpacklo_epi64(a: __m256i, b: __m256i) -> __m256i {
     let r: i64x4 = simd_shuffle4(a.as_i64x4(), b.as_i64x4(), [0, 4, 2, 6]);
-    mem::transmute(r)
+    transmute(r)
 }
 
-/// Compute the bitwise XOR of 256 bits (representing integer data)
+/// Computes the bitwise XOR of 256 bits (representing integer data)
 /// in `a` and `b`
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_xor_si256)
@@ -3732,10 +3732,10 @@ pub unsafe fn _mm256_unpacklo_epi64(a: __m256i, b: __m256i) -> __m256i {
 #[cfg_attr(test, assert_instr(vxorps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_xor_si256(a: __m256i, b: __m256i) -> __m256i {
-    mem::transmute(simd_xor(a.as_i64x4(), b.as_i64x4()))
+    transmute(simd_xor(a.as_i64x4(), b.as_i64x4()))
 }
 
-/// Extract an 8-bit integer from `a`, selected with `imm8`. Returns a 32-bit
+/// Extracts an 8-bit integer from `a`, selected with `imm8`. Returns a 32-bit
 /// integer containing the zero-extended integer data.
 ///
 /// See [LLVM commit D20468][https://reviews.llvm.org/D20468].
@@ -3751,7 +3751,7 @@ pub unsafe fn _mm256_extract_epi8(a: __m256i, imm8: i32) -> i8 {
     simd_extract(a.as_i8x32(), imm8)
 }
 
-/// Extract a 16-bit integer from `a`, selected with `imm8`. Returns a 32-bit
+/// Extracts a 16-bit integer from `a`, selected with `imm8`. Returns a 32-bit
 /// integer containing the zero-extended integer data.
 ///
 /// See [LLVM commit D20468][https://reviews.llvm.org/D20468].
@@ -3767,7 +3767,7 @@ pub unsafe fn _mm256_extract_epi16(a: __m256i, imm8: i32) -> i16 {
     simd_extract(a.as_i16x16(), imm8)
 }
 
-/// Extract a 32-bit integer from `a`, selected with `imm8`.
+/// Extracts a 32-bit integer from `a`, selected with `imm8`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm256_extract_epi32)
 #[inline]
@@ -4059,7 +4059,7 @@ mod tests {
     use std;
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "avx2")]
     unsafe fn test_mm256_abs_epi32() {

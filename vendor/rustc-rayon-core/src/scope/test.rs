@@ -1,16 +1,16 @@
-use ThreadPoolBuilder;
-use {scope, Scope};
 use rand::{Rng, SeedableRng, XorShiftRng};
 use std::cmp;
 use std::iter::once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::vec;
 use unwind;
+use ThreadPoolBuilder;
+use {scope, Scope};
 
 #[test]
 fn scope_empty() {
-    scope(|_| {
-    });
+    scope(|_| {});
 }
 
 #[test]
@@ -74,7 +74,7 @@ struct Tree<T: Send> {
 }
 
 impl<T: Send> Tree<T> {
-    pub fn iter<'s>(&'s self) -> impl Iterator<Item = &'s T> + 's {
+    pub fn iter<'s>(&'s self) -> vec::IntoIter<&'s T> {
         once(&self.value)
             .chain(self.children.iter().flat_map(|c| c.iter()))
             .collect::<Vec<_>>() // seems like it shouldn't be needed... but prevents overflow
@@ -82,16 +82,21 @@ impl<T: Send> Tree<T> {
     }
 
     pub fn update<OP>(&mut self, op: OP)
-        where OP: Fn(&mut T) + Sync,
-              T: Send
+    where
+        OP: Fn(&mut T) + Sync,
+        T: Send,
     {
         scope(|s| self.update_in_scope(&op, s));
     }
 
     fn update_in_scope<'scope, OP>(&'scope mut self, op: &'scope OP, scope: &Scope<'scope>)
-        where OP: Fn(&mut T) + Sync
+    where
+        OP: Fn(&mut T) + Sync,
     {
-        let Tree { ref mut value, ref mut children } = *self;
+        let Tree {
+            ref mut value,
+            ref mut children,
+        } = *self;
         scope.spawn(move |scope| {
             for child in children {
                 scope.spawn(move |scope| child.update_in_scope(op, scope));
@@ -104,7 +109,9 @@ impl<T: Send> Tree<T> {
 
 fn random_tree(depth: usize) -> Tree<u32> {
     assert!(depth > 0);
-    let mut rng = XorShiftRng::from_seed([0, 1, 2, 3]);
+    let mut seed = <XorShiftRng as SeedableRng>::Seed::default();
+    (0..).zip(seed.as_mut()).for_each(|(i, x)| *x = i);
+    let mut rng = XorShiftRng::from_seed(seed);
     random_tree1(depth, &mut rng)
 }
 
@@ -112,13 +119,13 @@ fn random_tree1(depth: usize, rng: &mut XorShiftRng) -> Tree<u32> {
     let children = if depth == 0 {
         vec![]
     } else {
-        (0..(rng.next_u32() % 3)) // somewhere between 0 and 3 children at each level
+        (0..rng.gen_range(0, 4)) // somewhere between 0 and 3 children at each level
             .map(|_| random_tree1(depth - 1, rng))
             .collect()
     };
 
     Tree {
-        value: rng.next_u32() % 1_000_000,
+        value: rng.gen_range(0, 1_000_000),
         children: children,
     }
 }
@@ -153,16 +160,20 @@ fn linear_stack_growth() {
         let diff_when_500 = *max_diff.get_mut().unwrap() as f64;
 
         let ratio = diff_when_5 / diff_when_500;
-        assert!(ratio > 0.9 && ratio < 1.1,
-                "stack usage ratio out of bounds: {}",
-                ratio);
+        assert!(
+            ratio > 0.9 && ratio < 1.1,
+            "stack usage ratio out of bounds: {}",
+            ratio
+        );
     });
 }
 
-fn the_final_countdown<'scope>(s: &Scope<'scope>,
-                               bottom_of_stack: &'scope i32,
-                               max: &'scope Mutex<usize>,
-                               n: usize) {
+fn the_final_countdown<'scope>(
+    s: &Scope<'scope>,
+    bottom_of_stack: &'scope i32,
+    max: &'scope Mutex<usize>,
+    n: usize,
+) {
     let top_of_stack = 0;
     let p = bottom_of_stack as *const i32 as usize;
     let q = &top_of_stack as *const i32 as usize;

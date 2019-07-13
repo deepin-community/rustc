@@ -31,7 +31,7 @@ pub unsafe fn _mulx_u32(a: u32, b: u32, hi: &mut u32) -> u32 {
     result as u32
 }
 
-/// Zero higher bits of `a` >= `index`.
+/// Zeroes higher bits of `a` >= `index`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_bzhi_u32)
 #[inline]
@@ -79,7 +79,7 @@ extern "C" {
 mod tests {
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "bmi2")]
     unsafe fn test_pext_u32() {

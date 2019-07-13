@@ -1,6 +1,6 @@
 #![allow(dead_code, missing_docs, nonstandard_style)]
 
-use ::io::{ErrorKind};
+use crate::io::ErrorKind;
 
 pub use libc::strlen;
 pub use self::rand::hashmap_random_keys;
@@ -22,7 +22,6 @@ pub mod memchr;
 pub mod mutex;
 pub mod net;
 pub mod os;
-pub mod os_str;
 pub mod path;
 pub mod pipe;
 pub mod process;
@@ -34,6 +33,8 @@ pub mod syscall;
 pub mod thread;
 pub mod thread_local;
 pub mod time;
+
+pub use crate::sys_common::os_str_bytes as os_str;
 
 #[cfg(not(test))]
 pub fn init() {}
@@ -64,8 +65,8 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
     }
 }
 
-pub fn cvt(result: Result<usize, syscall::Error>) -> ::io::Result<usize> {
-    result.map_err(|err| ::io::Error::from_raw_os_error(err.errno))
+pub fn cvt(result: Result<usize, syscall::Error>) -> crate::io::Result<usize> {
+    result.map_err(|err| crate::io::Error::from_raw_os_error(err.errno))
 }
 
 #[doc(hidden)]
@@ -83,9 +84,9 @@ macro_rules! impl_is_minus_one {
 
 impl_is_minus_one! { i8 i16 i32 i64 isize }
 
-pub fn cvt_libc<T: IsMinusOne>(t: T) -> ::io::Result<T> {
+pub fn cvt_libc<T: IsMinusOne>(t: T) -> crate::io::Result<T> {
     if t.is_minus_one() {
-        Err(::io::Error::last_os_error())
+        Err(crate::io::Error::last_os_error())
     } else {
         Ok(t)
     }
@@ -93,5 +94,5 @@ pub fn cvt_libc<T: IsMinusOne>(t: T) -> ::io::Result<T> {
 
 /// On Redox, use an illegal instruction to abort
 pub unsafe fn abort_internal() -> ! {
-    ::core::intrinsics::abort();
+    core::intrinsics::abort();
 }

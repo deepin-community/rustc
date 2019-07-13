@@ -340,12 +340,8 @@ impl Ident {
         if !Self::is_valid(string) {
             panic!("`{:?}` is not a valid identifier", string)
         }
-        if is_raw {
-            let normalized_sym = Symbol::intern(string);
-            if normalized_sym == keywords::Underscore.name() ||
-               ast::Ident::with_empty_ctxt(normalized_sym).is_path_segment_keyword() {
-                panic!("`{:?}` is not a valid raw identifier", string)
-            }
+        if is_raw && !ast::Ident::from_str(string).can_be_raw() {
+            panic!("`{}` cannot be a raw identifier", string);
         }
         Ident { sym, is_raw, span }
     }
@@ -743,5 +739,8 @@ impl server::Span for Rustc<'_> {
     }
     fn resolved_at(&mut self, span: Self::Span, at: Self::Span) -> Self::Span {
         span.with_ctxt(at.ctxt())
+    }
+    fn source_text(&mut self,  span: Self::Span) -> Option<String> {
+        self.sess.source_map().span_to_snippet(span).ok()
     }
 }

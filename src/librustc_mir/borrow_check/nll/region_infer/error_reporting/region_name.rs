@@ -6,9 +6,9 @@ use rustc::hir;
 use rustc::hir::def_id::DefId;
 use rustc::infer::InferCtxt;
 use rustc::mir::Mir;
-use rustc::ty::subst::{Substs, UnpackedKind};
+use rustc::ty::subst::{SubstsRef, UnpackedKind};
 use rustc::ty::{self, RegionKind, RegionVid, Ty, TyCtxt};
-use rustc::util::ppaux::RegionHighlightMode;
+use rustc::ty::print::RegionHighlightMode;
 use rustc_errors::DiagnosticBuilder;
 use syntax::ast::Name;
 use syntax::symbol::keywords;
@@ -396,9 +396,9 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         argument_ty: Ty<'tcx>,
         counter: &mut usize,
     ) -> Option<RegionName> {
-        let type_name = RegionHighlightMode::highlighting_region_vid(needle_fr, *counter, || {
-            infcx.extract_type_name(&argument_ty)
-        });
+        let mut highlight = RegionHighlightMode::default();
+        highlight.highlighting_region_vid(needle_fr, *counter);
+        let type_name = infcx.extract_type_name(&argument_ty, Some(highlight));
 
         debug!(
             "give_name_if_we_cannot_match_hir_ty: type_name={:?} needle_fr={:?}",
@@ -541,7 +541,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// types+hir to search through).
     fn match_adt_and_segment<'hir>(
         &self,
-        substs: &'tcx Substs<'tcx>,
+        substs: SubstsRef<'tcx>,
         needle_fr: RegionVid,
         last_segment: &'hir hir::PathSegment,
         counter: &mut usize,
@@ -587,7 +587,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// `search_stack` the types+hir to search through.
     fn try_match_adt_and_generic_args<'hir>(
         &self,
-        substs: &'tcx Substs<'tcx>,
+        substs: SubstsRef<'tcx>,
         needle_fr: RegionVid,
         args: &'hir hir::GenericArgs,
         search_stack: &mut Vec<(Ty<'tcx>, &'hir hir::Ty)>,
@@ -604,7 +604,14 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                     search_stack.push((ty, hir_ty));
                 }
 
-                (UnpackedKind::Lifetime(_), _) | (UnpackedKind::Type(_), _) => {
+                (UnpackedKind::Const(_ct), hir::GenericArg::Const(_hir_ct)) => {
+                    // Lifetimes cannot be found in consts, so we don't need
+                    // to search anything here.
+                }
+
+                (UnpackedKind::Lifetime(_), _)
+                | (UnpackedKind::Type(_), _)
+                | (UnpackedKind::Const(_), _) => {
                     // I *think* that HIR lowering should ensure this
                     // doesn't happen, even in erroneous
                     // programs. Else we should use delay-span-bug.
@@ -673,9 +680,9 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             return None;
         }
 
-        let type_name = RegionHighlightMode::highlighting_region_vid(
-            fr, *counter, || infcx.extract_type_name(&return_ty),
-        );
+        let mut highlight = RegionHighlightMode::default();
+        highlight.highlighting_region_vid(fr, *counter);
+        let type_name = infcx.extract_type_name(&return_ty, Some(highlight));
 
         let mir_node_id = tcx.hir().as_local_node_id(mir_def_id).expect("non-local mir");
 

@@ -131,12 +131,9 @@ impl<'a> Resolver<'a> {
         // so prefixes are prepended with crate root segment if necessary.
         // The root is prepended lazily, when the first non-empty prefix or terminating glob
         // appears, so imports in braced groups can have roots prepended independently.
-        // 2015 identifiers used on global 2018 edition enter special "virtual 2015 mode", don't
-        // get crate root prepended, but get special treatment during in-scope resolution instead.
         let is_glob = if let ast::UseTreeKind::Glob = use_tree.kind { true } else { false };
         let crate_root = match prefix_iter.peek() {
-            Some(seg) if !seg.ident.is_path_segment_keyword() &&
-                         seg.ident.span.rust_2015() && self.session.rust_2015() => {
+            Some(seg) if !seg.ident.is_path_segment_keyword() && seg.ident.span.rust_2015() => {
                 Some(seg.ident.span.ctxt())
             }
             None if is_glob && use_tree.span.rust_2015() => {
@@ -306,7 +303,7 @@ impl<'a> Resolver<'a> {
                 }
 
                 // Empty groups `a::b::{}` are turned into synthetic `self` imports
-                // `a::b::c::{self as _}`, so that their prefixes are correctly
+                // `a::b::c::{self as __dummy}`, so that their prefixes are correctly
                 // resolved and checked for privacy/stability/etc.
                 if items.is_empty() && !empty_for_self(&prefix) {
                     let new_span = prefix[prefix.len() - 1].ident.span;
@@ -315,7 +312,7 @@ impl<'a> Resolver<'a> {
                             Ident::new(keywords::SelfLower.name(), new_span)
                         ),
                         kind: ast::UseTreeKind::Simple(
-                            Some(Ident::new(keywords::Underscore.name().gensymed(), new_span)),
+                            Some(Ident::new(Name::gensym("__dummy"), new_span)),
                             ast::DUMMY_NODE_ID,
                             ast::DUMMY_NODE_ID,
                         ),
@@ -535,9 +532,10 @@ impl<'a> Resolver<'a> {
 
                 // If this is a tuple or unit struct, define a name
                 // in the value namespace as well.
-                if !struct_def.is_struct() {
-                    let ctor_def = Def::StructCtor(self.definitions.local_def_id(struct_def.id()),
-                                                   CtorKind::from_ast(struct_def));
+                if let Some(ctor_node_id) = struct_def.ctor_id() {
+                    let ctor_def = Def::Ctor(self.definitions.local_def_id(ctor_node_id),
+                                             CtorOf::Struct,
+                                             CtorKind::from_ast(struct_def));
                     self.define(parent, ident, ValueNS, (ctor_def, ctor_vis, sp, expansion));
                     self.struct_constructors.insert(def.def_id(), (ctor_def, ctor_vis));
                 }
@@ -584,19 +582,30 @@ impl<'a> Resolver<'a> {
                                        vis: ty::Visibility,
                                        expansion: Mark) {
         let ident = variant.node.ident;
-        let def_id = self.definitions.local_def_id(variant.node.data.id());
 
         // Define a name in the type namespace.
+        let def_id = self.definitions.local_def_id(variant.node.id);
         let def = Def::Variant(def_id);
         self.define(parent, ident, TypeNS, (def, vis, variant.span, expansion));
+
+        // If the variant is marked as non_exhaustive then lower the visibility to within the
+        // crate.
+        let mut ctor_vis = vis;
+        let has_non_exhaustive = attr::contains_name(&variant.node.attrs, "non_exhaustive");
+        if has_non_exhaustive && vis == ty::Visibility::Public {
+            ctor_vis = ty::Visibility::Restricted(DefId::local(CRATE_DEF_INDEX));
+        }
 
         // Define a constructor name in the value namespace.
         // Braced variants, unlike structs, generate unusable names in
         // value namespace, they are reserved for possible future use.
+        // It's ok to use the variant's id as a ctor id since an
+        // error will be reported on any use of such resolution anyway.
+        let ctor_node_id = variant.node.data.ctor_id().unwrap_or(variant.node.id);
+        let ctor_def_id = self.definitions.local_def_id(ctor_node_id);
         let ctor_kind = CtorKind::from_ast(&variant.node.data);
-        let ctor_def = Def::VariantCtor(def_id, ctor_kind);
-
-        self.define(parent, ident, ValueNS, (ctor_def, vis, variant.span, expansion));
+        let ctor_def = Def::Ctor(ctor_def_id, CtorOf::Variant, ctor_kind);
+        self.define(parent, ident, ValueNS, (ctor_def, ctor_vis, variant.span, expansion));
     }
 
     /// Constructs the reduced graph for one foreign item.
@@ -652,10 +661,11 @@ impl<'a> Resolver<'a> {
             Def::TraitAlias(..) | Def::PrimTy(..) | Def::ToolMod => {
                 self.define(parent, ident, TypeNS, (def, vis, DUMMY_SP, expansion));
             }
-            Def::Fn(..) | Def::Static(..) | Def::Const(..) | Def::VariantCtor(..) => {
+            Def::Fn(..) | Def::Static(..) | Def::Const(..) |
+            Def::Ctor(_, CtorOf::Variant, ..) => {
                 self.define(parent, ident, ValueNS, (def, vis, DUMMY_SP, expansion));
             }
-            Def::StructCtor(def_id, ..) => {
+            Def::Ctor(def_id, CtorOf::Struct, ..) => {
                 self.define(parent, ident, ValueNS, (def, vis, DUMMY_SP, expansion));
 
                 if let Some(struct_def_id) =
@@ -812,12 +822,12 @@ impl<'a> Resolver<'a> {
                         MetaItemKind::List(nested_metas) => for nested_meta in nested_metas {
                             match nested_meta.ident() {
                                 Some(ident) if nested_meta.is_word() => single_imports.push(ident),
-                                _ => ill_formed(nested_meta.span),
+                                _ => ill_formed(nested_meta.span()),
                             }
                         }
                         MetaItemKind::NameValue(..) => ill_formed(meta.span),
                     }
-                    None => ill_formed(attr.span()),
+                    None => ill_formed(attr.span),
                 }
             }
         }

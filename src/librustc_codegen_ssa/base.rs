@@ -16,7 +16,7 @@
 use crate::{ModuleCodegen, ModuleKind, CachedModuleCodegen};
 
 use rustc::dep_graph::cgu_reuse_tracker::CguReuse;
-use rustc::hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
+use rustc::hir::def_id::{DefId, LOCAL_CRATE};
 use rustc::middle::lang_items::StartFnLangItem;
 use rustc::middle::weak_lang_items;
 use rustc::mir::mono::{Stats, CodegenUnitNameBuilder};
@@ -29,7 +29,6 @@ use rustc::util::profiling::ProfileCategory;
 use rustc::session::config::{self, EntryFnType, Lto};
 use rustc::session::Session;
 use rustc_mir::monomorphize::item::DefPathBasedNames;
-use rustc::util::time_graph;
 use rustc_mir::monomorphize::Instance;
 use rustc_mir::monomorphize::partitioning::{CodegenUnit, CodegenUnitExt};
 use rustc::util::nodemap::FxHashMap;
@@ -502,8 +501,8 @@ pub fn maybe_create_entry_wrapper<'a, 'tcx: 'a, Bx: BuilderMethods<'a, 'tcx>>(
         bx.insert_reference_to_gdb_debug_scripts_section_global();
 
         // Params from native main() used as args for rust start function
-        let param_argc = cx.get_param(llfn, 0);
-        let param_argv = cx.get_param(llfn, 1);
+        let param_argc = bx.get_param(0);
+        let param_argv = bx.get_param(1);
         let arg_argc = bx.intcast(param_argc, cx.type_isize(), true);
         let arg_argv = param_argv;
 
@@ -528,11 +527,6 @@ pub fn maybe_create_entry_wrapper<'a, 'tcx: 'a, Bx: BuilderMethods<'a, 'tcx>>(
 }
 
 pub const CODEGEN_WORKER_ID: usize = ::std::usize::MAX;
-pub const CODEGEN_WORKER_TIMELINE: time_graph::TimelineId =
-    time_graph::TimelineId(CODEGEN_WORKER_ID);
-pub const CODEGEN_WORK_PACKAGE_KIND: time_graph::WorkPackageKind =
-    time_graph::WorkPackageKind(&["#DE9597", "#FED1D3", "#FDC5C7", "#B46668", "#88494B"]);
-
 
 pub fn codegen_crate<B: ExtraBackendMethods>(
     backend: B,
@@ -545,7 +539,7 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
     let cgu_name_builder = &mut CodegenUnitNameBuilder::new(tcx);
 
     // Codegen the metadata.
-    tcx.sess.profiler(|p| p.start_activity(ProfileCategory::Codegen));
+    tcx.sess.profiler(|p| p.start_activity(ProfileCategory::Codegen, "codegen crate metadata"));
 
     let metadata_cgu_name = cgu_name_builder.build_cgu_name(LOCAL_CRATE,
                                                             &["crate"],
@@ -555,18 +549,12 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
     let metadata = time(tcx.sess, "write metadata", || {
         backend.write_metadata(tcx, &mut metadata_llvm_module)
     });
-    tcx.sess.profiler(|p| p.end_activity(ProfileCategory::Codegen));
+    tcx.sess.profiler(|p| p.end_activity(ProfileCategory::Codegen, "codegen crate metadata"));
 
     let metadata_module = ModuleCodegen {
         name: metadata_cgu_name,
         module_llvm: metadata_llvm_module,
         kind: ModuleKind::Metadata,
-    };
-
-    let time_graph = if tcx.sess.opts.debugging_opts.codegen_time_graph {
-        Some(time_graph::TimeGraph::new())
-    } else {
-        None
     };
 
     // Skip crate items and just output metadata in -Z no-codegen mode.
@@ -575,7 +563,6 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
         let ongoing_codegen = start_async_codegen(
             backend,
             tcx,
-            time_graph,
             metadata,
             rx,
             1);
@@ -609,7 +596,6 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
     let ongoing_codegen = start_async_codegen(
         backend.clone(),
         tcx,
-        time_graph.clone(),
         metadata,
         rx,
         codegen_units.len());
@@ -676,15 +662,14 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
 
         match cgu_reuse {
             CguReuse::No => {
-                let _timing_guard = time_graph.as_ref().map(|time_graph| {
-                    time_graph.start(CODEGEN_WORKER_TIMELINE,
-                                     CODEGEN_WORK_PACKAGE_KIND,
-                                     &format!("codegen {}", cgu.name()))
-                });
+                tcx.sess.profiler(|p| p.start_activity(ProfileCategory::Codegen,
+                                                       format!("codegen {}", cgu.name())));
                 let start_time = Instant::now();
                 let stats = backend.compile_codegen_unit(tcx, *cgu.name());
                 all_stats.extend(stats);
                 total_codegen_time += start_time.elapsed();
+                tcx.sess.profiler(|p| p.end_activity(ProfileCategory::Codegen,
+                                                     format!("codegen {}", cgu.name())));
                 false
             }
             CguReuse::PreLto => {
@@ -816,20 +801,10 @@ impl CrateInfo {
             used_crates_dynamic: cstore::used_crates(tcx, LinkagePreference::RequireDynamic),
             used_crates_static: cstore::used_crates(tcx, LinkagePreference::RequireStatic),
             used_crate_source: Default::default(),
-            wasm_imports: Default::default(),
             lang_item_to_crate: Default::default(),
             missing_lang_items: Default::default(),
         };
         let lang_items = tcx.lang_items();
-
-        let load_wasm_items = tcx.sess.crate_types.borrow()
-            .iter()
-            .any(|c| *c != config::CrateType::Rlib) &&
-            tcx.sess.opts.target_triple.triple() == "wasm32-unknown-unknown";
-
-        if load_wasm_items {
-            info.load_wasm_imports(tcx, LOCAL_CRATE);
-        }
 
         let crates = tcx.crates();
 
@@ -858,9 +833,6 @@ impl CrateInfo {
             if tcx.is_no_builtins(cnum) {
                 info.is_no_builtins.insert(cnum);
             }
-            if load_wasm_items {
-                info.load_wasm_imports(tcx, cnum);
-            }
             let missing = tcx.missing_lang_items(cnum);
             for &item in missing.iter() {
                 if let Ok(id) = lang_items.require(item) {
@@ -878,15 +850,6 @@ impl CrateInfo {
         }
 
         return info
-    }
-
-    fn load_wasm_imports(&mut self, tcx: TyCtxt<'_, '_, '_>, cnum: CrateNum) {
-        self.wasm_imports.extend(tcx.wasm_import_module_map(cnum).iter().map(|(&id, module)| {
-            let instance = Instance::mono(tcx, id);
-            let import_name = tcx.symbol_name(instance);
-
-            (import_name.to_string(), module.clone())
-        }));
     }
 }
 

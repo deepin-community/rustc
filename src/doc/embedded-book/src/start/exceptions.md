@@ -37,7 +37,7 @@ fn SysTick() {
 ```
 
 As you may know, using `static mut` variables in a function makes it
-*non-reentrant*. It's undefined behavior to call a non-reentrant function,
+[*non-reentrant*](https://en.wikipedia.org/wiki/Reentrancy_(computing)). It's undefined behavior to call a non-reentrant function,
 directly or indirectly, from more than one exception / interrupt handler or from
 `main` and one or more exception / interrupt handlers.
 
@@ -57,7 +57,7 @@ times it has been called in the `COUNT` variable and then prints the value of
 > **NOTE**: You can run this example on any Cortex-M device; you can also run it
 > on QEMU
 
-``` rust
+```rust,ignore
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
@@ -185,7 +185,7 @@ memory location.
 > `qemu-system-arm -machine lm3s6965evb` doesn't check memory loads and will
 > happily return `0 `on reads to invalid memory.
 
-``` rust
+```rust,ignore
 #![no_main]
 #![no_std]
 
@@ -251,6 +251,7 @@ ResetTrampoline:
  800094c:       b       #-0x4 <ResetTrampoline+0xa>
 ```
 
-You'll see that a load operation (`ldr r0, [r0]` ) caused the exception and that
-the value of the register `r0` was `0x3fff_fffe` at that time. This value
-matches the `r0` field of `ExceptionFrame`.
+You can lookup the value of the program counter `0x0800094a` in the dissassembly.
+You'll see that a load operation (`ldr r0, [r0]` ) caused the exception.
+The `r0` field of `ExceptionFrame` will tell you the value of register `r0`
+was `0x3fff_fffe` at that time.

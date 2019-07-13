@@ -14,7 +14,7 @@ use rustc::ty::TypeFoldable;
 
 use super::{
     GlobalId, AllocId, Allocation, Scalar, EvalResult, Pointer, PointerArithmetic,
-    EvalContext, Machine, AllocMap, AllocationExtra,
+    InterpretCx, Machine, AllocMap, AllocationExtra,
     RawConst, Immediate, ImmTy, ScalarMaybeUndef, Operand, OpTy, MemoryKind
 };
 
@@ -305,7 +305,7 @@ impl<'tcx, Tag: ::std::fmt::Debug> PlaceTy<'tcx, Tag> {
 }
 
 // separating the pointer tag for `impl Trait`, see https://github.com/rust-lang/rust/issues/54385
-impl<'a, 'mir, 'tcx, Tag, M> EvalContext<'a, 'mir, 'tcx, M>
+impl<'a, 'mir, 'tcx, Tag, M> InterpretCx<'a, 'mir, 'tcx, M>
 where
     // FIXME: Working around https://github.com/rust-lang/rust/issues/54385
     Tag: ::std::fmt::Debug+Default+Copy+Eq+Hash+'static,
@@ -354,7 +354,7 @@ where
             ty::Ref(_, _, mutbl) => Some(mutbl),
             ty::Adt(def, _) if def.is_box() => Some(hir::MutMutable),
             ty::RawPtr(_) => None,
-            _ => bug!("Unexpected pointer type {}", val.layout.ty.sty),
+            _ => bug!("Unexpected pointer type {}", val.layout.ty),
         };
         place.mplace.ptr = M::tag_dereference(self, place, mutbl)?;
         Ok(place)
@@ -558,7 +558,7 @@ where
     pub fn place_projection(
         &mut self,
         base: PlaceTy<'tcx, M::PointerTag>,
-        proj_elem: &mir::ProjectionElem<'tcx, mir::Local, Ty<'tcx>>,
+        proj_elem: &mir::ProjectionElem<mir::Local, Ty<'tcx>>,
     ) -> EvalResult<'tcx, PlaceTy<'tcx, M::PointerTag>> {
         use rustc::mir::ProjectionElem::*;
         Ok(match *proj_elem {
@@ -581,19 +581,21 @@ where
         mir_place: &mir::Place<'tcx>
     ) -> EvalResult<'tcx, MPlaceTy<'tcx, M::PointerTag>> {
         use rustc::mir::Place::*;
+        use rustc::mir::PlaceBase;
+        use rustc::mir::{Static, StaticKind};
         Ok(match *mir_place {
-            Promoted(ref promoted) => {
+            Base(PlaceBase::Static(box Static { kind: StaticKind::Promoted(promoted), .. })) => {
                 let instance = self.frame().instance;
                 self.const_eval_raw(GlobalId {
                     instance,
-                    promoted: Some(promoted.0),
+                    promoted: Some(promoted),
                 })?
             }
 
-            Static(ref static_) => {
-                assert!(!static_.ty.needs_subst());
-                let layout = self.layout_of(static_.ty)?;
-                let instance = ty::Instance::mono(*self.tcx, static_.def_id);
+            Base(PlaceBase::Static(box Static { kind: StaticKind::Static(def_id), ty })) => {
+                assert!(!ty.needs_subst());
+                let layout = self.layout_of(ty)?;
+                let instance = ty::Instance::mono(*self.tcx, def_id);
                 let cid = GlobalId {
                     instance,
                     promoted: None
@@ -605,7 +607,7 @@ where
                 // global table but not in its local memory: It calls back into tcx through
                 // a query, triggering the CTFE machinery to actually turn this lazy reference
                 // into a bunch of bytes.  IOW, statics are evaluated with CTFE even when
-                // this EvalContext uses another Machine (e.g., in miri).  This is what we
+                // this InterpretCx uses another Machine (e.g., in miri).  This is what we
                 // want!  This way, computing statics works concistently between codegen
                 // and miri: They use the same query to eventually obtain a `ty::Const`
                 // and use that for further computation.
@@ -624,8 +626,9 @@ where
         mir_place: &mir::Place<'tcx>
     ) -> EvalResult<'tcx, PlaceTy<'tcx, M::PointerTag>> {
         use rustc::mir::Place::*;
+        use rustc::mir::PlaceBase;
         let place = match *mir_place {
-            Local(mir::RETURN_PLACE) => match self.frame().return_place {
+            Base(PlaceBase::Local(mir::RETURN_PLACE)) => match self.frame().return_place {
                 Some(return_place) =>
                     // We use our layout to verify our assumption; caller will validate
                     // their layout on return.
@@ -635,7 +638,7 @@ where
                     },
                 None => return err!(InvalidNullPointerUsage),
             },
-            Local(local) => PlaceTy {
+            Base(PlaceBase::Local(local)) => PlaceTy {
                 place: Place::Local {
                     frame: self.cur_frame(),
                     local,
@@ -955,7 +958,11 @@ where
             layout::Variants::Single { index } => {
                 assert_eq!(index, variant_index);
             }
-            layout::Variants::Tagged { ref tag, .. } => {
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Tag,
+                ref discr,
+                ..
+            } => {
                 let adt_def = dest.layout.ty.ty_adt_def().unwrap();
                 assert!(variant_index.as_usize() < adt_def.variants.len());
                 let discr_val = adt_def
@@ -965,16 +972,18 @@ where
                 // raw discriminants for enums are isize or bigger during
                 // their computation, but the in-memory tag is the smallest possible
                 // representation
-                let size = tag.value.size(self);
+                let size = discr.value.size(self);
                 let discr_val = truncate(discr_val, size);
 
                 let discr_dest = self.place_field(dest, 0)?;
                 self.write_scalar(Scalar::from_uint(discr_val, size), discr_dest)?;
             }
-            layout::Variants::NicheFilling {
-                dataful_variant,
-                ref niche_variants,
-                niche_start,
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Niche {
+                    dataful_variant,
+                    ref niche_variants,
+                    niche_start,
+                },
                 ..
             } => {
                 assert!(

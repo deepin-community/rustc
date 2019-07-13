@@ -37,7 +37,7 @@
  }
  
  // Build command implementation
--pub fn build_1(args: &ArgMatches) -> Result1<()> {
+-pub fn build_1(args: &ArgMatches<'_>) -> Result1<()> {
 -    let book_dir = get_book_dir(args);
 -    let mut book = MDBook1::load(&book_dir)?;
 -
@@ -54,7 +54,7 @@
 -}
 -
 -// Build command implementation
- pub fn build_2(args: &ArgMatches) -> Result2<()> {
+ pub fn build_2(args: &ArgMatches<'_>) -> Result2<()> {
      let book_dir = get_book_dir(args);
      let mut book = MDBook2::load(&book_dir)?;
 --- a/src/tools/rustbook/Cargo.toml

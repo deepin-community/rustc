@@ -1,8 +1,13 @@
 //! Streaming SIMD Extensions 3 (SSE3)
 
-use core_arch::simd::*;
-use core_arch::simd_llvm::{simd_shuffle2, simd_shuffle4};
-use core_arch::x86::*;
+use crate::{
+    core_arch::{
+        simd::*,
+        simd_llvm::{simd_shuffle2, simd_shuffle4},
+        x86::*,
+    },
+    mem::transmute,
+};
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
@@ -31,7 +36,7 @@ pub unsafe fn _mm_addsub_pd(a: __m128d, b: __m128d) -> __m128d {
     addsubpd(a, b)
 }
 
-/// Horizontally add adjacent pairs of double-precision (64-bit)
+/// Horizontally adds adjacent pairs of double-precision (64-bit)
 /// floating-point elements in `a` and `b`, and pack the results.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_hadd_pd)
@@ -43,7 +48,7 @@ pub unsafe fn _mm_hadd_pd(a: __m128d, b: __m128d) -> __m128d {
     haddpd(a, b)
 }
 
-/// Horizontally add adjacent pairs of single-precision (32-bit)
+/// Horizontally adds adjacent pairs of single-precision (32-bit)
 /// floating-point elements in `a` and `b`, and pack the results.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_hadd_ps)
@@ -67,7 +72,7 @@ pub unsafe fn _mm_hsub_pd(a: __m128d, b: __m128d) -> __m128d {
     hsubpd(a, b)
 }
 
-/// Horizontally add adjacent pairs of single-precision (32-bit)
+/// Horizontally adds adjacent pairs of single-precision (32-bit)
 /// floating-point elements in `a` and `b`, and pack the results.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_hsub_ps)
@@ -79,7 +84,7 @@ pub unsafe fn _mm_hsub_ps(a: __m128, b: __m128) -> __m128 {
     hsubps(a, b)
 }
 
-/// Load 128-bits of integer data from unaligned memory.
+/// Loads 128-bits of integer data from unaligned memory.
 /// This intrinsic may perform better than `_mm_loadu_si128`
 /// when the data crosses a cache line boundary.
 ///
@@ -89,7 +94,7 @@ pub unsafe fn _mm_hsub_ps(a: __m128, b: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(lddqu))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_lddqu_si128(mem_addr: *const __m128i) -> __m128i {
-    mem::transmute(lddqu(mem_addr as *const _))
+    transmute(lddqu(mem_addr as *const _))
 }
 
 /// Duplicate the low double-precision (64-bit) floating-point element
@@ -104,7 +109,7 @@ pub unsafe fn _mm_movedup_pd(a: __m128d) -> __m128d {
     simd_shuffle2(a, a, [0, 0])
 }
 
-/// Load a double-precision (64-bit) floating-point element from memory
+/// Loads a double-precision (64-bit) floating-point element from memory
 /// into both elements of return vector.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_loaddup_pd)
@@ -162,7 +167,7 @@ extern "C" {
 mod tests {
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "sse3")]
     unsafe fn test_mm_addsub_ps() {

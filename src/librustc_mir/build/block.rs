@@ -163,7 +163,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         // Then, the block may have an optional trailing expression which is a “return” value
         // of the block, which is stored into `destination`.
         let tcx = this.hir.tcx();
-        let destination_ty = destination.ty(&this.local_decls, tcx).to_ty(tcx);
+        let destination_ty = destination.ty(&this.local_decls, tcx).ty;
         if let Some(expr) = expr {
             let tail_result_is_ignored = destination_ty.is_unit() ||
                 this.block_context.currently_ignores_tail_results();
@@ -204,14 +204,14 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
         debug!("update_source_scope_for({:?}, {:?})", span, safety_mode);
         let new_unsafety = match safety_mode {
             BlockSafety::Safe => None,
-            BlockSafety::ExplicitUnsafe(node_id) => {
+            BlockSafety::ExplicitUnsafe(hir_id) => {
                 assert_eq!(self.push_unsafe_count, 0);
                 match self.unpushed_unsafe {
                     Safety::Safe => {}
                     _ => return
                 }
-                self.unpushed_unsafe = Safety::ExplicitUnsafe(node_id);
-                Some(Safety::ExplicitUnsafe(node_id))
+                self.unpushed_unsafe = Safety::ExplicitUnsafe(hir_id);
+                Some(Safety::ExplicitUnsafe(hir_id))
             }
             BlockSafety::PushUnsafe => {
                 self.push_unsafe_count += 1;

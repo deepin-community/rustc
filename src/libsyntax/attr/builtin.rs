@@ -1,13 +1,13 @@
 //! Parsing and validation of builtin attributes
 
-use crate::ast::{self, Attribute, MetaItem, NestedMetaItemKind};
+use crate::ast::{self, Attribute, MetaItem, NestedMetaItem};
 use crate::feature_gate::{Features, GatedCfg};
 use crate::parse::ParseSess;
 
 use errors::{Applicability, Handler};
 use syntax_pos::{symbol::Symbol, Span};
 
-use super::{list_contains_name, mark_used, MetaItemKind};
+use super::{mark_used, MetaItemKind};
 
 enum AttrError {
     MultipleItem(String),
@@ -79,40 +79,26 @@ pub enum UnwindAttr {
 
 /// Determine what `#[unwind]` attribute is present in `attrs`, if any.
 pub fn find_unwind_attr(diagnostic: Option<&Handler>, attrs: &[Attribute]) -> Option<UnwindAttr> {
-    let syntax_error = |attr: &Attribute| {
-        mark_used(attr);
-        diagnostic.map(|d| {
-            span_err!(d, attr.span, E0633, "malformed `#[unwind]` attribute");
-        });
-        None
-    };
-
     attrs.iter().fold(None, |ia, attr| {
-        if attr.path != "unwind" {
-            return ia;
-        }
-        let meta = match attr.meta() {
-            Some(meta) => meta.node,
-            None => return ia,
-        };
-        match meta {
-            MetaItemKind::Word => {
-                syntax_error(attr)
-            }
-            MetaItemKind::List(ref items) => {
-                mark_used(attr);
-                if items.len() != 1 {
-                    syntax_error(attr)
-                } else if list_contains_name(&items[..], "allowed") {
-                    Some(UnwindAttr::Allowed)
-                } else if list_contains_name(&items[..], "aborts") {
-                    Some(UnwindAttr::Aborts)
-                } else {
-                    syntax_error(attr)
+        if attr.check_name("unwind") {
+            if let Some(meta) = attr.meta() {
+                if let MetaItemKind::List(items) = meta.node {
+                    if items.len() == 1 {
+                        if items[0].check_name("allowed") {
+                            return Some(UnwindAttr::Allowed);
+                        } else if items[0].check_name("aborts") {
+                            return Some(UnwindAttr::Aborts);
+                        }
+                    }
+
+                    diagnostic.map(|d| {
+                        span_err!(d, attr.span, E0633, "malformed `#[unwind]` attribute");
+                    });
                 }
             }
-            _ => ia,
         }
+
+        ia
     })
 }
 
@@ -217,7 +203,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
             let meta = meta.as_ref().unwrap();
             let get = |meta: &MetaItem, item: &mut Option<Symbol>| {
                 if item.is_some() {
-                    handle_errors(sess, meta.span, AttrError::MultipleItem(meta.ident.to_string()));
+                    handle_errors(sess, meta.span, AttrError::MultipleItem(meta.path.to_string()));
                     return false
                 }
                 if let Some(v) = meta.value_str() {
@@ -236,9 +222,9 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                     )+
                     for meta in metas {
                         if let Some(mi) = meta.meta_item() {
-                            match mi.ident_str() {
+                            match mi.name_or_empty().get() {
                                 $(
-                                    Some(stringify!($name))
+                                    stringify!($name)
                                         => if !get(mi, &mut $name) { continue 'outer },
                                 )+
                                 _ => {
@@ -246,7 +232,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                                     handle_errors(
                                         sess,
                                         mi.span,
-                                        AttrError::UnknownMetaItem(mi.ident.to_string(), expected),
+                                        AttrError::UnknownMetaItem(mi.path.to_string(), expected),
                                     );
                                     continue 'outer
                                 }
@@ -254,7 +240,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                         } else {
                             handle_errors(
                                 sess,
-                                meta.span,
+                                meta.span(),
                                 AttrError::UnsupportedLiteral(
                                     "unsupported literal",
                                     false,
@@ -266,7 +252,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                 }
             }
 
-            match meta.ident_str().expect("not a stability level") {
+            match meta.name_or_empty().get() {
                 "rustc_deprecated" => {
                     if rustc_depr.is_some() {
                         span_err!(diagnostic, item_sp, E0540,
@@ -285,11 +271,11 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                             })
                         }
                         (None, _) => {
-                            handle_errors(sess, attr.span(), AttrError::MissingSince);
+                            handle_errors(sess, attr.span, AttrError::MissingSince);
                             continue
                         }
                         _ => {
-                            span_err!(diagnostic, attr.span(), E0543, "missing 'reason'");
+                            span_err!(diagnostic, attr.span, E0543, "missing 'reason'");
                             continue
                         }
                     }
@@ -305,13 +291,13 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                     if let Some(feature) = feature {
                         rustc_const_unstable = Some(feature);
                     } else {
-                        span_err!(diagnostic, attr.span(), E0629, "missing 'feature'");
+                        span_err!(diagnostic, attr.span, E0629, "missing 'feature'");
                         continue
                     }
                 }
                 "unstable" => {
                     if stab.is_some() {
-                        handle_errors(sess, attr.span(), AttrError::MultipleStabilityLevels);
+                        handle_errors(sess, attr.span, AttrError::MultipleStabilityLevels);
                         break
                     }
 
@@ -320,16 +306,16 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                     let mut issue = None;
                     for meta in metas {
                         if let Some(mi) = meta.meta_item() {
-                            match mi.ident_str() {
-                                Some("feature") => if !get(mi, &mut feature) { continue 'outer },
-                                Some("reason") => if !get(mi, &mut reason) { continue 'outer },
-                                Some("issue") => if !get(mi, &mut issue) { continue 'outer },
+                            match mi.name_or_empty().get() {
+                                "feature" => if !get(mi, &mut feature) { continue 'outer },
+                                "reason" => if !get(mi, &mut reason) { continue 'outer },
+                                "issue" => if !get(mi, &mut issue) { continue 'outer },
                                 _ => {
                                     handle_errors(
                                         sess,
-                                        meta.span,
+                                        meta.span(),
                                         AttrError::UnknownMetaItem(
-                                            mi.ident.to_string(),
+                                            mi.path.to_string(),
                                             &["feature", "reason", "issue"]
                                         ),
                                     );
@@ -339,7 +325,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                         } else {
                             handle_errors(
                                 sess,
-                                meta.span,
+                                meta.span(),
                                 AttrError::UnsupportedLiteral(
                                     "unsupported literal",
                                     false,
@@ -358,7 +344,7 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                                         if let Ok(issue) = issue.as_str().parse() {
                                             issue
                                         } else {
-                                            span_err!(diagnostic, attr.span(), E0545,
+                                            span_err!(diagnostic, attr.span, E0545,
                                                       "incorrect 'issue'");
                                             continue
                                         }
@@ -371,44 +357,44 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                             })
                         }
                         (None, _, _) => {
-                            handle_errors(sess, attr.span(), AttrError::MissingFeature);
+                            handle_errors(sess, attr.span, AttrError::MissingFeature);
                             continue
                         }
                         _ => {
-                            span_err!(diagnostic, attr.span(), E0547, "missing 'issue'");
+                            span_err!(diagnostic, attr.span, E0547, "missing 'issue'");
                             continue
                         }
                     }
                 }
                 "stable" => {
                     if stab.is_some() {
-                        handle_errors(sess, attr.span(), AttrError::MultipleStabilityLevels);
+                        handle_errors(sess, attr.span, AttrError::MultipleStabilityLevels);
                         break
                     }
 
                     let mut feature = None;
                     let mut since = None;
                     for meta in metas {
-                        match &meta.node {
-                            NestedMetaItemKind::MetaItem(mi) => {
-                                match mi.ident_str() {
-                                    Some("feature") =>
+                        match meta {
+                            NestedMetaItem::MetaItem(mi) => {
+                                match mi.name_or_empty().get() {
+                                    "feature" =>
                                         if !get(mi, &mut feature) { continue 'outer },
-                                    Some("since") =>
+                                    "since" =>
                                         if !get(mi, &mut since) { continue 'outer },
                                     _ => {
                                         handle_errors(
                                             sess,
-                                            meta.span,
+                                            meta.span(),
                                             AttrError::UnknownMetaItem(
-                                                mi.ident.to_string(), &["since", "note"],
+                                                mi.path.to_string(), &["since", "note"],
                                             ),
                                         );
                                         continue 'outer
                                     }
                                 }
                             },
-                            NestedMetaItemKind::Literal(lit) => {
+                            NestedMetaItem::Literal(lit) => {
                                 handle_errors(
                                     sess,
                                     lit.span,
@@ -435,11 +421,11 @@ fn find_stability_generic<'a, I>(sess: &ParseSess,
                             })
                         }
                         (None, _) => {
-                            handle_errors(sess, attr.span(), AttrError::MissingFeature);
+                            handle_errors(sess, attr.span, AttrError::MissingFeature);
                             continue
                         }
                         _ => {
-                            handle_errors(sess, attr.span(), AttrError::MissingSince);
+                            handle_errors(sess, attr.span, AttrError::MissingSince);
                             continue
                         }
                     }
@@ -496,8 +482,8 @@ pub fn cfg_matches(cfg: &ast::MetaItem, sess: &ParseSess, features: Option<&Feat
             gated_cfg.check_and_emit(sess, feats);
         }
         let error = |span, msg| { sess.span_diagnostic.span_err(span, msg); true };
-        if cfg.ident.segments.len() != 1 {
-            return error(cfg.ident.span, "`cfg` predicate key must be an identifier");
+        if cfg.path.segments.len() != 1 {
+            return error(cfg.path.span, "`cfg` predicate key must be an identifier");
         }
         match &cfg.node {
             MetaItemKind::List(..) => {
@@ -534,7 +520,7 @@ pub fn eval_condition<F>(cfg: &ast::MetaItem, sess: &ParseSess, eval: &mut F)
                 if !mi.is_meta_item() {
                     handle_errors(
                         sess,
-                        mi.span,
+                        mi.span(),
                         AttrError::UnsupportedLiteral(
                             "unsupported literal",
                             false
@@ -546,14 +532,14 @@ pub fn eval_condition<F>(cfg: &ast::MetaItem, sess: &ParseSess, eval: &mut F)
 
             // The unwraps below may look dangerous, but we've already asserted
             // that they won't fail with the loop above.
-            match cfg.ident_str() {
-                Some("any") => mis.iter().any(|mi| {
+            match cfg.name_or_empty().get() {
+                "any" => mis.iter().any(|mi| {
                     eval_condition(mi.meta_item().unwrap(), sess, eval)
                 }),
-                Some("all") => mis.iter().all(|mi| {
+                "all" => mis.iter().all(|mi| {
                     eval_condition(mi.meta_item().unwrap(), sess, eval)
                 }),
-                Some("not") => {
+                "not" => {
                     if mis.len() != 1 {
                         span_err!(sess.span_diagnostic, cfg.span, E0536, "expected 1 cfg-pattern");
                         return false;
@@ -563,7 +549,7 @@ pub fn eval_condition<F>(cfg: &ast::MetaItem, sess: &ParseSess, eval: &mut F)
                 },
                 _ => {
                     span_err!(sess.span_diagnostic, cfg.span, E0537,
-                              "invalid predicate `{}`", cfg.ident);
+                              "invalid predicate `{}`", cfg.path);
                     false
                 }
             }
@@ -618,7 +604,7 @@ fn find_deprecation_generic<'a, I>(sess: &ParseSess,
                 let get = |meta: &MetaItem, item: &mut Option<Symbol>| {
                     if item.is_some() {
                         handle_errors(
-                            sess, meta.span, AttrError::MultipleItem(meta.ident.to_string())
+                            sess, meta.span, AttrError::MultipleItem(meta.path.to_string())
                         );
                         return false
                     }
@@ -647,23 +633,23 @@ fn find_deprecation_generic<'a, I>(sess: &ParseSess,
                 let mut since = None;
                 let mut note = None;
                 for meta in list {
-                    match &meta.node {
-                        NestedMetaItemKind::MetaItem(mi) => {
-                            match mi.ident_str() {
-                                Some("since") => if !get(mi, &mut since) { continue 'outer },
-                                Some("note") => if !get(mi, &mut note) { continue 'outer },
+                    match meta {
+                        NestedMetaItem::MetaItem(mi) => {
+                            match mi.name_or_empty().get() {
+                                "since" => if !get(mi, &mut since) { continue 'outer },
+                                "note" => if !get(mi, &mut note) { continue 'outer },
                                 _ => {
                                     handle_errors(
                                         sess,
                                         meta.span(),
-                                        AttrError::UnknownMetaItem(mi.ident.to_string(),
+                                        AttrError::UnknownMetaItem(mi.path.to_string(),
                                                                    &["since", "note"]),
                                     );
                                     continue 'outer
                                 }
                             }
                         }
-                        NestedMetaItemKind::Literal(lit) => {
+                        NestedMetaItem::Literal(lit) => {
                             handle_errors(
                                 sess,
                                 lit.span,
@@ -732,7 +718,7 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
                 if !item.is_meta_item() {
                     handle_errors(
                         sess,
-                        item.span,
+                        item.span(),
                         AttrError::UnsupportedLiteral(
                             "meta item in `repr` must be an identifier",
                             false,
@@ -743,12 +729,12 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
 
                 let mut recognised = false;
                 if item.is_word() {
-                    let hint = match item.ident_str() {
-                        Some("C") => Some(ReprC),
-                        Some("packed") => Some(ReprPacked(1)),
-                        Some("simd") => Some(ReprSimd),
-                        Some("transparent") => Some(ReprTransparent),
-                        name => name.and_then(|name| int_type_of_word(name)).map(ReprInt),
+                    let hint = match item.name_or_empty().get() {
+                        "C" => Some(ReprC),
+                        "packed" => Some(ReprPacked(1)),
+                        "simd" => Some(ReprSimd),
+                        "transparent" => Some(ReprTransparent),
+                        name => int_type_of_word(name).map(ReprInt),
                     };
 
                     if let Some(h) = hint {
@@ -789,7 +775,7 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
                         };
                     }
                     if let Some(literal_error) = literal_error {
-                        span_err!(diagnostic, item.span, E0589,
+                        span_err!(diagnostic, item.span(), E0589,
                                   "invalid `repr(align)` attribute: {}", literal_error);
                     }
                 } else {
@@ -797,12 +783,12 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
                         if meta_item.check_name("align") {
                             if let MetaItemKind::NameValue(ref value) = meta_item.node {
                                 recognised = true;
-                                let mut err = struct_span_err!(diagnostic, item.span, E0693,
+                                let mut err = struct_span_err!(diagnostic, item.span(), E0693,
                                     "incorrect `repr(align)` attribute format");
                                 match value.node {
                                     ast::LitKind::Int(int, ast::LitIntType::Unsuffixed) => {
                                         err.span_suggestion(
-                                            item.span,
+                                            item.span(),
                                             "use parentheses instead",
                                             format!("align({})", int),
                                             Applicability::MachineApplicable
@@ -810,7 +796,7 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
                                     }
                                     ast::LitKind::Str(s, _) => {
                                         err.span_suggestion(
-                                            item.span,
+                                            item.span(),
                                             "use parentheses instead",
                                             format!("align({})", s),
                                             Applicability::MachineApplicable
@@ -825,7 +811,7 @@ pub fn find_repr_attrs(sess: &ParseSess, attr: &Attribute) -> Vec<ReprAttr> {
                 }
                 if !recognised {
                     // Not a word we recognize
-                    span_err!(diagnostic, item.span, E0552,
+                    span_err!(diagnostic, item.span(), E0552,
                               "unrecognized representation hint");
                 }
             }

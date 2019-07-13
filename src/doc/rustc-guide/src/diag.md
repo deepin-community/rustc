@@ -81,15 +81,15 @@ suggestions pleasingly in the terminal, or (when the `--error-format json` flag
 is passed) as JSON for consumption by tools, most notably the [Rust Language
 Server][rls] and [`rustfix`][rustfix].
 
-[rls]: https://github.com/rust-lang-nursery/rls
+[rls]: https://github.com/rust-lang/rls
 [rustfix]: https://github.com/rust-lang-nursery/rustfix
 
 Not all suggestions should be applied mechanically. Use the
-[`span_suggestion_with_applicability`][sswa] method of `DiagnosticBuilder` to
-make a suggestion while providing a hint to tools whether the suggestion is
-mechanically applicable or not.
+[`span_suggestion`][span_suggestion] method of `DiagnosticBuilder` to
+make a suggestion. The last argument provides a hint to tools whether
+the suggestion is mechanically applicable or not.
 
-[sswa]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_errors/struct.DiagnosticBuilder.html#method.span_suggestion_with_applicability
+[span_suggestion]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_errors/struct.DiagnosticBuilder.html#method.span_suggestion
 
 For example, to make our `qux` suggestion machine-applicable, we would do:
 
@@ -97,8 +97,7 @@ For example, to make our `qux` suggestion machine-applicable, we would do:
 let mut err = sess.struct_span_err(sp, "oh no! this is an error!");
 
 if let Ok(snippet) = sess.source_map().span_to_snippet(sp) {
-    // Add applicability info!
-    err.span_suggestion_with_applicability(
+    err.span_suggestion(
         suggestion_sp,
         "try using a qux here",
         format!("qux {}", snip),
@@ -145,7 +144,7 @@ error: aborting due to previous error
 For more information about this error, try `rustc --explain E0999`.
 ```
 
-There are a few other [`Applicability`][appl] possibilities:
+The possible values of [`Applicability`][appl] are:
 
 - `MachineApplicable`: Can be applied mechanically.
 - `HasPlaceholders`: Cannot be applied mechanically because it has placeholder
@@ -305,4 +304,4 @@ are defining a new lint, you will want to add an entry to this enum. Then, add
 an appropriate mapping to the body of [`Lint::from_parser_lint_id`][fplid].
 
 [`BufferedEarlyLintId`]: https://doc.rust-lang.org/nightly/nightly-rustc/syntax/early_buffered_lints/enum.BufferedEarlyLintId.html
-[fplid]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc/lint/struct.Lint.html#from_parser_lint_id
+[fplid]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc/lint/struct.Lint.html#method.from_parser_lint_id

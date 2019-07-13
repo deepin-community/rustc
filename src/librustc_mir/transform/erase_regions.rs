@@ -4,7 +4,7 @@
 //! N.B., we do _not_ erase regions of statements that are relevant for
 //! "types-as-contracts"-validation, namely, `AcquireValid` and `ReleaseValid`.
 
-use rustc::ty::subst::Substs;
+use rustc::ty::subst::SubstsRef;
 use rustc::ty::{self, Ty, TyCtxt};
 use rustc::mir::*;
 use rustc::mir::visit::{MutVisitor, TyContext};
@@ -32,11 +32,11 @@ impl<'a, 'tcx> MutVisitor<'tcx> for EraseRegionsVisitor<'a, 'tcx> {
         *region = self.tcx.types.re_erased;
     }
 
-    fn visit_const(&mut self, constant: &mut &'tcx ty::LazyConst<'tcx>, _: Location) {
+    fn visit_const(&mut self, constant: &mut &'tcx ty::Const<'tcx>, _: Location) {
         *constant = self.tcx.erase_regions(constant);
     }
 
-    fn visit_substs(&mut self, substs: &mut &'tcx Substs<'tcx>, _: Location) {
+    fn visit_substs(&mut self, substs: &mut SubstsRef<'tcx>, _: Location) {
         *substs = self.tcx.erase_regions(substs);
     }
 

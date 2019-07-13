@@ -366,6 +366,7 @@ pub struct TestOpts {
     pub list: bool,
     pub filter: Option<String>,
     pub filter_exact: bool,
+    pub exclude_should_panic: bool,
     pub run_ignored: RunIgnored,
     pub run_tests: bool,
     pub bench_benchmarks: bool,
@@ -385,6 +386,7 @@ impl TestOpts {
             list: false,
             filter: None,
             filter_exact: false,
+            exclude_should_panic: false,
             run_ignored: RunIgnored::No,
             run_tests: false,
             bench_benchmarks: false,
@@ -406,6 +408,7 @@ fn optgroups() -> getopts::Options {
     let mut opts = getopts::Options::new();
     opts.optflag("", "include-ignored", "Run ignored and not ignored tests")
         .optflag("", "ignored", "Run only ignored tests")
+        .optflag("", "exclude-should-panic", "Excludes tests marked as should_panic")
         .optflag("", "test", "Run tests and not benchmarks")
         .optflag("", "bench", "Run benchmarks instead of tests")
         .optflag("", "list", "List all tests and benchmarks")
@@ -558,6 +561,13 @@ pub fn parse_opts(args: &[String]) -> Option<OptRes> {
         None
     };
 
+    let exclude_should_panic = matches.opt_present("exclude-should-panic");
+    if !allow_unstable && exclude_should_panic {
+        return Some(Err(
+            "The \"exclude-should-panic\" flag is only accepted on the nightly compiler".into(),
+        ));
+    }
+
     let include_ignored = matches.opt_present("include-ignored");
     if !allow_unstable && include_ignored {
         return Some(Err(
@@ -648,6 +658,7 @@ pub fn parse_opts(args: &[String]) -> Option<OptRes> {
         list,
         filter,
         filter_exact: exact,
+        exclude_should_panic,
         run_ignored,
         run_tests,
         bench_benchmarks,
@@ -1365,6 +1376,11 @@ pub fn filter_tests(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> Vec<TestDescA
     // Skip tests that match any of the skip filters
     filtered.retain(|test| !opts.skip.iter().any(|sf| matches_filter(test, sf)));
 
+    // Excludes #[should_panic] tests
+    if opts.exclude_should_panic {
+        filtered.retain(|test| test.desc.should_panic == ShouldPanic::No);
+    }
+
     // maybe unignore tests
     match opts.run_ignored {
         RunIgnored::Yes => {
@@ -1569,23 +1585,7 @@ impl MetricMap {
 
 // Benchmarking
 
-/// A function that is opaque to the optimizer, to allow benchmarks to
-/// pretend to use outputs to assist in avoiding dead-code
-/// elimination.
-///
-/// This function is a no-op, and does not even read from `dummy`.
-#[cfg(not(any(target_arch = "asmjs", target_arch = "wasm32")))]
-pub fn black_box<T>(dummy: T) -> T {
-    // we need to "use" the argument in some way LLVM can't
-    // introspect.
-    unsafe { asm!("" : : "r"(&dummy)) }
-    dummy
-}
-#[cfg(any(target_arch = "asmjs", target_arch = "wasm32"))]
-#[inline(never)]
-pub fn black_box<T>(dummy: T) -> T {
-    dummy
-}
+pub use std::hint::black_box;
 
 impl Bencher {
     /// Callback for benchmark functions to run in their body.
@@ -1981,6 +1981,29 @@ mod tests {
         assert_eq!(filtered.len(), 2);
         assert!(!filtered[0].desc.ignore);
         assert!(!filtered[1].desc.ignore);
+    }
+
+    #[test]
+    pub fn exclude_should_panic_option() {
+        let mut opts = TestOpts::new();
+        opts.run_tests = true;
+        opts.exclude_should_panic = true;
+
+        let mut tests = one_ignored_one_unignored_test();
+        tests.push(TestDescAndFn {
+            desc: TestDesc {
+                name: StaticTestName("3"),
+                ignore: false,
+                should_panic: ShouldPanic::Yes,
+                allow_fail: false,
+            },
+            testfn: DynTestFn(Box::new(move || {})),
+        });
+
+        let filtered = filter_tests(&opts, tests);
+
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().all(|test| test.desc.should_panic == ShouldPanic::No));
     }
 
     #[test]

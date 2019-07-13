@@ -1,4 +1,4 @@
-//! Types which pin data to its location in memory
+//! Types that pin data to its location in memory.
 //!
 //! It is sometimes useful to have objects that are guaranteed to not move,
 //! in the sense that their placement in memory does not change, and can thus be relied upon.
@@ -109,7 +109,7 @@
 //! assert_eq!(still_unmoved.slice, NonNull::from(&still_unmoved.data));
 //!
 //! // Since our type doesn't implement Unpin, this will fail to compile:
-//! // let new_unmoved = Unmovable::new("world".to_string());
+//! // let mut new_unmoved = Unmovable::new("world".to_string());
 //! // std::mem::swap(&mut *still_unmoved, &mut *new_unmoved);
 //! ```
 //!
@@ -215,7 +215,7 @@
 //!     had a method `fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut T>`.
 //!     Then we could do the following:
 //!     ```compile_fail
-//!     fn exploit_ref_cell<T>(rc: Pin<&mut RefCell<T>) {
+//!     fn exploit_ref_cell<T>(rc: Pin<&mut RefCell<T>>) {
 //!         { let p = rc.as_mut().get_pin_mut(); } // Here we get pinned access to the `T`.
 //!         let rc_shr: &RefCell<T> = rc.into_ref().get_ref();
 //!         let b = rc_shr.borrow_mut();
@@ -279,7 +279,7 @@ use ops::{Deref, DerefMut, Receiver, CoerceUnsized, DispatchFromDyn};
 // implementations, are allowed because they all only use `&P`, so they cannot move
 // the value behind `pointer`.
 #[stable(feature = "pin", since = "1.33.0")]
-#[cfg_attr(not(stage0), lang = "pin")]
+#[lang = "pin"]
 #[fundamental]
 #[repr(transparent)]
 #[derive(Copy, Clone, Hash, Eq, Ord)]

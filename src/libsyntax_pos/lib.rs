@@ -7,6 +7,7 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/")]
 
 #![deny(rust_2018_idioms)]
+#![cfg_attr(not(stage0), deny(internal))]
 
 #![feature(const_fn)]
 #![feature(crate_visibility_modifier)]
@@ -17,7 +18,6 @@
 #![feature(rustc_attrs)]
 #![feature(specialization)]
 #![feature(step_trait)]
-#![cfg_attr(not(stage0), feature(stdsimd))]
 
 use serialize::{Encodable, Decodable, Encoder, Decoder};
 

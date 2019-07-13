@@ -5,12 +5,12 @@ use rustc::ty::layout::{self, TyLayout, LayoutOf};
 use syntax::source_map::Span;
 use rustc_target::spec::abi::Abi;
 
-use rustc::mir::interpret::{EvalResult, PointerArithmetic, EvalErrorKind, Scalar};
+use rustc::mir::interpret::{EvalResult, PointerArithmetic, InterpError, Scalar};
 use super::{
-    EvalContext, Machine, Immediate, OpTy, ImmTy, PlaceTy, MPlaceTy, StackPopCleanup
+    InterpretCx, Machine, Immediate, OpTy, ImmTy, PlaceTy, MPlaceTy, StackPopCleanup
 };
 
-impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> {
+impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> InterpretCx<'a, 'mir, 'tcx, M> {
     #[inline]
     pub fn goto_block(&mut self, target: Option<mir::BasicBlock>) -> EvalResult<'tcx> {
         if let Some(target) = target {
@@ -134,7 +134,7 @@ impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> 
                     self.goto_block(Some(target))?;
                 } else {
                     // Compute error message
-                    use rustc::mir::interpret::EvalErrorKind::*;
+                    use rustc::mir::interpret::InterpError::*;
                     return match *msg {
                         BoundsCheck { ref len, ref index } => {
                             let len = self.read_immediate(self.eval_operand(len, None)?)
@@ -212,7 +212,7 @@ impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> 
             return Ok(());
         }
         let caller_arg = caller_arg.next()
-            .ok_or_else(|| EvalErrorKind::FunctionArgCountMismatch)?;
+            .ok_or_else(|| InterpError::FunctionArgCountMismatch)?;
         if rust_abi {
             debug_assert!(!caller_arg.layout.is_zst(), "ZSTs must have been already filtered out");
         }
@@ -352,7 +352,9 @@ impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> 
                     // not advance `caller_iter` for ZSTs.
                     let mut locals_iter = mir.args_iter();
                     while let Some(local) = locals_iter.next() {
-                        let dest = self.eval_place(&mir::Place::Local(local))?;
+                        let dest = self.eval_place(
+                            &mir::Place::Base(mir::PlaceBase::Local(local))
+                        )?;
                         if Some(local) == mir.spread_arg {
                             // Must be a tuple
                             for i in 0..dest.layout.fields.count() {
@@ -371,7 +373,9 @@ impl<'a, 'mir, 'tcx, M: Machine<'a, 'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> 
                     }
                     // Don't forget to check the return type!
                     if let Some(caller_ret) = dest {
-                        let callee_ret = self.eval_place(&mir::Place::Local(mir::RETURN_PLACE))?;
+                        let callee_ret = self.eval_place(
+                            &mir::Place::RETURN_PLACE
+                        )?;
                         if !Self::check_argument_compat(
                             rust_abi,
                             caller_ret.layout,

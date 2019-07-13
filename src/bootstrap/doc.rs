@@ -60,7 +60,7 @@ macro_rules! book {
 // NOTE: When adding a book here, make sure to ALSO build the book by
 // adding a build step in `src/bootstrap/builder.rs`!
 book!(
-    EditionGuide, "src/doc/edition-guide", "edition-guide", RustbookVersion::MdBook1;
+    EditionGuide, "src/doc/edition-guide", "edition-guide", RustbookVersion::MdBook2;
     EmbeddedBook, "src/doc/embedded-book", "embedded-book", RustbookVersion::MdBook2;
     Nomicon, "src/doc/nomicon", "nomicon", RustbookVersion::MdBook1;
     Reference, "src/doc/reference", "reference", RustbookVersion::MdBook1;
@@ -331,17 +331,17 @@ fn invoke_rustdoc(
 
     let path = builder.src.join("src/doc").join(markdown);
 
-    let favicon = builder.src.join("src/doc/favicon.inc");
+    let header = builder.src.join("src/doc/redirect.inc");
     let footer = builder.src.join("src/doc/footer.inc");
     let version_info = out.join("version_info.html");
 
-    let mut cmd = builder.rustdoc_cmd(compiler.host);
+    let mut cmd = builder.rustdoc_cmd(compiler);
 
     let out = out.join("book");
 
     cmd.arg("--html-after-content").arg(&footer)
         .arg("--html-before-content").arg(&version_info)
-        .arg("--html-in-header").arg(&favicon)
+        .arg("--html-in-header").arg(&header)
         .arg("--markdown-no-toc")
         .arg("--markdown-playground-url").arg("https://play.rust-lang.org/")
         .arg("-o").arg(&out).arg(&path)
@@ -412,7 +412,7 @@ impl Step for Standalone {
             }
 
             let html = out.join(filename).with_extension("html");
-            let rustdoc = builder.rustdoc(compiler.host);
+            let rustdoc = builder.rustdoc(compiler);
             if up_to_date(&path, &html) &&
                up_to_date(&footer, &html) &&
                up_to_date(&favicon, &html) &&
@@ -422,7 +422,7 @@ impl Step for Standalone {
                 continue
             }
 
-            let mut cmd = builder.rustdoc_cmd(compiler.host);
+            let mut cmd = builder.rustdoc_cmd(compiler);
             cmd.arg("--html-after-content").arg(&footer)
                .arg("--html-before-content").arg(&version_info)
                .arg("--html-in-header").arg(&favicon)
@@ -823,7 +823,7 @@ impl Step for Rustdoc {
         builder.ensure(Rustc { stage, target });
 
         // Build rustdoc.
-        builder.ensure(tool::Rustdoc { host: compiler.host });
+        builder.ensure(tool::Rustdoc { compiler: compiler });
 
         // Symlink compiler docs to the output directory of rustdoc documentation.
         let out_dir = builder.stage_out(compiler, Mode::ToolRustc)
@@ -882,7 +882,11 @@ impl Step for ErrorIndex {
         builder.info(&format!("Documenting error index ({})", target));
         let out = builder.doc_out(target);
         t!(fs::create_dir_all(&out));
-        let mut index = builder.tool_cmd(Tool::ErrorIndex);
+        let compiler = builder.compiler(2, builder.config.build);
+        let mut index = tool::ErrorIndex::command(
+            builder,
+            compiler,
+        );
         index.arg("html");
         index.arg(out.join("error-index.html"));
         index.arg(crate::channel::CFG_RELEASE_NUM);

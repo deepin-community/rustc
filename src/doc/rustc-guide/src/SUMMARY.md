@@ -1,25 +1,37 @@
 # Summary
 
-- [About this guide](./about-this-guide.md)
+[About this guide](./about-this-guide.md)
+
+---
+
+- [Part 1: Building, debugging, and contributing to Rustc](./part-1-intro.md)
 - [About the compiler team](./compiler-team.md)
 - [How to build the compiler and run what you built](./how-to-build-and-run.md)
     - [Build and Install distribution artifacts](./build-install-distribution-artifacts.md)
     - [Documenting Compiler](./compiler-documenting.md)
-- [Coding conventions](./conventions.md)
-- [Walkthrough: a typical contribution](./walkthrough.md)
 - [The compiler testing framework](./tests/intro.md)
     - [Running tests](./tests/running.md)
     - [Adding new tests](./tests/adding.md)
-    - [Using `compiletest` + commands to control test
-      execution](./compiletest.md)
+    - [Using `compiletest` + commands to control test execution](./compiletest.md)
+- [Walkthrough: a typical contribution](./walkthrough.md)
+- [Implementing new features](./implementing_new_features.md)
+- [Stabilizing Features](./stabilization_guide.md)
 - [Debugging the Compiler](./compiler-debugging.md)
 - [Profiling the compiler](./profiling.md)
     - [with the linux perf tool](./profiling/with_perf.md)
+- [Coding conventions](./conventions.md)
+- [crates.io Dependencies](./crates-io.md)
+
+---
+
+- [Part 2: How rustc works](./part-2-intro.md)
 - [High-level overview of the compiler source](./high-level-overview.md)
-- [The Rustc Driver](./rustc-driver.md)
+- [The Rustc Driver and Interface](./rustc-driver.md)
     - [Rustdoc](./rustdoc.md)
 - [Queries: demand-driven compilation](./query.md)
-    - [Incremental compilation](./incremental-compilation.md)
+    - [The Query Evaluation Model in Detail](./queries/query-evaluation-model-in-detail.md)
+    - [Incremental compilation](./queries/incremental-compilation.md)
+    - [Incremental compilation In Detail](./queries/incremental-compilation-in-detail.md)
     - [Debugging and Testing](./incrcomp-debugging.md)
 - [The parser](./the-parser.md)
 - [`#[test]` Implementation](./test-implementation.md)
@@ -27,7 +39,9 @@
 - [Name resolution](./name-resolution.md)
 - [The HIR (High-level IR)](./hir.md)
     - [Lowering AST to HIR](./lowering.md)
+    - [Debugging](./hir-debugging.md)
 - [The `ty` module: representing types](./ty.md)
+- [Kinds](./kinds.md)
 - [Type inference](./type-inference.md)
 - [Trait solving (old-style)](./traits/resolution.md)
     - [Higher-ranked trait bounds](./traits/hrtb.md)
@@ -56,6 +70,7 @@
     - [MIR visitor and traversal](./mir/visitor.md)
     - [MIR passes: getting the MIR for a function](./mir/passes.md)
     - [MIR optimizations](./mir/optimizations.md)
+    - [Debugging](./mir/debugging.md)
 - [The borrow checker](./borrow_check.md)
     - [Tracking moves and initialization](./borrow_check/moves_and_initialization.md)
       - [Move paths](./borrow_check/moves_and_initialization/move_paths.md)
@@ -65,11 +80,14 @@
     - [miri const evaluator](./miri.md)
 - [Parameter Environments](./param_env.md)
 - [Code Generation](./codegen.md)
+  - [Updating LLVM](./codegen/updating-llvm.md)
+  - [Debugging LLVM](./codegen/debugging.md)
 - [Emitting Diagnostics](./diag.md)
 
 ---
 
-- [Appendix A: Stupid Stats](./appendix/stupid-stats.md)
-- [Appendix B: Background material](./appendix/background.md)
-- [Appendix C: Glossary](./appendix/glossary.md)
-- [Appendix D: Code Index](./appendix/code-index.md)
+[Appendix A: Stupid Stats](./appendix/stupid-stats.md)
+[Appendix B: Background material](./appendix/background.md)
+[Appendix C: Glossary](./appendix/glossary.md)
+[Appendix D: Code Index](./appendix/code-index.md)
+[](./important-links.md)

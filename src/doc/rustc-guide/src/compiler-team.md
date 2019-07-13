@@ -1,11 +1,11 @@
 # About the compiler team
 
-rustc is maintained by the
-[Rust compiler team](https://www.rust-lang.org/en-US/team.html). The
-people who belong to this team collectively work to track regressions
-and implement new features. Members of the Rust compiler team are
-people who have made significant contributions to rustc and its
-design.
+rustc is maintained by the [Rust compiler team][team]. The people who belong to
+this team collectively work to track regressions and implement new features.
+Members of the Rust compiler team are people who have made significant
+contributions to rustc and its design.
+
+[team]: https://www.rust-lang.org/governance/teams/language-and-compiler
 
 ## Discussion
 
@@ -16,6 +16,14 @@ home. In any case, you can find people in one of three places at the moment:
 - The `#rustc` channel on mozilla's IRC (`irc.mozilla.org`)
 - The `t-compiler` stream on [the Zulip instance](https://rust-lang.zulipchat.com/#narrow/stream/131828-t-compiler)
 - The `compiler` channel on the [rust-lang discord](https://discord.gg/rust-lang)
+
+## Expert map
+
+If you're interested in figuring out who can answer questions about a
+particular part of the compiler, or you'd just like to know who works on what,
+check out our [experts directory](https://github.com/rust-lang/compiler-team/blob/master/experts/MAP.md).
+It contains a listing of the various parts of the compiler and a list of people
+who are experts on each one.
 
 ## Rust compiler meeting
 
@@ -89,7 +97,7 @@ The guidelines for reviewers are as follows:
   Rust project, so it is expected that you will go above and beyond
   when it comes to the [Code of Conduct].
 
-[Code of Conduct]: https://www.rust-lang.org/en-US/conduct.html
+[Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct
 
 ### high-five
 

@@ -43,7 +43,8 @@ impl JobRef {
     /// Unsafe: caller asserts that `data` will remain valid until the
     /// job is executed.
     pub unsafe fn new<T>(data: *const T) -> JobRef
-        where T: Job
+    where
+        T: Job,
     {
         let fn_ptr: unsafe fn(*const T) = <T as Job>::execute;
 
@@ -68,9 +69,10 @@ impl JobRef {
 /// the stack frame is later popped.  The function parameter indicates
 /// `true` if the job was stolen -- executed on a different thread.
 pub struct StackJob<L, F, R>
-    where L: Latch + Sync,
-          F: FnOnce(bool) -> R + Send,
-          R: Send
+where
+    L: Latch + Sync,
+    F: FnOnce(bool) -> R + Send,
+    R: Send,
 {
     pub latch: L,
     func: UnsafeCell<Option<F>>,
@@ -80,9 +82,10 @@ pub struct StackJob<L, F, R>
 }
 
 impl<L, F, R> StackJob<L, F, R>
-    where L: Latch + Sync,
-          F: FnOnce(bool) -> R + Send,
-          R: Send
+where
+    L: Latch + Sync,
+    F: FnOnce(bool) -> R + Send,
+    R: Send,
 {
     pub fn new(func: F, latch: L) -> StackJob<L, F, R> {
         StackJob {
@@ -108,9 +111,10 @@ impl<L, F, R> StackJob<L, F, R>
 }
 
 impl<L, F, R> Job for StackJob<L, F, R>
-    where L: Latch + Sync,
-          F: FnOnce(bool) -> R + Send,
-          R: Send
+where
+    L: Latch + Sync,
+    F: FnOnce(bool) -> R + Send,
+    R: Send,
 {
     unsafe fn execute(this: *const Self) {
         let this = &*this;
@@ -134,7 +138,8 @@ impl<L, F, R> Job for StackJob<L, F, R>
 ///
 /// (Probably `StackJob` should be refactored in a similar fashion.)
 pub struct HeapJob<BODY>
-    where BODY: FnOnce() + Send
+where
+    BODY: FnOnce() + Send,
 {
     job: UnsafeCell<Option<BODY>>,
     #[cfg(feature = "tlv")]
@@ -142,7 +147,8 @@ pub struct HeapJob<BODY>
 }
 
 impl<BODY> HeapJob<BODY>
-    where BODY: FnOnce() + Send
+where
+    BODY: FnOnce() + Send,
 {
     pub fn new(func: BODY) -> Self {
         HeapJob {
@@ -162,7 +168,8 @@ impl<BODY> HeapJob<BODY>
 }
 
 impl<BODY> Job for HeapJob<BODY>
-    where BODY: FnOnce() + Send
+where
+    BODY: FnOnce() + Send,
 {
     unsafe fn execute(this: *const Self) {
         let this: Box<Self> = mem::transmute(this);

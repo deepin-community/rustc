@@ -7,7 +7,7 @@
 //!
 //! [intel64_ref]: http://www.intel.de/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-instruction-set-reference-manual-325383.pdf
 
-use core_arch::x86::__m128i;
+use crate::core_arch::x86::__m128i;
 
 #[cfg(test)]
 use stdsimd_test::assert_instr;
@@ -28,7 +28,7 @@ extern "C" {
     fn aeskeygenassist(a: __m128i, imm8: u8) -> __m128i;
 }
 
-/// Perform one round of an AES decryption flow on data (state) in `a`.
+/// Performs one round of an AES decryption flow on data (state) in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdec_si128)
 #[inline]
@@ -39,7 +39,7 @@ pub unsafe fn _mm_aesdec_si128(a: __m128i, round_key: __m128i) -> __m128i {
     aesdec(a, round_key)
 }
 
-/// Perform the last round of an AES decryption flow on data (state) in `a`.
+/// Performs the last round of an AES decryption flow on data (state) in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesdeclast_si128)
 #[inline]
@@ -50,7 +50,7 @@ pub unsafe fn _mm_aesdeclast_si128(a: __m128i, round_key: __m128i) -> __m128i {
     aesdeclast(a, round_key)
 }
 
-/// Perform one round of an AES encryption flow on data (state) in `a`.
+/// Performs one round of an AES encryption flow on data (state) in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesenc_si128)
 #[inline]
@@ -61,7 +61,7 @@ pub unsafe fn _mm_aesenc_si128(a: __m128i, round_key: __m128i) -> __m128i {
     aesenc(a, round_key)
 }
 
-/// Perform the last round of an AES encryption flow on data (state) in `a`.
+/// Performs the last round of an AES encryption flow on data (state) in `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesenclast_si128)
 #[inline]
@@ -72,7 +72,7 @@ pub unsafe fn _mm_aesenclast_si128(a: __m128i, round_key: __m128i) -> __m128i {
     aesenclast(a, round_key)
 }
 
-/// Perform the `InvMixColumns` transformation on `a`.
+/// Performs the `InvMixColumns` transformation on `a`.
 ///
 /// [Intel's documentation](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_aesimc_si128)
 #[inline]
@@ -113,7 +113,7 @@ mod tests {
 
     use stdsimd_test::simd_test;
 
-    use core_arch::x86::*;
+    use crate::core_arch::x86::*;
 
     #[simd_test(enable = "aes")]
     unsafe fn test_mm_aesdec_si128() {

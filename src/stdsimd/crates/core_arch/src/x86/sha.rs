@@ -1,6 +1,7 @@
-use core_arch::simd::*;
-use core_arch::x86::*;
-use mem;
+use crate::{
+    core_arch::{simd::*, x86::*},
+    mem::transmute,
+};
 
 #[allow(improper_ctypes)]
 extern "C" {
@@ -23,7 +24,7 @@ extern "C" {
 #[cfg(test)]
 use stdsimd_test::assert_instr;
 
-/// Perform an intermediate calculation for the next four SHA1 message values
+/// Performs an intermediate calculation for the next four SHA1 message values
 /// (unsigned 32-bit integers) using previous message values from `a` and `b`,
 /// and returning the result.
 ///
@@ -33,10 +34,10 @@ use stdsimd_test::assert_instr;
 #[cfg_attr(test, assert_instr(sha1msg1))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha1msg1_epu32(a: __m128i, b: __m128i) -> __m128i {
-    mem::transmute(sha1msg1(a.as_i32x4(), b.as_i32x4()))
+    transmute(sha1msg1(a.as_i32x4(), b.as_i32x4()))
 }
 
-/// Perform the final calculation for the next four SHA1 message values
+/// Performs the final calculation for the next four SHA1 message values
 /// (unsigned 32-bit integers) using the intermediate result in `a` and the
 /// previous message values in `b`, and returns the result.
 ///
@@ -46,7 +47,7 @@ pub unsafe fn _mm_sha1msg1_epu32(a: __m128i, b: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(sha1msg2))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha1msg2_epu32(a: __m128i, b: __m128i) -> __m128i {
-    mem::transmute(sha1msg2(a.as_i32x4(), b.as_i32x4()))
+    transmute(sha1msg2(a.as_i32x4(), b.as_i32x4()))
 }
 
 /// Calculate SHA1 state variable E after four rounds of operation from the
@@ -59,10 +60,10 @@ pub unsafe fn _mm_sha1msg2_epu32(a: __m128i, b: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(sha1nexte))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha1nexte_epu32(a: __m128i, b: __m128i) -> __m128i {
-    mem::transmute(sha1nexte(a.as_i32x4(), b.as_i32x4()))
+    transmute(sha1nexte(a.as_i32x4(), b.as_i32x4()))
 }
 
-/// Perform four rounds of SHA1 operation using an initial SHA1 state (A,B,C,D)
+/// Performs four rounds of SHA1 operation using an initial SHA1 state (A,B,C,D)
 /// from `a` and some pre-computed sum of the next 4 round message values
 /// (unsigned 32-bit integers), and state variable E from `b`, and return the
 /// updated SHA1 state (A,B,C,D). `func` contains the logic functions and round
@@ -83,10 +84,10 @@ pub unsafe fn _mm_sha1rnds4_epu32(a: __m128i, b: __m128i, func: i32) -> __m128i 
         };
     }
     let ret = constify_imm2!(func, call);
-    mem::transmute(ret)
+    transmute(ret)
 }
 
-/// Perform an intermediate calculation for the next four SHA256 message values
+/// Performs an intermediate calculation for the next four SHA256 message values
 /// (unsigned 32-bit integers) using previous message values from `a` and `b`,
 /// and return the result.
 ///
@@ -96,10 +97,10 @@ pub unsafe fn _mm_sha1rnds4_epu32(a: __m128i, b: __m128i, func: i32) -> __m128i 
 #[cfg_attr(test, assert_instr(sha256msg1))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha256msg1_epu32(a: __m128i, b: __m128i) -> __m128i {
-    mem::transmute(sha256msg1(a.as_i32x4(), b.as_i32x4()))
+    transmute(sha256msg1(a.as_i32x4(), b.as_i32x4()))
 }
 
-/// Perform the final calculation for the next four SHA256 message values
+/// Performs the final calculation for the next four SHA256 message values
 /// (unsigned 32-bit integers) using previous message values from `a` and `b`,
 /// and return the result.
 ///
@@ -109,10 +110,10 @@ pub unsafe fn _mm_sha256msg1_epu32(a: __m128i, b: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(sha256msg2))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha256msg2_epu32(a: __m128i, b: __m128i) -> __m128i {
-    mem::transmute(sha256msg2(a.as_i32x4(), b.as_i32x4()))
+    transmute(sha256msg2(a.as_i32x4(), b.as_i32x4()))
 }
 
-/// Perform 2 rounds of SHA256 operation using an initial SHA256 state
+/// Performs 2 rounds of SHA256 operation using an initial SHA256 state
 /// (C,D,G,H) from `a`, an initial SHA256 state (A,B,E,F) from `b`, and a
 /// pre-computed sum of the next 2 round message values (unsigned 32-bit
 /// integers) and the corresponding round constants from `k`, and store the
@@ -124,7 +125,7 @@ pub unsafe fn _mm_sha256msg2_epu32(a: __m128i, b: __m128i) -> __m128i {
 #[cfg_attr(test, assert_instr(sha256rnds2))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sha256rnds2_epu32(a: __m128i, b: __m128i, k: __m128i) -> __m128i {
-    mem::transmute(sha256rnds2(a.as_i32x4(), b.as_i32x4(), k.as_i32x4()))
+    transmute(sha256rnds2(a.as_i32x4(), b.as_i32x4(), k.as_i32x4()))
 }
 
 #[cfg(test)]
@@ -134,8 +135,7 @@ mod tests {
     use std::i32;
     use std::mem::{self, transmute};
 
-    use core_arch::simd::*;
-    use core_arch::x86::*;
+    use crate::core_arch::{simd::*, x86::*};
     use stdsimd_test::simd_test;
     use test::black_box; // Used to inhibit constant-folding.
 

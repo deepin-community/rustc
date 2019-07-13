@@ -136,22 +136,18 @@ impl IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                 let tp_ty = substs.type_at(0);
                 self.const_usize(self.size_of(tp_ty).bytes())
             }
-            func @ "va_start" | func @ "va_end" => {
-                let va_list = match (tcx.lang_items().va_list(), &result.layout.ty.sty) {
-                    (Some(did), ty::Adt(def, _)) if def.did == did => args[0].immediate(),
-                    (Some(_), _) => self.load(args[0].immediate(),
-                                              tcx.data_layout.pointer_align.abi),
-                    (None, _) => bug!("va_list language item must be defined")
-                };
-                let intrinsic = self.cx().get_intrinsic(&format!("llvm.{}", func));
-                self.call(intrinsic, &[va_list], None)
+            "va_start" => {
+                self.va_start(args[0].immediate())
+            }
+            "va_end" => {
+                self.va_end(args[0].immediate())
             }
             "va_copy" => {
                 let va_list = match (tcx.lang_items().va_list(), &result.layout.ty.sty) {
                     (Some(did), ty::Adt(def, _)) if def.did == did => args[0].immediate(),
                     (Some(_), _)  => self.load(args[0].immediate(),
                                                tcx.data_layout.pointer_align.abi),
-                    (None, _) => bug!("va_list language item must be defined")
+                    (None, _) => bug!("`va_list` language item must be defined")
                 };
                 let intrinsic = self.cx().get_intrinsic(&("llvm.va_copy"));
                 self.call(intrinsic, &[llresult, va_list], None);
@@ -517,8 +513,7 @@ impl IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
 
             },
             "fadd_fast" | "fsub_fast" | "fmul_fast" | "fdiv_fast" | "frem_fast" => {
-                let sty = &arg_tys[0].sty;
-                match float_type_width(sty) {
+                match float_type_width(arg_tys[0]) {
                     Some(_width) =>
                         match name {
                             "fadd_fast" => self.fadd_fast(args[0].immediate(), args[1].immediate()),
@@ -532,7 +527,7 @@ impl IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
                         span_invalid_monomorphization_error(
                             tcx.sess, span,
                             &format!("invalid monomorphization of `{}` intrinsic: \
-                                      expected basic float type, found `{}`", name, sty));
+                                      expected basic float type, found `{}`", name, arg_tys[0]));
                         return;
                     }
                 }
@@ -721,6 +716,41 @@ impl IntrinsicCallMethods<'tcx> for Builder<'a, 'll, 'tcx> {
     fn expect(&mut self, cond: Self::Value, expected: bool) -> Self::Value {
         let expect = self.get_intrinsic(&"llvm.expect.i1");
         self.call(expect, &[cond, self.const_bool(expected)], None)
+    }
+
+    fn va_start(&mut self, list: &'ll Value) -> &'ll Value {
+        let target = &self.cx.tcx.sess.target.target;
+        let arch = &target.arch;
+        // A pointer to the architecture specific structure is passed to this
+        // function. For pointer variants (i686, RISC-V, Windows, etc), we
+        // should do do nothing, as the address to the pointer is needed. For
+        // architectures with a architecture specific structure (`Aarch64`,
+        // `X86_64`, etc), this function should load the structure from the
+        // address provided.
+        let va_list = match &**arch {
+            _ if target.options.is_like_windows => list,
+            "aarch64" if target.target_os == "ios" => list,
+            "aarch64" | "x86_64" | "powerpc" =>
+                self.load(list, self.tcx().data_layout.pointer_align.abi),
+            _ => list,
+        };
+        let intrinsic = self.cx().get_intrinsic("llvm.va_start");
+        self.call(intrinsic, &[va_list], None)
+    }
+
+    fn va_end(&mut self, list: &'ll Value) -> &'ll Value {
+        let target = &self.cx.tcx.sess.target.target;
+        let arch = &target.arch;
+        // See the comment in `va_start` for the purpose of the following.
+        let va_list = match &**arch {
+            _ if target.options.is_like_windows => list,
+            "aarch64" if target.target_os == "ios" => list,
+            "aarch64" | "x86_64" | "powerpc" =>
+                self.load(list, self.tcx().data_layout.pointer_align.abi),
+            _ => list,
+        };
+        let intrinsic = self.cx().get_intrinsic("llvm.va_end");
+        self.call(intrinsic, &[va_list], None)
     }
 }
 
@@ -1442,8 +1472,8 @@ fn generic_simd_intrinsic(
                 require!(false, "expected element type `{}` of second argument `{}` \
                                  to be a pointer to the element type `{}` of the first \
                                  argument `{}`, found `{}` != `*_ {}`",
-                         arg_tys[1].simd_type(tcx).sty, arg_tys[1], in_elem, in_ty,
-                         arg_tys[1].simd_type(tcx).sty, in_elem);
+                         arg_tys[1].simd_type(tcx), arg_tys[1], in_elem, in_ty,
+                         arg_tys[1].simd_type(tcx), in_elem);
                 unreachable!();
             }
         };
@@ -1457,7 +1487,7 @@ fn generic_simd_intrinsic(
             _ => {
                 require!(false, "expected element type `{}` of third argument `{}` \
                                  to be a signed integer type",
-                         arg_tys[2].simd_type(tcx).sty, arg_tys[2]);
+                         arg_tys[2].simd_type(tcx), arg_tys[2]);
             }
         }
 
@@ -1542,8 +1572,8 @@ fn generic_simd_intrinsic(
                 require!(false, "expected element type `{}` of second argument `{}` \
                                  to be a pointer to the element type `{}` of the first \
                                  argument `{}`, found `{}` != `*mut {}`",
-                         arg_tys[1].simd_type(tcx).sty, arg_tys[1], in_elem, in_ty,
-                         arg_tys[1].simd_type(tcx).sty, in_elem);
+                         arg_tys[1].simd_type(tcx), arg_tys[1], in_elem, in_ty,
+                         arg_tys[1].simd_type(tcx), in_elem);
                 unreachable!();
             }
         };
@@ -1557,7 +1587,7 @@ fn generic_simd_intrinsic(
             _ => {
                 require!(false, "expected element type `{}` of third argument `{}` \
                                  to be a signed integer type",
-                         arg_tys[2].simd_type(tcx).sty, arg_tys[2]);
+                         arg_tys[2].simd_type(tcx), arg_tys[2]);
             }
         }
 
@@ -1873,7 +1903,7 @@ unsupported {} from `{}` with element `{}` of size `{}` to `{}`"#,
                 return_error!(
                     "expected element type `{}` of vector type `{}` \
                      to be a signed or unsigned integer type",
-                    arg_tys[0].simd_type(tcx).sty, arg_tys[0]
+                    arg_tys[0].simd_type(tcx), arg_tys[0]
                 );
             }
         };
@@ -1923,10 +1953,10 @@ fn int_type_width_signed(ty: Ty<'_>, cx: &CodegenCx<'_, '_>) -> Option<(u64, boo
     }
 }
 
-// Returns the width of a float TypeVariant
+// Returns the width of a float Ty
 // Returns None if the type is not a float
-fn float_type_width<'tcx>(sty: &ty::TyKind<'tcx>) -> Option<u64> {
-    match *sty {
+fn float_type_width(ty: Ty<'_>) -> Option<u64> {
+    match ty.sty {
         ty::Float(t) => Some(t.bit_width() as u64),
         _ => None,
     }

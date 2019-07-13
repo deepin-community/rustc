@@ -22,6 +22,7 @@ use rustc::hir::CodegenFnAttrFlags;
 use rustc::hir::def::CtorKind;
 use rustc::hir::def_id::{DefId, CrateNum, LOCAL_CRATE};
 use rustc::ich::NodeIdHashingMode;
+use rustc::mir::interpret::truncate;
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc::ty::Instance;
 use rustc::ty::{self, AdtKind, ParamEnv, Ty, TyCtxt};
@@ -116,6 +117,32 @@ impl TypeMap<'ll, 'tcx> {
         }
     }
 
+    // Removes a Ty to metadata mapping
+    // This is useful when computing the metadata for a potentially
+    // recursive type (e.g. a function ptr of the form:
+    //
+    // fn foo() -> impl Copy { foo }
+    //
+    // This kind of type cannot be properly represented
+    // via LLVM debuginfo. As a workaround,
+    // we register a temporary Ty to metadata mapping
+    // for the function before we compute its actual metadata.
+    // If the metadata computation ends up recursing back to the
+    // original function, it will use the temporary mapping
+    // for the inner self-reference, preventing us from
+    // recursing forever.
+    //
+    // This function is used to remove the temporary metadata
+    // mapping after we've computed the actual metadata
+    fn remove_type(
+        &mut self,
+        type_: Ty<'tcx>,
+    ) {
+        if self.type_to_metadata.remove(type_).is_none() {
+            bug!("Type metadata Ty '{}' is not in the TypeMap!", type_);
+        }
+    }
+
     // Adds a UniqueTypeId to metadata mapping to the TypeMap. The method will
     // fail if the mapping already exists.
     fn register_unique_id_with_metadata(
@@ -187,6 +214,17 @@ impl TypeMap<'ll, 'tcx> {
                                            variant_name);
         let interner_key = self.unique_id_interner.intern(&enum_variant_type_id);
         UniqueTypeId(interner_key)
+    }
+
+    // Get the unique type id string for an enum variant part.
+    // Variant parts are not types and shouldn't really have their own id,
+    // but it makes set_members_of_composite_type() simpler.
+    fn get_unique_type_id_str_of_enum_variant_part<'a>(&mut self,
+                                                       enum_type_id: UniqueTypeId) -> &str {
+        let variant_part_type_id = format!("{}_variant_part",
+                                           self.get_unique_type_id_as_string(enum_type_id));
+        let interner_key = self.unique_id_interner.intern(&variant_part_type_id);
+        self.unique_id_interner.get(interner_key)
     }
 }
 
@@ -596,16 +634,48 @@ pub fn type_metadata(
             }
         }
         ty::FnDef(..) | ty::FnPtr(_) => {
-            let fn_metadata = subroutine_type_metadata(cx,
-                                                       unique_type_id,
-                                                       t.fn_sig(cx.tcx),
-                                                       usage_site_span).metadata;
+
             if let Some(metadata) = debug_context(cx).type_map
                .borrow()
                .find_metadata_for_unique_id(unique_type_id)
             {
                 return metadata;
             }
+
+            // It's possible to create a self-referential
+            // type in Rust by using 'impl trait':
+            //
+            // fn foo() -> impl Copy { foo }
+            //
+            // See TypeMap::remove_type for more detals
+            // about the workaround
+
+            let temp_type = {
+                unsafe {
+                    // The choice of type here is pretty arbitrary -
+                    // anything reading the debuginfo for a recursive
+                    // type is going to see *somthing* weird - the only
+                    // question is what exactly it will see
+                    let (size, align) = cx.size_and_align_of(t);
+                    llvm::LLVMRustDIBuilderCreateBasicType(
+                        DIB(cx),
+                        SmallCStr::new("<recur_type>").as_ptr(),
+                        size.bits(),
+                        align.bits() as u32,
+                        DW_ATE_unsigned)
+                }
+            };
+
+            let type_map = &debug_context(cx).type_map;
+            type_map.borrow_mut().register_type_with_metadata(t, temp_type);
+
+            let fn_metadata = subroutine_type_metadata(cx,
+                                                       unique_type_id,
+                                                       t.fn_sig(cx.tcx),
+                                                       usage_site_span).metadata;
+
+            type_map.borrow_mut().remove_type(t);
+
 
             // This is actually a function pointer, so wrap it in pointer DI
             MetadataCreationResult::new(pointer_type_metadata(cx, t, fn_metadata), false)
@@ -1156,12 +1226,14 @@ fn prepare_union_metadata(
 // Enums
 //=-----------------------------------------------------------------------------
 
-// DWARF variant support is only available starting in LLVM 7.
+// DWARF variant support is only available starting in LLVM 8.
 // Although the earlier enum debug info output did not work properly
 // in all situations, it is better for the time being to continue to
 // sometimes emit the old style rather than emit something completely
-// useless when rust is compiled against LLVM 6 or older.  This
-// function decides which representation will be emitted.
+// useless when rust is compiled against LLVM 6 or older. LLVM 7
+// contains an early version of the DWARF variant support, and will
+// crash when handling the new debug info format. This function
+// decides which representation will be emitted.
 fn use_enum_fallback(cx: &CodegenCx<'_, '_>) -> bool {
     // On MSVC we have to use the fallback mode, because LLVM doesn't
     // lower variant parts to PDB.
@@ -1232,7 +1304,11 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                     }
                 ]
             }
-            layout::Variants::Tagged { ref variants, .. } => {
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Tag,
+                ref variants,
+                ..
+            } => {
                 let discriminant_info = if fallback {
                     RegularDiscriminant(self.discriminant_type_metadata
                                         .expect(""))
@@ -1274,12 +1350,14 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                     }
                 }).collect()
             }
-            layout::Variants::NicheFilling {
-                ref niche_variants,
-                niche_start,
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Niche {
+                    ref niche_variants,
+                    niche_start,
+                    dataful_variant,
+                },
+                ref discr,
                 ref variants,
-                dataful_variant,
-                ref niche,
             } => {
                 if fallback {
                     let variant = self.layout.for_variant(cx, dataful_variant);
@@ -1366,7 +1444,11 @@ impl EnumMemberDescriptionFactory<'ll, 'tcx> {
                             let value = (i.as_u32() as u128)
                                 .wrapping_sub(niche_variants.start().as_u32() as u128)
                                 .wrapping_add(niche_start);
-                            let value = value & ((1u128 << niche.value.size(cx).bits()) - 1);
+                            let value = truncate(value, discr.value.size(cx));
+                            // NOTE(eddyb) do *NOT* remove this assert, until
+                            // we pass the full 128-bit value to LLVM, otherwise
+                            // truncation will be silent and remain undetected.
+                            assert_eq!(value as u64 as u128, value);
                             Some(value as u64)
                         };
 
@@ -1583,8 +1665,11 @@ fn prepare_enum_metadata(
     let layout = cx.layout_of(enum_type);
 
     match (&layout.abi, &layout.variants) {
-        (&layout::Abi::Scalar(_), &layout::Variants::Tagged {ref tag, .. }) =>
-            return FinalMetadata(discriminant_type_metadata(tag.value)),
+        (&layout::Abi::Scalar(_), &layout::Variants::Multiple {
+            discr_kind: layout::DiscriminantKind::Tag,
+            ref discr,
+            ..
+        }) => return FinalMetadata(discriminant_type_metadata(discr.value)),
         _ => {}
     }
 
@@ -1596,9 +1681,16 @@ fn prepare_enum_metadata(
     if use_enum_fallback(cx) {
         let discriminant_type_metadata = match layout.variants {
             layout::Variants::Single { .. } |
-            layout::Variants::NicheFilling { .. } => None,
-            layout::Variants::Tagged { ref tag, .. } => {
-                Some(discriminant_type_metadata(tag.value))
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Niche { .. },
+                ..
+            } => None,
+            layout::Variants::Multiple {
+                discr_kind: layout::DiscriminantKind::Tag,
+                ref discr,
+                ..
+            } => {
+                Some(discriminant_type_metadata(discr.value))
             }
         };
 
@@ -1633,16 +1725,20 @@ fn prepare_enum_metadata(
         );
     }
 
-    let discriminator_metadata = match &layout.variants {
+    let discriminator_metadata = match layout.variants {
         // A single-variant enum has no discriminant.
-        &layout::Variants::Single { .. } => None,
+        layout::Variants::Single { .. } => None,
 
-        &layout::Variants::NicheFilling { ref niche, .. } => {
+        layout::Variants::Multiple {
+            discr_kind: layout::DiscriminantKind::Niche { .. },
+            ref discr,
+            ..
+        } => {
             // Find the integer type of the correct size.
-            let size = niche.value.size(cx);
-            let align = niche.value.align(cx);
+            let size = discr.value.size(cx);
+            let align = discr.value.align(cx);
 
-            let discr_type = match niche.value {
+            let discr_type = match discr.value {
                 layout::Int(t, _) => t,
                 layout::Float(layout::FloatTy::F32) => Integer::I32,
                 layout::Float(layout::FloatTy::F64) => Integer::I64,
@@ -1665,8 +1761,12 @@ fn prepare_enum_metadata(
             }
         },
 
-        &layout::Variants::Tagged { ref tag, .. } => {
-            let discr_type = tag.value.to_ty(cx.tcx);
+        layout::Variants::Multiple {
+            discr_kind: layout::DiscriminantKind::Tag,
+            ref discr,
+            ..
+        } => {
+            let discr_type = discr.value.to_ty(cx.tcx);
             let (size, align) = cx.size_and_align_of(discr_type);
 
             let discr_metadata = basic_type_metadata(cx, discr_type);
@@ -1686,6 +1786,11 @@ fn prepare_enum_metadata(
         },
     };
 
+    let variant_part_unique_type_id_str = SmallCStr::new(
+        debug_context(cx).type_map
+            .borrow_mut()
+            .get_unique_type_id_str_of_enum_variant_part(unique_type_id)
+    );
     let empty_array = create_DIArray(DIB(cx), &[]);
     let variant_part = unsafe {
         llvm::LLVMRustDIBuilderCreateVariantPart(
@@ -1699,7 +1804,7 @@ fn prepare_enum_metadata(
             DIFlags::FlagZero,
             discriminator_metadata,
             empty_array,
-            unique_type_id_str.as_ptr())
+            variant_part_unique_type_id_str.as_ptr())
     };
 
     // The variant part must be wrapped in a struct according to DWARF.

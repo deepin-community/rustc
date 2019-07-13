@@ -1,10 +1,12 @@
 use std::{fmt, env};
 
+use crate::hir;
 use crate::hir::map::definitions::DefPathData;
 use crate::mir;
 use crate::ty::{self, Ty, layout};
 use crate::ty::layout::{Size, Align, LayoutError};
 use rustc_target::spec::abi::Abi;
+use rustc_macros::HashStable;
 
 use super::{RawConst, Pointer, InboundsCheck, ScalarMaybeUndef};
 
@@ -14,10 +16,9 @@ use crate::ty::query::TyCtxtAt;
 use errors::DiagnosticBuilder;
 
 use syntax_pos::{Pos, Span};
-use syntax::ast;
 use syntax::symbol::Symbol;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, HashStable)]
 pub enum ErrorHandled {
     /// Already reported a lint or an error for this evaluation.
     Reported,
@@ -42,15 +43,15 @@ pub type ConstEvalResult<'tcx> = Result<ty::Const<'tcx>, ErrorHandled>;
 #[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
 pub struct ConstEvalErr<'tcx> {
     pub span: Span,
-    pub error: crate::mir::interpret::EvalErrorKind<'tcx, u64>,
+    pub error: crate::mir::interpret::InterpError<'tcx, u64>,
     pub stacktrace: Vec<FrameInfo<'tcx>>,
 }
 
-#[derive(Clone, Debug, RustcEncodable, RustcDecodable)]
+#[derive(Clone, Debug, RustcEncodable, RustcDecodable, HashStable)]
 pub struct FrameInfo<'tcx> {
     pub call_site: Span, // this span is in the caller!
     pub instance: ty::Instance<'tcx>,
-    pub lint_root: Option<ast::NodeId>,
+    pub lint_root: Option<hir::HirId>,
 }
 
 impl<'tcx> fmt::Display for FrameInfo<'tcx> {
@@ -98,7 +99,8 @@ impl<'a, 'gcx, 'tcx> ConstEvalErr<'tcx> {
     pub fn report_as_lint(&self,
         tcx: TyCtxtAt<'a, 'gcx, 'tcx>,
         message: &str,
-        lint_root: ast::NodeId,
+        lint_root: hir::HirId,
+        span: Option<Span>,
     ) -> ErrorHandled {
         let lint = self.struct_generic(
             tcx,
@@ -107,6 +109,18 @@ impl<'a, 'gcx, 'tcx> ConstEvalErr<'tcx> {
         );
         match lint {
             Ok(mut lint) => {
+                if let Some(span) = span {
+                    let primary_spans = lint.span.primary_spans().to_vec();
+                    // point at the actual error as the primary span
+                    lint.replace_span_with(span);
+                    // point to the `const` statement as a secondary span
+                    // they don't have any label
+                    for sp in primary_spans {
+                        if sp != span {
+                            lint.span_label(sp, "");
+                        }
+                    }
+                }
                 lint.emit();
                 ErrorHandled::Reported
             },
@@ -118,26 +132,26 @@ impl<'a, 'gcx, 'tcx> ConstEvalErr<'tcx> {
         &self,
         tcx: TyCtxtAt<'a, 'gcx, 'tcx>,
         message: &str,
-        lint_root: Option<ast::NodeId>,
+        lint_root: Option<hir::HirId>,
     ) -> Result<DiagnosticBuilder<'tcx>, ErrorHandled> {
         match self.error {
-            EvalErrorKind::Layout(LayoutError::Unknown(_)) |
-            EvalErrorKind::TooGeneric => return Err(ErrorHandled::TooGeneric),
-            EvalErrorKind::Layout(LayoutError::SizeOverflow(_)) |
-            EvalErrorKind::TypeckError => return Err(ErrorHandled::Reported),
+            InterpError::Layout(LayoutError::Unknown(_)) |
+            InterpError::TooGeneric => return Err(ErrorHandled::TooGeneric),
+            InterpError::Layout(LayoutError::SizeOverflow(_)) |
+            InterpError::TypeckError => return Err(ErrorHandled::Reported),
             _ => {},
         }
         trace!("reporting const eval failure at {:?}", self.span);
         let mut err = if let Some(lint_root) = lint_root {
-            let node_id = self.stacktrace
+            let hir_id = self.stacktrace
                 .iter()
                 .rev()
                 .filter_map(|frame| frame.lint_root)
                 .next()
                 .unwrap_or(lint_root);
-            tcx.struct_span_lint_node(
+            tcx.struct_span_lint_hir(
                 crate::rustc::lint::builtin::CONST_ERR,
-                node_id,
+                hir_id,
                 tcx.span,
                 message,
             )
@@ -166,7 +180,7 @@ pub fn struct_error<'a, 'gcx, 'tcx>(
 
 #[derive(Debug, Clone)]
 pub struct EvalError<'tcx> {
-    pub kind: EvalErrorKind<'tcx, u64>,
+    pub kind: InterpError<'tcx, u64>,
     pub backtrace: Option<Box<Backtrace>>,
 }
 
@@ -183,8 +197,8 @@ fn print_backtrace(backtrace: &mut Backtrace) {
     eprintln!("\n\nAn error occurred in miri:\n{:?}", backtrace);
 }
 
-impl<'tcx> From<EvalErrorKind<'tcx, u64>> for EvalError<'tcx> {
-    fn from(kind: EvalErrorKind<'tcx, u64>) -> Self {
+impl<'tcx> From<InterpError<'tcx, u64>> for EvalError<'tcx> {
+    fn from(kind: InterpError<'tcx, u64>) -> Self {
         let backtrace = match env::var("RUST_CTFE_BACKTRACE") {
             // matching RUST_BACKTRACE, we treat "0" the same as "not present".
             Ok(ref val) if val != "0" => {
@@ -207,10 +221,10 @@ impl<'tcx> From<EvalErrorKind<'tcx, u64>> for EvalError<'tcx> {
     }
 }
 
-pub type AssertMessage<'tcx> = EvalErrorKind<'tcx, mir::Operand<'tcx>>;
+pub type AssertMessage<'tcx> = InterpError<'tcx, mir::Operand<'tcx>>;
 
-#[derive(Clone, RustcEncodable, RustcDecodable)]
-pub enum EvalErrorKind<'tcx, O> {
+#[derive(Clone, RustcEncodable, RustcDecodable, HashStable)]
+pub enum InterpError<'tcx, O> {
     /// This variant is used by machines to signal their own errors that do not
     /// match an existing variant.
     MachineError(String),
@@ -298,9 +312,9 @@ pub enum EvalErrorKind<'tcx, O> {
 
 pub type EvalResult<'tcx, T = ()> = Result<T, EvalError<'tcx>>;
 
-impl<'tcx, O> EvalErrorKind<'tcx, O> {
+impl<'tcx, O> InterpError<'tcx, O> {
     pub fn description(&self) -> &str {
-        use self::EvalErrorKind::*;
+        use self::InterpError::*;
         match *self {
             MachineError(ref inner) => inner,
             FunctionAbiMismatch(..) | FunctionArgMismatch(..) | FunctionRetMismatch(..)
@@ -436,15 +450,15 @@ impl<'tcx> fmt::Display for EvalError<'tcx> {
     }
 }
 
-impl<'tcx> fmt::Display for EvalErrorKind<'tcx, u64> {
+impl<'tcx> fmt::Display for InterpError<'tcx, u64> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl<'tcx, O: fmt::Debug> fmt::Debug for EvalErrorKind<'tcx, O> {
+impl<'tcx, O: fmt::Debug> fmt::Debug for InterpError<'tcx, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::EvalErrorKind::*;
+        use self::InterpError::*;
         match *self {
             PointerOutOfBounds { ptr, check, allocation_size } => {
                 write!(f, "Pointer must be in-bounds{} at offset {}, but is outside bounds of \
