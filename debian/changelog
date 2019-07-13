@@ -1,5 +1,7 @@
 rustc (1.35.0+dfsg1-1~exp2) UNRELEASED; urgency=medium
 
+  * Add entry in 1.34.2+dfsg1-1 to note that it uses LLVM 7.
+  * Add entry in 1.35.0+dfsg1-1~exp2 to note that it uses LLVM 8.
   * Fix ICE on sparc64 by including upstream PR #61881.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 16 Jun 2019 22:30:55 -0700
@@ -7,6 +9,7 @@ rustc (1.35.0+dfsg1-1~exp2) UNRELEASED; urgency=medium
 rustc (1.35.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * Don't use system compiler-rt, it's not ready yet.
+  * Update to LLVM 8.
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 09 Jun 2019 23:20:52 -0700
@@ -14,6 +17,7 @@ rustc (1.35.0+dfsg1-1~exp1) experimental; urgency=medium
 rustc (1.34.2+dfsg1-1) unstable; urgency=medium
 
   * Don't use system compiler-rt, there are issues with that for now.
+  * Use LLVM 7 for the Debian buster release.
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 29 May 2019 21:52:37 -0700
 
