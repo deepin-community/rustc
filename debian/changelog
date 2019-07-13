@@ -1,10 +1,10 @@
-rustc (1.35.0+dfsg1-1~exp2) UNRELEASED; urgency=medium
+rustc (1.35.0+dfsg1-1) unstable; urgency=medium
 
   * Add entry in 1.34.2+dfsg1-1 to note that it uses LLVM 7.
   * Add entry in 1.35.0+dfsg1-1~exp2 to note that it uses LLVM 8.
   * Fix ICE on sparc64 by including upstream PR #61881.
 
- -- Ximin Luo <infinity0@debian.org>  Sun, 16 Jun 2019 22:30:55 -0700
+ -- Ximin Luo <infinity0@debian.org>  Sat, 13 Jul 2019 10:30:35 -0700
 
 rustc (1.35.0+dfsg1-1~exp1) experimental; urgency=medium
 
