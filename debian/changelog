@@ -1,3 +1,9 @@
+rustc (1.36.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Sat, 13 Jul 2019 12:25:02 -0700
+
 rustc (1.35.0+dfsg1-1) unstable; urgency=medium
 
   * Add entry in 1.34.2+dfsg1-1 to note that it uses LLVM 7.
