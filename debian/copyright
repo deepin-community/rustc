@@ -644,6 +644,12 @@ Copyright: 2015-2017 Mathieu David <mathieudavid@mathieudavid.org>
 License: MPL-2.0
 Comment: see https://github.com/azerupi/mdBook
 
+Files: vendor/measureme/*
+Copyright: 2019-2019 Wesley Wiser <wwiser@gmail.com>
+           2019-2019 Michael Woerister <michaelwoerister@posteo>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/measureme
+
 Files: vendor/memmap/*
 Copyright: 2015-2018 Dan Burkert <dan@danburkert.com>
 License: MIT or Apache-2.0
@@ -847,14 +853,16 @@ License: MIT
 Comment: see https://github.com/mgeisler/textwrap
 
 Files:
+ vendor/hashbrown/*
  vendor/lock_api/*
  vendor/thread_local/*
  vendor/parking_lot/*
  vendor/parking_lot_core/*
  vendor/parking_lot_core-0*/*
-Copyright: 2016-2018 Amanieu d'Antras <amanieu@gmail.com>
+Copyright: 2016-2019 Amanieu d'Antras <amanieu@gmail.com>
 License: MIT or Apache-2.0
 Comment:
+ see https://github.com/rust-lang/hashbrown
  see https://github.com/Amanieu/thread_local-rs
  see https://github.com/Amanieu/parking_lot
 
@@ -901,6 +909,11 @@ Files:
 Copyright: 2017-2018 Andrew Gallant <jamslam@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/BurntSushi/rucd
+
+Files: vendor/unicase/*
+Copyright: 2014-2019 Sean McArthur <sean@seanmonstar.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/seanmonstar/unicase
 
 Files:
  vendor/unicode-normalization/*
