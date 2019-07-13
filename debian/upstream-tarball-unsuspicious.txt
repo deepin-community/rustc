@@ -40,11 +40,13 @@ vendor/failure/book/src/bail-and-ensure.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
 vendor/lazy_static/src/lib.rs
-vendor/pulldown-cmark/tests/footnotes.rs
+vendor/pulldown-cmark/tests/suite/footnotes.rs
+vendor/pulldown-cmark/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark/specs/footnotes.txt
 vendor/pulldown-cmark-*/tests/footnotes.rs
 vendor/pulldown-cmark-*/specs/footnotes.txt
 vendor/stable_deref_trait/src/lib.rs
+vendor/unicase/src/lib.rs
 vendor/winapi-*/src/winnt.rs
 vendor/winapi/src/lib.rs
 
