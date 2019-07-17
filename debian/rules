@@ -18,6 +18,7 @@ include /usr/share/dpkg/buildflags.mk
 RUSTFLAGS = $(addprefix -C link-args=,$(LDFLAGS))
 export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS RUSTFLAGS
 RUSTFLAGS += --remap-path-prefix=$(CURDIR)=/usr/src/rustc-$(RUST_LONG_VERSION)
+export CARGO_HOME = $(CURDIR)/debian/cargo
 ifneq (,$(filter $(DEB_BUILD_ARCH), sparc64))
 export CARGO_INCREMENTAL = 0
 endif
@@ -192,7 +193,7 @@ ifeq (true,$(BUILD_DOCS))
 endif
 
 override_dh_auto_clean:
-	$(RM) -rf ./build ./tmp ./.cargo config.stamp config.mk Makefile
+	$(RM) -rf build tmp .cargo debian/cargo_home config.stamp config.mk Makefile
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/rust-src.install debian/rust-src.links debian/*.stamp
 	$(RM) -rf $(SRC_CLEAN) config.toml
 

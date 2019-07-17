@@ -1,3 +1,10 @@
+rustc (1.36.0+dfsg1-2) UNRELEASED; urgency=medium
+
+  * Set CARGO_HOME to debian/cargo_home (instead of $HOME/.cargo) as newer
+    versions of cargo must take a file lock that has to exist.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 17 Jul 2019 10:17:25 -0700
+
 rustc (1.36.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
