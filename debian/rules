@@ -160,7 +160,7 @@ debian/config.toml: debian/config.toml.in debian/rules
 	  then sed -i -e '/^rustc = /d' -e '/^cargo = /d' "$@"; fi
 # Work around low-memory (32-bit) architectures: https://github.com/rust-lang/rust/issues/45854
 ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
-	sed -i -e '/^debuginfo-only-std = /d' "$@"
+	sed -i -e 's/^debuginfo-level = /debuginfo-level = 0/g' "$@"
 endif
 
 debian/rust-src.%: debian/rust-src.%.in

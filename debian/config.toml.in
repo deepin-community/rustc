@@ -51,9 +51,8 @@ channel = "RELEASE_CHANNEL"
 # parallel codegen interferes with reproducibility, see
 # https://github.com/rust-lang/rust/issues/34902#issuecomment-319463586
 #codegen-units = 0
-debuginfo = true
-debuginfo-lines = true
-debuginfo-only-std = false
+debuginfo-level = 2
+debuginfo-level-std = 2
 rpath = false
 
 verbose-tests = true
