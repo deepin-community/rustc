@@ -25,7 +25,7 @@ Index: rustc/src/test/ui/consts/const-size_of-cycle.stderr
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
  note: ...which requires const-evaluating `Foo::bytes::{{constant}}#0`...
--  --> $SRC_DIR/libcore/mem.rs:LL:COL
+-  --> $SRC_DIR/libcore/mem/mod.rs:LL:COL
 -   |
 -LL |     intrinsics::size_of::<T>()
 -   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^

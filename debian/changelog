@@ -1,3 +1,9 @@
+rustc (1.37.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 23 Aug 2019 03:57:40 -0700
+
 rustc (1.36.0+dfsg1-2) unstable; urgency=medium
 
   * Set CARGO_HOME to debian/cargo_home (instead of $HOME/.cargo) as newer
