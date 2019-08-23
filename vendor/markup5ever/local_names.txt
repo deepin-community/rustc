@@ -437,6 +437,7 @@ keyPoints
 keySplines
 keyTimes
 keygen
+kind
 label
 lambda
 lang
@@ -556,6 +557,7 @@ multicol
 multiple
 munder
 munderover
+muted
 name
 nargs
 naturalnumbers
@@ -567,6 +569,8 @@ nobr
 noembed
 noframes
 nohref
+nomodule
+nonce
 none
 noresize
 noscript
@@ -836,6 +840,7 @@ speed
 spreadMethod
 src
 srcdoc
+srclang
 srcset
 standby
 start
