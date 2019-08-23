@@ -9,8 +9,10 @@ Comment:
  Make sure the paths here match the ones in debian/rust-doc.links
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
---- a/src/tools/linkchecker/main.rs
-+++ b/src/tools/linkchecker/main.rs
+Index: rustc-1.37.0-src/src/tools/linkchecker/main.rs
+===================================================================
+--- rustc-1.37.0-src.orig/src/tools/linkchecker/main.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/src/tools/linkchecker/main.rs	2019-08-22 11:17:30.016767983 -0700
 @@ -173,6 +173,11 @@
             url.starts_with("irc:") || url.starts_with("data:") {
              return;
@@ -23,9 +25,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          let mut parts = url.splitn(2, "#");
          let url = parts.next().unwrap();
          let fragment = parts.next();
---- a/vendor/mdbook/src/book/init.rs
-+++ b/vendor/mdbook/src/book/init.rs
-@@ -149,12 +149,6 @@
+Index: rustc-1.37.0-src/vendor/mdbook/src/book/init.rs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/book/init.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/book/init.rs	2019-08-22 11:17:30.016767983 -0700
+@@ -148,12 +148,6 @@
          let mut js = File::create(themedir.join("book.js"))?;
          js.write_all(theme::JS)?;
  
@@ -38,27 +42,29 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          Ok(())
      }
  
---- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-+++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
+Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:17:30.020768197 -0700
 @@ -3,7 +3,7 @@
- use errors::*;
- use renderer::html_handlebars::helpers;
- use renderer::{RenderContext, Renderer};
--use theme::{self, playpen_editor, Theme};
-+use theme::{self, Theme};
- use utils;
+ use crate::errors::*;
+ use crate::renderer::html_handlebars::helpers;
+ use crate::renderer::{RenderContext, Renderer};
+-use crate::theme::{self, playpen_editor, Theme};
++use crate::theme::{self, Theme};
+ use crate::utils;
  
  use std::collections::BTreeMap;
-@@ -107,7 +107,7 @@
+@@ -110,7 +110,7 @@
          &self,
          destination: &Path,
          theme: &Theme,
 -        html_config: &HtmlConfig,
 +        _html_config: &HtmlConfig,
      ) -> Result<()> {
-         use utils::fs::write_file;
+         use crate::utils::fs::write_file;
  
-@@ -123,62 +123,8 @@
+@@ -126,62 +126,8 @@
          write_file(destination, "css/print.css", &theme.print_css)?;
          write_file(destination, "css/variables.css", &theme.variables_css)?;
          write_file(destination, "favicon.png", &theme.favicon)?;
@@ -121,10 +127,12 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
          Ok(())
      }
---- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
-+++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-@@ -38,8 +38,6 @@
-             format!("window.search = {};", index).as_bytes(),
+Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/search.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs	2019-08-22 11:17:30.020768197 -0700
+@@ -34,8 +34,6 @@
+             format!("Object.assign(window.search, {});", index).as_bytes(),
          )?;
          utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
 -        utils::fs::write_file(destination, "mark.min.js", searcher::MARK_JS)?;
@@ -132,9 +140,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          debug!("Copying search files ✓");
      }
  
---- a/vendor/mdbook/src/theme/index.hbs
-+++ b/vendor/mdbook/src/theme/index.hbs
-@@ -16,12 +16,10 @@
+Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/index.hbs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs	2019-08-22 11:17:43.733501509 -0700
+@@ -20,12 +20,10 @@
          <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
  
          <!-- Fonts -->
@@ -149,7 +159,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          <link rel="stylesheet" href="{{ path_to_root }}tomorrow-night.css">
          <link rel="stylesheet" href="{{ path_to_root }}ayu-highlight.css">
  
-@@ -32,7 +30,7 @@
+@@ -36,7 +34,7 @@
  
          {{#if mathjax_support}}
          <!-- MathJax -->
@@ -158,7 +168,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          {{/if}}
      </head>
      <body class="{{ default_theme }}">
-@@ -42,43 +40,6 @@
+@@ -46,43 +44,6 @@
              var default_theme = "{{ default_theme }}";
          </script>
  
@@ -181,7 +191,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        <!-- Set the theme before any content is loaded, prevents flash -->
 -        <script type="text/javascript">
 -            var theme;
--            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+-            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
 -            if (theme === null || theme === undefined) { theme = default_theme; }
 -            document.body.className = theme;
 -            document.querySelector('html').className = theme + ' js';
@@ -200,9 +210,9 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        </script>
 -
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-             {{#toc}}{{/toc}}
-         </nav>
-@@ -204,41 +165,7 @@
+             <div class="sidebar-scrollbox">
+                 {{#toc}}{{/toc}}
+@@ -211,41 +172,7 @@
          </script>
          {{/if}}
  
@@ -245,8 +255,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          <script src="{{ path_to_root }}book.js" type="text/javascript" charset="utf-8"></script>
  
          <!-- Custom JS scripts -->
---- a/vendor/mdbook/src/theme/mod.rs
-+++ b/vendor/mdbook/src/theme/mod.rs
+Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/mod.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs	2019-08-22 11:17:30.020768197 -0700
 @@ -1,7 +1,5 @@
  #![allow(missing_docs)]
  
@@ -255,31 +267,27 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  #[cfg(feature = "search")]
  pub mod searcher;
  
-@@ -19,23 +17,8 @@
- pub static VARIABLES_CSS: &'static [u8] = include_bytes!("css/variables.css");
- pub static FAVICON: &'static [u8] = include_bytes!("favicon.png");
- pub static JS: &'static [u8] = include_bytes!("book.js");
--pub static HIGHLIGHT_JS: &'static [u8] = include_bytes!("highlight.js");
- pub static TOMORROW_NIGHT_CSS: &'static [u8] = include_bytes!("tomorrow-night.css");
--pub static HIGHLIGHT_CSS: &'static [u8] = include_bytes!("highlight.css");
- pub static AYU_HIGHLIGHT_CSS: &'static [u8] = include_bytes!("ayu-highlight.css");
--pub static CLIPBOARD_JS: &'static [u8] = include_bytes!("clipboard.min.js");
--pub static FONT_AWESOME: &'static [u8] = include_bytes!("FontAwesome/css/font-awesome.min.css");
--pub static FONT_AWESOME_EOT: &'static [u8] =
--    include_bytes!("FontAwesome/fonts/fontawesome-webfont.eot");
--pub static FONT_AWESOME_SVG: &'static [u8] =
--    include_bytes!("FontAwesome/fonts/fontawesome-webfont.svg");
--pub static FONT_AWESOME_TTF: &'static [u8] =
--    include_bytes!("FontAwesome/fonts/fontawesome-webfont.ttf");
--pub static FONT_AWESOME_WOFF: &'static [u8] =
--    include_bytes!("FontAwesome/fonts/fontawesome-webfont.woff");
--pub static FONT_AWESOME_WOFF2: &'static [u8] =
+@@ -19,19 +17,8 @@
+ pub static VARIABLES_CSS: &[u8] = include_bytes!("css/variables.css");
+ pub static FAVICON: &[u8] = include_bytes!("favicon.png");
+ pub static JS: &[u8] = include_bytes!("book.js");
+-pub static HIGHLIGHT_JS: &[u8] = include_bytes!("highlight.js");
+ pub static TOMORROW_NIGHT_CSS: &[u8] = include_bytes!("tomorrow-night.css");
+-pub static HIGHLIGHT_CSS: &[u8] = include_bytes!("highlight.css");
+ pub static AYU_HIGHLIGHT_CSS: &[u8] = include_bytes!("ayu-highlight.css");
+-pub static CLIPBOARD_JS: &[u8] = include_bytes!("clipboard.min.js");
+-pub static FONT_AWESOME: &[u8] = include_bytes!("FontAwesome/css/font-awesome.min.css");
+-pub static FONT_AWESOME_EOT: &[u8] = include_bytes!("FontAwesome/fonts/fontawesome-webfont.eot");
+-pub static FONT_AWESOME_SVG: &[u8] = include_bytes!("FontAwesome/fonts/fontawesome-webfont.svg");
+-pub static FONT_AWESOME_TTF: &[u8] = include_bytes!("FontAwesome/fonts/fontawesome-webfont.ttf");
+-pub static FONT_AWESOME_WOFF: &[u8] = include_bytes!("FontAwesome/fonts/fontawesome-webfont.woff");
+-pub static FONT_AWESOME_WOFF2: &[u8] =
 -    include_bytes!("FontAwesome/fonts/fontawesome-webfont.woff2");
--pub static FONT_AWESOME_OTF: &'static [u8] = include_bytes!("FontAwesome/fonts/FontAwesome.otf");
+-pub static FONT_AWESOME_OTF: &[u8] = include_bytes!("FontAwesome/fonts/FontAwesome.otf");
  
  /// The `Theme` struct should be used instead of the static variables because
  /// the `new()` method will look if the user has a theme directory in their
-@@ -53,11 +36,8 @@
+@@ -49,11 +36,8 @@
      pub variables_css: Vec<u8>,
      pub favicon: Vec<u8>,
      pub js: Vec<u8>,
@@ -291,7 +299,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  }
  
  impl Theme {
-@@ -86,9 +66,6 @@
+@@ -82,9 +66,6 @@
                      &mut theme.variables_css,
                  ),
                  (theme_dir.join("favicon.png"), &mut theme.favicon),
@@ -301,7 +309,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
                  (
                      theme_dir.join("tomorrow-night.css"),
                      &mut theme.tomorrow_night_css,
-@@ -125,11 +102,8 @@
+@@ -121,11 +102,8 @@
              variables_css: VARIABLES_CSS.to_owned(),
              favicon: FAVICON.to_owned(),
              js: JS.to_owned(),
@@ -313,7 +321,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          }
      }
  }
-@@ -179,11 +153,8 @@
+@@ -175,11 +153,8 @@
              "css/print.css",
              "css/variables.css",
              "book.js",
@@ -325,7 +333,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          ];
  
          let temp = TempFileBuilder::new().prefix("mdbook-").tempdir().unwrap();
-@@ -205,11 +176,8 @@
+@@ -201,11 +176,8 @@
              variables_css: Vec::new(),
              favicon: Vec::new(),
              js: Vec::new(),
@@ -337,11 +345,13 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          };
  
          assert_eq!(got, empty);
---- a/vendor/mdbook/src/theme/searcher/mod.rs
-+++ b/vendor/mdbook/src/theme/searcher/mod.rs
+Index: rustc-1.37.0-src/vendor/mdbook/src/theme/searcher/mod.rs
+===================================================================
+--- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/searcher/mod.rs	2019-08-22 11:17:30.020768197 -0700
++++ rustc-1.37.0-src/vendor/mdbook/src/theme/searcher/mod.rs	2019-08-22 11:17:30.020768197 -0700
 @@ -2,5 +2,3 @@
  //! the "search" cargo feature is disabled.
  
- pub static JS: &'static [u8] = include_bytes!("searcher.js");
--pub static MARK_JS: &'static [u8] = include_bytes!("mark.min.js");
--pub static ELASTICLUNR_JS: &'static [u8] = include_bytes!("elasticlunr.min.js");
+ pub static JS: &[u8] = include_bytes!("searcher.js");
+-pub static MARK_JS: &[u8] = include_bytes!("mark.min.js");
+-pub static ELASTICLUNR_JS: &[u8] = include_bytes!("elasticlunr.min.js");
