@@ -45,6 +45,7 @@ vendor/pulldown-cmark/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark/specs/footnotes.txt
 vendor/pulldown-cmark-*/tests/footnotes.rs
 vendor/pulldown-cmark-*/specs/footnotes.txt
+vendor/rustc-demangle/src/legacy.rs
 vendor/stable_deref_trait/src/lib.rs
 vendor/unicase/src/lib.rs
 vendor/winapi-*/src/winnt.rs
@@ -112,6 +113,7 @@ src/doc/book/2018-edition/src/img/ferris/*.svg
 src/doc/book/2018-edition/src/img/*.svg
 src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
+src/doc/rustc-guide/src/img/rustc_stages.svg
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
 src/librustdoc/html/static/favicon.ico
