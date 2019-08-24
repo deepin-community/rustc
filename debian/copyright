@@ -24,20 +24,6 @@ Files-Excluded:
  src/tools/remote-test-server
  src/tools/rustfmt
  src/tools/miri
-# Extraneous stuff from compiler-rt that's not needed by Rust
- vendor/compiler_builtins/compiler-rt/cmake
- vendor/compiler_builtins/compiler-rt/docs
- vendor/compiler_builtins/compiler-rt/include
- vendor/compiler_builtins/compiler-rt/lib/*san
- vendor/compiler_builtins/compiler-rt/lib/fuzzer
- vendor/compiler_builtins/compiler-rt/lib/interception
- vendor/compiler_builtins/compiler-rt/lib/profile
- vendor/compiler_builtins/compiler-rt/lib/sanitizer_common
- vendor/compiler_builtins/compiler-rt/lib/scudo
- vendor/compiler_builtins/compiler-rt/lib/xray
- vendor/compiler_builtins/compiler-rt/test
- vendor/compiler_builtins/compiler-rt/unittests
- vendor/compiler_builtins/compiler-rt/www
 # Embedded C libraries
  vendor/libz-sys/src/zlib*
  vendor/lzma-sys*/xz-*
@@ -234,15 +220,6 @@ Files: vendor/compiler_builtins/*
 Copyright: 2016-2019 Jorge Aparicio <japaricious@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/rust-lang-nursery/compiler-builtins
-
-Files: vendor/compiler_builtins/compiler-rt/*
-Copyright: 2009-2015 Howard Hinnant
-           2009-2015 The CompileRT Developers (see src/compiler-rt/CREDITS.TXT)
-License: BSD-3-clause or MIT
-
-Files: vendor/compiler_builtins/compiler-rt/lib/BlocksRuntime/*
-Copyright: 2008-2010 Apple, Inc.
-License: MIT
 
 Files: src/librustdoc/html/static/FiraSans*
 Copyright: 2014, Mozilla Foundation, 2014, Telefonica S.A.

@@ -1,6 +1,7 @@
 rustc (1.37.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
 
   * New upstream release.
+  * Use system compiler-rt.
 
  -- Ximin Luo <infinity0@debian.org>  Fri, 23 Aug 2019 03:57:40 -0700
 
