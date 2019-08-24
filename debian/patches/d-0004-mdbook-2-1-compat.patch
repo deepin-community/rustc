@@ -1,7 +1,5 @@
-Index: rustc-1.37.0-src/src/tools/rustbook/src/main.rs
-===================================================================
---- rustc-1.37.0-src.orig/src/tools/rustbook/src/main.rs	2019-08-22 11:40:06.139742286 -0700
-+++ rustc-1.37.0-src/src/tools/rustbook/src/main.rs	2019-08-22 11:40:06.131742277 -0700
+--- a/src/tools/rustbook/src/main.rs
++++ b/src/tools/rustbook/src/main.rs
 @@ -7,9 +7,6 @@
  
  use clap::{App, ArgMatches, SubCommand, AppSettings};
@@ -59,10 +57,8 @@ Index: rustc-1.37.0-src/src/tools/rustbook/src/main.rs
  pub fn build(args: &ArgMatches<'_>) -> Result<()> {
      let book_dir = get_book_dir(args);
      let mut book = MDBook::load(&book_dir)?;
-Index: rustc-1.37.0-src/src/tools/rustbook/Cargo.toml
-===================================================================
---- rustc-1.37.0-src.orig/src/tools/rustbook/Cargo.toml	2019-08-22 11:40:06.139742286 -0700
-+++ rustc-1.37.0-src/src/tools/rustbook/Cargo.toml	2019-08-22 11:40:06.131742277 -0700
+--- a/src/tools/rustbook/Cargo.toml
++++ b/src/tools/rustbook/Cargo.toml
 @@ -12,9 +12,3 @@
  version = "0.3.0"
  default-features = false
@@ -73,10 +69,8 @@ Index: rustc-1.37.0-src/src/tools/rustbook/Cargo.toml
 -version = "0.1.7"
 -default-features = false
 -features = ["search"]
-Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:40:06.139742286 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:40:06.131742277 -0700
+--- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
++++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 @@ -10,6 +10,7 @@
  use std::collections::HashMap;
  use std::fs;
@@ -94,10 +88,8 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
              ctx.data.insert("chapter_title".to_owned(), json!(ch.name));
              ctx.data.insert("title".to_owned(), json!(title));
              ctx.data.insert(
-Index: rustc-1.37.0-src/vendor/mdbook/src/utils/mod.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/utils/mod.rs	2019-08-22 11:40:06.139742286 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/utils/mod.rs	2019-08-23 03:09:24.893540174 -0700
+--- a/vendor/mdbook/src/utils/mod.rs
++++ b/vendor/mdbook/src/utils/mod.rs
 @@ -4,6 +4,8 @@
  mod string;
  use crate::errors::Error;
@@ -121,7 +113,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/utils/mod.rs
              // This is a relative link, adjust it as necessary.
              let mut fixed_link = String::new();
              if !base.is_empty() {
-@@ -88,6 +92,25 @@
+@@ -88,6 +92,27 @@
                      fixed_link.push_str(anchor.as_str());
                  }
              } else {
@@ -141,6 +133,8 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/utils/mod.rs
 +                        }
 +
 +                        return CowStr::from(html_link);
++                    } else {
++                        return dest;
 +                    }
 +                }
 +
