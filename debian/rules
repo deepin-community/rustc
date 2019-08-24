@@ -128,6 +128,10 @@ SRC_CLEAN = src/bootstrap/bootstrap.pyc \
 ifeq (0,$(shell test $$(uname -s) = "Linux" -a $$(getconf PAGESIZE) -gt 4096; echo $$?))
   SYSTEM_WORKAROUNDS += ulimit -s $$(expr $$(getconf PAGESIZE) / 1024 '*' 256 + 8192);
 endif
+# Try to work around #933045
+ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel))
+  SYSTEM_WORKAROUNDS += export MALLOC_ARENA_MAX=1;
+endif
 
 %:
 	$(SYSTEM_WORKAROUNDS) dh $@ --parallel
