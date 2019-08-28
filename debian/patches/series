@@ -6,6 +6,7 @@ u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
 u-mips-fixes.diff
+u-allow-system-compiler-rt.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-reproducible-dl-stage0.patch
