@@ -6,7 +6,7 @@ u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
 u-mips-fixes.diff
-u-allow-system-compiler-rt.patch
+#u-allow-system-compiler-rt.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-reproducible-dl-stage0.patch
@@ -19,7 +19,7 @@ d-0002-pkg-config-no-special-snowflake.patch
 d-0003-mdbook-strip-embedded-libs.patch
 d-0004-mdbook-2-1-compat.patch
 # Other patches needed by the full Debian build
-d-use-system-compiler-rt.patch
+#d-use-system-compiler-rt.patch
 d-ignore-error-detail-diff.patch
 d-disable-cargo-vendor.patch
 d-rust-gdb-paths
