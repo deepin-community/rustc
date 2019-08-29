@@ -9,7 +9,7 @@ cargo = "RUST_DESTDIR/usr/bin/cargo"
 
 build = "DEB_BUILD_RUST_TYPE"
 host = ["DEB_HOST_RUST_TYPE"]
-target = ["DEB_TARGET_RUST_TYPE"]
+target = ["wasm32-unknown-unknown", "DEB_TARGET_RUST_TYPE"]
 
 #full-bootstrap = true
 # originally needed to work around #45317 but no longer necessary

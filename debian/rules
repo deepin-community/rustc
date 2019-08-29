@@ -173,7 +173,7 @@ debian/rust-src.%: debian/rust-src.%.in
 
 debian/dh_auto_configure.stamp: debian/config.toml
 	# fail the build if we have any instances of OLD_LLVM_VERSION in debian, except for debian/changelog
-	! grep --color=always -i 'll...\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' -R debian
+	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' -R debian
 	# fail the build if our version contains ~exp and we are not releasing to experimental
 	v="$(DEB_VERSION)"; test "$$v" = "$${v%~exp*}" -o "$(DEB_DISTRIBUTION)" = "experimental" -o "$(DEB_DISTRIBUTION)" = "UNRELEASED"
 	$(PRECONFIGURE_CHECK)
@@ -201,13 +201,11 @@ override_dh_auto_clean:
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/rust-src.install debian/rust-src.links debian/*.stamp
 	$(RM) -rf $(SRC_CLEAN) config.toml
 
-override_dh_auto_build-arch:
+debian/dh_auto_build.stamp:
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS)
 
-# note: this is only for buildds that want to do a separate arch:all build;
-# there is no point running this yourself "to save time" since it implicitly
-# depends on build-arch anyways.
-override_dh_auto_build-indep:
+override_dh_auto_build-arch: debian/dh_auto_build.stamp
+override_dh_auto_build-indep: debian/dh_auto_build.stamp
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
 endif
@@ -318,6 +316,7 @@ override_dh_install-arch:
 
 override_dh_install-indep: debian/rust-src.install debian/rust-src.links
 	dh_install
+	dh_install -plibstd-rust-dev-wasm32-cross usr/lib/rustlib/wasm32-*/lib/
 	chmod -x \
 	  debian/rust-gdb/usr/share/rust-gdb/*.py \
 	  debian/rust-lldb/usr/share/rust-lldb/*.py
@@ -350,12 +349,12 @@ override_dh_compress:
 
 override_dh_strip:
 	# Work around #35733, #468333
-	find debian/libstd-rust-dev/ -name '*.rlib' -execdir mv '{}' '{}.a' \;
+	find debian/libstd-rust-dev*/ -name '*.rlib' -execdir mv '{}' '{}.a' \;
 	# This is expected to print out lots of "File format unrecognized" warnings about
 	# rust.metadata.bin and *.deflate but the .o files inside the rlibs should be stripped
 	# Some files are still omitted because of #875780 however.
 	dh_strip -v
-	find debian/libstd-rust-dev/ -name '*.rlib.a' -execdir sh -c 'mv "$$1" "$${1%.a}"' - '{}' \;
+	find debian/libstd-rust-dev*/ -name '*.rlib.a' -execdir sh -c 'mv "$$1" "$${1%.a}"' - '{}' \;
 
 override_dh_makeshlibs:
 	dh_makeshlibs -V
