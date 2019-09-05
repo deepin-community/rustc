@@ -1,3 +1,10 @@
+rustc (1.37.0+dfsg1-1) UNRELEASED; urgency=medium
+
+  * Upload to unstable.
+  * Fix a typo in debian/rules regex causing FTBFS on some arches.
+
+ -- Ximin Luo <infinity0@debian.org>  Thu, 05 Sep 2019 00:05:26 -0700
+
 rustc (1.37.0+dfsg1-1~exp2) experimental; urgency=medium
 
   * Support cross-compiling to wasm32. (Closes: #903110)

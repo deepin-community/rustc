@@ -163,9 +163,9 @@ debian/config.toml: debian/config.toml.in debian/rules
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \
 	  then sed -i -e '/^rustc = /d' -e '/^cargo = /d' "$@"; fi
 # Work around low-memory (32-bit) architectures: https://github.com/rust-lang/rust/issues/45854
-ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
-	sed -i -e 's/^debuginfo-level = /debuginfo-level = 0/g' "$@"
-endif
+#ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
+	sed -i -e 's/^debuginfo-level = .*/debuginfo-level = 0/g' "$@"
+#endif
 
 debian/rust-src.%: debian/rust-src.%.in
 	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
