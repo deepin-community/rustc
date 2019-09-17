@@ -62,8 +62,8 @@ Recommends:
 Suggests:
 # lld and clang are needed for wasm compilation
  lld-14, clang-14,
-Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
-Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
+Replaces: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
+Breaks: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
 Description: Rust systems programming language
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
