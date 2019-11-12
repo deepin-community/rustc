@@ -42,6 +42,7 @@ Build-Depends-Indep:
  wasi-libc (>= 0.0~git20220510.9886d3d~~) <!nowasm>,
  wasi-libc (<= 0.0~git20220510.9886d3d++) <!nowasm>,
  clang-14:native,
+ libssl-dev,
 Build-Conflicts: gdb-minimal (<< 8.1-0ubuntu6) <!nocheck>
 Standards-Version: 4.2.1
 Homepage: http://www.rust-lang.org/
