@@ -213,7 +213,7 @@ Files: C*.md
        src/rt*
        src/rust*
        src/stage0.txt
-       src/stdsimd/*
+       src/stdarch/*
        src/tools/*
        src/test/*
        version
@@ -304,19 +304,24 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/servo/
 
 Files:
+ vendor/getrandom/*
  vendor/rand/*
  vendor/rand-0*/*
- vendor/rand_core/*
  vendor/rand_chacha/*
+ vendor/rand_chacha-0*/*
+ vendor/rand_core/*
  vendor/rand_core-0*/*
  vendor/rand_hc/*
+ vendor/rand_hc-0*/*
  vendor/rand_isaac/*
  vendor/rand_pcg/*
  vendor/rand_xorshift/*
+ vendor/rand_xorshift-0*/*
 Copyright: 2010-2019 The Rand Project Developers
            2010-2019 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment:
+ see https://github.com/rust-random/getrandom
  see https://github.com/rust-random/rand
  see https://github.com/rust-random/small-rngs
 
@@ -443,6 +448,13 @@ License: MIT
 Comment: see https://github.com/oli-obk/log_settings
 
 Files:
+ vendor/c2-chacha/*
+ vendor/ppv-lite86/*
+Copyright: 2019-2019 The CryptoCorrosion Contributors
+License: MIT or Apache-2.0
+Comment: see https://github.com/cryptocorrosion/cryptocorrosion
+
+Files:
  vendor/chalk-engine/*
  vendor/chalk-macros/*
 Copyright: 2015-2018 Rust Compiler Team
@@ -472,13 +484,17 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/srijs/rust-crc32fast
 
 Files:
+ vendor/crossbeam-channel/*
  vendor/crossbeam-deque/*
  vendor/crossbeam-deque-0*/*
+ vendor/crossbeam-epoch/*
  vendor/crossbeam-epoch-0*/*
+ vendor/crossbeam-queue/*
+ vendor/crossbeam-utils/*
  vendor/crossbeam-utils-0*/*
-Copyright: 2017-2018 The Crossbeam Project Developers
+Copyright: 2015-2019 The Crossbeam Project Developers
 License: MIT or Apache-2.0
-Comment: see https://github.com/crossbeam-rs/crossbeam-deque
+Comment: see https://github.com/crossbeam-rs
 
 Files:
  vendor/darling/*
@@ -524,6 +540,7 @@ Files: vendor/arrayvec/*
        vendor/nodrop/*
        vendor/ordermap/*
        vendor/scopeguard/*
+       vendor/scopeguard-0*/*
 Copyright: 2014-2019 bluss
 License: MIT or Apache-2.0
 Comment: see https://github.com/bluss/rust-itertools
@@ -628,10 +645,14 @@ Copyright: 2017-2019 Ted Driggs <ted.driggs@outlook.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/TedDriggs/ident_case
 
-Files: vendor/idna/*
-       vendor/percent-encoding/*
-       vendor/url/*
-Copyright: 2013-2017 The rust-url developers
+Files:
+ vendor/idna/*
+ vendor/idna-0*/*
+ vendor/percent-encoding/*
+ vendor/percent-encoding-1*/*
+ vendor/url/*
+ vendor/url-1*/*
+Copyright: 2013-2019 The rust-url developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/rust-url/
 
@@ -679,8 +700,10 @@ Copyright: 2015-2018 Dan Burkert <dan@danburkert.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/danburkert/memmap-rs
 
-Files: vendor/memoffset/*
-Copyright: 2017-2018 Gilad Naaman <gilad.naaman@gmail.com>
+Files:
+ vendor/memoffset/*
+ vendor/memoffset-0*/*
+Copyright: 2017-2019 Gilad Naaman <gilad.naaman@gmail.com>
 License: MIT
 Comment: see https://github.com/Gilnaa/memoffset
 
@@ -893,6 +916,7 @@ Comment: see https://github.com/matthiasbeyer/toml-query
 
 Files:
  vendor/hashbrown/*
+ vendor/hashbrown-0*/*
  vendor/lock_api/*
  vendor/thread_local/*
  vendor/parking_lot/*

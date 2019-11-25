@@ -1,1 +1,4 @@
-rustc source: source-is-missing src/stdsimd/crates/stdsimd-verify/arm-intrinsics.html line length is * characters (>*)
+# Long documentation
+rustc source: source-is-missing src/stdarch/crates/stdarch-verify/arm-intrinsics.html line length is * characters (>*)
+# Test data
+rustc source: source-is-missing vendor/minifier/tests/files/minified_main.js line length is * characters (>*)
