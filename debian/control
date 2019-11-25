@@ -10,8 +10,8 @@ Build-Depends: debhelper (>= 9),
                dpkg-dev (>= 1.17.14),
                python:native,
                cargo:native (>= 0.31.0)      <!pkg.rustc.dlstage0>,
-               rustc:native (>= 1.36.0+dfsg) <!pkg.rustc.dlstage0>,
-               rustc:native (<= 1.37.0++)    <!pkg.rustc.dlstage0>,
+               rustc:native (>= 1.37.0+dfsg) <!pkg.rustc.dlstage0>,
+               rustc:native (<= 1.38.0++)    <!pkg.rustc.dlstage0>,
                llvm-8-dev:native,
                llvm-8-tools:native,
                libllvm8,
@@ -49,7 +49,7 @@ Multi-Arch: allowed
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
-Recommends: cargo (>= 0.38.0~~), cargo (<< 0.39.0~~), rust-gdb | rust-lldb
+Recommends: cargo (>= 0.39.0~~), cargo (<< 0.40.0~~), rust-gdb | rust-lldb
 Suggests: rust-doc, rust-src, lld-8
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
@@ -66,7 +66,7 @@ Description: Rust systems programming language
  generic programming and meta-programming, in both static and dynamic
  styles.
 
-Package: libstd-rust-1.37
+Package: libstd-rust-1.38
 Section: libs
 Architecture: any
 Multi-Arch: same
@@ -91,7 +91,7 @@ Package: libstd-rust-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-1.37 (= ${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-1.38 (= ${binary:Version})
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -152,7 +152,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-8, ${misc:Depends}, python-lldb-8
+Depends: lldb-8, ${misc:Depends}, python3-lldb-8
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It

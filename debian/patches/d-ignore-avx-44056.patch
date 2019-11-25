@@ -4,7 +4,7 @@ Index: rustc/src/test/ui/issues/issue-44056.rs
 --- rustc.orig/src/test/ui/issues/issue-44056.rs
 +++ rustc/src/test/ui/issues/issue-44056.rs
 @@ -1,5 +1,5 @@
- // compile-pass
+ // build-pass (FIXME(62277): could be check-pass?)
 -// only-x86_64
 +// ignore-test
  // no-prefer-dynamic
