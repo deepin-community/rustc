@@ -196,6 +196,7 @@ override_dh_auto_configure-indep: debian/dh_auto_configure.stamp
 ifeq (true,$(BUILD_DOCS))
 # Change config.toml now and not later, since that might trigger a rebuild
 	sed -i -e 's/^docs = false/docs = true/' debian/config.toml
+	sed -i -e 's/^target = \["\(.*\)"\]/target = ["\1", "wasm32-unknown-unknown"]/' debian/config.toml
 endif
 
 override_dh_auto_clean:
