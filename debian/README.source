@@ -134,8 +134,16 @@ $ apt install equivs python3-magic
 $ sudo mk-build-deps -irt 'aptitude -R'
 $ uscan --verbose                       # or debian/rules source_orig-beta, for beta
 $ ver=UPDATE-ME                         # whatever it is, probably X.YY.Z or X.YY.Z~beta.N
+
 $ tar xf ../rustc-${ver/\~/-}-src.tar.xz && ( cd rustc-${ver/*~*/beta}-src/ && pwd && ../debian/prune-unused-deps ) && rm -rf rustc-${ver/*~*/beta}-src/
 # ^ If this fails, you probably need to refresh the patches used by debian/prune-unused-deps
+$ git diff
+# Review the diff. If it removes too much stuff, it could mean that rustc
+# pulled in new unnecessary dependencies in this newer version. See if you can
+# drop them by amending the patch "d-0000-ignore-removed-submodules.patch".
+# Rerun the above "tar ..." commands again and check that your patch works.
+# For example, there is absolutely no reason why rustc should need openssl.
+
 $ git commit -m "Update Files-Excluded for new upstream version ${ver/\~/-}" debian/copyright
 $ uscan --verbose                       # yes, again, to pick up the new Files-Excluded stuff
                                         # or debian/rules source_orig-beta, for beta
