@@ -85,8 +85,8 @@ vendor/walkdir/compare/nftw.c
 vendor/walkdir-*/compare/nftw.c
 
 # False-positive, misc
-src/stdsimd/.travis.yml
-src/stdsimd/crates/core_arch/foo.wasm
+src/stdarch/.travis.yml
+src/stdarch/crates/core_arch/foo.wasm
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
 vendor/clap/.mention-bot
@@ -131,10 +131,10 @@ vendor/termion/logo.svg
 vendor/html5ever/examples/capi/tokenize.c
 
 # Test data
-src/stdsimd/ci/gba.json
-src/stdsimd/crates/stdsimd-verify/arm-intrinsics.html
-src/stdsimd/crates/stdsimd-verify/x86-intel.xml
-src/stdsimd/crates/std_detect/src/detect/test_data/*.auxv
+src/stdarch/ci/gba.json
+src/stdarch/crates/stdarch-verify/arm-intrinsics.html
+src/stdarch/crates/stdarch-verify/x86-intel.xml
+src/stdarch/crates/std_detect/src/detect/test_data/*.auxv
 src/test/compile-fail/not-utf8.bin
 src/test/*/*.rs
 src/test/*/issues/*.rs
@@ -149,11 +149,17 @@ vendor/elasticlunr-rs/tests/data/tr.in.txt
 vendor/flate2/tests/*.gz
 vendor/idna/tests/IdnaTest.txt
 vendor/idna/tests/punycode_tests.json
+vendor/idna-0*/tests/IdnaTest.txt
+vendor/idna-0*/tests/punycode_tests.json
 vendor/html5ever/data/bench/*.html
 vendor/html5ever/html5lib-tests/*/*.dat
 vendor/html5ever/html5lib-tests/*/*.test
 vendor/libz-sys/src/smoke.c
+vendor/mdbook/src/theme/searcher/searcher.js
+vendor/mdbook/tests/searchindex_fixture.json
 vendor/minifier/tests/files/test.json
+vendor/minifier/tests/files/main.js
+vendor/minifier/tests/files/minified_main.js
 vendor/pest/benches/data.json
 vendor/pretty_assertions/src/format_changeset.rs
 vendor/regex/src/testdata/basic.dat
@@ -168,6 +174,7 @@ vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
 vendor/url/tests/*.json
+vendor/url-1*/tests/*.json
 vendor/yaml-rust/tests/specexamples.rs.inc
 
 # Compromise, ideally we'd autogenerate these
