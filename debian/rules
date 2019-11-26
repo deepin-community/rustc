@@ -196,7 +196,6 @@ override_dh_auto_configure-indep: debian/dh_auto_configure.stamp
 ifeq (true,$(BUILD_DOCS))
 # Change config.toml now and not later, since that might trigger a rebuild
 	sed -i -e 's/^docs = false/docs = true/' debian/config.toml
-	sed -i -e 's/^target = \["\(.*\)"\]/target = ["\1", "wasm32-unknown-unknown"]/' debian/config.toml
 endif
 
 override_dh_auto_clean:
@@ -209,6 +208,7 @@ debian/dh_auto_build.stamp:
 
 override_dh_auto_build-arch: debian/dh_auto_build.stamp
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
+	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
 endif
@@ -237,9 +237,7 @@ override_dh_auto_test-arch:
 	done
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	# TODO: eventually, drop --target $(DEB_HOST_RUST_TYPE) and run tests for
-	# all targets including e.g. wasm32-unknown-unknown
-	{ $(RUSTBUILD_TEST) --no-fail-fast --target $(DEB_HOST_RUST_TYPE) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS); echo $$?; } | tee -a $(TEST_LOG)
+	{ $(RUSTBUILD_TEST) --no-fail-fast $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS); echo $$?; } | tee -a $(TEST_LOG)
 	# test that the log has at least 1 pass, to prevent e.g. #57709
 	grep -l "^test .* \.\.\. ok$$" $(TEST_LOG)
 	echo "==== Debian rustc test report ===="; \
@@ -266,12 +264,14 @@ endif
 endif
 
 override_dh_auto_test-indep:
-ifeq (true,$(BUILD_DOCS))
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	# TODO: test wasm32-unknown-unknown but it doesn't yet work
+ifeq (true,$(BUILD_DOCS))
 	# Run all rules that test the docs, i.e. in step.rs that depend on default:doc
 	$(RUSTBUILD_TEST) --no-fail-fast src/tools/linkchecker $(RUSTBUILD_FLAGS)
 endif
+	test -z "$(RUSTBUILD_TEST_FLAGS)"
 endif
 endif
 
@@ -298,6 +298,7 @@ debian/dh_auto_install.stamp:
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
+	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 ifeq (true,$(BUILD_DOCS))
 	# Brute force to remove privacy-breach-logo lintian warning.
 	# We could have updated the upstream sources but it would complexify
