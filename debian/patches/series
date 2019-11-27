@@ -1,7 +1,6 @@
 # Patches for upstream
 
 # pending, or forwarded
-u-fix-cross-compiling-1.35-1.34-stage0.patch
 u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
@@ -18,7 +17,6 @@ d-0000-ignore-removed-submodules.patch
 d-0001-disable-miniz.patch
 d-0002-pkg-config-no-special-snowflake.patch
 d-0003-mdbook-strip-embedded-libs.patch
-d-0005-cargo-0.37-compat.patch
 # Other patches needed by the full Debian build
 #d-use-system-compiler-rt.patch
 d-ignore-error-detail-diff.patch
