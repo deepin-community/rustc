@@ -6,17 +6,21 @@ set -e
 
 scriptdir=$(dirname "$(dirname "$(readlink -f "$0")")")
 had_config_toml=$(if test -e "$scriptdir/debian/config.toml"; then echo true; else echo false; fi)
-( cd "$scriptdir" && debian/rules debian/config.toml )
 
+( cd "$scriptdir" && debian/rules debian/config.toml )
 cp "$scriptdir/debian/config.toml" config.toml
+
 for i in "$scriptdir/debian/patches"/d-00*.patch; do
 	"$scriptdir/debian/ensure-patch" -N "$i"
 done
 test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
+rm -f Cargo.lock
 ./x.py build nonexistent/path/to/trigger/cargo/metadata src/bootstrap
 
 not_needed() {
-	diff -ru Cargo.lock.orig Cargo.lock | grep '^-"checksum' | cut '-d ' -f2-3
+	diff -ru Cargo.lock.orig Cargo.lock \
+	  | sed -z 's/\n-version/-version/g' \
+	  | sed -ne 's/-name = "\(.*\)"-version = "\(.*\)"/\1 \2/gp'
 }
 
 ghetto_parse_cargo() {

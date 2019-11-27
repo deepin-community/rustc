@@ -27,7 +27,7 @@ Forwarded: not-needed
    "src/tools/rustdoc-themes",
  ]
  exclude = [
-@@ -46,28 +39,9 @@
+@@ -46,29 +39,10 @@
  debug = false
  debug-assertions = false
  
@@ -53,6 +53,7 @@ Forwarded: not-needed
  # here
  rustc-std-workspace-core = { path = 'src/tools/rustc-std-workspace-core' }
  rustc-std-workspace-alloc = { path = 'src/tools/rustc-std-workspace-alloc' }
+ rustc-std-workspace-std = { path = 'src/tools/rustc-std-workspace-std' }
 -
 -[patch."https://github.com/rust-lang/rust-clippy"]
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }
