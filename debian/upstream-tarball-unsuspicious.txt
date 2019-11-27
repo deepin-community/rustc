@@ -12,6 +12,7 @@ CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/embedded-book/src/*/*.md
+src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc-guide/.travis.yml
 src/doc/rustc-guide/src/*.md
@@ -34,6 +35,7 @@ vendor/*/*/LICENSE
 vendor/*/*/*/LICENSE
 vendor/ammonia/src/lib.rs
 vendor/clap/.github/CONTRIBUTING.md
+vendor/clap/SPONSORS.md
 # ^ author likes to omit line breaks in their comments
 vendor/failure/book/src/bail-and-ensure.md
 # ^ same with this one
@@ -43,7 +45,8 @@ vendor/lazy_static/src/lib.rs
 vendor/pulldown-cmark/tests/suite/footnotes.rs
 vendor/pulldown-cmark/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark/specs/footnotes.txt
-vendor/pulldown-cmark-*/tests/footnotes.rs
+vendor/pulldown-cmark-*/tests/suite/footnotes.rs
+vendor/pulldown-cmark-*/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark-*/specs/footnotes.txt
 vendor/rustc-demangle/src/legacy.rs
 vendor/stable_deref_trait/src/lib.rs
@@ -140,8 +143,11 @@ src/test/*/*.rs
 src/test/*/issues/*.rs
 src/test/*/*/issues/*.rs
 src/test/*/*.stderr
+src/test/*/*/*.json
 src/test/*/*/*.stderr
+src/test/*/*/*.stdout
 src/test/*/*/*/*.stderr
+src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
