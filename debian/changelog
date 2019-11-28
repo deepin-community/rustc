@@ -1,3 +1,10 @@
+rustc (1.38.0+dfsg1-2) UNRELEASED; urgency=medium
+
+  * Fix building with rustc 1.38.0
+  * Fix building with cargo 0.40.0
+
+ -- Ximin Luo <infinity0@debian.org>  Thu, 28 Nov 2019 23:56:04 +0000
+
 rustc (1.38.0+dfsg1-1) unstable; urgency=medium
 
   * New upstream release.
