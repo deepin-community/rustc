@@ -16,8 +16,8 @@ LOCAL_RUST_VERSION := $(shell rustc --version --verbose | sed -ne 's/^release: /
 include /usr/share/dpkg/buildflags.mk
 # TODO: more correct to use `[build] rustflags = []` list syntax in Cargo.toml
 RUSTFLAGS = $(addprefix -C link-args=,$(LDFLAGS))
+RUSTFLAGS += --cap-lints warn --remap-path-prefix=$(CURDIR)=/usr/src/rustc-$(RUST_LONG_VERSION)
 export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS RUSTFLAGS
-RUSTFLAGS += --remap-path-prefix=$(CURDIR)=/usr/src/rustc-$(RUST_LONG_VERSION)
 export CARGO_HOME = $(CURDIR)/debian/cargo
 ifneq (,$(filter $(DEB_BUILD_ARCH), sparc64))
 export CARGO_INCREMENTAL = 0
