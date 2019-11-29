@@ -1,20 +1,12 @@
 Forwarded: https://github.com/rust-lang/rust/pull/66834
---- a/src/bootstrap/install.rs	2019-08-28 15:06:01.604129028 +0100
-+++ b/src/bootstrap/install.rs	2019-11-26 11:58:58.621443257 +0000
-@@ -260,10 +260,12 @@
-         install_analysis(builder, self.compiler.stage, self.target);
+--- a/src/bootstrap/install.rs
++++ b/src/bootstrap/install.rs
+@@ -260,7 +260,7 @@
      };
      Rustc, "src/librustc", true, only_hosts: true, {
--        builder.ensure(dist::Rustc {
+         builder.ensure(dist::Rustc {
 -            compiler: self.compiler,
--        });
--        install_rustc(builder, self.compiler.stage, self.target);
-+        for host in &builder.hosts {
-+            builder.ensure(dist::Rustc {
-+                compiler: builder.compiler(builder.top_stage, *host),
-+            });
-+            install_rustc(builder, self.compiler.stage, *host);
-+        }
++            compiler: builder.compiler(builder.top_stage, self.target),
+         });
+         install_rustc(builder, self.compiler.stage, self.target);
      };
- );
- 
