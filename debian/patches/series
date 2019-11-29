@@ -9,6 +9,7 @@ u-mips-fixes.diff
 u-fix-cross-compile-install-again.patch
 
 # not forwarded, or forwarded but unlikely to be merged
+u-rustbuild-rustflags.patch
 u-reproducible-dl-stage0.patch
 
 # Debian-specific patches, not suitable for upstream
