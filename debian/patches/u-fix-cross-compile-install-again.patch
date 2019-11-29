@@ -1,3 +1,4 @@
+Forwarded: https://github.com/rust-lang/rust/pull/66834
 --- a/src/bootstrap/install.rs	2019-08-28 15:06:01.604129028 +0100
 +++ b/src/bootstrap/install.rs	2019-11-26 11:58:58.621443257 +0000
 @@ -260,10 +260,12 @@

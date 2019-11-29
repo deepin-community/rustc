@@ -1,11 +1,9 @@
 Description: Ignore error details with $SRC_DIR
  We build with --remap-path-prefix so it doesn't work, see bug below
 Bug: https://github.com/rust-lang/rust/issues/53081
-Index: rustc/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-===================================================================
---- rustc.orig/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-+++ rustc/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-@@ -29,11 +29,6 @@ error[E0643]: method `hash` has incompat
+--- a/src/test/ui/impl-trait/impl-generic-mismatch.stderr
++++ b/src/test/ui/impl-trait/impl-generic-mismatch.stderr
+@@ -29,11 +29,6 @@
     |
  LL |     fn hash(&self, hasher: &mut impl Hasher) {}
     |                                 ^^^^^^^^^^^ expected generic parameter, found `impl Trait`
@@ -17,11 +15,9 @@ Index: rustc/src/test/ui/impl-trait/impl-generic-mismatch.stderr
  
  error: aborting due to 3 previous errors
  
-Index: rustc/src/test/ui/consts/const-size_of-cycle.stderr
-===================================================================
---- rustc.orig/src/test/ui/consts/const-size_of-cycle.stderr
-+++ rustc/src/test/ui/consts/const-size_of-cycle.stderr
-@@ -5,15 +5,7 @@ LL |     bytes: [u8; std::mem::size_of::
+--- a/src/test/ui/consts/const-size_of-cycle.stderr
++++ b/src/test/ui/consts/const-size_of-cycle.stderr
+@@ -10,15 +10,7 @@
  LL |     bytes: [u8; std::mem::size_of::<Foo>()]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
  note: ...which requires const-evaluating `Foo::bytes::{{constant}}#0`...
@@ -36,4 +32,4 @@ Index: rustc/src/test/ui/consts/const-size_of-cycle.stderr
 -   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     = note: ...which requires computing layout of `Foo`...
     = note: ...which requires normalizing `ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: All, def_id: None }, value: [u8; _] }`...
- note: ...which requires const-evaluating + checking `Foo::bytes::{{constant}}#0`...
+    = note: ...which again requires const-evaluating + checking `Foo::bytes::{{constant}}#0`, completing the cycle

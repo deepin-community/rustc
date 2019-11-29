@@ -1,10 +1,10 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -620,6 +620,8 @@
-             (os.pathsep + env["LIBRARY_PATH"]) \
-             if "LIBRARY_PATH" in env else ""
-         env["RUSTFLAGS"] += " -Cdebuginfo=2 "
+@@ -632,6 +632,8 @@
+         # preserve existing RUSTFLAGS
+         env.setdefault("RUSTFLAGS", "")
+         env["RUSTFLAGS"] += " -Cdebuginfo=2"
 +        if self.build_triple().startswith('mips'):
 +            env["RUSTFLAGS"] += "-Cllvm-args=-mxgot "
  
