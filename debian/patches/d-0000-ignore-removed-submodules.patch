@@ -59,7 +59,7 @@ Forwarded: not-needed
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -641,10 +641,6 @@
+@@ -656,10 +656,6 @@
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -72,7 +72,16 @@ Forwarded: not-needed
      def build_triple(self):
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -1207,10 +1207,7 @@
+@@ -453,8 +453,6 @@
+                 dist::Miri,
+                 dist::LlvmTools,
+                 dist::Lldb,
+-                dist::Extended,
+-                dist::HashSign
+             ),
+             Kind::Install => describe!(
+                 install::Docs,
+@@ -1212,10 +1210,7 @@
              }
          }
  
@@ -122,9 +131,9 @@ Forwarded: not-needed
  
  [dependencies.mdbook]
  version = "0.3.0"
---- a/src/bootstrap/test.rs	2019-11-25 21:39:11.303599866 +0000
-+++ b/src/bootstrap/test.rs	2019-11-25 23:02:08.552307954 +0000
-@@ -1589,14 +1589,14 @@
+--- a/src/bootstrap/test.rs
++++ b/src/bootstrap/test.rs
+@@ -1580,14 +1580,14 @@
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -147,9 +156,9 @@ Forwarded: not-needed
      }
  }
  
---- a/src/bootstrap/tool.rs	2019-11-25 21:39:11.303599866 +0000
-+++ b/src/bootstrap/tool.rs	2019-11-25 23:06:09.375968684 +0000
-@@ -280,14 +280,14 @@
+--- a/src/bootstrap/tool.rs
++++ b/src/bootstrap/tool.rs
+@@ -276,14 +276,14 @@
  }
  
  fn rustbook_features() -> Vec<String> {
