@@ -42,7 +42,7 @@ LD_LIBRARY_PATH := $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):$(LLVM_LIBRARY_PAT
 export LD_LIBRARY_PATH
 endif
 
-RUSTBUILD = RUST_BACKTRACE=1 ./x.py
+RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py
 RUSTBUILD_FLAGS = --config debian/config.toml -vvv --on-fail env
 # TODO: This should simply be "$(RUSTBUILD) test" but unfortunately this causes
 # an insane blow up in the time it takes to run tests. See upstream #37477 for
@@ -50,7 +50,7 @@ RUSTBUILD_FLAGS = --config debian/config.toml -vvv --on-fail env
 # advantage of that work-around, because we want as much debuginfo as possible
 # (so we set debuginfo-lines = true, debuginfo-only-std = false) so we have to
 # work around it instead by disabling backtrace when running tests.
-RUSTBUILD_TEST = ./x.py test
+RUSTBUILD_TEST = python3 src/bootstrap/bootstrap.py test
 # To run a specific test, run something like:
 #   $ debian/rules override_dh_auto_test-arch \
 #     RUSTBUILD_TEST_FLAGS="src/test/run-make --test-args extern-fn-struct"

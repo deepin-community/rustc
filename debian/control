@@ -8,7 +8,7 @@ Uploaders:
 # :native annotations are to support cross-compiling, see README.Debian
 Build-Depends: debhelper (>= 9),
                dpkg-dev (>= 1.17.14),
-               python:native,
+               python3:native,
                cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
                rustc:native (>= 1.38.0+dfsg) <!pkg.rustc.dlstage0>,
                rustc:native (<= 1.39.0++)    <!pkg.rustc.dlstage0>,
