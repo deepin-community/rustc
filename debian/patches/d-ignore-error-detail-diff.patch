@@ -33,3 +33,216 @@ Bug: https://github.com/rust-lang/rust/issues/53081
     = note: ...which requires computing layout of `Foo`...
     = note: ...which requires normalizing `ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: All, def_id: None }, value: [u8; _] }`...
     = note: ...which again requires const-evaluating + checking `Foo::bytes::{{constant}}#0`, completing the cycle
+--- a/src/test/ui/async-await/issues/issue-62009-1.stderr
++++ b/src/test/ui/async-await/issues/issue-62009-1.stderr
+@@ -32,11 +32,6 @@
+    |
+ LL |     (|_| 2333).await;
+    |     ^^^^^^^^^^^^^^^^ the trait `std::future::Future` is not implemented for `[closure@$DIR/issue-62009-1.rs:14:5: 14:15]`
+-   | 
+-  ::: $SRC_DIR/libstd/future.rs:LL:COL
+-   |
+-LL |     F: Future
+-   |        ------ required by this bound in `std::future::poll_with_tls_context`
+ 
+ error: aborting due to 4 previous errors
+ 
+--- a/src/test/ui/closures/closure-move-sync.stderr
++++ b/src/test/ui/closures/closure-move-sync.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     let t = thread::spawn(|| {
+    |             ^^^^^^^^^^^^^ `std::sync::mpsc::Receiver<()>` cannot be shared between threads safely
+-   | 
+-  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
+-   |
+-LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+-   |                          ---- required by this bound in `std::thread::spawn`
+    |
+    = help: the trait `std::marker::Sync` is not implemented for `std::sync::mpsc::Receiver<()>`
+    = note: required because of the requirements on the impl of `std::marker::Send` for `&std::sync::mpsc::Receiver<()>`
+@@ -18,11 +13,6 @@
+    |
+ LL |     thread::spawn(|| tx.send(()).unwrap());
+    |     ^^^^^^^^^^^^^ `std::sync::mpsc::Sender<()>` cannot be shared between threads safely
+-   | 
+-  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
+-   |
+-LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+-   |                          ---- required by this bound in `std::thread::spawn`
+    |
+    = help: the trait `std::marker::Sync` is not implemented for `std::sync::mpsc::Sender<()>`
+    = note: required because of the requirements on the impl of `std::marker::Send` for `&std::sync::mpsc::Sender<()>`
+--- a/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
++++ b/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |      x: Error
+    |      ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+--- a/src/test/ui/derives/derives-span-Hash-enum.stderr
++++ b/src/test/ui/derives/derives-span-Hash-enum.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |      Error
+    |      ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+--- a/src/test/ui/derives/derives-span-Hash-struct.stderr
++++ b/src/test/ui/derives/derives-span-Hash-struct.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     x: Error
+    |     ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+--- a/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
++++ b/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     Error
+    |     ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+--- a/src/test/ui/interior-mutability/interior-mutability.stderr
++++ b/src/test/ui/interior-mutability/interior-mutability.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     catch_unwind(|| { x.set(23); });
+    |     ^^^^^^^^^^^^ `std::cell::UnsafeCell<i32>` may contain interior mutability and a reference may not be safely transferrable across a catch_unwind boundary
+-   | 
+-  ::: $SRC_DIR/libstd/panic.rs:LL:COL
+-   |
+-LL | pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
+-   |                                        ---------- required by this bound in `std::panic::catch_unwind`
+    |
+    = help: within `std::cell::Cell<i32>`, the trait `std::panic::RefUnwindSafe` is not implemented for `std::cell::UnsafeCell<i32>`
+    = note: required because it appears within the type `std::cell::Cell<i32>`
+--- a/src/test/ui/issues/issue-21160.stderr
++++ b/src/test/ui/issues/issue-21160.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL | struct Foo(Bar);
+    |            ^^^ the trait `std::hash::Hash` is not implemented for `Bar`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+--- a/src/test/ui/no-send-res-ports.stderr
++++ b/src/test/ui/no-send-res-ports.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     thread::spawn(move|| {
+    |     ^^^^^^^^^^^^^ `std::rc::Rc<()>` cannot be sent between threads safely
+-   | 
+-  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
+-   |
+-LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
+-   |                          ---- required by this bound in `std::thread::spawn`
+    |
+    = help: within `[closure@$DIR/no-send-res-ports.rs:27:19: 31:6 x:main::Foo]`, the trait `std::marker::Send` is not implemented for `std::rc::Rc<()>`
+    = note: required because it appears within the type `Port<()>`
+--- a/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
++++ b/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
+@@ -5,11 +5,6 @@
+ LL | |     "0".parse()
+ LL | | }
+    | |_^ `main` can only return types that implement `std::process::Termination`
+-   | 
+-  ::: $SRC_DIR/libtest/lib.rs:LL:COL
+-   |
+-LL |   pub fn assert_test_result<T: Termination>(result: T) {
+-   |                                ----------- required by this bound in `test::assert_test_result`
+    |
+    = help: the trait `std::process::Termination` is not implemented for `std::result::Result<f32, std::num::ParseFloatError>`
+ 
+--- a/src/test/ui/traits/trait-suggest-where-clause.stderr
++++ b/src/test/ui/traits/trait-suggest-where-clause.stderr
+@@ -3,11 +3,6 @@
+    |
+ LL |     mem::size_of::<U>();
+    |                    ^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `U`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -18,11 +13,6 @@
+    |
+ LL |     mem::size_of::<Misc<U>>();
+    |     ^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: within `Misc<U>`, the trait `std::marker::Sized` is not implemented for `U`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -60,11 +50,6 @@
+    |
+ LL |     mem::size_of::<[T]>();
+    |                    ^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `[T]`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -74,11 +59,6 @@
+    |
+ LL |     mem::size_of::<[&U]>();
+    |     ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `[&U]`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+--- a/src/test/ui/type_length_limit.stderr
++++ b/src/test/ui/type_length_limit.stderr
+@@ -1,8 +1,4 @@
+ error: reached the type-length limit while instantiating `std::mem::drop::<std::option::Op... G), (G, G, G), (G, G, G))))))>>`
+-  --> $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub fn drop<T>(_x: T) { }
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: consider adding a `#![type_length_limit="1094"]` attribute to your crate
+ 
