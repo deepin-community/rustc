@@ -1,3 +1,9 @@
+rustc (1.39.0+dfsg1-3) UNRELEASED; urgency=medium
+
+  * Fix mips patch involving mxgot for new RUSTFLAGS behaviour.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 06 Dec 2019 22:14:17 +0000
+
 rustc (1.39.0+dfsg1-2) unstable; urgency=medium
 
   * Include reproducibility patch for compiler-builtins.
