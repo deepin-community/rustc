@@ -12,9 +12,9 @@ Build-Depends: debhelper (>= 9),
                cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
                rustc:native (>= 1.38.0+dfsg) <!pkg.rustc.dlstage0>,
                rustc:native (<= 1.39.0++)    <!pkg.rustc.dlstage0>,
-               llvm-8-dev:native,
-               llvm-8-tools:native,
-               libllvm8,
+               llvm-9-dev:native,
+               llvm-9-tools:native,
+               libllvm9,
                autotools-dev,
                cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
@@ -50,7 +50,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
 Recommends: cargo (>= 0.40.0~~), cargo (<< 0.41.0~~), rust-gdb | rust-lldb
-Suggests: rust-doc, rust-src, lld-8
+Suggests: rust-doc, rust-src, lld-9
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Description: Rust systems programming language
@@ -111,7 +111,7 @@ Description: Rust standard libraries - development files
 Package: libstd-rust-dev-wasm32-cross
 Section: libdevel
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, lld-8
+Depends: ${shlibs:Depends}, ${misc:Depends}, lld-9
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -152,7 +152,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-8, ${misc:Depends}, python3-lldb-8
+Depends: lldb-9, ${misc:Depends}, python3-lldb-9
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It

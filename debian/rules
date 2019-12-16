@@ -33,8 +33,8 @@ export DEB_HOST_RUST_TYPE
 DEB_DESTDIR := $(CURDIR)/debian/tmp
 
 # Use system LLVM (comment out to use vendored LLVM)
-LLVM_VERSION = 8
-OLD_LLVM_VERSION = 7
+LLVM_VERSION = 9
+OLD_LLVM_VERSION = 8
 # Make it easier to test against a custom LLVM
 ifneq (,$(LLVM_DESTDIR))
 LLVM_LIBRARY_PATH := $(LLVM_DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH):$(LLVM_DESTDIR)/usr/lib
@@ -173,7 +173,7 @@ debian/rust-src.%: debian/rust-src.%.in
 
 debian/dh_auto_configure.stamp: debian/config.toml
 	# fail the build if we have any instances of OLD_LLVM_VERSION in debian, except for debian/changelog
-	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' -R debian
+	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' --exclude-dir='.debhelper' -R debian
 	# fail the build if we accidentally vendored openssl, indicates we pulled in unnecessary dependencies
 	test ! -e vendor/openssl
 	# fail the build if we didn't update d-ignore-error-detail-diff.patch
