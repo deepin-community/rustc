@@ -1,8 +1,8 @@
-rustc (1.39.0+dfsg1-4) UNRELEASED; urgency=medium
+rustc (1.39.0+dfsg1-4) unstable; urgency=medium
 
   * Update to LLVM 9. (Closes: #946886)
 
- -- Ximin Luo <infinity0@debian.org>  Mon, 16 Dec 2019 22:33:51 +0000
+ -- Ximin Luo <infinity0@debian.org>  Mon, 23 Dec 2019 03:21:02 +0000
 
 rustc (1.39.0+dfsg1-3) unstable; urgency=medium
 
