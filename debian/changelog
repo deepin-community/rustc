@@ -1,3 +1,9 @@
+rustc (1.40.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Tue, 24 Dec 2019 22:10:01 +0000
+
 rustc (1.39.0+dfsg1-4) unstable; urgency=medium
 
   * Update to LLVM 9. (Closes: #946886)

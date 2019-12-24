@@ -1,7 +1,6 @@
 # Patches for upstream
 
 # pending, or forwarded
-u-0001-Hopefully-fix-rustdoc-build.patch
 u-reproducible-build.patch
 u-prefer-local-css.patch
 u-make-tests-work-without-rpath.patch
