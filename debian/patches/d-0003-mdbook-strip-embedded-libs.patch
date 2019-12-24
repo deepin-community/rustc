@@ -54,7 +54,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
 +use crate::theme::{self, Theme};
  use crate::utils;
  
- use std::collections::BTreeMap;
+ use std::borrow::Cow;
 @@ -110,7 +110,7 @@
          &self,
          destination: &Path,
@@ -167,9 +167,9 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
 +        <script async type="text/javascript" src="../mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
          {{/if}}
      </head>
-     <body class="{{ default_theme }}">
-@@ -46,43 +44,6 @@
-             var default_theme = "{{ default_theme }}";
+     <body>
+@@ -46,46 +44,6 @@
+             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "{{ preferred_dark_theme }}" : "{{ default_theme }}";
          </script>
  
 -        <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -193,8 +193,11 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
 -            var theme;
 -            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
 -            if (theme === null || theme === undefined) { theme = default_theme; }
--            document.body.className = theme;
--            document.querySelector('html').className = theme + ' js';
+-            var html = document.querySelector('html');
+-            html.classList.remove('no-js')
+-            html.classList.remove('{{ default_theme }}')
+-            html.classList.add(theme);
+-            html.classList.add('js');
 -        </script>
 -
 -        <!-- Hide / unhide sidebar before it is displayed -->
@@ -210,9 +213,9 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
 -        </script>
 -
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-             <div class="sidebar-scrollbox">
+             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -211,41 +172,7 @@
+@@ -211,53 +172,7 @@
          </script>
          {{/if}}
  
@@ -232,6 +235,18 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
 -                ga('create', '{{google_analytics}}', 'auto');
 -                ga('send', 'pageview');
 -            }
+-        </script>
+-        {{/if}}
+-
+-        {{#if playpen_line_numbers}}
+-        <script type="text/javascript">
+-            window.playpen_line_numbers = true;
+-        </script>
+-        {{/if}}
+-        
+-        {{#if playpen_copyable}}
+-        <script type="text/javascript">
+-            window.playpen_copyable = true;
 -        </script>
 -        {{/if}}
 -
