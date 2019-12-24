@@ -190,14 +190,12 @@ Files: C*.md
        configure
        config.toml.example
        git-commit-hash
-       src/Cargo.*
        src/README.md
        src/bootstrap/*
        src/build_helper/*
        src/ci/*
        src/doc/*
        src/etc/*
-       src/grammar/*
        src/lib*
        src/rt*
        src/rust*
@@ -221,12 +219,6 @@ Files: src/librustdoc/html/static/FiraSans*
 Copyright: 2014, Mozilla Foundation, 2014, Telefonica S.A.
 License: SIL-OPEN-FONT
 
-Files: src/librustdoc/html/static/Heuristica*
-Copyright: 1989, 1991 Adobe Systems Incorporated,
- 2006 Han The Thanh, Vntopia font family,
- 2008-2012, Andrey V. Panov
-License: SIL-OPEN-FONT
-
 Files: src/librustdoc/html/static/SourceCodePro*
 Copyright: 2010, 2012 Adobe Systems Incorporated
 License: SIL-OPEN-FONT
@@ -248,22 +240,19 @@ Files: src/libstd/sync/mpsc/mpsc_queue.rs
 Copyright: 2010-2011 Dmitry Vyukov
 License: BSD-2-Clause
 
-Files: vendor/bitflags/*
-       vendor/bitflags-0*
-       vendor/cc/*
-       vendor/cmake/*
-       vendor/env_logger/*
-       vendor/env_logger-0*/*
-       vendor/getopts/*
-       vendor/libc/*
-       vendor/log/*
-       vendor/regex/*
-       vendor/regex-0*/*
-       vendor/regex-syntax/*
-       vendor/regex-syntax-0*/*
-       vendor/rustc-hash/*
-       vendor/rustc-serialize/*
-       vendor/time/*
+Files:
+ vendor/bitflags/*
+ vendor/cc/*
+ vendor/cmake/*
+ vendor/env_logger/*
+ vendor/env_logger-0*/*
+ vendor/getopts/*
+ vendor/libc/*
+ vendor/log/*
+ vendor/regex/*
+ vendor/regex-syntax/*
+ vendor/rustc-hash/*
+ vendor/time/*
 Copyright: 2010-2018 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment:
@@ -314,27 +303,26 @@ Comment:
  see https://github.com/rust-random/rand
  see https://github.com/rust-random/small-rngs
 
-Files: vendor/backtrace/*
-       vendor/backtrace-sys/*
-       vendor/cfg-if/*
-       vendor/filetime/*
-       vendor/flate2/*
-       vendor/fnv/*
-       vendor/jobserver/*
-       vendor/libz-sys/*
-       vendor/lzma-sys/*
-       vendor/miow/*
-       vendor/miniz-sys/*
-       vendor/pkg-config/*
-       vendor/proc-macro2/*
-       vendor/proc-macro2-0*/*
-       vendor/rustc-demangle/*
-       vendor/scoped-tls/*
-       vendor/socket2/*
-       vendor/tar/*
-       vendor/toml/*
-       vendor/toml-0*/*
-       vendor/xz2/*
+Files:
+ vendor/backtrace/*
+ vendor/backtrace-sys/*
+ vendor/cfg-if/*
+ vendor/filetime/*
+ vendor/flate2/*
+ vendor/fnv/*
+ vendor/jobserver/*
+ vendor/libz-sys/*
+ vendor/lzma-sys/*
+ vendor/miow/*
+ vendor/pkg-config/*
+ vendor/proc-macro2/*
+ vendor/proc-macro2-0*/*
+ vendor/rustc-demangle/*
+ vendor/scoped-tls/*
+ vendor/socket2/*
+ vendor/tar/*
+ vendor/toml/*
+ vendor/xz2/*
 Copyright: 2014-2019 Alex Crichton <alex@alexcrichton.com>
            2015-2017 The Rust Project Developers
 License: MIT or Apache-2.0
@@ -473,14 +461,10 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/srijs/rust-crc32fast
 
 Files:
- vendor/crossbeam-channel/*
  vendor/crossbeam-deque/*
- vendor/crossbeam-deque-0*/*
  vendor/crossbeam-epoch/*
- vendor/crossbeam-epoch-0*/*
  vendor/crossbeam-queue/*
  vendor/crossbeam-utils/*
- vendor/crossbeam-utils-0*/*
 Copyright: 2015-2019 The Crossbeam Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/crossbeam-rs
@@ -511,7 +495,6 @@ Files:
  vendor/quote-0*/*
  vendor/syn/*
  vendor/syn-0*/*
- vendor/synom/*
 Copyright: 2016-2018 David Tolnay <dtolnay@gmail.com>
 License: MIT or Apache-2.0
 Comment:
@@ -520,25 +503,25 @@ Comment:
  see https://github.com/dtolnay/syn
  see https://github.com/dtolnay/synom
 
-Files: vendor/arrayvec/*
-       vendor/either/*
-       vendor/fixedbitset/*
-       vendor/itertools/*
-       vendor/itertools-0*/*
-       vendor/maplit/*
-       vendor/nodrop/*
-       vendor/ordermap/*
-       vendor/scopeguard/*
-       vendor/scopeguard-0*/*
+Files:
+ vendor/arrayvec/*
+ vendor/either/*
+ vendor/fixedbitset/*
+ vendor/itertools/*
+ vendor/maplit/*
+ vendor/nodrop/*
+ vendor/ordermap/*
+ vendor/scopeguard/*
 Copyright: 2014-2019 bluss
 License: MIT or Apache-2.0
-Comment: see https://github.com/bluss/rust-itertools
-         see https://github.com/bluss/either
-         see https://github.com/bluss/arrayvec
-         see https://github.com/bluss/fixedbitset
-         see https://github.com/bluss/maplit
-         see https://github.com/bluss/ordermap
-         see https://github.com/bluss/scopeguard
+Comment:
+ see https://github.com/bluss/rust-itertools
+ see https://github.com/bluss/either
+ see https://github.com/bluss/arrayvec
+ see https://github.com/bluss/fixedbitset
+ see https://github.com/bluss/maplit
+ see https://github.com/bluss/ordermap
+ see https://github.com/bluss/scopeguard
 
 Files: vendor/difference/*
 Copyright: 2015-2018 Johann Hofmann <mail@johann-hofmann.com>
@@ -557,7 +540,6 @@ Comment: see https://github.com/nikomatsakis/ena
 
 Files:
  vendor/error-chain/*
- vendor/error-chain-0*/*
 Copyright: 2016-2017 Brian Anderson <banderson@mozilla.com>
            2016-2017 Paul Colomiets <paul@colomiets.name>
            2016-2017 Colin Kiegel <kiegel@gmx.de>
@@ -583,12 +565,6 @@ Files: vendor/fs_extra/*
 Copyright: 2017-2018 Denis Kurilenko <webdesus@gmail.com>
 License: MIT
 Comment: see https://github.com/webdesus/fs_extra
-
-Files: vendor/fuchsia-cprng/*
-Copyright:
- 2019 Erick Tryzelaar <etryzelaar@google.com>
-License: BSD-3-Clause
-Comment: see https://fuchsia.googlesource.com/garnet/
 
 Files:
  vendor/fuchsia-zircon/*
@@ -617,6 +593,11 @@ Copyright: 2017-2018 Without Boats <woboats@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/withoutboats/heck
 
+Files: vendor/hermit-abi/*
+Copyright: 2019-2019 Stefan Lankes
+License: MIT or Apache-2.0
+Comment: see https://github.com/hermitcore/hermit-abi
+
 Files:
  vendor/html5ever/*
  vendor/markup5ever/*
@@ -636,11 +617,9 @@ Comment: see https://github.com/TedDriggs/ident_case
 
 Files:
  vendor/idna/*
- vendor/idna-0*/*
  vendor/percent-encoding/*
  vendor/percent-encoding-1*/*
  vendor/url/*
- vendor/url-1*/*
 Copyright: 2013-2019 The rust-url developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/rust-url/
@@ -666,7 +645,6 @@ Comment: see https://github.com/SimonSapin
 Files:
  vendor/lazy_static/*
  vendor/lazy_static-0*/*
- vendor/owning_ref/*
 Copyright: 2014-2018 Marvin Löbel <loebel.marvin@gmail.com>
 License: MIT or Apache-2.0
 Comment:
@@ -704,10 +682,6 @@ License: MIT
 Comment:
  see https://github.com/GuillaumeGomez/macro_utils
  see https://github.com/GuillaumeGomez/minifier-rs
-
-Files: vendor/miniz-sys/miniz.c
-Copyright: 1996-2012 Rich Geldreich
-License: Unlicense
 
 Files: vendor/new_debug_unreachable/*
 Copyright: 2014-2018 Matt Brubeck <mbrubeck@limpet.net>
@@ -866,8 +840,11 @@ Files:
 Copyright: 2015-2018 Peter Glotfelty <peglotfe@microsoft.com>
 License: MIT
 
-Files: vendor/synstructure/*
-Copyright: 2016-2018 Michael Layzell <michael@thelayzells.com>
+Files:
+ vendor/synstructure/*
+ vendor/synstructure-0*/*
+Copyright:
+ 2016-2019 Nika Layzell <nika@thelayzells.com>
 License: MIT
 Comment: see https://github.com/mystor/synstructure
 
@@ -917,7 +894,6 @@ Files:
  vendor/thread_local/*
  vendor/parking_lot/*
  vendor/parking_lot_core/*
- vendor/parking_lot_core-0*/*
 Copyright: 2016-2019 Amanieu d'Antras <amanieu@gmail.com>
 License: MIT or Apache-2.0
 Comment:
@@ -1008,8 +984,6 @@ Comment: see https://github.com/contain-rs/vec-map
 
 Files:
  vendor/mac/*
- vendor/unreachable/*
- vendor/void/*
 Copyright: 2014-2017 Jonathan Reem <jonathan.reem@gmail.com>
 License: MIT
 Comment:
@@ -1324,26 +1298,6 @@ License: GPL-2+
  .
  On Debian systems, see /usr/share/common-licenses/GPL-2 for the full
  text of the GPL version 2.
-
-License: GPL-3+ with GCC Runtime Library exception
- GCC is free software; you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free
- Software Foundation; either version 3, or (at your option) any later
- version.
- .
- GCC is distributed in the hope that it will be useful, but WITHOUT
- ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- License for more details.
- .
- Under Section 7 of GPL version 3, you are granted additional
- permissions described in the GCC Runtime Library Exception, version
- 3.1, as published by the Free Software Foundation.
- .
- You should have received a copy of the GNU General Public License and
- a copy of the GCC Runtime Library Exception along with this program;
- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
- <http://www.gnu.org/licenses/>.
 
 License: CC-BY
  Attribution 4.0 International
