@@ -3,7 +3,7 @@ Description: Ignore error details with $SRC_DIR
 Bug: https://github.com/rust-lang/rust/issues/53081
 --- a/src/test/ui/impl-trait/impl-generic-mismatch.stderr
 +++ b/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-@@ -29,11 +29,6 @@
+@@ -31,11 +31,6 @@
     |
  LL |     fn hash(&self, hasher: &mut impl Hasher) {}
     |                                 ^^^^^^^^^^^ expected generic parameter, found `impl Trait`
@@ -187,8 +187,8 @@ Bug: https://github.com/rust-lang/rust/issues/53081
  
 --- a/src/test/ui/traits/trait-suggest-where-clause.stderr
 +++ b/src/test/ui/traits/trait-suggest-where-clause.stderr
-@@ -3,11 +3,6 @@
-    |
+@@ -6,11 +6,6 @@
+ LL |     // suggest a where-clause, if needed
  LL |     mem::size_of::<U>();
     |                    ^ doesn't have a size known at compile-time
 -   | 
@@ -199,8 +199,8 @@ Bug: https://github.com/rust-lang/rust/issues/53081
     |
     = help: the trait `std::marker::Sized` is not implemented for `U`
     = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -18,11 +13,6 @@
-    |
+@@ -23,11 +18,6 @@
+ ...
  LL |     mem::size_of::<Misc<U>>();
     |     ^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
 -   | 
@@ -211,7 +211,7 @@ Bug: https://github.com/rust-lang/rust/issues/53081
     |
     = help: within `Misc<U>`, the trait `std::marker::Sized` is not implemented for `U`
     = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -60,11 +50,6 @@
+@@ -62,11 +52,6 @@
     |
  LL |     mem::size_of::<[T]>();
     |                    ^^^ doesn't have a size known at compile-time
@@ -223,7 +223,7 @@ Bug: https://github.com/rust-lang/rust/issues/53081
     |
     = help: the trait `std::marker::Sized` is not implemented for `[T]`
     = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -74,11 +59,6 @@
+@@ -76,11 +61,6 @@
     |
  LL |     mem::size_of::<[&U]>();
     |     ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
