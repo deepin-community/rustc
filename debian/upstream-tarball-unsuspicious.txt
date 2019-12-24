@@ -14,6 +14,7 @@ src/doc/book/*/tools/docx-to-md.xsl
 src/doc/embedded-book/src/*/*.md
 src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rustc/src/lints/groups.md
+src/doc/rustc/src/targets/known-issues.md
 src/doc/rustc-guide/.travis.yml
 src/doc/rustc-guide/src/*.md
 src/doc/rustc-guide/src/*/*.md
@@ -77,6 +78,7 @@ src/tools/rustdoc-js-std/tester.js
 vendor/backtrace-sys/src/libbacktrace/configure
 vendor/backtrace-sys/src/libbacktrace/config/libtool.m4
 vendor/backtrace-sys/src/libbacktrace/*.c
+vendor/backtrace-sys/src/android-api.c
 vendor/compiler_builtins/compiler-rt/lib/BlocksRuntime/*.c
 vendor/compiler_builtins/compiler-rt/lib/builtins/*.c
 vendor/compiler_builtins/compiler-rt/lib/builtins/*/*.c
