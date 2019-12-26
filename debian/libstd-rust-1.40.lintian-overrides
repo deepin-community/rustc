@@ -1,5 +1,6 @@
 # "libstd" just seemed too generic
 libstd-rust-1.40 binary: package-name-doesnt-match-sonames
+libstd-rust-1.40 binary: sharedobject-in-library-directory-missing-soname
 
 # Rust doesn't use dev shlib symlinks nor any of the other shlib support stuff
 libstd-rust-1.40 binary: dev-pkg-without-shlib-symlink
