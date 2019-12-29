@@ -1,9 +1,9 @@
-rustc (1.40.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.40.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
   * Ignore new test failing on arm that also fails in previous versions.
 
- -- Ximin Luo <infinity0@debian.org>  Sun, 29 Dec 2019 22:14:39 +0000
+ -- Ximin Luo <infinity0@debian.org>  Sun, 29 Dec 2019 22:17:04 +0000
 
 rustc (1.40.0+dfsg1-1~exp1) experimental; urgency=medium
 
