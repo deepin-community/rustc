@@ -3,12 +3,12 @@
 
 prev_stable() {
 local V=$1
-python -c 'import sys; k=map(int,sys.argv[1].split(".")); k[1]-=1; print ".".join(map(str,k))' "$V"
+python3 -c 'import sys; k=map(int,sys.argv[1].split(".")); k[1]-=1; print ".".join(map(str,k))' "$V"
 }
 
 cargo_new() {
 local V=$1
-python -c 'import sys; k=map(int,sys.argv[1].split(".")); k[1]+='"${2:-1}"'; k[0]-=1; print ".".join(map(str,k))' "$V"
+python3 -c 'import sys; k=map(int,sys.argv[1].split(".")); k[1]+='"${2:-1}"'; k[0]-=1; print ".".join(map(str,k))' "$V"
 }
 
 update() {

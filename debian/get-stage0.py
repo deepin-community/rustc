@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # Sometimes this might fail due to upstream changes.
 # In that case, you probably just need to override the failing step in our
 # DownloadOnlyRustBuild class below.
