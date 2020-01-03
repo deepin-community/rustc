@@ -8,6 +8,12 @@ u-tests-ignore-arm.patch
 u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
 u-fix-cross-compile-install-again.patch
+u-riscv64-65953.patch
+u-riscv64-66661.patch
+u-riscv64-format-1.patch
+u-riscv64-format-2.patch
+u-riscv64-66899.patch
+u-riscv64-libc-1606.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustbuild-rustflags.patch
