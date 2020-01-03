@@ -1,8 +1,8 @@
-rustc (1.40.0+dfsg1-3) UNRELEASED; urgency=medium
+rustc (1.40.0+dfsg1-3) unstable; urgency=medium
 
   * Work around upstream #59264 again. :/
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 03 Jan 2020 22:01:41 +0000
+ -- Ximin Luo <infinity0@debian.org>  Fri, 03 Jan 2020 22:05:16 +0000
 
 rustc (1.40.0+dfsg1-2) unstable; urgency=medium
 
