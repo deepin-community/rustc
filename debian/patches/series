@@ -19,6 +19,7 @@ u-riscv64-cc-429.patch
 u-riscv64-cc-430.patch
 u-riscv64-cc-460.patch
 u-riscv64-cc-461.patch
+u-riscv64-cc-465.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustbuild-rustflags.patch
