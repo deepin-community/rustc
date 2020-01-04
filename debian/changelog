@@ -1,8 +1,8 @@
-rustc (1.40.0+dfsg1-4) UNRELEASED; urgency=medium
+rustc (1.40.0+dfsg1-4) unstable; urgency=medium
 
   * Experimental riscv64 support.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 03 Jan 2020 23:27:54 +0000
+ -- Ximin Luo <infinity0@debian.org>  Sat, 04 Jan 2020 05:40:11 +0000
 
 rustc (1.40.0+dfsg1-3) unstable; urgency=medium
 
