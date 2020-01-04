@@ -3,9 +3,10 @@
 include /usr/share/dpkg/architecture.mk
 
 rust_cpu = $(subst i586,i686,\
+$(if $(findstring -riscv64-,-$(2)-),$(subst riscv64,riscv64gc,$(1)),\
 $(if $(findstring -armhf-,-$(2)-),$(subst arm,armv7,$(1)),\
 $(if $(findstring -armel-,-$(2)-),$(subst arm,armv5te,$(1)),\
-$(1))))
+$(1)))))
 rust_type_setvar = $(1)_RUST_TYPE ?= $(call rust_cpu,$($(1)_GNU_CPU),$($(1)_ARCH))-unknown-$($(1)_GNU_SYSTEM)
 
 $(foreach machine,BUILD HOST TARGET,\
