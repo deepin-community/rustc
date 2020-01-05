@@ -23,6 +23,7 @@ u-riscv64-cc-461.patch
 u-riscv64-cc-465.patch
 
 # not forwarded, or forwarded but unlikely to be merged
+u-riscv64-compiletest.patch
 u-rustbuild-rustflags.patch
 u-reproducible-compiler-builtins.patch
 u-rustc-llvm-cross-flags.patch
