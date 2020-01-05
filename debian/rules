@@ -108,6 +108,9 @@ BUILD_DOCS := true
 ifneq (,$(findstring nodoc,$(DEB_BUILD_PROFILES)))
   BUILD_DOCS := false
 endif
+ifneq (,$(findstring nodoc,$(DEB_BUILD_OPTIONS)))
+  BUILD_DOCS := false
+endif
 
 MAKE_OPTIMISATIONS := true
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
@@ -271,7 +274,7 @@ override_dh_auto_test-indep:
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	# Ignore failures in these tests, but run them so we see what it's like
-	-$(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
+	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 ifeq (true,$(BUILD_DOCS))
 	# Run all rules that test the docs, i.e. that depend on default:doc
