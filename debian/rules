@@ -44,13 +44,7 @@ endif
 
 RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py
 RUSTBUILD_FLAGS = --config debian/config.toml -vvv --on-fail env
-# TODO: This should simply be "$(RUSTBUILD) test" but unfortunately this causes
-# an insane blow up in the time it takes to run tests. See upstream #37477 for
-# details. Upstream worked around it in #38984 but in Debian we can't take
-# advantage of that work-around, because we want as much debuginfo as possible
-# (so we set debuginfo-lines = true, debuginfo-only-std = false) so we have to
-# work around it instead by disabling backtrace when running tests.
-RUSTBUILD_TEST = python3 src/bootstrap/bootstrap.py test
+RUSTBUILD_TEST = $(RUSTBUILD) test --no-fail-fast
 # To run a specific test, run something like:
 #   $ debian/rules override_dh_auto_test-arch \
 #     RUSTBUILD_TEST_FLAGS="src/test/run-make --test-args extern-fn-struct"
@@ -163,9 +157,9 @@ debian/config.toml: debian/config.toml.in debian/rules
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \
 	  then sed -i -e '/^rustc = /d' -e '/^cargo = /d' "$@"; fi
 # Work around low-memory (32-bit) architectures: https://github.com/rust-lang/rust/issues/45854
-#ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
+ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
 	sed -i -e 's/^debuginfo-level = .*/debuginfo-level = 0/g' "$@"
-#endif
+endif
 
 debian/rust-src.%: debian/rust-src.%.in
 	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
@@ -217,7 +211,8 @@ debian/dh_auto_build.stamp:
 
 override_dh_auto_build-arch: debian/dh_auto_build.stamp
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
-	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
+	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
 endif
@@ -232,7 +227,7 @@ endif
 ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel s390x))
   FAILURES_ALLOWED = 24
 endif
-ifneq (,$(filter $(DEB_BUILD_ARCH), powerpc powerpcspe sparc64 x32))
+ifneq (,$(filter $(DEB_BUILD_ARCH), powerpc powerpcspe riscv64 sparc64 x32))
   FAILURES_ALLOWED = 180
 endif
 FAILED_TESTS = grep "FAILED\|^command did not execute successfully" $(TEST_LOG) | grep -v '^test result: FAILED'
@@ -246,7 +241,7 @@ override_dh_auto_test-arch:
 	done
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	{ $(RUSTBUILD_TEST) --no-fail-fast $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS); echo $$?; } | tee -a $(TEST_LOG)
+	{ $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS); echo $$?; } | tee -a $(TEST_LOG)
 	# test that the log has at least 1 pass, to prevent e.g. #57709
 	grep -l "^test .* \.\.\. ok$$" $(TEST_LOG)
 	echo "==== Debian rustc test report ===="; \
@@ -275,10 +270,12 @@ endif
 override_dh_auto_test-indep:
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	# TODO: test wasm32-unknown-unknown but it doesn't yet work
+	# Ignore failures in these tests, but run them so we see what it's like
+	-$(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 ifeq (true,$(BUILD_DOCS))
-	# Run all rules that test the docs, i.e. in step.rs that depend on default:doc
-	$(RUSTBUILD_TEST) --no-fail-fast src/tools/linkchecker $(RUSTBUILD_FLAGS)
+	# Run all rules that test the docs, i.e. that depend on default:doc
+	$(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) src/tools/linkchecker
 endif
 	test -z "$(RUSTBUILD_TEST_FLAGS)"
 endif
