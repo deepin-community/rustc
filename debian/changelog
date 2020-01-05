@@ -1,11 +1,11 @@
-rustc (1.40.0+dfsg1-5) UNRELEASED; urgency=medium
+rustc (1.40.0+dfsg1-5) unstable; urgency=medium
 
   * More python 2 -> 3 fixes.
   * Allow 24 failing tests on riscv64.
   * Reenable debuginfo for rustc, not just libstd.
   * Reenable backtraces during tests.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 04 Jan 2020 23:03:49 +0000
+ -- Ximin Luo <infinity0@debian.org>  Sun, 05 Jan 2020 13:35:46 +0000
 
 rustc (1.40.0+dfsg1-4) unstable; urgency=medium
 
