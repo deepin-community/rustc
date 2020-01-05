@@ -1,6 +1,9 @@
 rustc (1.40.0+dfsg1-5) UNRELEASED; urgency=medium
 
   * More python 2 -> 3 fixes.
+  * Allow 24 failing tests on riscv64.
+  * Reenable debuginfo for rustc, not just libstd.
+  * Reenable backtraces during tests.
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 04 Jan 2020 23:03:49 +0000
 
