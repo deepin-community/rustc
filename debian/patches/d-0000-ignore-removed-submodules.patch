@@ -72,7 +72,7 @@ Forwarded: not-needed
      def build_triple(self):
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -453,8 +453,6 @@
+@@ -454,8 +454,6 @@
                  dist::Miri,
                  dist::LlvmTools,
                  dist::Lldb,
@@ -81,7 +81,7 @@ Forwarded: not-needed
              ),
              Kind::Install => describe!(
                  install::Docs,
-@@ -1212,10 +1210,7 @@
+@@ -1235,10 +1233,7 @@
              }
          }
  
@@ -117,7 +117,7 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1580,14 +1580,14 @@
+@@ -1585,14 +1585,14 @@
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -142,7 +142,7 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/tool.rs
 +++ b/src/bootstrap/tool.rs
-@@ -276,14 +276,14 @@
+@@ -277,14 +277,14 @@
  }
  
  fn rustbook_features() -> Vec<String> {
@@ -173,3 +173,16 @@ Forwarded: not-needed
  [dependencies.mdbook]
  version = "0.3.5"
  default-features = false
+--- a/src/tools/tidy/src/deps.rs
++++ b/src/tools/tidy/src/deps.rs
+@@ -404,8 +404,8 @@
+         // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
+         // under control.
+ 
+-        "cargo",
+-        "rustc-ap-syntax",
++        //"cargo",
++        //"rustc-ap-syntax",
+     ];
+     let mut name_to_id: HashMap<_, Vec<_>> = HashMap::new();
+     for node in resolve.nodes.iter() {
