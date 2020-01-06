@@ -216,6 +216,8 @@ override_dh_auto_build-arch: debian/dh_auto_build.stamp
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
+	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
 endif
@@ -276,6 +278,8 @@ ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	# Ignore failures in these tests, but run them so we see what it's like
 	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
+	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
 ifeq (true,$(BUILD_DOCS))
 	# Run all rules that test the docs, i.e. that depend on default:doc
 	$(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) src/tools/linkchecker
@@ -307,7 +311,10 @@ debian/dh_auto_install.stamp:
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
-	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
+	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
+	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
 ifeq (true,$(BUILD_DOCS))
 	# Brute force to remove privacy-breach-logo lintian warning.
 	# We could have updated the upstream sources but it would complexify
