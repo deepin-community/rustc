@@ -2,6 +2,9 @@ rustc (1.40.0+dfsg1-6) UNRELEASED; urgency=medium
 
   * More python 2 -> 3 fixes.
   * Enable the wasm32-wasi target for code that needs a "real" libstd.
+  * Don't strip static rlibs. This sometimes breaks wasm, and more generally
+    the stripped debuginfo is actually totally lost rather than being moved
+    into the -dbgsym packages. Shared libraries are unaffected and work.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 05 Jan 2020 16:53:53 +0000
 
