@@ -21,6 +21,8 @@ u-riscv64-cc-430.patch
 u-riscv64-cc-460.patch
 u-riscv64-cc-461.patch
 u-riscv64-cc-465.patch
+u-wasm32-66750.patch
+u-wasm32-67267.patch
 u-wasm32-libc-1625.patch
 # TODO: forward this one
 u-riscv64-compiletest.patch
