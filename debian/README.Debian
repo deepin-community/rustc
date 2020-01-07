@@ -24,10 +24,20 @@ to libstd stuff (such as println!()) will silently do nothing, as defined in
 ``src/libstd/sys/wasm/fs.rs`` and explained in upstream #48564.
 
 wasm32-wasi is suitable for non-web stuff, and is closer to a "normal" target
-where you expect libstd to be available and to do normal stuff such as
-println!() printing to stdout. If you just want to cross-compile a regular
-non-wasm program to wasm for whatever reason, and only want to run it natively
-and not inside a web browser, use this target.
+where you expect libstd to be available, and for println!() to actually print
+to stdout. If you just want to cross-compile a regular non-wasm library or
+program to wasm for whatever reason, and only want to run it natively and not
+inside a web browser, use this target.
+
+To run the generated wasm, you will need a runtime:
+
+- https://github.com/bytecodealliance/wasmtime
+- https://github.com/bytecodealliance/lucet
+- https://github.com/wasmerio/wasmer
+- https://nodejs.org/api/wasi.html (sadly Debian's is too old, ATTOW)
+
+The first 3 are actually also all written in Rust, so one day some of them may
+even be packaged for Debian.
 
 
 Cross-compiling
