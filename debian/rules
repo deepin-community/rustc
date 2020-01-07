@@ -112,6 +112,11 @@ ifneq (,$(findstring nodoc,$(DEB_BUILD_OPTIONS)))
   BUILD_DOCS := false
 endif
 
+BUILD_WASM := true
+ifneq (,$(findstring nowasm,$(DEB_BUILD_PROFILES)))
+  BUILD_WASM := false
+endif
+
 MAKE_OPTIMISATIONS := true
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
   MAKE_OPTIMISATIONS := false
@@ -214,10 +219,12 @@ debian/dh_auto_build.stamp:
 
 override_dh_auto_build-arch: debian/dh_auto_build.stamp
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
+ifeq (true,$(BUILD_WASM))
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
+endif
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
 endif
@@ -275,11 +282,13 @@ endif
 override_dh_auto_test-indep:
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
+ifeq (true,$(BUILD_WASM))
 	# Ignore failures in these tests, but run them so we see what it's like
 	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
+endif
 ifeq (true,$(BUILD_DOCS))
 	# Run all rules that test the docs, i.e. that depend on default:doc
 	$(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) src/tools/linkchecker
@@ -311,10 +320,12 @@ debian/dh_auto_install.stamp:
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
+ifeq (true,$(BUILD_WASM))
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-unknown-unknown src/libstd
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) --target wasm32-wasi src/libstd
+endif
 ifeq (true,$(BUILD_DOCS))
 	# Brute force to remove privacy-breach-logo lintian warning.
 	# We could have updated the upstream sources but it would complexify
@@ -338,7 +349,9 @@ override_dh_install-arch:
 
 override_dh_install-indep: debian/rust-src.install debian/rust-src.links
 	dh_install
+ifeq (true,$(BUILD_WASM))
 	dh_install -plibstd-rust-dev-wasm32-cross usr/lib/rustlib/wasm32-*/lib/
+endif
 	chmod -x \
 	  debian/rust-gdb/usr/share/rust-gdb/*.py \
 	  debian/rust-lldb/usr/share/rust-lldb/*.py

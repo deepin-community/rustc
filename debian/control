@@ -36,7 +36,7 @@ Build-Depends: debhelper (>= 9),
 # Extra build-deps needed for x.py to download stuff in pkg.rustc.dlstage0.
                curl <pkg.rustc.dlstage0>,
                ca-certificates <pkg.rustc.dlstage0>,
-Build-Depends-Indep: wasi-libc
+Build-Depends-Indep: wasi-libc <!nowasm>
 Build-Conflicts: gdb-minimal <!nocheck>
 # ^ That version of rustc is broken
 Standards-Version: 4.2.1
@@ -115,6 +115,7 @@ Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, lld-9
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistribution, so no need for Built-Using
+Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
