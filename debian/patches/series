@@ -21,9 +21,11 @@ u-riscv64-cc-430.patch
 u-riscv64-cc-460.patch
 u-riscv64-cc-461.patch
 u-riscv64-cc-465.patch
+u-wasm32-libc-1625.patch
+# TODO: forward this one
+u-riscv64-compiletest.patch
 
 # not forwarded, or forwarded but unlikely to be merged
-u-riscv64-compiletest.patch
 u-rustbuild-rustflags.patch
 u-reproducible-compiler-builtins.patch
 u-rustc-llvm-cross-flags.patch
