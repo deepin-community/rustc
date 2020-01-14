@@ -5,6 +5,7 @@ rustc (1.40.0+dfsg1-6) UNRELEASED; urgency=medium
   * Don't strip static rlibs. This sometimes breaks wasm, and more generally
     the stripped debuginfo is actually totally lost rather than being moved
     into the -dbgsym packages. Shared libraries are unaffected and work.
+  * Allow 180 failing tests on riscv64, none were actually run last time.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 05 Jan 2020 16:53:53 +0000
 
