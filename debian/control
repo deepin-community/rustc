@@ -30,15 +30,13 @@ Build-Depends: debhelper (>= 9),
                procps <!nocheck>,
 # below are optional tools even for 'make check'
                gdb (>= 7.12) <!nocheck>,
-# Work around #864741. The version constraint for gdb above should already do
-# that, but this will keep things covered even in the case that they change
-# gdb-minimal to do a versioned Provides: gdb.
 # Extra build-deps needed for x.py to download stuff in pkg.rustc.dlstage0.
                curl <pkg.rustc.dlstage0>,
                ca-certificates <pkg.rustc.dlstage0>,
-Build-Depends-Indep: wasi-libc <!nowasm>
+Build-Depends-Indep:
+ wasi-libc (>= 0~git20191220.a280fea~~) <!nowasm>,
+ wasi-libc (<= 0~git20191220.a280fea++) <!nowasm>,
 Build-Conflicts: gdb-minimal <!nocheck>
-# ^ That version of rustc is broken
 Standards-Version: 4.2.1
 Homepage: http://www.rust-lang.org/
 Vcs-Git: https://salsa.debian.org/rust-team/rust.git
@@ -114,7 +112,7 @@ Section: libdevel
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, lld-9
 # Embeds wasi-libc so doesn't need to depend on it
-# None of its licenses require source redistribution, so no need for Built-Using
+# None of its licenses require source redistrib, so no need for Built-Using
 Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
