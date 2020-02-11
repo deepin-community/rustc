@@ -161,9 +161,20 @@ Forwarded: not-needed
      features
 --- a/src/tools/rustbook/Cargo.toml
 +++ b/src/tools/rustbook/Cargo.toml
-@@ -12,11 +12,6 @@
+@@ -6,21 +6,15 @@
+ edition = "2018"
+ 
+ [features]
+-linkcheck = ["mdbook-linkcheck", "codespan-reporting"]
++linkcheck = []
+ 
+ [dependencies]
  clap = "2.25.0"
  failure = "0.1"
+-mdbook-linkcheck = { version = "0.5.0", optional = true }
+ # Keep in sync with mdbook-linkcheck.
+ codespan-reporting = { version = "0.5", optional = true }
+ 
  
 -# A noop dependency that changes in the Rust repository, it's a bit of a hack.
 -# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
@@ -171,7 +182,7 @@ Forwarded: not-needed
 -rustc-workspace-hack = "1.0.0"
 -
  [dependencies.mdbook]
- version = "0.3.5"
+ version = "0.3.0"
  default-features = false
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
