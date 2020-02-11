@@ -1,13 +1,3 @@
---- a/src/test/run-make-fulldeps/sysroot-crates-are-unstable/test.py
-+++ b/src/test/run-make-fulldeps/sysroot-crates-are-unstable/test.py
-@@ -22,6 +22,7 @@
-     if to_input is None:
-         child = Popen(command, stdout=PIPE, stderr=PIPE)
-     else:
-+        to_input = to_input.encode("utf-8")
-         child = Popen(command, stdout=PIPE, stderr=PIPE, stdin=PIPE)
-     stdout, stderr = child.communicate(input=to_input)
-     return (convert_to_string(stdout), convert_to_string(stderr))
 --- a/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
 +++ b/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
 @@ -1,2 +1,2 @@

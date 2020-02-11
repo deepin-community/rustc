@@ -1,10 +1,10 @@
 Bug: https://github.com/rust-lang/rust/pull/55667
-Index: rustc/src/test/ui/issues/issue-44056.rs
+Index: rust/src/test/ui/issues/issue-44056.rs
 ===================================================================
---- rustc.orig/src/test/ui/issues/issue-44056.rs
-+++ rustc/src/test/ui/issues/issue-44056.rs
+--- rust.orig/src/test/ui/issues/issue-44056.rs
++++ rust/src/test/ui/issues/issue-44056.rs
 @@ -1,5 +1,5 @@
- // build-pass (FIXME(62277): could be check-pass?)
+ // build-pass (FIXME(55996): should be run on targets supporting avx)
 -// only-x86_64
 +// ignore-test
  // no-prefer-dynamic
