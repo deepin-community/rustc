@@ -8,29 +8,16 @@ u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
 u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
-u-fix-cross-compile-install-again.patch
-u-riscv64-65953.patch
-u-riscv64-66661.patch
-u-riscv64-format-1.patch
-u-riscv64-format-2.patch
 u-riscv64-66899.patch
 u-riscv64-libc-1606.patch
-u-riscv64-cc-428.patch
-u-riscv64-cc-429.patch
-u-riscv64-cc-430.patch
-u-riscv64-cc-460.patch
 u-riscv64-cc-461.patch
 u-riscv64-cc-465.patch
 # TODO: forward this one
 u-riscv64-compiletest.patch
-u-wasm32-66750.patch
-u-wasm32-67267.patch
 u-wasm32-libc-1625.patch
 u-wasm32-wasi.patch
 
 # not forwarded, or forwarded but unlikely to be merged
-u-rustbuild-rustflags.patch
-u-reproducible-compiler-builtins.patch
 u-rustc-llvm-cross-flags.patch
 u-reproducible-dl-stage0.patch
 
