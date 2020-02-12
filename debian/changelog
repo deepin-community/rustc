@@ -1,5 +1,6 @@
-rustc (1.40.0+dfsg1-6) UNRELEASED; urgency=medium
+rustc (1.41.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
 
+  [ Ximin Luo ]
   * More python 2 -> 3 fixes.
   * Enable the wasm32-wasi target for code that needs a "real" libstd.
   * Don't strip static rlibs. This sometimes breaks wasm, and more generally
@@ -7,7 +8,10 @@ rustc (1.40.0+dfsg1-6) UNRELEASED; urgency=medium
     into the -dbgsym packages. Shared libraries are unaffected and work.
   * Allow 180 failing tests on riscv64, none were actually run last time.
 
- -- Ximin Luo <infinity0@debian.org>  Sun, 05 Jan 2020 16:53:53 +0000
+  [ Fabian Grünbichler ]
+  * New upstream release.
+
+ -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Wed, 12 Feb 2020 09:58:56 +0100
 
 rustc (1.40.0+dfsg1-5) unstable; urgency=medium
 
