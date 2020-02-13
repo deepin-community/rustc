@@ -490,9 +490,20 @@ Files:
  vendor/crossbeam-epoch/*
  vendor/crossbeam-queue/*
  vendor/crossbeam-utils/*
-Copyright: 2015-2019 The Crossbeam Project Developers
+ vendor/crossbeam-utils-0.6.5/*
+Copyright: 2015-2020 The Crossbeam Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/crossbeam-rs
+
+Files: vendor/codespan/*
+Copyright: 2018-2020 Brendan Zabarauskas <bjzaba@yahoo.com.au>
+License: Apache-2.0
+Comment: see https://github.com/brendanzab/codespan
+
+Files: vendor/codespan-reporting/*
+Copyright: 2018-2020 Brendan Zabarauskas <bjzaba@yahoo.com.au>
+License: Apache-2.0
+Comment: see https://github.com/brendanzab/codespan
 
 Files:
  vendor/darling/*
@@ -533,11 +544,12 @@ Files:
  vendor/either/*
  vendor/fixedbitset/*
  vendor/itertools/*
+ vendor/itertools-0.7.8/*
  vendor/maplit/*
  vendor/nodrop/*
  vendor/ordermap/*
  vendor/scopeguard/*
-Copyright: 2014-2019 bluss
+Copyright: 2014-2020 bluss
 License: MIT or Apache-2.0
 Comment:
  see https://github.com/bluss/rust-itertools
@@ -642,10 +654,11 @@ Comment: see https://github.com/TedDriggs/ident_case
 
 Files:
  vendor/idna/*
+ vendor/idna-0.1.5/*
  vendor/percent-encoding/*
  vendor/percent-encoding-1*/*
  vendor/url/*
-Copyright: 2013-2019 The rust-url developers
+Copyright: 2013-2020 The rust-url developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/rust-url/
 
@@ -844,8 +857,10 @@ Copyright: 2015-2015 comex <comexk@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/comex/rust-shlex
 
-Files: vendor/smallvec/*
-Copyright: 2015-2018 Simon Sapin <simon.sapin@exyr.org>
+Files:
+ vendor/smallvec-0.6.10/*
+ vendor/smallvec/*
+Copyright: 2015-2020 Simon Sapin <simon.sapin@exyr.org>
 License: MPL-2.0
 Comment: see https://github.com/servo/rust-smallvec
 
@@ -958,8 +973,10 @@ Copyright: 2015-2019 Paho Lurie-Gregg <paho@paholg.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/paholg/typenum
 
-Files: vendor/version_check/*
-Copyright: 2017-2018 Sergio Benitez <sb@sergio.bz>
+Files: 
+ vendor/version_check/*
+ vendor/version_check-0.1.5/*
+Copyright: 2017-2019 Sergio Benitez <sb@sergio.bz>
 License: MIT or Apache-2.0
 Comment: see https://github.com/SergioBenitez/version_check
 
@@ -1021,8 +1038,10 @@ Copyright: 2015-2018 Simon Sapin <simon.sapin@exyr.org>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/SimonSapin/rust-utf8
 
-Files: vendor/wasi/*
-Copyright: 2019-2019 The Cranelift Project Developers
+Files:
+ vendor/wasi/*
+ vendor/wasi-0.7/*
+Copyright: 2019-2020 The Cranelift Project Developers
 License: Apache-2.0 with LLVM exception or Apache-2.0 or MIT
 Comment: see https://github.com/CraneStation/rust-wasi
 
