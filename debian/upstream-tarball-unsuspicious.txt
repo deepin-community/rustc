@@ -7,6 +7,11 @@
 # False-positive, very small so suspicious-source thinks "octet-stream"
 src/test/run-pass/raw-str.rs
 
+# False-positive, file(1) misidentifies mime type
+src/ci/docker/*/patches/glibc/*/*.patch
+vendor/itertools*/examples/iris.data
+vendor/regex/tests/unicode.rs
+
 # False-positive, "verylongtext" but OK
 CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
@@ -24,6 +29,7 @@ src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
 src/libstd/sys/cloudabi/abi/cloudabi.rs
 src/libstd/os/raw/*.md
+src/libstd/sys/sgx/abi/entry.S
 vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -159,6 +165,7 @@ vendor/idna/tests/IdnaTest.txt
 vendor/idna/tests/punycode_tests.json
 vendor/idna-0*/tests/IdnaTest.txt
 vendor/idna-0*/tests/punycode_tests.json
+vendor/itertools/examples/iris.data
 vendor/html5ever/data/bench/*.html
 vendor/html5ever/html5lib-tests/*/*.dat
 vendor/html5ever/html5lib-tests/*/*.test
@@ -181,6 +188,7 @@ vendor/tar/tests/archives/*.tar
 vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
+vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/url-1*/tests/*.json
 vendor/yaml-rust/tests/specexamples.rs.inc
