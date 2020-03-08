@@ -1038,9 +1038,7 @@ Copyright: 2015-2018 Simon Sapin <simon.sapin@exyr.org>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/SimonSapin/rust-utf8
 
-Files:
- vendor/wasi/*
- vendor/wasi-0.7/*
+Files: vendor/wasi-0*/*
 Copyright: 2019-2020 The Cranelift Project Developers
 License: Apache-2.0 with LLVM exception or Apache-2.0 or MIT
 Comment: see https://github.com/CraneStation/rust-wasi

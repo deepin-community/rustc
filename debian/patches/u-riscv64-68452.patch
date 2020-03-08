@@ -1,0 +1,1344 @@
+From e5901641755dfd2e758c7e855b82ee0bcd8b29c0 Mon Sep 17 00:00:00 2001
+From: msizanoen1 <qtmlabs@protonmail.com>
+Date: Tue, 21 Jan 2020 21:52:19 +0700
+Subject: [PATCH 1/2] Implement proper C ABI lowering for RISC-V
+
+---
+ src/librustc/ty/layout.rs             |   1 +
+ src/librustc_target/abi/call/mod.rs   |  10 +-
+ src/librustc_target/abi/call/riscv.rs | 335 +++++++++++++++++++++++++-
+ 3 files changed, 331 insertions(+), 15 deletions(-)
+
+diff --git a/src/librustc/ty/layout.rs b/src/librustc/ty/layout.rs
+index bda42db40b0a..c70473b667ea 100644
+--- a/src/librustc/ty/layout.rs
++++ b/src/librustc/ty/layout.rs
+@@ -2650,6 +2650,7 @@ where
+                 .map(|(i, ty)| arg_of(ty, Some(i)))
+                 .collect(),
+             c_variadic: sig.c_variadic,
++            fixed_count: inputs.len(),
+             conv,
+         };
+         fn_abi.adjust_for_abi(cx, sig.abi);
+diff --git a/src/librustc_target/abi/call/mod.rs b/src/librustc_target/abi/call/mod.rs
+index af82f9e31837..175eb93e4e55 100644
+--- a/src/librustc_target/abi/call/mod.rs
++++ b/src/librustc_target/abi/call/mod.rs
+@@ -120,6 +120,7 @@ impl Reg {
+     reg_ctor!(i16, Integer, 16);
+     reg_ctor!(i32, Integer, 32);
+     reg_ctor!(i64, Integer, 64);
++    reg_ctor!(i128, Integer, 128);
+ 
+     reg_ctor!(f32, Float, 32);
+     reg_ctor!(f64, Float, 64);
+@@ -493,6 +494,12 @@ pub struct FnAbi<'a, Ty> {
+ 
+     pub c_variadic: bool,
+ 
++    /// The count of non-variadic arguments.
++    ///
++    /// Should only be different from args.len() when c_variadic is true.
++    /// This can be used to know wether an argument is variadic or not.
++    pub fixed_count: usize,
++
+     pub conv: Conv,
+ }
+ 
+@@ -534,8 +541,7 @@ impl<'a, Ty> FnAbi<'a, Ty> {
+             "nvptx" => nvptx::compute_abi_info(self),
+             "nvptx64" => nvptx64::compute_abi_info(self),
+             "hexagon" => hexagon::compute_abi_info(self),
+-            "riscv32" => riscv::compute_abi_info(self, 32),
+-            "riscv64" => riscv::compute_abi_info(self, 64),
++            "riscv32" | "riscv64" => riscv::compute_abi_info(cx, self),
+             "wasm32" if cx.target_spec().target_os != "emscripten"
+                 => wasm32_bindgen_compat::compute_abi_info(self),
+             "wasm32" | "asmjs" => wasm32::compute_abi_info(cx, self),
+diff --git a/src/librustc_target/abi/call/riscv.rs b/src/librustc_target/abi/call/riscv.rs
+index 095e5aff7442..11d6c4d81910 100644
+--- a/src/librustc_target/abi/call/riscv.rs
++++ b/src/librustc_target/abi/call/riscv.rs
+@@ -1,49 +1,358 @@
+ // Reference: RISC-V ELF psABI specification
+ // https://github.com/riscv/riscv-elf-psabi-doc
++//
++// Reference: Clang RISC-V ELF psABI lowering code
++// https://github.com/llvm/llvm-project/blob/8e780252a7284be45cf1ba224cabd884847e8e92/clang/lib/CodeGen/TargetInfo.cpp#L9311-L9773
+ 
+-use crate::abi::call::{ArgAbi, FnAbi};
++use crate::abi::call::{ArgAbi, ArgAttribute, CastTarget, FnAbi, PassMode, Reg, RegKind, Uniform};
++use crate::abi::{
++    self, Abi, FieldPlacement, HasDataLayout, LayoutOf, Size, TyLayout, TyLayoutMethods,
++};
++use crate::spec::HasTargetSpec;
++
++#[derive(Copy, Clone)]
++enum RegPassKind {
++    Float(Reg),
++    Integer(Reg),
++    Unknown,
++}
++
++#[derive(Copy, Clone)]
++enum FloatConv {
++    FloatPair(Reg, Reg),
++    Float(Reg),
++    MixedPair(Reg, Reg),
++}
++
++#[derive(Copy, Clone)]
++struct CannotUseFpConv;
++
++fn is_riscv_aggregate<'a, Ty>(arg: &ArgAbi<'a, Ty>) -> bool {
++    match arg.layout.abi {
++        Abi::Vector { .. } => true,
++        _ => arg.layout.is_aggregate(),
++    }
++}
++
++fn should_use_fp_conv_helper<'a, Ty, C>(
++    cx: &C,
++    arg_layout: &TyLayout<'a, Ty>,
++    xlen: u64,
++    flen: u64,
++    field1_kind: &mut RegPassKind,
++    field2_kind: &mut RegPassKind,
++) -> Result<(), CannotUseFpConv>
++where
++    Ty: TyLayoutMethods<'a, C> + Copy,
++    C: LayoutOf<Ty = Ty, TyLayout = TyLayout<'a, Ty>>,
++{
++    match arg_layout.abi {
++        Abi::Scalar(ref scalar) => match scalar.value {
++            abi::Int(..) | abi::Pointer => {
++                if arg_layout.size.bits() > xlen {
++                    return Err(CannotUseFpConv);
++                }
++                match (*field1_kind, *field2_kind) {
++                    (RegPassKind::Unknown, _) => {
++                        *field1_kind = RegPassKind::Integer(Reg {
++                            kind: RegKind::Integer,
++                            size: arg_layout.size,
++                        });
++                    }
++                    (RegPassKind::Float(_), RegPassKind::Unknown) => {
++                        *field2_kind = RegPassKind::Integer(Reg {
++                            kind: RegKind::Integer,
++                            size: arg_layout.size,
++                        });
++                    }
++                    _ => return Err(CannotUseFpConv),
++                }
++            }
++            abi::F32 | abi::F64 => {
++                if arg_layout.size.bits() > flen {
++                    return Err(CannotUseFpConv);
++                }
++                match (*field1_kind, *field2_kind) {
++                    (RegPassKind::Unknown, _) => {
++                        *field1_kind =
++                            RegPassKind::Float(Reg { kind: RegKind::Float, size: arg_layout.size });
++                    }
++                    (_, RegPassKind::Unknown) => {
++                        *field2_kind =
++                            RegPassKind::Float(Reg { kind: RegKind::Float, size: arg_layout.size });
++                    }
++                    _ => return Err(CannotUseFpConv),
++                }
++            }
++        },
++        Abi::Vector { .. } | Abi::Uninhabited => return Err(CannotUseFpConv),
++        Abi::ScalarPair(..) | Abi::Aggregate { .. } => match arg_layout.fields {
++            FieldPlacement::Union(_) => {
++                if !arg_layout.is_zst() {
++                    return Err(CannotUseFpConv);
++                }
++            }
++            FieldPlacement::Array { count, .. } => {
++                for _ in 0..count {
++                    let elem_layout = arg_layout.field(cx, 0);
++                    should_use_fp_conv_helper(
++                        cx,
++                        &elem_layout,
++                        xlen,
++                        flen,
++                        field1_kind,
++                        field2_kind,
++                    )?;
++                }
++            }
++            FieldPlacement::Arbitrary { .. } => {
++                match arg_layout.variants {
++                    abi::Variants::Multiple { .. } => return Err(CannotUseFpConv),
++                    abi::Variants::Single { .. } => (),
++                }
++                for i in arg_layout.fields.index_by_increasing_offset() {
++                    let field = arg_layout.field(cx, i);
++                    should_use_fp_conv_helper(cx, &field, xlen, flen, field1_kind, field2_kind)?;
++                }
++            }
++        },
++    }
++    Ok(())
++}
++
++fn should_use_fp_conv<'a, Ty, C>(
++    cx: &C,
++    arg: &TyLayout<'a, Ty>,
++    xlen: u64,
++    flen: u64,
++) -> Option<FloatConv>
++where
++    Ty: TyLayoutMethods<'a, C> + Copy,
++    C: LayoutOf<Ty = Ty, TyLayout = TyLayout<'a, Ty>>,
++{
++    let mut field1_kind = RegPassKind::Unknown;
++    let mut field2_kind = RegPassKind::Unknown;
++    if should_use_fp_conv_helper(cx, arg, xlen, flen, &mut field1_kind, &mut field2_kind).is_err() {
++        return None;
++    }
++    match (field1_kind, field2_kind) {
++        (RegPassKind::Integer(l), RegPassKind::Float(r)) => Some(FloatConv::MixedPair(l, r)),
++        (RegPassKind::Float(l), RegPassKind::Integer(r)) => Some(FloatConv::MixedPair(l, r)),
++        (RegPassKind::Float(l), RegPassKind::Float(r)) => Some(FloatConv::FloatPair(l, r)),
++        (RegPassKind::Float(f), RegPassKind::Unknown) => Some(FloatConv::Float(f)),
++        _ => None,
++    }
++}
++
++fn classify_ret<'a, Ty, C>(cx: &C, arg: &mut ArgAbi<'a, Ty>, xlen: u64, flen: u64) -> bool
++where
++    Ty: TyLayoutMethods<'a, C> + Copy,
++    C: LayoutOf<Ty = Ty, TyLayout = TyLayout<'a, Ty>>,
++{
++    if let Some(conv) = should_use_fp_conv(cx, &arg.layout, xlen, flen) {
++        match conv {
++            FloatConv::Float(f) => {
++                arg.cast_to(f);
++            }
++            FloatConv::FloatPair(l, r) => {
++                arg.cast_to(CastTarget::pair(l, r));
++            }
++            FloatConv::MixedPair(l, r) => {
++                arg.cast_to(CastTarget::pair(l, r));
++            }
++        }
++        return false;
++    }
++
++    let total = arg.layout.size;
+ 
+-fn classify_ret<Ty>(arg: &mut ArgAbi<'_, Ty>, xlen: u64) {
+     // "Scalars wider than 2✕XLEN are passed by reference and are replaced in
+     // the argument list with the address."
+     // "Aggregates larger than 2✕XLEN bits are passed by reference and are
+     // replaced in the argument list with the address, as are C++ aggregates
+     // with nontrivial copy constructors, destructors, or vtables."
+-    if arg.layout.size.bits() > 2 * xlen {
+-        arg.make_indirect();
++    if total.bits() > 2 * xlen {
++        // We rely on the LLVM backend lowering code to lower passing a scalar larger than 2*XLEN.
++        if is_riscv_aggregate(arg) {
++            arg.make_indirect();
++        }
++        return true;
++    }
++
++    let xlen_reg = match xlen {
++        32 => Reg::i32(),
++        64 => Reg::i64(),
++        _ => unreachable!("Unsupported XLEN: {}", xlen),
++    };
++    if is_riscv_aggregate(arg) {
++        if total.bits() <= xlen {
++            arg.cast_to(xlen_reg);
++        } else {
++            arg.cast_to(Uniform { unit: xlen_reg, total: Size::from_bits(xlen * 2) });
++        }
++        return false;
+     }
+ 
+     // "When passed in registers, scalars narrower than XLEN bits are widened
+     // according to the sign of their type up to 32 bits, then sign-extended to
+     // XLEN bits."
+-    arg.extend_integer_width_to(xlen); // this method only affects integer scalars
++    extend_integer_width(arg, xlen);
++    false
+ }
+ 
+-fn classify_arg<Ty>(arg: &mut ArgAbi<'_, Ty>, xlen: u64) {
++fn classify_arg<'a, Ty, C>(
++    cx: &C,
++    arg: &mut ArgAbi<'a, Ty>,
++    xlen: u64,
++    flen: u64,
++    is_vararg: bool,
++    avail_gprs: &mut u64,
++    avail_fprs: &mut u64,
++) where
++    Ty: TyLayoutMethods<'a, C> + Copy,
++    C: LayoutOf<Ty = Ty, TyLayout = TyLayout<'a, Ty>>,
++{
++    if !is_vararg {
++        match should_use_fp_conv(cx, &arg.layout, xlen, flen) {
++            Some(FloatConv::Float(f)) if *avail_fprs >= 1 => {
++                *avail_fprs -= 1;
++                arg.cast_to(f);
++                return;
++            }
++            Some(FloatConv::FloatPair(l, r)) if *avail_fprs >= 2 => {
++                *avail_fprs -= 2;
++                arg.cast_to(CastTarget::pair(l, r));
++                return;
++            }
++            Some(FloatConv::MixedPair(l, r)) if *avail_fprs >= 1 && *avail_gprs >= 1 => {
++                *avail_gprs -= 1;
++                *avail_fprs -= 1;
++                arg.cast_to(CastTarget::pair(l, r));
++                return;
++            }
++            _ => (),
++        }
++    }
++
++    let total = arg.layout.size;
++    let align = arg.layout.align.abi.bits();
++
+     // "Scalars wider than 2✕XLEN are passed by reference and are replaced in
+     // the argument list with the address."
+     // "Aggregates larger than 2✕XLEN bits are passed by reference and are
+     // replaced in the argument list with the address, as are C++ aggregates
+     // with nontrivial copy constructors, destructors, or vtables."
+-    if arg.layout.size.bits() > 2 * xlen {
+-        arg.make_indirect();
++    if total.bits() > 2 * xlen {
++        // We rely on the LLVM backend lowering code to lower passing a scalar larger than 2*XLEN.
++        if is_riscv_aggregate(arg) {
++            arg.make_indirect();
++        }
++        if *avail_gprs >= 1 {
++            *avail_gprs -= 1;
++        }
++        return;
++    }
++
++    let double_xlen_reg = match xlen {
++        32 => Reg::i64(),
++        64 => Reg::i128(),
++        _ => unreachable!("Unsupported XLEN: {}", xlen),
++    };
++
++    let xlen_reg = match xlen {
++        32 => Reg::i32(),
++        64 => Reg::i64(),
++        _ => unreachable!("Unsupported XLEN: {}", xlen),
++    };
++
++    if total.bits() > xlen {
++        let align_regs = align > xlen;
++        if is_riscv_aggregate(arg) {
++            arg.cast_to(Uniform {
++                unit: if align_regs { double_xlen_reg } else { xlen_reg },
++                total: Size::from_bits(xlen * 2),
++            });
++        }
++        if align_regs && is_vararg {
++            *avail_gprs -= *avail_gprs % 2;
++        }
++        if *avail_gprs >= 2 {
++            *avail_gprs -= 2;
++        } else {
++            *avail_gprs = 0;
++        }
++        return;
++    } else if is_riscv_aggregate(arg) {
++        arg.cast_to(xlen_reg);
++        if *avail_gprs >= 1 {
++            *avail_gprs -= 1;
++        }
++        return;
+     }
+ 
+     // "When passed in registers, scalars narrower than XLEN bits are widened
+     // according to the sign of their type up to 32 bits, then sign-extended to
+     // XLEN bits."
+-    arg.extend_integer_width_to(xlen); // this method only affects integer scalars
++    if *avail_gprs >= 1 {
++        extend_integer_width(arg, xlen);
++        *avail_gprs -= 1;
++    }
+ }
+ 
+-pub fn compute_abi_info<Ty>(fn_abi: &mut FnAbi<'_, Ty>, xlen: u64) {
++fn extend_integer_width<'a, Ty>(arg: &mut ArgAbi<'a, Ty>, xlen: u64) {
++    match arg.layout.abi {
++        Abi::Scalar(ref scalar) => {
++            match scalar.value {
++                abi::Int(i, _) => {
++                    // 32-bit integers are always sign-extended
++                    if i.size().bits() == 32 && xlen > 32 {
++                        if let PassMode::Direct(ref mut attrs) = arg.mode {
++                            attrs.set(ArgAttribute::SExt);
++                            return;
++                        }
++                    }
++                }
++                _ => (),
++            }
++        }
++        _ => (),
++    }
++    arg.extend_integer_width_to(xlen);
++}
++
++pub fn compute_abi_info<'a, Ty, C>(cx: &C, fn_abi: &mut FnAbi<'a, Ty>)
++where
++    Ty: TyLayoutMethods<'a, C> + Copy,
++    C: LayoutOf<Ty = Ty, TyLayout = TyLayout<'a, Ty>> + HasDataLayout + HasTargetSpec,
++{
++    let flen = match &cx.target_spec().options.llvm_abiname[..] {
++        "ilp32f" | "lp64f" => 32,
++        "ilp32d" | "lp64d" => 64,
++        _ => 0,
++    };
++    let xlen = cx.data_layout().pointer_size.bits();
++
++    let mut avail_gprs = 8;
++    let mut avail_fprs = 8;
++
+     if !fn_abi.ret.is_ignore() {
+-        classify_ret(&mut fn_abi.ret, xlen);
++        if classify_ret(cx, &mut fn_abi.ret, xlen, flen) {
++            avail_gprs -= 1;
++        }
+     }
+ 
+-    for arg in &mut fn_abi.args {
++    for (i, arg) in fn_abi.args.iter_mut().enumerate() {
+         if arg.is_ignore() {
+             continue;
+         }
+-        classify_arg(arg, xlen);
++        classify_arg(
++            cx,
++            arg,
++            xlen,
++            flen,
++            i >= fn_abi.fixed_count,
++            &mut avail_gprs,
++            &mut avail_fprs,
++        );
+     }
+ }
+
+From 39633874ae7d0150669004a80740ff3b0708d08d Mon Sep 17 00:00:00 2001
+From: msizanoen1 <qtmlabs@protonmail.com>
+Date: Mon, 3 Feb 2020 22:04:44 +0700
+Subject: [PATCH 2/2] Add tests for RISC-V C ABI
+
+---
+ src/test/auxiliary/rust_test_helpers.c        |  29 ++
+ .../riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs | 181 +++++++++++
+ .../codegen/riscv-abi/riscv64-lp64d-abi.rs    | 293 ++++++++++++++++++
+ .../riscv-abi/riscv64-lp64f-lp64d-abi.rs      | 277 +++++++++++++++++
+ src/test/ui/abi/struct-enums/struct-return.rs |  52 +++-
+ 5 files changed, 831 insertions(+), 1 deletion(-)
+ create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
+ create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
+ create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
+
+diff --git a/src/test/auxiliary/rust_test_helpers.c b/src/test/auxiliary/rust_test_helpers.c
+index b95b0ca1a89c..22bb54988365 100644
+--- a/src/test/auxiliary/rust_test_helpers.c
++++ b/src/test/auxiliary/rust_test_helpers.c
+@@ -168,6 +168,18 @@ struct floats {
+     double c;
+ };
+ 
++struct char_char_double {
++    uint8_t a;
++    uint8_t b;
++    double c;
++};
++
++struct char_char_float {
++    uint8_t a;
++    uint8_t b;
++    float c;
++};
++
+ struct quad
+ rust_dbg_abi_1(struct quad q) {
+     struct quad qq = { q.c + 1,
+@@ -185,6 +197,23 @@ rust_dbg_abi_2(struct floats f) {
+     return ff;
+ }
+ 
++struct char_char_double
++rust_dbg_abi_3(struct char_char_double a) {
++    struct char_char_double ccd = { a.a + 1,
++                                    a.b - 1,
++                                    a.c + 1.0 };
++    return ccd;
++}
++
++struct char_char_float
++rust_dbg_abi_4(struct char_char_float a) {
++    struct char_char_float ccd = { a.a + 1,
++                                   a.b - 1,
++                                   a.c + 1.0 };
++    return ccd;
++}
++
++
+ int
+ rust_dbg_static_mut = 3;
+ 
+diff --git a/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
+new file mode 100644
+index 000000000000..f0f052fe5c55
+--- /dev/null
++++ b/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
+@@ -0,0 +1,181 @@
++// ignore-tidy-linelength
++// compile-flags: -C no-prepopulate-passes
++// only-riscv64
++// only-linux
++#![crate_type = "lib"]
++#![allow(improper_ctypes)]
++
++// CHECK: define void @f_void()
++#[no_mangle]
++pub extern "C" fn f_void() {}
++
++// CHECK: define zeroext i1 @f_scalar_0(i1 zeroext %a)
++#[no_mangle]
++pub extern "C" fn f_scalar_0(a: bool) -> bool {
++    a
++}
++
++// CHECK: define signext i8 @f_scalar_1(i8 signext %x)
++#[no_mangle]
++pub extern "C" fn f_scalar_1(x: i8) -> i8 {
++    x
++}
++
++// CHECK: define zeroext i8 @f_scalar_2(i8 zeroext %x)
++#[no_mangle]
++pub extern "C" fn f_scalar_2(x: u8) -> u8 {
++    x
++}
++
++// CHECK: define signext i32 @f_scalar_3(i32 signext %x)
++#[no_mangle]
++pub extern "C" fn f_scalar_3(x: i32) -> u32 {
++    x as u32
++}
++
++// CHECK: define i64 @f_scalar_4(i64 %x)
++#[no_mangle]
++pub extern "C" fn f_scalar_4(x: i64) -> i64 {
++    x
++}
++
++// CHECK: define float @f_fp_scalar_1(float)
++#[no_mangle]
++pub extern "C" fn f_fp_scalar_1(x: f32) -> f32 {
++    x
++}
++// CHECK: define double @f_fp_scalar_2(double)
++#[no_mangle]
++pub extern "C" fn f_fp_scalar_2(x: f64) -> f64 {
++    x
++}
++
++#[repr(C)]
++pub struct Empty {}
++
++// CHECK: define void @f_agg_empty_struct()
++#[no_mangle]
++pub extern "C" fn f_agg_empty_struct(e: Empty) -> Empty {
++    e
++}
++
++#[repr(C)]
++pub struct Tiny {
++    a: u16,
++    b: u16,
++    c: u16,
++    d: u16,
++}
++
++// CHECK: define void @f_agg_tiny(i64)
++#[no_mangle]
++pub extern "C" fn f_agg_tiny(mut e: Tiny) {
++    e.a += e.b;
++    e.c += e.d;
++}
++
++// CHECK: define i64 @f_agg_tiny_ret()
++#[no_mangle]
++pub extern "C" fn f_agg_tiny_ret() -> Tiny {
++    Tiny { a: 1, b: 2, c: 3, d: 4 }
++}
++
++#[repr(C)]
++pub struct Small {
++    a: i64,
++    b: *mut i64,
++}
++
++// CHECK: define void @f_agg_small([2 x i64])
++#[no_mangle]
++pub extern "C" fn f_agg_small(mut x: Small) {
++    x.a += unsafe { *x.b };
++    x.b = &mut x.a;
++}
++
++// CHECK: define [2 x i64] @f_agg_small_ret()
++#[no_mangle]
++pub extern "C" fn f_agg_small_ret() -> Small {
++    Small { a: 1, b: core::ptr::null_mut() }
++}
++
++#[repr(C)]
++pub struct SmallAligned {
++    a: i128,
++}
++
++// CHECK: define void @f_agg_small_aligned(i128)
++#[no_mangle]
++pub extern "C" fn f_agg_small_aligned(mut x: SmallAligned) {
++    x.a += x.a;
++}
++
++#[repr(C)]
++pub struct Large {
++    a: i64,
++    b: i64,
++    c: i64,
++    d: i64,
++}
++
++// CHECK: define void @f_agg_large(%Large* {{.*}}%x)
++#[no_mangle]
++pub extern "C" fn f_agg_large(mut x: Large) {
++    x.a = x.b + x.c + x.d;
++}
++
++// CHECK: define void @f_agg_large_ret(%Large* {{.*}}sret{{.*}}, i32 signext %i, i8 signext %j)
++#[no_mangle]
++pub extern "C" fn f_agg_large_ret(i: i32, j: i8) -> Large {
++    Large { a: 1, b: 2, c: 3, d: 4 }
++}
++
++// CHECK: define void @f_scalar_stack_1(i64, [2 x i64], i128, %Large* {{.*}}%d, i8 zeroext %e, i8 signext %f, i8 %g, i8 %h)
++#[no_mangle]
++pub extern "C" fn f_scalar_stack_1(
++    a: Tiny,
++    b: Small,
++    c: SmallAligned,
++    d: Large,
++    e: u8,
++    f: i8,
++    g: u8,
++    h: i8,
++) {
++}
++
++// CHECK: define void @f_scalar_stack_2(%Large* {{.*}}sret{{.*}}, i64 %a, i128, i128, i64 %d, i8 zeroext %e, i8 %f, i8 %g)
++#[no_mangle]
++pub extern "C" fn f_scalar_stack_2(
++    a: u64,
++    b: SmallAligned,
++    c: SmallAligned,
++    d: u64,
++    e: u8,
++    f: i8,
++    g: u8,
++) -> Large {
++    Large { a: a as i64, b: e as i64, c: f as i64, d: g as i64 }
++}
++
++extern "C" {
++    fn f_va_callee(_: i32, ...) -> i32;
++}
++
++#[no_mangle]
++pub unsafe extern "C" fn f_va_caller() {
++    // CHECK: call signext i32 (i32, ...) @f_va_callee(i32 signext 1, i32 signext 2, i64 3, double {{.*}}, double {{.*}}, i64 {{.*}}, [2 x i64] {{.*}}, i128 {{.*}}, %Large* {{.*}})
++    f_va_callee(
++        1,
++        2i32,
++        3i64,
++        4.0f64,
++        5.0f64,
++        Tiny { a: 1, b: 2, c: 3, d: 4 },
++        Small { a: 10, b: core::ptr::null_mut() },
++        SmallAligned { a: 11 },
++        Large { a: 12, b: 13, c: 14, d: 15 },
++    );
++    // CHECK: call signext i32 (i32, ...) @f_va_callee(i32 signext 1, i32 signext 2, i32 signext 3, i32 signext 4, i128 {{.*}}, i32 signext 6, i32 signext 7, i32 8, i32 9)
++    f_va_callee(1, 2i32, 3i32, 4i32, SmallAligned { a: 5 }, 6i32, 7i32, 8i32, 9i32);
++}
+diff --git a/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
+new file mode 100644
+index 000000000000..66a3b9e4952a
+--- /dev/null
++++ b/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
+@@ -0,0 +1,293 @@
++// ignore-tidy-linelength
++// compile-flags: -C no-prepopulate-passes
++// only-riscv64
++// only-linux
++#![crate_type = "lib"]
++
++// CHECK: define void @f_fpr_tracking(double, double, double, double, double, double, double, double, i8 zeroext %i)
++#[no_mangle]
++pub extern "C" fn f_fpr_tracking(
++    a: f64,
++    b: f64,
++    c: f64,
++    d: f64,
++    e: f64,
++    f: f64,
++    g: f64,
++    h: f64,
++    i: u8,
++) {
++}
++
++#[repr(C)]
++pub struct Double {
++    f: f64,
++}
++
++#[repr(C)]
++pub struct DoubleDouble {
++    f: f64,
++    g: f64,
++}
++
++#[repr(C)]
++pub struct DoubleFloat {
++    f: f64,
++    g: f32,
++}
++
++// CHECK: define void @f_double_s_arg(double)
++#[no_mangle]
++pub extern "C" fn f_double_s_arg(a: Double) {}
++
++// CHECK: define double @f_ret_double_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_s() -> Double {
++    Double { f: 1. }
++}
++
++// CHECK: define void @f_double_double_s_arg({ double, double })
++#[no_mangle]
++pub extern "C" fn f_double_double_s_arg(a: DoubleDouble) {}
++
++// CHECK: define { double, double } @f_ret_double_double_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_double_s() -> DoubleDouble {
++    DoubleDouble { f: 1., g: 2. }
++}
++
++// CHECK: define void @f_double_float_s_arg({ double, float })
++#[no_mangle]
++pub extern "C" fn f_double_float_s_arg(a: DoubleFloat) {}
++
++// CHECK: define { double, float } @f_ret_double_float_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_float_s() -> DoubleFloat {
++    DoubleFloat { f: 1., g: 2. }
++}
++
++// CHECK: define void @f_double_double_s_arg_insufficient_fprs(double, double, double, double, double, double, double, [2 x i64])
++#[no_mangle]
++pub extern "C" fn f_double_double_s_arg_insufficient_fprs(
++    a: f64,
++    b: f64,
++    c: f64,
++    d: f64,
++    e: f64,
++    f: f64,
++    g: f64,
++    h: DoubleDouble,
++) {
++}
++
++#[repr(C)]
++pub struct DoubleInt8 {
++    f: f64,
++    i: i8,
++}
++
++#[repr(C)]
++pub struct DoubleUInt8 {
++    f: f64,
++    i: u8,
++}
++
++#[repr(C)]
++pub struct DoubleInt32 {
++    f: f64,
++    i: i32,
++}
++
++#[repr(C)]
++pub struct DoubleInt64 {
++    f: f64,
++    i: i64,
++}
++
++// CHECK: define void @f_double_int8_s_arg({ double, i8 })
++#[no_mangle]
++pub extern "C" fn f_double_int8_s_arg(a: DoubleInt8) {}
++
++// CHECK: define { double, i8 } @f_ret_double_int8_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_int8_s() -> DoubleInt8 {
++    DoubleInt8 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_double_int32_s_arg({ double, i32 })
++#[no_mangle]
++pub extern "C" fn f_double_int32_s_arg(a: DoubleInt32) {}
++
++// CHECK: define { double, i32 } @f_ret_double_int32_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_int32_s() -> DoubleInt32 {
++    DoubleInt32 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_double_uint8_s_arg({ double, i8 })
++#[no_mangle]
++pub extern "C" fn f_double_uint8_s_arg(a: DoubleUInt8) {}
++
++// CHECK: define { double, i8 } @f_ret_double_uint8_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_uint8_s() -> DoubleUInt8 {
++    DoubleUInt8 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_double_int64_s_arg({ double, i64 })
++#[no_mangle]
++pub extern "C" fn f_double_int64_s_arg(a: DoubleInt64) {}
++
++// CHECK: define { double, i64 } @f_ret_double_int64_s()
++#[no_mangle]
++pub extern "C" fn f_ret_double_int64_s() -> DoubleInt64 {
++    DoubleInt64 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_double_int8_s_arg_insufficient_gprs(i32 signext %a, i32 signext %b, i32 signext %c, i32 signext %d, i32 signext %e, i32 signext %f, i32 signext %g, i32 signext %h, [2 x i64])
++#[no_mangle]
++pub extern "C" fn f_double_int8_s_arg_insufficient_gprs(
++    a: i32,
++    b: i32,
++    c: i32,
++    d: i32,
++    e: i32,
++    f: i32,
++    g: i32,
++    h: i32,
++    i: DoubleInt8,
++) {
++}
++
++// CHECK: define void @f_struct_double_int8_insufficient_fprs(float, double, double, double, double, double, double, double, [2 x i64])
++#[no_mangle]
++pub extern "C" fn f_struct_double_int8_insufficient_fprs(
++    a: f32,
++    b: f64,
++    c: f64,
++    d: f64,
++    e: f64,
++    f: f64,
++    g: f64,
++    h: f64,
++    i: DoubleInt8,
++) {
++}
++
++#[repr(C)]
++pub struct DoubleArr1 {
++    a: [f64; 1],
++}
++
++// CHECK: define void @f_doublearr1_s_arg(double)
++#[no_mangle]
++pub extern "C" fn f_doublearr1_s_arg(a: DoubleArr1) {}
++
++// CHECK: define double @f_ret_doublearr1_s()
++#[no_mangle]
++pub extern "C" fn f_ret_doublearr1_s() -> DoubleArr1 {
++    DoubleArr1 { a: [1.] }
++}
++
++#[repr(C)]
++pub struct DoubleArr2 {
++    a: [f64; 2],
++}
++
++// CHECK: define void @f_doublearr2_s_arg({ double, double })
++#[no_mangle]
++pub extern "C" fn f_doublearr2_s_arg(a: DoubleArr2) {}
++
++// CHECK: define { double, double } @f_ret_doublearr2_s()
++#[no_mangle]
++pub extern "C" fn f_ret_doublearr2_s() -> DoubleArr2 {
++    DoubleArr2 { a: [1., 2.] }
++}
++
++#[repr(C)]
++pub struct Tricky1 {
++    f: [f64; 1],
++}
++
++#[repr(C)]
++pub struct DoubleArr2Tricky1 {
++    g: [Tricky1; 2],
++}
++
++// CHECK: define void @f_doublearr2_tricky1_s_arg({ double, double })
++#[no_mangle]
++pub extern "C" fn f_doublearr2_tricky1_s_arg(a: DoubleArr2Tricky1) {}
++
++// CHECK: define { double, double } @f_ret_doublearr2_tricky1_s()
++#[no_mangle]
++pub extern "C" fn f_ret_doublearr2_tricky1_s() -> DoubleArr2Tricky1 {
++    DoubleArr2Tricky1 { g: [Tricky1 { f: [1.] }, Tricky1 { f: [2.] }] }
++}
++
++#[repr(C)]
++pub struct EmptyStruct {}
++
++#[repr(C)]
++pub struct DoubleArr2Tricky2 {
++    s: EmptyStruct,
++    g: [Tricky1; 2],
++}
++
++// CHECK: define void @f_doublearr2_tricky2_s_arg({ double, double })
++#[no_mangle]
++pub extern "C" fn f_doublearr2_tricky2_s_arg(a: DoubleArr2Tricky2) {}
++
++// CHECK: define { double, double } @f_ret_doublearr2_tricky2_s()
++#[no_mangle]
++pub extern "C" fn f_ret_doublearr2_tricky2_s() -> DoubleArr2Tricky2 {
++    DoubleArr2Tricky2 { s: EmptyStruct {}, g: [Tricky1 { f: [1.] }, Tricky1 { f: [2.] }] }
++}
++
++#[repr(C)]
++pub struct IntDoubleInt {
++    a: i32,
++    b: f64,
++    c: i32,
++}
++
++// CHECK: define void @f_int_double_int_s_arg(%IntDoubleInt* {{.*}}%a)
++#[no_mangle]
++pub extern "C" fn f_int_double_int_s_arg(a: IntDoubleInt) {}
++
++// CHECK: define void @f_ret_int_double_int_s(%IntDoubleInt* {{.*}}sret
++#[no_mangle]
++pub extern "C" fn f_ret_int_double_int_s() -> IntDoubleInt {
++    IntDoubleInt { a: 1, b: 2., c: 3 }
++}
++
++#[repr(C)]
++pub struct CharCharDouble {
++    a: u8,
++    b: u8,
++    c: f64,
++}
++
++// CHECK: define void @f_char_char_double_s_arg([2 x i64])
++#[no_mangle]
++pub extern "C" fn f_char_char_double_s_arg(a: CharCharDouble) {}
++
++// CHECK: define [2 x i64] @f_ret_char_char_double_s()
++#[no_mangle]
++pub extern "C" fn f_ret_char_char_double_s() -> CharCharDouble {
++    CharCharDouble { a: 1, b: 2, c: 3. }
++}
++
++#[repr(C)]
++pub union DoubleU {
++    a: f64,
++}
++
++// CHECK: define void @f_double_u_arg(i64)
++#[no_mangle]
++pub extern "C" fn f_double_u_arg(a: DoubleU) {}
++
++// CHECK: define i64 @f_ret_double_u()
++#[no_mangle]
++pub extern "C" fn f_ret_double_u() -> DoubleU {
++    unsafe { DoubleU { a: 1. } }
++}
+diff --git a/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
+new file mode 100644
+index 000000000000..d843331f425d
+--- /dev/null
++++ b/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
+@@ -0,0 +1,277 @@
++// ignore-tidy-linelength
++// compile-flags: -C no-prepopulate-passes
++// only-riscv64
++// only-linux
++#![crate_type = "lib"]
++
++// CHECK: define void @f_fpr_tracking(float, float, float, float, float, float, float, float, i8 zeroext %i)
++#[no_mangle]
++pub extern "C" fn f_fpr_tracking(
++    a: f32,
++    b: f32,
++    c: f32,
++    d: f32,
++    e: f32,
++    f: f32,
++    g: f32,
++    h: f32,
++    i: u8,
++) {
++}
++
++#[repr(C)]
++pub struct Float {
++    f: f32,
++}
++
++#[repr(C)]
++pub struct FloatFloat {
++    f: f32,
++    g: f32,
++}
++
++// CHECK: define void @f_float_s_arg(float)
++#[no_mangle]
++pub extern "C" fn f_float_s_arg(a: Float) {}
++
++// CHECK: define float @f_ret_float_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_s() -> Float {
++    Float { f: 1. }
++}
++
++// CHECK: define void @f_float_float_s_arg({ float, float })
++#[no_mangle]
++pub extern "C" fn f_float_float_s_arg(a: FloatFloat) {}
++
++// CHECK: define { float, float } @f_ret_float_float_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_float_s() -> FloatFloat {
++    FloatFloat { f: 1., g: 2. }
++}
++
++// CHECK: define void @f_float_float_s_arg_insufficient_fprs(float, float, float, float, float, float, float, i64)
++#[no_mangle]
++pub extern "C" fn f_float_float_s_arg_insufficient_fprs(
++    a: f32,
++    b: f32,
++    c: f32,
++    d: f32,
++    e: f32,
++    f: f32,
++    g: f32,
++    h: FloatFloat,
++) {
++}
++
++#[repr(C)]
++pub struct FloatInt8 {
++    f: f32,
++    i: i8,
++}
++
++#[repr(C)]
++pub struct FloatUInt8 {
++    f: f32,
++    i: u8,
++}
++
++#[repr(C)]
++pub struct FloatInt32 {
++    f: f32,
++    i: i32,
++}
++
++#[repr(C)]
++pub struct FloatInt64 {
++    f: f32,
++    i: i64,
++}
++
++// CHECK: define void @f_float_int8_s_arg({ float, i8 })
++#[no_mangle]
++pub extern "C" fn f_float_int8_s_arg(a: FloatInt8) {}
++
++// CHECK: define { float, i8 } @f_ret_float_int8_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_int8_s() -> FloatInt8 {
++    FloatInt8 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_float_int32_s_arg({ float, i32 })
++#[no_mangle]
++pub extern "C" fn f_float_int32_s_arg(a: FloatInt32) {}
++
++// CHECK: define { float, i32 } @f_ret_float_int32_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_int32_s() -> FloatInt32 {
++    FloatInt32 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_float_uint8_s_arg({ float, i8 })
++#[no_mangle]
++pub extern "C" fn f_float_uint8_s_arg(a: FloatUInt8) {}
++
++// CHECK: define { float, i8 } @f_ret_float_uint8_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_uint8_s() -> FloatUInt8 {
++    FloatUInt8 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_float_int64_s_arg({ float, i64 })
++#[no_mangle]
++pub extern "C" fn f_float_int64_s_arg(a: FloatInt64) {}
++
++// CHECK: define { float, i64 } @f_ret_float_int64_s()
++#[no_mangle]
++pub extern "C" fn f_ret_float_int64_s() -> FloatInt64 {
++    FloatInt64 { f: 1., i: 2 }
++}
++
++// CHECK: define void @f_float_int8_s_arg_insufficient_gprs(i32 signext %a, i32 signext %b, i32 signext %c, i32 signext %d, i32 signext %e, i32 signext %f, i32 signext %g, i32 signext %h, i64)
++#[no_mangle]
++pub extern "C" fn f_float_int8_s_arg_insufficient_gprs(
++    a: i32,
++    b: i32,
++    c: i32,
++    d: i32,
++    e: i32,
++    f: i32,
++    g: i32,
++    h: i32,
++    i: FloatInt8,
++) {
++}
++
++// CHECK: define void @f_struct_float_int8_insufficient_fprs(float, float, float, float, float, float, float, float, i64)
++#[no_mangle]
++pub extern "C" fn f_struct_float_int8_insufficient_fprs(
++    a: f32,
++    b: f32,
++    c: f32,
++    d: f32,
++    e: f32,
++    f: f32,
++    g: f32,
++    h: f32,
++    i: FloatInt8,
++) {
++}
++
++#[repr(C)]
++pub struct FloatArr1 {
++    a: [f32; 1],
++}
++
++// CHECK: define void @f_floatarr1_s_arg(float)
++#[no_mangle]
++pub extern "C" fn f_floatarr1_s_arg(a: FloatArr1) {}
++
++// CHECK: define float @f_ret_floatarr1_s()
++#[no_mangle]
++pub extern "C" fn f_ret_floatarr1_s() -> FloatArr1 {
++    FloatArr1 { a: [1.] }
++}
++
++#[repr(C)]
++pub struct FloatArr2 {
++    a: [f32; 2],
++}
++
++// CHECK: define void @f_floatarr2_s_arg({ float, float })
++#[no_mangle]
++pub extern "C" fn f_floatarr2_s_arg(a: FloatArr2) {}
++
++// CHECK: define { float, float } @f_ret_floatarr2_s()
++#[no_mangle]
++pub extern "C" fn f_ret_floatarr2_s() -> FloatArr2 {
++    FloatArr2 { a: [1., 2.] }
++}
++
++#[repr(C)]
++pub struct Tricky1 {
++    f: [f32; 1],
++}
++
++#[repr(C)]
++pub struct FloatArr2Tricky1 {
++    g: [Tricky1; 2],
++}
++
++// CHECK: define void @f_floatarr2_tricky1_s_arg({ float, float })
++#[no_mangle]
++pub extern "C" fn f_floatarr2_tricky1_s_arg(a: FloatArr2Tricky1) {}
++
++// CHECK: define { float, float } @f_ret_floatarr2_tricky1_s()
++#[no_mangle]
++pub extern "C" fn f_ret_floatarr2_tricky1_s() -> FloatArr2Tricky1 {
++    FloatArr2Tricky1 { g: [Tricky1 { f: [1.] }, Tricky1 { f: [2.] }] }
++}
++
++#[repr(C)]
++pub struct EmptyStruct {}
++
++#[repr(C)]
++pub struct FloatArr2Tricky2 {
++    s: EmptyStruct,
++    g: [Tricky1; 2],
++}
++
++// CHECK: define void @f_floatarr2_tricky2_s_arg({ float, float })
++#[no_mangle]
++pub extern "C" fn f_floatarr2_tricky2_s_arg(a: FloatArr2Tricky2) {}
++
++// CHECK: define { float, float } @f_ret_floatarr2_tricky2_s()
++#[no_mangle]
++pub extern "C" fn f_ret_floatarr2_tricky2_s() -> FloatArr2Tricky2 {
++    FloatArr2Tricky2 { s: EmptyStruct {}, g: [Tricky1 { f: [1.] }, Tricky1 { f: [2.] }] }
++}
++
++#[repr(C)]
++pub struct IntFloatInt {
++    a: i32,
++    b: f32,
++    c: i32,
++}
++
++// CHECK: define void @f_int_float_int_s_arg([2 x i64])
++#[no_mangle]
++pub extern "C" fn f_int_float_int_s_arg(a: IntFloatInt) {}
++
++// CHECK: define [2 x i64] @f_ret_int_float_int_s()
++#[no_mangle]
++pub extern "C" fn f_ret_int_float_int_s() -> IntFloatInt {
++    IntFloatInt { a: 1, b: 2., c: 3 }
++}
++
++#[repr(C)]
++pub struct CharCharFloat {
++    a: u8,
++    b: u8,
++    c: f32,
++}
++
++// CHECK: define void @f_char_char_float_s_arg(i64)
++#[no_mangle]
++pub extern "C" fn f_char_char_float_s_arg(a: CharCharFloat) {}
++
++// CHECK: define i64 @f_ret_char_char_float_s()
++#[no_mangle]
++pub extern "C" fn f_ret_char_char_float_s() -> CharCharFloat {
++    CharCharFloat { a: 1, b: 2, c: 3. }
++}
++
++#[repr(C)]
++pub union FloatU {
++    a: f32,
++}
++
++// CHECK: define void @f_float_u_arg(i64)
++#[no_mangle]
++pub extern "C" fn f_float_u_arg(a: FloatU) {}
++
++// CHECK: define i64 @f_ret_float_u()
++#[no_mangle]
++pub extern "C" fn f_ret_float_u() -> FloatU {
++    unsafe { FloatU { a: 1. } }
++}
+diff --git a/src/test/ui/abi/struct-enums/struct-return.rs b/src/test/ui/abi/struct-enums/struct-return.rs
+index 5930fc4acbbe..a3e70bbdb080 100644
+--- a/src/test/ui/abi/struct-enums/struct-return.rs
++++ b/src/test/ui/abi/struct-enums/struct-return.rs
+@@ -10,13 +10,23 @@ pub struct Quad { a: u64, b: u64, c: u64, d: u64 }
+ #[derive(Copy, Clone)]
+ pub struct Floats { a: f64, b: u8, c: f64 }
+ 
++#[repr(C)]
++#[derive(Copy, Clone)]
++pub struct CharCharDouble { a: u8, b: u8, c: f64 }
++
++#[repr(C)]
++#[derive(Copy, Clone)]
++pub struct CharCharFloat { a: u8, b: u8, c: f32 }
++
+ mod rustrt {
+-    use super::{Floats, Quad};
++    use super::{Floats, Quad, CharCharDouble, CharCharFloat};
+ 
+     #[link(name = "rust_test_helpers", kind = "static")]
+     extern {
+         pub fn rust_dbg_abi_1(q: Quad) -> Quad;
+         pub fn rust_dbg_abi_2(f: Floats) -> Floats;
++        pub fn rust_dbg_abi_3(a: CharCharDouble) -> CharCharDouble;
++        pub fn rust_dbg_abi_4(a: CharCharFloat) -> CharCharFloat;
+     }
+ }
+ 
+@@ -58,7 +68,47 @@ fn test2() {
+ fn test2() {
+ }
+ 
++#[cfg(target_pointer_width = "64")]
++fn test3() {
++    unsafe {
++        let a = CharCharDouble {
++            a: 1,
++            b: 2,
++            c: 3.,
++        };
++        let b = rustrt::rust_dbg_abi_3(a);
++        println!("a: {}", b.a);
++        println!("b: {}", b.b);
++        println!("c: {}", b.c);
++        assert_eq!(b.a, a.a + 1);
++        assert_eq!(b.b, a.b - 1);
++        assert_eq!(b.c, a.c + 1.0);
++    }
++}
++
++#[cfg(target_pointer_width = "32")]
++fn test3() {}
++
++fn test4() {
++    unsafe {
++        let a = CharCharFloat {
++            a: 1,
++            b: 2,
++            c: 3.,
++        };
++        let b = rustrt::rust_dbg_abi_4(a);
++        println!("a: {}", b.a);
++        println!("b: {}", b.b);
++        println!("c: {}", b.c);
++        assert_eq!(b.a, a.a + 1);
++        assert_eq!(b.b, a.b - 1);
++        assert_eq!(b.c, a.c + 1.0);
++    }
++}
++
+ pub fn main() {
+     test1();
+     test2();
++    test3();
++    test4();
+ }
