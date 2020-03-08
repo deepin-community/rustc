@@ -1,4 +1,4 @@
-rustc (1.41.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.41.1+dfsg1-1~exp1) UNRELEASED; urgency=medium
 
   [ Ximin Luo ]
   * More python 2 -> 3 fixes.
