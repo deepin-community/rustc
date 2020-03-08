@@ -20,7 +20,6 @@ u-riscv64-cc-461.patch
 u-riscv64-cc-465.patch
 u-riscv64-compiletest.patch
 u-wasm32-libc-1625.patch
-u-wasm32-wasi.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustc-llvm-cross-flags.patch
