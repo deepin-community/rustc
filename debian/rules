@@ -188,12 +188,6 @@ debian/dh_auto_configure.stamp: debian/config.toml
 	if test $$(grep "127.0.0.1\s*localhost" /etc/hosts | wc -l) -gt 1; then \
 	  debian/ensure-patch -N debian/patches/d-host-duplicates.patch; fi
 	# work around https://github.com/rust-lang/rust/issues/59264
-	# TODO: remove this in 1.41 and later
-	if dpkg --compare-versions $(LOCAL_RUST_VERSION) '>=' 1.40.0; then \
-	 debian/ensure-patch -N debian/patches/u-compiletest-stage0-bump.patch; \
-	else \
-	 debian/ensure-patch -R debian/patches/u-compiletest-stage0-bump.patch; \
-	fi
 	# We patched some crates so have to rm the checksums
 	find vendor -name .cargo-checksum.json -execdir "$(CURDIR)/debian/prune-checksums" "{}" +
 	# Link against system liblzma, see https://github.com/alexcrichton/xz2-rs/issues/16
