@@ -27,7 +27,6 @@ u-reproducible-dl-stage0.patch
 
 # Debian-specific patches, not suitable for upstream
 # Patches needed by debian/prune-unused-deps
-d-0000-convert-cargo-lock-to-v1.patch
 d-0000-ignore-removed-submodules.patch
 d-0001-disable-miniz.patch
 d-0002-pkg-config-no-special-snowflake.patch

@@ -16,6 +16,7 @@ done
 test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
 rm -f Cargo.lock
 ./x.py build nonexistent/path/to/trigger/cargo/metadata src/bootstrap
+cargo lock translate -v1 # the hacky regex logic below is for lock v1 files
 
 not_needed() {
 	diff -ru Cargo.lock.orig Cargo.lock \
