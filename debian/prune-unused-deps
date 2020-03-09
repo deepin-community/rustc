@@ -17,10 +17,13 @@ test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
 rm -f Cargo.lock
 ./x.py build nonexistent/path/to/trigger/cargo/metadata src/bootstrap
 
+massage_lock_file() {
+	sed -z -e 's/\nname = /name = /g' -e 's/\nversion = /version = /g' "$1"
+}
+
 not_needed() {
-	diff -ru Cargo.lock.orig Cargo.lock \
-	  | sed -z 's/\n-version/-version/g' \
-	  | sed -ne 's/-name = "\(.*\)"-version = "\(.*\)"/\1 \2/gp'
+	diff -ru <(massage_lock_file Cargo.lock.orig) <(massage_lock_file Cargo.lock) \
+	  | sed -ne 's/-\[\[package\]\]name = "\(.*\)"version = "\(.*\)"/\1 \2/gp'
 }
 
 ghetto_parse_cargo() {
