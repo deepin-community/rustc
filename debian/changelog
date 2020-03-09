@@ -1,4 +1,4 @@
-rustc (1.41.1+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.41.1+dfsg1-1~exp1) experimental; urgency=medium
 
   [ Ximin Luo ]
   * More python 2 -> 3 fixes.
@@ -11,7 +11,7 @@ rustc (1.41.1+dfsg1-1~exp1) UNRELEASED; urgency=medium
   [ Fabian Grünbichler ]
   * New upstream release.
 
- -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Wed, 12 Feb 2020 09:58:56 +0100
+ -- Ximin Luo <infinity0@debian.org>  Mon, 09 Mar 2020 00:31:34 +0000
 
 rustc (1.40.0+dfsg1-5) unstable; urgency=medium
 
