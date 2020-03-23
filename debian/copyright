@@ -40,7 +40,6 @@ Files-Excluded:
  vendor/base64
  vendor/bitmaps
  vendor/blake2-rfc
- vendor/bstr
  vendor/bytecount
  vendor/bytes
  vendor/bytesize
@@ -57,8 +56,6 @@ Files-Excluded:
  vendor/core-foundation
  vendor/core-foundation-sys-0.6.2
  vendor/core-foundation-sys
- vendor/crossbeam-channel
- vendor/crossbeam-deque-0.6.3
  vendor/crossbeam-utils
  vendor/crypto-hash
  vendor/curl
@@ -82,7 +79,6 @@ Files-Excluded:
  vendor/git2
  vendor/git2-curl
  vendor/glob
- vendor/globset
  vendor/h2
  vendor/hex-0.3.2
  vendor/hex
@@ -90,12 +86,14 @@ Files-Excluded:
  vendor/httparse
  vendor/http-body
  vendor/http
+ vendor/humantime
  vendor/hyper
  vendor/hyper-tls
+ vendor/idna-0.1.5
  vendor/if_chain
- vendor/ignore
  vendor/im-rc
  vendor/iovec
+ vendor/itertools-0.7.8
  vendor/json
  vendor/jsonrpc-client-transports
  vendor/jsonrpc-core
@@ -126,11 +124,8 @@ Files-Excluded:
  vendor/openssl-src
  vendor/openssl-sys
  vendor/ordslice
- vendor/owning_ref
  vendor/packed_simd
  vendor/parity-tokio-ipc
- vendor/parking_lot-0.7.1
- vendor/parking_lot_core-0.4.0
  vendor/percent-encoding-1.0.1
  vendor/pretty_env_logger
  vendor/proc-macro-crate
@@ -138,6 +133,7 @@ Files-Excluded:
  vendor/publicsuffix
  vendor/quine-mc_cluskey
  vendor/racer
+ vendor/rand_core-0.4.0
  vendor/rand_os
  vendor/rand_xoshiro
  vendor/rdrand
@@ -157,9 +153,9 @@ Files-Excluded:
  vendor/rustc-ap-syntax
  vendor/rustc-ap-syntax_pos
  vendor/rustc_tools_util
+ vendor/rustfix-0.4.6
  vendor/schannel
  vendor/scoped_threadpool
- vendor/scopeguard-0.3.3
  vendor/security-framework
  vendor/security-framework-sys
  vendor/serde_ignored
@@ -187,6 +183,7 @@ Files-Excluded:
  vendor/tokio-reactor
  vendor/tokio-service
  vendor/tokio-signal
+ vendor/tokio-sync
  vendor/tokio-tcp
  vendor/tokio-threadpool
  vendor/tokio-timer
