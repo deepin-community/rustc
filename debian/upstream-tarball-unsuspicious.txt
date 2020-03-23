@@ -125,6 +125,7 @@ src/doc/book/2018-edition/src/img/*.svg
 src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
 src/doc/rustc-guide/src/img/rustc_stages.svg
+src/doc/rustc-guide/src/queries/example-0.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
 src/librustdoc/html/static/favicon.ico
@@ -157,6 +158,7 @@ src/test/*/*/*.stdout
 src/test/*/*/*/*.stderr
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
+vendor/bstr/src/unicode/data/*Test.txt
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
 vendor/elasticlunr-rs/tests/data/tr.in.txt
@@ -192,6 +194,7 @@ vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/url-1*/tests/*.json
 vendor/yaml-rust/tests/specexamples.rs.inc
+vendor/ucd-parse/src/sentence_break.rs
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
@@ -199,7 +202,11 @@ src/doc/rustc-guide/src/mir/mir_*.svg
 src/librustdoc/html/static/normalize.css
 vendor/pest_meta/src/grammar.rs
 vendor/unicode-normalization/src/tables.rs
+vendor/unicode-script/src/tables.rs
 vendor/unicode-segmentation/src/tables.rs
 
 # Compromise, ideally we'd package these in their own package
 src/librustdoc/html/static/*.woff
+
+# Compromise, ideally we'd autogenerate these
+vendor/bstr/src/unicode/fsm/*.dfa
