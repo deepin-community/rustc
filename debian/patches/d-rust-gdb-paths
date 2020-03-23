@@ -4,9 +4,11 @@ Description: Hardcode GDB python module directory
 Author: Angus Lees <gus@debian.org>
 Forwarded: not-needed
 
---- a/src/etc/rust-gdb
-+++ b/src/etc/rust-gdb
-@@ -13,8 +13,10 @@
+Index: rust/src/etc/rust-gdb
+===================================================================
+--- rust.orig/src/etc/rust-gdb
++++ rust/src/etc/rust-gdb
+@@ -3,8 +3,10 @@
  set -e
  
  # Find out where the pretty printer Python module is

@@ -1,24 +1,13 @@
 # Patches for upstream
 
-# patches from fedora
-0001-Fix-compiletest-fallout-from-stage0-bump.patch
-0001-Update-the-barrier-cache-during-ARM-EHABI-unwinding.patch
-rust-pr68019-in-tree-compiletest.patch
-
 # pending, or forwarded
 u-reproducible-build.patch
-u-prefer-local-css.patch
 u-test-python-3.patch
 u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
 u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
-u-riscv64-66899.patch
 u-riscv64-68452.patch
-u-riscv64-libc-1606.patch
-u-riscv64-cc-461.patch
-u-riscv64-cc-465.patch
-u-riscv64-compiletest.patch
 u-wasm32-libc-1625.patch
 
 # not forwarded, or forwarded but unlikely to be merged

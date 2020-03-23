@@ -1,19 +1,22 @@
 Description: Various fixes for Rust on MIPS
 Author: Dragan Mladjenovic <dmladjenovic@wavecomp.com>
 Bug-Debian: https://bugs.debian.org/881845
-Last-Update: 2018-10-24
+Last-Update: 2020-03-23
 
-Index: rustc/src/librustc_codegen_llvm/llvm_util.rs
+Index: rust/src/librustc_codegen_llvm/llvm_util.rs
 ===================================================================
---- rustc.orig/src/librustc_codegen_llvm/llvm_util.rs
-+++ rustc/src/librustc_codegen_llvm/llvm_util.rs
-@@ -68,6 +68,9 @@ unsafe fn configure_llvm(sess: &Session)
+--- rust.orig/src/librustc_codegen_llvm/llvm_util.rs
++++ rust/src/librustc_codegen_llvm/llvm_util.rs
+@@ -108,6 +108,12 @@ unsafe fn configure_llvm(sess: &Session)
          // during inlining. Unfortunately these may block other optimizations.
-         add("-preserve-alignment-assumptions-during-inlining=false");
+         add("-preserve-alignment-assumptions-during-inlining=false", false);
  
-+    if sess.target.target.arch == "mips" ||
-+        sess.target.target.arch == "mips64" { add("-fast-isel=0"); }
++        if sess.target.target.arch == "mips"
++            || sess.target.target.arch == "mips64"
++        {
++            add("-fast-isel=0", false);
++        }
 +
-         for arg in &sess.opts.cg.llvm_args {
-             add(&(*arg));
+         for arg in sess_args {
+             add(&(*arg), true);
          }

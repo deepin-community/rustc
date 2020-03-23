@@ -1,8 +1,8 @@
-diff --git a/src/librustc_target/spec/i686_unknown_linux_gnu.rs b/src/librustc_target/spec/i686_unknown_linux_gnu.rs
-index c3ff34788..80b296980 100644
---- a/src/librustc_target/spec/i686_unknown_linux_gnu.rs
-+++ b/src/librustc_target/spec/i686_unknown_linux_gnu.rs
-@@ -12,7 +12,7 @@ use spec::{LinkerFlavor, Target, TargetResult};
+Index: rust/src/librustc_target/spec/i686_unknown_linux_gnu.rs
+===================================================================
+--- rust.orig/src/librustc_target/spec/i686_unknown_linux_gnu.rs
++++ rust/src/librustc_target/spec/i686_unknown_linux_gnu.rs
+@@ -2,7 +2,7 @@ use crate::spec::{LinkerFlavor, Target,
  
  pub fn target() -> TargetResult {
      let mut base = super::linux_base::opts();

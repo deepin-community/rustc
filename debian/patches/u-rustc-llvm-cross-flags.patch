@@ -1,11 +1,13 @@
---- a/src/librustc_llvm/build.rs
-+++ b/src/librustc_llvm/build.rs
-@@ -229,7 +229,7 @@
-         if lib.starts_with("-LIBPATH:") {
-             println!("cargo:rustc-link-search=native={}", &lib[9..]);
-         } else if is_crossed {
--            if lib.starts_with("-L") {
-+            if lib.starts_with("-L") && lib[2..].contains(&host) {
-                 println!("cargo:rustc-link-search=native={}",
-                          lib[2..].replace(&host, &target));
+Index: rust/src/librustc_llvm/build.rs
+===================================================================
+--- rust.orig/src/librustc_llvm/build.rs
++++ rust/src/librustc_llvm/build.rs
+@@ -223,7 +223,7 @@ fn main() {
+         if is_crossed {
+             if lib.starts_with("-LIBPATH:") {
+                 println!("cargo:rustc-link-search=native={}", lib[9..].replace(&host, &target));
+-            } else if lib.starts_with("-L") {
++            } else if lib.starts_with("-L") && lib[2..].contains(&host) {
+                 println!("cargo:rustc-link-search=native={}", lib[2..].replace(&host, &target));
              }
+         } else if lib.starts_with("-LIBPATH:") {

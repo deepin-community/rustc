@@ -18,9 +18,11 @@ Description: Set DT_SONAME when building dylibs
 Author: Angus Lees <gus@debian.org>
 Forwarded: no
 
---- a/src/librustc_codegen_ssa/back/link.rs
-+++ b/src/librustc_codegen_ssa/back/link.rs
-@@ -1034,6 +1034,13 @@
+Index: rust/src/librustc_codegen_ssa/back/link.rs
+===================================================================
+--- rust.orig/src/librustc_codegen_ssa/back/link.rs
++++ rust/src/librustc_codegen_ssa/back/link.rs
+@@ -1318,6 +1318,13 @@ fn link_args<'a, B: ArchiveBuilder<'a>>(
          cmd.args(&rpath::get_rpath_flags(&mut rpath_config));
      }
  

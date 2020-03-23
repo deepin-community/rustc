@@ -9,10 +9,10 @@ Subject: [PATCH 1/2] Implement proper C ABI lowering for RISC-V
  src/librustc_target/abi/call/riscv.rs | 335 +++++++++++++++++++++++++-
  3 files changed, 331 insertions(+), 15 deletions(-)
 
-diff --git a/src/librustc/ty/layout.rs b/src/librustc/ty/layout.rs
-index bda42db40b0a..c70473b667ea 100644
---- a/src/librustc/ty/layout.rs
-+++ b/src/librustc/ty/layout.rs
+Index: rust/src/librustc/ty/layout.rs
+===================================================================
+--- rust.orig/src/librustc/ty/layout.rs
++++ rust/src/librustc/ty/layout.rs
 @@ -2650,6 +2650,7 @@ where
                  .map(|(i, ty)| arg_of(ty, Some(i)))
                  .collect(),
@@ -21,10 +21,10 @@ index bda42db40b0a..c70473b667ea 100644
              conv,
          };
          fn_abi.adjust_for_abi(cx, sig.abi);
-diff --git a/src/librustc_target/abi/call/mod.rs b/src/librustc_target/abi/call/mod.rs
-index af82f9e31837..175eb93e4e55 100644
---- a/src/librustc_target/abi/call/mod.rs
-+++ b/src/librustc_target/abi/call/mod.rs
+Index: rust/src/librustc_target/abi/call/mod.rs
+===================================================================
+--- rust.orig/src/librustc_target/abi/call/mod.rs
++++ rust/src/librustc_target/abi/call/mod.rs
 @@ -120,6 +120,7 @@ impl Reg {
      reg_ctor!(i16, Integer, 16);
      reg_ctor!(i32, Integer, 32);
@@ -53,13 +53,13 @@ index af82f9e31837..175eb93e4e55 100644
 -            "riscv32" => riscv::compute_abi_info(self, 32),
 -            "riscv64" => riscv::compute_abi_info(self, 64),
 +            "riscv32" | "riscv64" => riscv::compute_abi_info(cx, self),
-             "wasm32" if cx.target_spec().target_os != "emscripten"
-                 => wasm32_bindgen_compat::compute_abi_info(self),
-             "wasm32" | "asmjs" => wasm32::compute_abi_info(cx, self),
-diff --git a/src/librustc_target/abi/call/riscv.rs b/src/librustc_target/abi/call/riscv.rs
-index 095e5aff7442..11d6c4d81910 100644
---- a/src/librustc_target/abi/call/riscv.rs
-+++ b/src/librustc_target/abi/call/riscv.rs
+             "wasm32" if cx.target_spec().target_os != "emscripten" => {
+                 wasm32_bindgen_compat::compute_abi_info(self)
+             }
+Index: rust/src/librustc_target/abi/call/riscv.rs
+===================================================================
+--- rust.orig/src/librustc_target/abi/call/riscv.rs
++++ rust/src/librustc_target/abi/call/riscv.rs
 @@ -1,49 +1,358 @@
  // Reference: RISC-V ELF psABI specification
  // https://github.com/riscv/riscv-elf-psabi-doc
@@ -432,27 +432,10 @@ index 095e5aff7442..11d6c4d81910 100644
 +        );
      }
  }
-
-From 39633874ae7d0150669004a80740ff3b0708d08d Mon Sep 17 00:00:00 2001
-From: msizanoen1 <qtmlabs@protonmail.com>
-Date: Mon, 3 Feb 2020 22:04:44 +0700
-Subject: [PATCH 2/2] Add tests for RISC-V C ABI
-
----
- src/test/auxiliary/rust_test_helpers.c        |  29 ++
- .../riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs | 181 +++++++++++
- .../codegen/riscv-abi/riscv64-lp64d-abi.rs    | 293 ++++++++++++++++++
- .../riscv-abi/riscv64-lp64f-lp64d-abi.rs      | 277 +++++++++++++++++
- src/test/ui/abi/struct-enums/struct-return.rs |  52 +++-
- 5 files changed, 831 insertions(+), 1 deletion(-)
- create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
- create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
- create mode 100644 src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
-
-diff --git a/src/test/auxiliary/rust_test_helpers.c b/src/test/auxiliary/rust_test_helpers.c
-index b95b0ca1a89c..22bb54988365 100644
---- a/src/test/auxiliary/rust_test_helpers.c
-+++ b/src/test/auxiliary/rust_test_helpers.c
+Index: rust/src/test/auxiliary/rust_test_helpers.c
+===================================================================
+--- rust.orig/src/test/auxiliary/rust_test_helpers.c
++++ rust/src/test/auxiliary/rust_test_helpers.c
 @@ -168,6 +168,18 @@ struct floats {
      double c;
  };
@@ -496,11 +479,10 @@ index b95b0ca1a89c..22bb54988365 100644
  int
  rust_dbg_static_mut = 3;
  
-diff --git a/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
-new file mode 100644
-index 000000000000..f0f052fe5c55
+Index: rust/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
+===================================================================
 --- /dev/null
-+++ b/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
++++ rust/src/test/codegen/riscv-abi/riscv64-lp64-lp64f-lp64d-abi.rs
 @@ -0,0 +1,181 @@
 +// ignore-tidy-linelength
 +// compile-flags: -C no-prepopulate-passes
@@ -683,11 +665,10 @@ index 000000000000..f0f052fe5c55
 +    // CHECK: call signext i32 (i32, ...) @f_va_callee(i32 signext 1, i32 signext 2, i32 signext 3, i32 signext 4, i128 {{.*}}, i32 signext 6, i32 signext 7, i32 8, i32 9)
 +    f_va_callee(1, 2i32, 3i32, 4i32, SmallAligned { a: 5 }, 6i32, 7i32, 8i32, 9i32);
 +}
-diff --git a/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
-new file mode 100644
-index 000000000000..66a3b9e4952a
+Index: rust/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
+===================================================================
 --- /dev/null
-+++ b/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
++++ rust/src/test/codegen/riscv-abi/riscv64-lp64d-abi.rs
 @@ -0,0 +1,293 @@
 +// ignore-tidy-linelength
 +// compile-flags: -C no-prepopulate-passes
@@ -982,11 +963,10 @@ index 000000000000..66a3b9e4952a
 +pub extern "C" fn f_ret_double_u() -> DoubleU {
 +    unsafe { DoubleU { a: 1. } }
 +}
-diff --git a/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs b/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
-new file mode 100644
-index 000000000000..d843331f425d
+Index: rust/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
+===================================================================
 --- /dev/null
-+++ b/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
++++ rust/src/test/codegen/riscv-abi/riscv64-lp64f-lp64d-abi.rs
 @@ -0,0 +1,277 @@
 +// ignore-tidy-linelength
 +// compile-flags: -C no-prepopulate-passes
@@ -1265,11 +1245,11 @@ index 000000000000..d843331f425d
 +pub extern "C" fn f_ret_float_u() -> FloatU {
 +    unsafe { FloatU { a: 1. } }
 +}
-diff --git a/src/test/ui/abi/struct-enums/struct-return.rs b/src/test/ui/abi/struct-enums/struct-return.rs
-index 5930fc4acbbe..a3e70bbdb080 100644
---- a/src/test/ui/abi/struct-enums/struct-return.rs
-+++ b/src/test/ui/abi/struct-enums/struct-return.rs
-@@ -10,13 +10,23 @@ pub struct Quad { a: u64, b: u64, c: u64, d: u64 }
+Index: rust/src/test/ui/abi/struct-enums/struct-return.rs
+===================================================================
+--- rust.orig/src/test/ui/abi/struct-enums/struct-return.rs
++++ rust/src/test/ui/abi/struct-enums/struct-return.rs
+@@ -10,13 +10,23 @@ pub struct Quad { a: u64, b: u64, c: u64
  #[derive(Copy, Clone)]
  pub struct Floats { a: f64, b: u8, c: f64 }
  

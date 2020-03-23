@@ -1,295 +1,58 @@
 Description: Ignore error details with $SRC_DIR
  We build with --remap-path-prefix so it doesn't work, see bug below
 Bug: https://github.com/rust-lang/rust/issues/53081
-Index: rust/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-===================================================================
---- rust.orig/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-+++ rust/src/test/ui/impl-trait/impl-generic-mismatch.stderr
-@@ -31,11 +31,6 @@ error[E0643]: method `hash` has incompat
+
+some other small things (indentation, extra output) are also different between stock and Debian rustc
+
+diff --git a/src/test/ui/async-await/issues/issue-62009-1.stderr b/src/test/ui/async-await/issues/issue-62009-1.stderr
+index cd6670923..66388098d 100644
+--- a/src/test/ui/async-await/issues/issue-62009-1.stderr
++++ b/src/test/ui/async-await/issues/issue-62009-1.stderr
+@@ -32,11 +32,6 @@ error[E0277]: the trait bound `[closure@$DIR/issue-62009-1.rs:16:5: 16:15]: std:
     |
- LL |     fn hash(&self, hasher: &mut impl Hasher) {}
-    |                                 ^^^^^^^^^^^ expected generic parameter, found `impl Trait`
+ LL |     (|_| 2333).await;
+    |     ^^^^^^^^^^^^^^^^ the trait `std::future::Future` is not implemented for `[closure@$DIR/issue-62009-1.rs:16:5: 16:15]`
 -   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-  ::: $SRC_DIR/libstd/future.rs:LL:COL
 -   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - declaration in trait here
+-LL |     F: Future,
+-   |        ------ required by this bound in `std::future::poll_with_tls_context`
  
- error: aborting due to 3 previous errors
+ error: aborting due to 4 previous errors
  
-Index: rust/src/test/ui/closures/closure-move-sync.stderr
-===================================================================
---- rust.orig/src/test/ui/closures/closure-move-sync.stderr
-+++ rust/src/test/ui/closures/closure-move-sync.stderr
-@@ -3,11 +3,6 @@ error[E0277]: `std::sync::mpsc::Receiver
+diff --git a/src/test/ui/closures/closure-move-sync.stderr b/src/test/ui/closures/closure-move-sync.stderr
+index 2187823d7..390b2e11f 100644
+--- a/src/test/ui/closures/closure-move-sync.stderr
++++ b/src/test/ui/closures/closure-move-sync.stderr
+@@ -3,11 +3,6 @@ error[E0277]: `std::sync::mpsc::Receiver<()>` cannot be shared between threads s
     |
  LL |     let t = thread::spawn(|| {
     |             ^^^^^^^^^^^^^ `std::sync::mpsc::Receiver<()>` cannot be shared between threads safely
 -   | 
 -  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
 -   |
--LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
--   |                          ---- required by this bound in `std::thread::spawn`
+-LL |     F: Send + 'static,
+-   |        ---- required by this bound in `std::thread::spawn`
     |
     = help: the trait `std::marker::Sync` is not implemented for `std::sync::mpsc::Receiver<()>`
     = note: required because of the requirements on the impl of `std::marker::Send` for `&std::sync::mpsc::Receiver<()>`
-@@ -18,11 +13,6 @@ error[E0277]: `std::sync::mpsc::Sender<(
+@@ -18,11 +13,6 @@ error[E0277]: `std::sync::mpsc::Sender<()>` cannot be shared between threads saf
     |
  LL |     thread::spawn(|| tx.send(()).unwrap());
     |     ^^^^^^^^^^^^^ `std::sync::mpsc::Sender<()>` cannot be shared between threads safely
 -   | 
 -  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
 -   |
--LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
--   |                          ---- required by this bound in `std::thread::spawn`
+-LL |     F: Send + 'static,
+-   |        ---- required by this bound in `std::thread::spawn`
     |
     = help: the trait `std::marker::Sync` is not implemented for `std::sync::mpsc::Sender<()>`
     = note: required because of the requirements on the impl of `std::marker::Send` for `&std::sync::mpsc::Sender<()>`
-Index: rust/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
-===================================================================
---- rust.orig/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
-+++ rust/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: st
-    |
- LL |      x: Error
-    |      ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
--   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
--   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
- 
-Index: rust/src/test/ui/derives/derives-span-Hash-enum.stderr
-===================================================================
---- rust.orig/src/test/ui/derives/derives-span-Hash-enum.stderr
-+++ rust/src/test/ui/derives/derives-span-Hash-enum.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: st
-    |
- LL |      Error
-    |      ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
--   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
--   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
- 
-Index: rust/src/test/ui/derives/derives-span-Hash-struct.stderr
-===================================================================
---- rust.orig/src/test/ui/derives/derives-span-Hash-struct.stderr
-+++ rust/src/test/ui/derives/derives-span-Hash-struct.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: st
-    |
- LL |     x: Error
-    |     ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
--   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
--   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
- 
-Index: rust/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
-===================================================================
---- rust.orig/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
-+++ rust/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: st
-    |
- LL |     Error
-    |     ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
--   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
--   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
- 
-Index: rust/src/test/ui/interior-mutability/interior-mutability.stderr
-===================================================================
---- rust.orig/src/test/ui/interior-mutability/interior-mutability.stderr
-+++ rust/src/test/ui/interior-mutability/interior-mutability.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the type `std::cell::Unsaf
-    |
- LL |     catch_unwind(|| { x.set(23); });
-    |     ^^^^^^^^^^^^ `std::cell::UnsafeCell<i32>` may contain interior mutability and a reference may not be safely transferrable across a catch_unwind boundary
--   | 
--  ::: $SRC_DIR/libstd/panic.rs:LL:COL
--   |
--LL | pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
--   |                                        ---------- required by this bound in `std::panic::catch_unwind`
-    |
-    = help: within `std::cell::Cell<i32>`, the trait `std::panic::RefUnwindSafe` is not implemented for `std::cell::UnsafeCell<i32>`
-    = note: required because it appears within the type `std::cell::Cell<i32>`
-Index: rust/src/test/ui/issues/issue-21160.stderr
-===================================================================
---- rust.orig/src/test/ui/issues/issue-21160.stderr
-+++ rust/src/test/ui/issues/issue-21160.stderr
-@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Bar: std:
-    |
- LL | struct Foo(Bar);
-    |            ^^^ the trait `std::hash::Hash` is not implemented for `Bar`
--   | 
--  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
--   |
--LL |     fn hash<H: Hasher>(&self, state: &mut H);
--   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
- 
-Index: rust/src/test/ui/no-send-res-ports.stderr
-===================================================================
---- rust.orig/src/test/ui/no-send-res-ports.stderr
-+++ rust/src/test/ui/no-send-res-ports.stderr
-@@ -3,11 +3,6 @@ error[E0277]: `std::rc::Rc<()>` cannot b
-    |
- LL |     thread::spawn(move|| {
-    |     ^^^^^^^^^^^^^ `std::rc::Rc<()>` cannot be sent between threads safely
--   | 
--  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
--   |
--LL |     F: FnOnce() -> T, F: Send + 'static, T: Send + 'static
--   |                          ---- required by this bound in `std::thread::spawn`
-    |
-    = help: within `[closure@$DIR/no-send-res-ports.rs:26:19: 30:6 x:main::Foo]`, the trait `std::marker::Send` is not implemented for `std::rc::Rc<()>`
-    = note: required because it appears within the type `Port<()>`
-Index: rust/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
-===================================================================
---- rust.orig/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
-+++ rust/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
-@@ -5,11 +5,6 @@ LL | / fn can_parse_zero_as_f32() -> Res
- LL | |     "0".parse()
- LL | | }
-    | |_^ `main` can only return types that implement `std::process::Termination`
--   | 
--  ::: $SRC_DIR/libtest/lib.rs:LL:COL
--   |
--LL |   pub fn assert_test_result<T: Termination>(result: T) {
--   |                                ----------- required by this bound in `test::assert_test_result`
-    |
-    = help: the trait `std::process::Termination` is not implemented for `std::result::Result<f32, std::num::ParseFloatError>`
- 
-Index: rust/src/test/ui/traits/trait-suggest-where-clause.stderr
-===================================================================
---- rust.orig/src/test/ui/traits/trait-suggest-where-clause.stderr
-+++ rust/src/test/ui/traits/trait-suggest-where-clause.stderr
-@@ -6,11 +6,6 @@ LL | fn check<T: Iterator, U: ?Sized>()
- LL |     // suggest a where-clause, if needed
- LL |     mem::size_of::<U>();
-    |                    ^ doesn't have a size known at compile-time
--   | 
--  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
--   |
--LL | pub const fn size_of<T>() -> usize {
--   |                      - required by this bound in `std::mem::size_of`
-    |
-    = help: the trait `std::marker::Sized` is not implemented for `U`
-    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -23,11 +18,6 @@ LL | fn check<T: Iterator, U: ?Sized>()
- ...
- LL |     mem::size_of::<Misc<U>>();
-    |     ^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
--   | 
--  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
--   |
--LL | pub const fn size_of<T>() -> usize {
--   |                      - required by this bound in `std::mem::size_of`
-    |
-    = help: within `Misc<U>`, the trait `std::marker::Sized` is not implemented for `U`
-    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -62,11 +52,6 @@ error[E0277]: the size for values of typ
-    |
- LL |     mem::size_of::<[T]>();
-    |                    ^^^ doesn't have a size known at compile-time
--   | 
--  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
--   |
--LL | pub const fn size_of<T>() -> usize {
--   |                      - required by this bound in `std::mem::size_of`
-    |
-    = help: the trait `std::marker::Sized` is not implemented for `[T]`
-    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-@@ -76,11 +61,6 @@ error[E0277]: the size for values of typ
-    |
- LL |     mem::size_of::<[&U]>();
-    |     ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
--   | 
--  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
--   |
--LL | pub const fn size_of<T>() -> usize {
--   |                      - required by this bound in `std::mem::size_of`
-    |
-    = help: the trait `std::marker::Sized` is not implemented for `[&U]`
-    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
-Index: rust/src/test/ui/type_length_limit.stderr
-===================================================================
---- rust.orig/src/test/ui/type_length_limit.stderr
-+++ rust/src/test/ui/type_length_limit.stderr
-@@ -1,8 +1,4 @@
- error: reached the type-length limit while instantiating `std::mem::drop::<std::option::Op... G), (G, G, G), (G, G, G))))))>>`
--  --> $SRC_DIR/libcore/mem/mod.rs:LL:COL
--   |
--LL | pub fn drop<T>(_x: T) { }
--   | ^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: consider adding a `#![type_length_limit="1094"]` attribute to your crate
- 
-Index: rust/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
-===================================================================
---- rust.orig/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
-+++ rust/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
-@@ -22,10 +22,6 @@ LL |         extern crate std as Vec;
- LL | define_vec!();
-    | -------------- in this macro invocation
- note: `Vec` could also refer to the struct defined here
--  --> $SRC_DIR/libstd/prelude/v1.rs:LL:COL
--   |
--LL | pub use crate::vec::Vec;
--   |         ^^^^^^^^^^^^^^^
- 
- error: aborting due to 2 previous errors
- 
-Index: rust/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
-===================================================================
---- rust.orig/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
-+++ rust/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
-@@ -3,11 +3,6 @@ error: `impl` item signature doesn't mat
-    |
- LL |     fn deref(&self) -> &dyn Trait {
-    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ found fn(&Struct) -> &dyn Trait
--   | 
--  ::: $SRC_DIR/libcore/ops/deref.rs:LL:COL
--   |
--LL |     fn deref(&self) -> &Self::Target;
--   |     --------------------------------- expected fn(&Struct) -> &(dyn Trait + 'static)
-    |
-    = note: expected `fn(&Struct) -> &(dyn Trait + 'static)`
-               found `fn(&Struct) -> &dyn Trait`
-Index: rust/src/test/ui/async-await/issues/issue-62009-1.stderr
-===================================================================
---- rust.orig/src/test/ui/async-await/issues/issue-62009-1.stderr
-+++ rust/src/test/ui/async-await/issues/issue-62009-1.stderr
-@@ -32,11 +32,6 @@ error[E0277]: the trait bound `[closure@
-    |
- LL |     (|_| 2333).await;
-    |     ^^^^^^^^^^^^^^^^ the trait `std::future::Future` is not implemented for `[closure@$DIR/issue-62009-1.rs:13:5: 13:15]`
--   | 
--  ::: $SRC_DIR/libstd/future.rs:LL:COL
--   |
--LL |     F: Future
--   |        ------ required by this bound in `std::future::poll_with_tls_context`
- 
- error: aborting due to 4 previous errors
- 
-Index: rust/src/test/ui/consts/const-size_of-cycle.stderr
-===================================================================
---- rust.orig/src/test/ui/consts/const-size_of-cycle.stderr
-+++ rust/src/test/ui/consts/const-size_of-cycle.stderr
-@@ -15,15 +15,7 @@ note: ...which requires const-evaluating
+diff --git a/src/test/ui/consts/const-size_of-cycle.stderr b/src/test/ui/consts/const-size_of-cycle.stderr
+index c03b7a19f..99a9461ab 100644
+--- a/src/test/ui/consts/const-size_of-cycle.stderr
++++ b/src/test/ui/consts/const-size_of-cycle.stderr
+@@ -15,15 +15,7 @@ note: ...which requires const-evaluating `Foo::bytes::{{constant}}#0`...
  LL |     bytes: [u8; std::mem::size_of::<Foo>()]
     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
  note: ...which requires const-evaluating `std::mem::size_of`...
@@ -305,88 +68,314 @@ Index: rust/src/test/ui/consts/const-size_of-cycle.stderr
     = note: ...which requires computing layout of `Foo`...
     = note: ...which requires normalizing `ParamEnvAnd { param_env: ParamEnv { caller_bounds: [], reveal: All, def_id: None }, value: [u8; _] }`...
     = note: ...which again requires const-evaluating + checking `Foo::bytes::{{constant}}#0`, completing the cycle
-Index: rust/src/test/ui/consts/offset_from_ub.stderr
-===================================================================
---- rust.orig/src/test/ui/consts/offset_from_ub.stderr
-+++ rust/src/test/ui/consts/offset_from_ub.stderr
-@@ -1,12 +1,5 @@
- error: any use of this value will cause an error
+diff --git a/src/test/ui/consts/miri_unleashed/drop.stderr b/src/test/ui/consts/miri_unleashed/drop.stderr
+index 2439d527b..fd3281144 100644
+--- a/src/test/ui/consts/miri_unleashed/drop.stderr
++++ b/src/test/ui/consts/miri_unleashed/drop.stderr
+@@ -5,14 +5,6 @@ LL |     let _v: Vec<i32> = Vec::new();
+    |         ^^
+ 
+ error[E0080]: could not evaluate static initializer
 -  --> $SRC_DIR/libcore/ptr/mod.rs:LL:COL
+-   |
+-LL | / pub unsafe fn drop_in_place<T: ?Sized>(to_drop: *mut T) {
+-LL | |     // Code here does not matter - this is replaced by the
+-LL | |     // real drop glue by the compiler.
+-LL | |     drop_in_place(to_drop)
+-LL | | }
+-   | |_^ calling non-const function `<std::vec::Vec<i32> as std::ops::Drop>::drop`
+    | 
+   ::: $DIR/drop.rs:23:1
+    |
+diff --git a/src/test/ui/consts/offset_from_ub.stderr b/src/test/ui/consts/offset_from_ub.stderr
+index 24da983cf..8becdc100 100644
+--- a/src/test/ui/consts/offset_from_ub.stderr
++++ b/src/test/ui/consts/offset_from_ub.stderr
+@@ -1,11 +1,4 @@
+ error: any use of this value will cause an error
+-  --> $SRC_DIR/libcore/ptr/const_ptr.rs:LL:COL
 -   |
 -LL |           intrinsics::ptr_offset_from(self, origin)
 -   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -   |           |
 -   |           ptr_offset_from cannot compute offset of pointers into different allocations.
--   |           inside call to `std::ptr::<impl *const Struct>::offset_from` at $DIR/offset_from_ub.rs:19:27
+-   |           inside call to `std::ptr::const_ptr::<impl *const Struct>::offset_from` at $DIR/offset_from_ub.rs:22:27
     | 
-   ::: $DIR/offset_from_ub.rs:13:1
+   ::: $DIR/offset_from_ub.rs:16:1
     |
- LL | / pub const DIFFERENT_ALLOC: usize = {
-@@ -21,14 +13,7 @@ LL | | };
+@@ -21,13 +14,6 @@ LL | | };
     = note: `#[deny(const_err)]` on by default
  
  error: any use of this value will cause an error
--  --> $SRC_DIR/libcore/ptr/mod.rs:LL:COL
+-  --> $SRC_DIR/libcore/ptr/const_ptr.rs:LL:COL
 -   |
 -LL |           intrinsics::ptr_offset_from(self, origin)
 -   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -   |           |
 -   |           a memory access tried to interpret some bytes as a pointer
--   |           inside call to `std::ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:25:14
+-   |           inside call to `std::ptr::const_ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:28:14
     | 
-   ::: $DIR/offset_from_ub.rs:23:1
+   ::: $DIR/offset_from_ub.rs:26:1
     |
- LL | / pub const NOT_PTR: usize = {
-@@ -38,14 +22,7 @@ LL | | };
+@@ -38,13 +24,6 @@ LL | | };
     | |__-
  
  error: any use of this value will cause an error
--  --> $SRC_DIR/libcore/ptr/mod.rs:LL:COL
+-  --> $SRC_DIR/libcore/ptr/const_ptr.rs:LL:COL
 -   |
 -LL |           intrinsics::ptr_offset_from(self, origin)
 -   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -   |           |
 -   |           exact_div: 1 cannot be divided by 2 without remainder
--   |           inside call to `std::ptr::<impl *const u16>::offset_from` at $DIR/offset_from_ub.rs:33:14
+-   |           inside call to `std::ptr::const_ptr::<impl *const u16>::offset_from` at $DIR/offset_from_ub.rs:36:14
     | 
-   ::: $DIR/offset_from_ub.rs:28:1
+   ::: $DIR/offset_from_ub.rs:31:1
     |
- LL | / pub const NOT_MULTIPLE_OF_SIZE: isize = {
-@@ -58,14 +34,7 @@ LL | | };
+@@ -58,13 +37,6 @@ LL | | };
     | |__-
  
  error: any use of this value will cause an error
--  --> $SRC_DIR/libcore/ptr/mod.rs:LL:COL
+-  --> $SRC_DIR/libcore/ptr/const_ptr.rs:LL:COL
 -   |
 -LL |           intrinsics::ptr_offset_from(self, origin)
 -   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -   |           |
 -   |           invalid use of NULL pointer
--   |           inside call to `std::ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:39:14
+-   |           inside call to `std::ptr::const_ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:42:14
     | 
-   ::: $DIR/offset_from_ub.rs:36:1
+   ::: $DIR/offset_from_ub.rs:39:1
     |
- LL | / pub const OFFSET_FROM_NULL: isize = {
-@@ -76,14 +44,7 @@ LL | | };
+@@ -76,13 +48,6 @@ LL | | };
     | |__-
  
  error: any use of this value will cause an error
--  --> $SRC_DIR/libcore/ptr/mod.rs:LL:COL
+-  --> $SRC_DIR/libcore/ptr/const_ptr.rs:LL:COL
 -   |
 -LL |           intrinsics::ptr_offset_from(self, origin)
 -   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -   |           |
 -   |           a memory access tried to interpret some bytes as a pointer
--   |           inside call to `std::ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:46:14
+-   |           inside call to `std::ptr::const_ptr::<impl *const u8>::offset_from` at $DIR/offset_from_ub.rs:49:14
     | 
-   ::: $DIR/offset_from_ub.rs:42:1
+   ::: $DIR/offset_from_ub.rs:45:1
     |
- LL | / pub const DIFFERENT_INT: isize = { // offset_from with two different integers: like DIFFERENT_ALLOC
-Index: rust/src/test/ui/issues/issue-27033.stderr
-===================================================================
---- rust.orig/src/test/ui/issues/issue-27033.stderr
-+++ rust/src/test/ui/issues/issue-27033.stderr
-@@ -3,11 +3,6 @@ error[E0530]: match bindings cannot shad
+diff --git a/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr b/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
+index 00b033004..b24aa1fe6 100644
+--- a/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
++++ b/src/test/ui/derives/derives-span-Hash-enum-struct-variant.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: std::hash::Hash` is not satisfied
+    |
+ LL |      x: Error
+    |      ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/derives/derives-span-Hash-enum.stderr b/src/test/ui/derives/derives-span-Hash-enum.stderr
+index 004cabf20..ff13218ed 100644
+--- a/src/test/ui/derives/derives-span-Hash-enum.stderr
++++ b/src/test/ui/derives/derives-span-Hash-enum.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: std::hash::Hash` is not satisfied
+    |
+ LL |      Error
+    |      ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/derives/derives-span-Hash-struct.stderr b/src/test/ui/derives/derives-span-Hash-struct.stderr
+index 27b8ff3d1..8a3d8a0f3 100644
+--- a/src/test/ui/derives/derives-span-Hash-struct.stderr
++++ b/src/test/ui/derives/derives-span-Hash-struct.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: std::hash::Hash` is not satisfied
+    |
+ LL |     x: Error
+    |     ^^^^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr b/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
+index f1142bc50..1396e1c8f 100644
+--- a/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
++++ b/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Error: std::hash::Hash` is not satisfied
+    |
+ LL |     Error
+    |     ^^^^^ the trait `std::hash::Hash` is not implemented for `Error`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/derives/deriving-meta-unknown-trait.stderr b/src/test/ui/derives/deriving-meta-unknown-trait.stderr
+index ead131323..abe382fc4 100644
+--- a/src/test/ui/derives/deriving-meta-unknown-trait.stderr
++++ b/src/test/ui/derives/deriving-meta-unknown-trait.stderr
+@@ -1,24 +1,14 @@
+ error: cannot find derive macro `Eqr` in this scope
+   --> $DIR/deriving-meta-unknown-trait.rs:5:10
+    |
+-LL | #[derive(Eqr)]
+-   |          ^^^ help: a derive macro with a similar name exists: `Eq`
+-   | 
+-  ::: $SRC_DIR/libcore/cmp.rs:LL:COL
+-   |
+-LL | pub macro Eq($item:item) {
+-   | ------------------------ similarly named derive macro `Eq` defined here
++LL |   #[derive(Eqr)]
++   |            ^^^ help: a derive macro with a similar name exists: `Eq`
+ 
+ error: cannot find derive macro `Eqr` in this scope
+   --> $DIR/deriving-meta-unknown-trait.rs:5:10
+    |
+-LL | #[derive(Eqr)]
+-   |          ^^^ help: a derive macro with a similar name exists: `Eq`
+-   | 
+-  ::: $SRC_DIR/libcore/cmp.rs:LL:COL
+-   |
+-LL | pub macro Eq($item:item) {
+-   | ------------------------ similarly named derive macro `Eq` defined here
++LL |   #[derive(Eqr)]
++   |            ^^^ help: a derive macro with a similar name exists: `Eq`
+ 
+ error: aborting due to 2 previous errors
+ 
+diff --git a/src/test/ui/impl-trait/impl-generic-mismatch.stderr b/src/test/ui/impl-trait/impl-generic-mismatch.stderr
+index 0c294d1e4..8b0b46370 100644
+--- a/src/test/ui/impl-trait/impl-generic-mismatch.stderr
++++ b/src/test/ui/impl-trait/impl-generic-mismatch.stderr
+@@ -31,11 +31,6 @@ error[E0643]: method `hash` has incompatible signature for trait
+    |
+ LL |     fn hash(&self, hasher: &mut impl Hasher) {}
+    |                                 ^^^^^^^^^^^ expected generic parameter, found `impl Trait`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - declaration in trait here
+ 
+ error: aborting due to 3 previous errors
+ 
+diff --git a/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr b/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
+index 245013a4e..4ead43890 100644
+--- a/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
++++ b/src/test/ui/imports/extern-prelude-extern-crate-restricted-shadowing.stderr
+@@ -22,10 +22,6 @@ LL |         extern crate std as Vec;
+ LL | define_vec!();
+    | -------------- in this macro invocation
+ note: `Vec` could also refer to the struct defined here
+-  --> $SRC_DIR/libstd/prelude/v1.rs:LL:COL
+-   |
+-LL | pub use crate::vec::Vec;
+-   |         ^^^^^^^^^^^^^^^
+ 
+ error: aborting due to 2 previous errors
+ 
+diff --git a/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr b/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
+index 374e308a6..555918964 100644
+--- a/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
++++ b/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
+@@ -3,11 +3,6 @@ error: `impl` item signature doesn't match `trait` item signature
+    |
+ LL |     fn deref(&self) -> &dyn Trait {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ found fn(&Struct) -> &dyn Trait
+-   | 
+-  ::: $SRC_DIR/libcore/ops/deref.rs:LL:COL
+-   |
+-LL |     fn deref(&self) -> &Self::Target;
+-   |     --------------------------------- expected fn(&Struct) -> &(dyn Trait + 'static)
+    |
+    = note: expected `fn(&Struct) -> &(dyn Trait + 'static)`
+               found `fn(&Struct) -> &dyn Trait`
+diff --git a/src/test/ui/interior-mutability/interior-mutability.stderr b/src/test/ui/interior-mutability/interior-mutability.stderr
+index 2378e4121..941ef20f8 100644
+--- a/src/test/ui/interior-mutability/interior-mutability.stderr
++++ b/src/test/ui/interior-mutability/interior-mutability.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the type `std::cell::UnsafeCell<i32>` may contain interior mutabil
+    |
+ LL |     catch_unwind(|| { x.set(23); });
+    |     ^^^^^^^^^^^^ `std::cell::UnsafeCell<i32>` may contain interior mutability and a reference may not be safely transferrable across a catch_unwind boundary
+-   | 
+-  ::: $SRC_DIR/libstd/panic.rs:LL:COL
+-   |
+-LL | pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
+-   |                                        ---------- required by this bound in `std::panic::catch_unwind`
+    |
+    = help: within `std::cell::Cell<i32>`, the trait `std::panic::RefUnwindSafe` is not implemented for `std::cell::UnsafeCell<i32>`
+    = note: required because it appears within the type `std::cell::Cell<i32>`
+diff --git a/src/test/ui/issues/issue-17546.stderr b/src/test/ui/issues/issue-17546.stderr
+index 2d532cdb9..2998c98e1 100644
+--- a/src/test/ui/issues/issue-17546.stderr
++++ b/src/test/ui/issues/issue-17546.stderr
+@@ -1,13 +1,8 @@
+ error[E0573]: expected type, found variant `NoResult`
+   --> $DIR/issue-17546.rs:16:17
+    |
+-LL |     fn new() -> NoResult<MyEnum, String> {
+-   |                 ^^^^^^^^^^^^^^^^^^^^^^^^
+-   | 
+-  ::: $SRC_DIR/libcore/result.rs:LL:COL
+-   |
+-LL | pub enum Result<T, E> {
+-   | --------------------- similarly named enum `Result` defined here
++LL |       fn new() -> NoResult<MyEnum, String> {
++   |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+ help: try using the variant's enum
+    |
+@@ -57,13 +52,8 @@ LL | use std::result::Result;
+ error[E0573]: expected type, found variant `NoResult`
+   --> $DIR/issue-17546.rs:37:15
+    |
+-LL | fn newer() -> NoResult<foo::MyEnum, String> {
+-   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-   | 
+-  ::: $SRC_DIR/libcore/result.rs:LL:COL
+-   |
+-LL | pub enum Result<T, E> {
+-   | --------------------- similarly named enum `Result` defined here
++LL |   fn newer() -> NoResult<foo::MyEnum, String> {
++   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+ help: try using the variant's enum
+    |
+diff --git a/src/test/ui/issues/issue-21160.stderr b/src/test/ui/issues/issue-21160.stderr
+index a7bb4fc51..a21bf1429 100644
+--- a/src/test/ui/issues/issue-21160.stderr
++++ b/src/test/ui/issues/issue-21160.stderr
+@@ -3,11 +3,6 @@ error[E0277]: the trait bound `Bar: std::hash::Hash` is not satisfied
+    |
+ LL | struct Foo(Bar);
+    |            ^^^ the trait `std::hash::Hash` is not implemented for `Bar`
+-   | 
+-  ::: $SRC_DIR/libcore/hash/mod.rs:LL:COL
+-   |
+-LL |     fn hash<H: Hasher>(&self, state: &mut H);
+-   |             - required by this bound in `std::hash::Hash::hash`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/issues/issue-27033.stderr b/src/test/ui/issues/issue-27033.stderr
+index c0de0f142..a5a59edc7 100644
+--- a/src/test/ui/issues/issue-27033.stderr
++++ b/src/test/ui/issues/issue-27033.stderr
+@@ -3,11 +3,6 @@ error[E0530]: match bindings cannot shadow unit variants
     |
  LL |         None @ _ => {}
     |         ^^^^ cannot be named the same as a unit variant
@@ -397,4 +386,300 @@ Index: rust/src/test/ui/issues/issue-27033.stderr
 -   |                                       ---- the unit variant `None` is defined here
  
  error[E0530]: match bindings cannot shadow constants
-   --> $DIR/issue-27033.rs:8:9
+   --> $DIR/issue-27033.rs:11:9
+diff --git a/src/test/ui/issues/issue-38857.stderr b/src/test/ui/issues/issue-38857.stderr
+index ba0f1336f..38adfd052 100644
+--- a/src/test/ui/issues/issue-38857.stderr
++++ b/src/test/ui/issues/issue-38857.stderr
+@@ -11,10 +11,6 @@ LL |     let a = std::sys::imp::process::process_common::StdioPipes { ..panic!()
+    |                  ^^^ this module is private
+    |
+ note: the module `sys` is defined here
+-  --> $SRC_DIR/libstd/lib.rs:LL:COL
+-   |
+-LL | mod sys;
+-   | ^^^^^^^^
+ 
+ error: aborting due to 2 previous errors
+ 
+diff --git a/src/test/ui/issues/issue-7607-1.stderr b/src/test/ui/issues/issue-7607-1.stderr
+index 94f489e20..6c0b6af67 100644
+--- a/src/test/ui/issues/issue-7607-1.stderr
++++ b/src/test/ui/issues/issue-7607-1.stderr
+@@ -1,13 +1,8 @@
+ error[E0412]: cannot find type `Fo` in this scope
+   --> $DIR/issue-7607-1.rs:9:6
+    |
+-LL | impl Fo {
+-   |      ^^ help: a trait with a similar name exists: `Fn`
+-   | 
+-  ::: $SRC_DIR/libcore/ops/function.rs:LL:COL
+-   |
+-LL | pub trait Fn<Args>: FnMut<Args> {
+-   | ------------------------------- similarly named trait `Fn` defined here
++LL |   impl Fo {
++   |        ^^ help: a trait with a similar name exists: `Fn`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/macros/macro-name-typo.stderr b/src/test/ui/macros/macro-name-typo.stderr
+index 00afbde89..14fd76478 100644
+--- a/src/test/ui/macros/macro-name-typo.stderr
++++ b/src/test/ui/macros/macro-name-typo.stderr
+@@ -1,13 +1,8 @@
+ error: cannot find macro `printlx` in this scope
+   --> $DIR/macro-name-typo.rs:6:5
+    |
+-LL |     printlx!("oh noes!");
+-   |     ^^^^^^^ help: a macro with a similar name exists: `println`
+-   | 
+-  ::: $SRC_DIR/libstd/macros.rs:LL:COL
+-   |
+-LL | macro_rules! println {
+-   | -------------------- similarly named macro `println` defined here
++LL |       printlx!("oh noes!");
++   |       ^^^^^^^ help: a macro with a similar name exists: `println`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/macros/macro-path-prelude-fail-3.stderr b/src/test/ui/macros/macro-path-prelude-fail-3.stderr
+index 536459067..15be75551 100644
+--- a/src/test/ui/macros/macro-path-prelude-fail-3.stderr
++++ b/src/test/ui/macros/macro-path-prelude-fail-3.stderr
+@@ -1,13 +1,8 @@
+ error: cannot find macro `inline` in this scope
+   --> $DIR/macro-path-prelude-fail-3.rs:6:5
+    |
+-LL |     inline!();
+-   |     ^^^^^^ help: a macro with a similar name exists: `line`
+-   | 
+-  ::: $SRC_DIR/libcore/macros/mod.rs:LL:COL
+-   |
+-LL |     macro_rules! line {
+-   |     ----------------- similarly named macro `line` defined here
++LL |       inline!();
++   |       ^^^^^^ help: a macro with a similar name exists: `line`
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/no-send-res-ports.stderr b/src/test/ui/no-send-res-ports.stderr
+index 65946ee8a..f40cb0562 100644
+--- a/src/test/ui/no-send-res-ports.stderr
++++ b/src/test/ui/no-send-res-ports.stderr
+@@ -10,11 +10,6 @@ LL | |         let y = x;
+ LL | |         println!("{:?}", y);
+ LL | |     });
+    | |_____- within this `[closure@$DIR/no-send-res-ports.rs:29:19: 33:6 x:main::Foo]`
+-   | 
+-  ::: $SRC_DIR/libstd/thread/mod.rs:LL:COL
+-   |
+-LL |       F: Send + 'static,
+-   |          ---- required by this bound in `std::thread::spawn`
+    |
+    = help: within `[closure@$DIR/no-send-res-ports.rs:29:19: 33:6 x:main::Foo]`, the trait `std::marker::Send` is not implemented for `std::rc::Rc<()>`
+    = note: required because it appears within the type `Port<()>`
+diff --git a/src/test/ui/proc-macro/parent-source-spans.stderr b/src/test/ui/proc-macro/parent-source-spans.stderr
+index 9f0fefcfe..59d21f5c1 100644
+--- a/src/test/ui/proc-macro/parent-source-spans.stderr
++++ b/src/test/ui/proc-macro/parent-source-spans.stderr
+@@ -132,11 +132,6 @@ LL |     parent_source_spans!($($tokens)*);
+ ...
+ LL |     one!("hello", "world");
+    |     ----------------------- in this macro invocation
+-   | 
+-  ::: $SRC_DIR/libcore/result.rs:LL:COL
+-   |
+-LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+-   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
+ 
+ error[E0425]: cannot find value `ok` in this scope
+   --> $DIR/parent-source-spans.rs:32:5
+@@ -146,11 +141,6 @@ LL |     parent_source_spans!($($tokens)*);
+ ...
+ LL |     two!("yay", "rust");
+    |     -------------------- in this macro invocation
+-   | 
+-  ::: $SRC_DIR/libcore/result.rs:LL:COL
+-   |
+-LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+-   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
+ 
+ error[E0425]: cannot find value `ok` in this scope
+   --> $DIR/parent-source-spans.rs:32:5
+@@ -160,11 +150,6 @@ LL |     parent_source_spans!($($tokens)*);
+ ...
+ LL |     three!("hip", "hop");
+    |     --------------------- in this macro invocation
+-   | 
+-  ::: $SRC_DIR/libcore/result.rs:LL:COL
+-   |
+-LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+-   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
+ 
+ error: aborting due to 21 previous errors
+ 
+diff --git a/src/test/ui/proc-macro/resolve-error.stderr b/src/test/ui/proc-macro/resolve-error.stderr
+index 73a6ab1cf..5b13176c5 100644
+--- a/src/test/ui/proc-macro/resolve-error.stderr
++++ b/src/test/ui/proc-macro/resolve-error.stderr
+@@ -74,24 +74,14 @@ LL | pub fn derive_clonea(input: TokenStream) -> TokenStream {
+ error: cannot find derive macro `Dlone` in this scope
+   --> $DIR/resolve-error.rs:39:10
+    |
+-LL | #[derive(Dlone)]
+-   |          ^^^^^ help: a derive macro with a similar name exists: `Clone`
+-   | 
+-  ::: $SRC_DIR/libcore/clone.rs:LL:COL
+-   |
+-LL | pub macro Clone($item:item) {
+-   | --------------------------- similarly named derive macro `Clone` defined here
++LL |   #[derive(Dlone)]
++   |            ^^^^^ help: a derive macro with a similar name exists: `Clone`
+ 
+ error: cannot find derive macro `Dlone` in this scope
+   --> $DIR/resolve-error.rs:39:10
+    |
+-LL | #[derive(Dlone)]
+-   |          ^^^^^ help: a derive macro with a similar name exists: `Clone`
+-   | 
+-  ::: $SRC_DIR/libcore/clone.rs:LL:COL
+-   |
+-LL | pub macro Clone($item:item) {
+-   | --------------------------- similarly named derive macro `Clone` defined here
++LL |   #[derive(Dlone)]
++   |            ^^^^^ help: a derive macro with a similar name exists: `Clone`
+ 
+ error: cannot find attribute `FooWithLongNan` in this scope
+   --> $DIR/resolve-error.rs:36:3
+diff --git a/src/test/ui/resolve/levenshtein.stderr b/src/test/ui/resolve/levenshtein.stderr
+index a622d6cb3..4be76a51b 100644
+--- a/src/test/ui/resolve/levenshtein.stderr
++++ b/src/test/ui/resolve/levenshtein.stderr
+@@ -18,11 +18,6 @@ error[E0412]: cannot find type `Opiton` in this scope
+    |
+ LL | type B = Opiton<u8>; // Misspelled type name from the prelude.
+    |          ^^^^^^ help: an enum with a similar name exists: `Option`
+-   | 
+-  ::: $SRC_DIR/libcore/option.rs:LL:COL
+-   |
+-LL | pub enum Option<T> {
+-   | ------------------ similarly named enum `Option` defined here
+ 
+ error[E0412]: cannot find type `Baz` in this scope
+   --> $DIR/levenshtein.rs:20:14
+diff --git a/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr b/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
+index ed4f34b52..c79545db0 100644
+--- a/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
++++ b/src/test/ui/rfc-1937-termination-trait/termination-trait-test-wrong-type.stderr
+@@ -5,11 +5,6 @@ LL | / fn can_parse_zero_as_f32() -> Result<f32, ParseFloatError> {
+ LL | |     "0".parse()
+ LL | | }
+    | |_^ `main` can only return types that implement `std::process::Termination`
+-   | 
+-  ::: $SRC_DIR/libtest/lib.rs:LL:COL
+-   |
+-LL |   pub fn assert_test_result<T: Termination>(result: T) {
+-   |                                ----------- required by this bound in `test::assert_test_result`
+    |
+    = help: the trait `std::process::Termination` is not implemented for `std::result::Result<f32, std::num::ParseFloatError>`
+ 
+diff --git a/src/test/ui/stability-in-private-module.stderr b/src/test/ui/stability-in-private-module.stderr
+index 3a974164f..f2ee71d37 100644
+--- a/src/test/ui/stability-in-private-module.stderr
++++ b/src/test/ui/stability-in-private-module.stderr
+@@ -5,10 +5,6 @@ LL |     let _ = std::thread::thread_info::current_thread();
+    |                          ^^^^^^^^^^^ this module is private
+    |
+ note: the module `thread_info` is defined here
+-  --> $SRC_DIR/libstd/thread/mod.rs:LL:COL
+-   |
+-LL | use crate::sys_common::thread_info;
+-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+ error: aborting due to previous error
+ 
+diff --git a/src/test/ui/suggestions/attribute-typos.stderr b/src/test/ui/suggestions/attribute-typos.stderr
+index a09435925..c7f04dde1 100644
+--- a/src/test/ui/suggestions/attribute-typos.stderr
++++ b/src/test/ui/suggestions/attribute-typos.stderr
+@@ -16,13 +16,8 @@ LL | #[rustc_err]
+ error: cannot find attribute `tests` in this scope
+   --> $DIR/attribute-typos.rs:8:3
+    |
+-LL | #[tests]
+-   |   ^^^^^ help: an attribute macro with a similar name exists: `test`
+-   | 
+-  ::: $SRC_DIR/libcore/macros/mod.rs:LL:COL
+-   |
+-LL |     pub macro test($item:item) {
+-   |     -------------------------- similarly named attribute macro `test` defined here
++LL |   #[tests]
++   |     ^^^^^ help: an attribute macro with a similar name exists: `test`
+ 
+ error: cannot find attribute `deprcated` in this scope
+   --> $DIR/attribute-typos.rs:5:3
+diff --git a/src/test/ui/traits/trait-suggest-where-clause.stderr b/src/test/ui/traits/trait-suggest-where-clause.stderr
+index 831dd4392..c1af903b6 100644
+--- a/src/test/ui/traits/trait-suggest-where-clause.stderr
++++ b/src/test/ui/traits/trait-suggest-where-clause.stderr
+@@ -6,11 +6,6 @@ LL | fn check<T: Iterator, U: ?Sized>() {
+ LL |     // suggest a where-clause, if needed
+ LL |     mem::size_of::<U>();
+    |                    ^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `U`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -23,11 +18,6 @@ LL | fn check<T: Iterator, U: ?Sized>() {
+ ...
+ LL |     mem::size_of::<Misc<U>>();
+    |     ^^^^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: within `Misc<U>`, the trait `std::marker::Sized` is not implemented for `U`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -62,11 +52,6 @@ error[E0277]: the size for values of type `[T]` cannot be known at compilation t
+    |
+ LL |     mem::size_of::<[T]>();
+    |                    ^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `[T]`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+@@ -76,11 +61,6 @@ error[E0277]: the size for values of type `[&U]` cannot be known at compilation
+    |
+ LL |     mem::size_of::<[&U]>();
+    |     ^^^^^^^^^^^^^^^^^^^^ doesn't have a size known at compile-time
+-   | 
+-  ::: $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub const fn size_of<T>() -> usize {
+-   |                      - required by this bound in `std::mem::size_of`
+    |
+    = help: the trait `std::marker::Sized` is not implemented for `[&U]`
+    = note: to learn more, visit <https://doc.rust-lang.org/book/ch19-04-advanced-types.html#dynamically-sized-types-and-the-sized-trait>
+diff --git a/src/test/ui/type_length_limit.stderr b/src/test/ui/type_length_limit.stderr
+index 8a9ef993b..83a61ce79 100644
+--- a/src/test/ui/type_length_limit.stderr
++++ b/src/test/ui/type_length_limit.stderr
+@@ -1,8 +1,4 @@
+ error: reached the type-length limit while instantiating `std::mem::drop::<std::option::Op... G), (G, G, G), (G, G, G))))))>>`
+-  --> $SRC_DIR/libcore/mem/mod.rs:LL:COL
+-   |
+-LL | pub fn drop<T>(_x: T) {}
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: consider adding a `#![type_length_limit="1094"]` attribute to your crate
+ 
