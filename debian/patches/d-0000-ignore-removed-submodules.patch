@@ -4,7 +4,7 @@ Author: Ximin Luo <infinity0@debian.org>
 Forwarded: not-needed
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -6,7 +6,6 @@
+@@ -6,7 +6,6 @@ members = [
    "src/libtest",
    "src/librustc_codegen_llvm",
    "src/tools/cargotest",
@@ -12,7 +12,7 @@ Forwarded: not-needed
    "src/tools/compiletest",
    "src/tools/error_index_generator",
    "src/tools/linkchecker",
-@@ -14,14 +13,8 @@
+@@ -14,14 +13,8 @@ members = [
    "src/tools/unstable-book-gen",
    "src/tools/tidy",
    "src/tools/build-manifest",
@@ -25,9 +25,9 @@ Forwarded: not-needed
 -  "src/tools/rustfmt",
 -  "src/tools/miri",
    "src/tools/rustdoc-themes",
+   "src/tools/unicode-table-generator",
  ]
- exclude = [
-@@ -46,29 +39,10 @@
+@@ -47,29 +40,10 @@ debug-assertions = false
  debug = false
  debug-assertions = false
  
@@ -59,7 +59,7 @@ Forwarded: not-needed
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -656,10 +656,6 @@
+@@ -705,10 +705,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -72,7 +72,15 @@ Forwarded: not-needed
      def build_triple(self):
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -454,8 +454,6 @@
+@@ -417,7 +417,6 @@ impl<'a> Builder<'a> {
+                 doc::RustdocBook,
+                 doc::RustByExample,
+                 doc::RustcBook,
+-                doc::CargoBook,
+                 doc::EmbeddedBook,
+                 doc::EditionGuide,
+             ),
+@@ -439,8 +439,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::Lldb,
@@ -81,7 +89,7 @@ Forwarded: not-needed
              ),
              Kind::Install => describe!(
                  install::Docs,
-@@ -1235,10 +1233,7 @@
+@@ -1177,10 +1175,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -95,18 +103,17 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -113,7 +113,7 @@
- 
- impl Step for CargoBook {
-     type Output = ();
--    const DEFAULT: bool = true;
-+    const DEFAULT: bool = false;
- 
-     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-         let builder = run.builder;
+@@ -60,7 +60,6 @@ macro_rules! book {
+ // NOTE: When adding a book here, make sure to ALSO build the book by
+ // adding a build step in `src/bootstrap/builder.rs`!
+ book!(
+-    CargoBook, "src/tools/cargo/src/doc", "cargo";
+     EditionGuide, "src/doc/edition-guide", "edition-guide";
+     EmbeddedBook, "src/doc/embedded-book", "embedded-book";
+     Nomicon, "src/doc/nomicon", "nomicon";
 --- a/src/doc/index.md
 +++ b/src/doc/index.md
-@@ -87,7 +87,7 @@
+@@ -87,7 +87,7 @@ accomplishing various tasks.
  
  ## The Cargo Book
  
@@ -117,7 +124,7 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1585,14 +1585,14 @@
+@@ -1472,14 +1472,14 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -142,7 +149,7 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/tool.rs
 +++ b/src/bootstrap/tool.rs
-@@ -277,14 +277,14 @@
+@@ -273,14 +273,14 @@ pub fn prepare_tool_cargo(
  }
  
  fn rustbook_features() -> Vec<String> {
@@ -161,7 +168,7 @@ Forwarded: not-needed
      features
 --- a/src/tools/rustbook/Cargo.toml
 +++ b/src/tools/rustbook/Cargo.toml
-@@ -6,21 +6,15 @@
+@@ -6,21 +6,15 @@ license = "MIT OR Apache-2.0"
  edition = "2018"
  
  [features]
@@ -186,10 +193,10 @@ Forwarded: not-needed
  default-features = false
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -404,8 +404,8 @@
+@@ -406,8 +406,8 @@ fn check_crate_duplicate(resolve: &Resol
+         // These two crates take quite a long time to build, so don't allow two versions of them
          // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
          // under control.
- 
 -        "cargo",
 -        "rustc-ap-syntax",
 +        //"cargo",

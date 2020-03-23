@@ -9,12 +9,10 @@ Comment:
  Make sure the paths here match the ones in debian/rust-doc.links
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: rustc-1.37.0-src/src/tools/linkchecker/main.rs
-===================================================================
---- rustc-1.37.0-src.orig/src/tools/linkchecker/main.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/src/tools/linkchecker/main.rs	2019-08-22 11:17:30.016767983 -0700
-@@ -173,6 +173,11 @@
-            url.starts_with("irc:") || url.starts_with("data:") {
+--- a/src/tools/linkchecker/main.rs	2020-03-09 23:11:18.000000000 +0100
++++ b/src/tools/linkchecker/main.rs	2020-03-23 11:46:30.657963205 +0100
+@@ -163,6 +163,11 @@ fn check(cache: &mut Cache, root: &Path,
+         {
              return;
          }
 +        // Ignore parent URLs, so that the package installation process can
@@ -25,11 +23,9 @@ Index: rustc-1.37.0-src/src/tools/linkchecker/main.rs
          let mut parts = url.splitn(2, "#");
          let url = parts.next().unwrap();
          let fragment = parts.next();
-Index: rustc-1.37.0-src/vendor/mdbook/src/book/init.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/book/init.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/book/init.rs	2019-08-22 11:17:30.016767983 -0700
-@@ -148,12 +148,6 @@
+--- a/vendor/mdbook/src/book/init.rs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/book/init.rs	2020-03-23 11:46:30.657963205 +0100
+@@ -148,12 +148,6 @@ impl BookBuilder {
          let mut js = File::create(themedir.join("book.js"))?;
          js.write_all(theme::JS)?;
  
@@ -42,11 +38,9 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/book/init.rs
          Ok(())
      }
  
-Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2019-08-22 11:17:30.020768197 -0700
-@@ -3,7 +3,7 @@
+--- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs	2020-03-23 11:46:30.657963205 +0100
+@@ -3,7 +3,7 @@ use crate::config::{Config, HtmlConfig,
  use crate::errors::*;
  use crate::renderer::html_handlebars::helpers;
  use crate::renderer::{RenderContext, Renderer};
@@ -55,7 +49,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
  use crate::utils;
  
  use std::borrow::Cow;
-@@ -110,7 +110,7 @@
+@@ -114,7 +114,7 @@ impl HtmlHandlebars {
          &self,
          destination: &Path,
          theme: &Theme,
@@ -64,7 +58,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
      ) -> Result<()> {
          use crate::utils::fs::write_file;
  
-@@ -126,62 +126,8 @@
+@@ -130,62 +130,8 @@ impl HtmlHandlebars {
          write_file(destination, "css/print.css", &theme.print_css)?;
          write_file(destination, "css/variables.css", &theme.variables_css)?;
          write_file(destination, "favicon.png", &theme.favicon)?;
@@ -127,11 +121,9 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
  
          Ok(())
      }
-Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/search.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs	2019-08-22 11:17:30.020768197 -0700
-@@ -34,8 +34,6 @@
+--- a/vendor/mdbook/src/renderer/html_handlebars/search.rs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs	2020-03-23 11:46:30.657963205 +0100
+@@ -34,8 +34,6 @@ pub fn create_files(search_config: &Sear
              format!("Object.assign(window.search, {});", index).as_bytes(),
          )?;
          utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
@@ -140,10 +132,8 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
          debug!("Copying search files ✓");
      }
  
-Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/index.hbs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs	2019-08-22 11:17:43.733501509 -0700
+--- a/vendor/mdbook/src/theme/index.hbs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/theme/index.hbs	2020-03-23 11:46:30.657963205 +0100
 @@ -20,12 +20,10 @@
          <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
  
@@ -215,7 +205,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              <div id="sidebar-scrollbox" class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -211,53 +172,7 @@
+@@ -214,53 +172,7 @@
          </script>
          {{/if}}
  
@@ -270,10 +260,8 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/index.hbs
          <script src="{{ path_to_root }}book.js" type="text/javascript" charset="utf-8"></script>
  
          <!-- Custom JS scripts -->
-Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/mod.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs	2019-08-22 11:17:30.020768197 -0700
+--- a/vendor/mdbook/src/theme/mod.rs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/theme/mod.rs	2020-03-23 11:46:30.657963205 +0100
 @@ -1,7 +1,5 @@
  #![allow(missing_docs)]
  
@@ -282,7 +270,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
  #[cfg(feature = "search")]
  pub mod searcher;
  
-@@ -19,19 +17,8 @@
+@@ -19,19 +17,8 @@ pub static PRINT_CSS: &[u8] = include_by
  pub static VARIABLES_CSS: &[u8] = include_bytes!("css/variables.css");
  pub static FAVICON: &[u8] = include_bytes!("favicon.png");
  pub static JS: &[u8] = include_bytes!("book.js");
@@ -302,7 +290,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
  
  /// The `Theme` struct should be used instead of the static variables because
  /// the `new()` method will look if the user has a theme directory in their
-@@ -49,11 +36,8 @@
+@@ -49,11 +36,8 @@ pub struct Theme {
      pub variables_css: Vec<u8>,
      pub favicon: Vec<u8>,
      pub js: Vec<u8>,
@@ -314,7 +302,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
  }
  
  impl Theme {
-@@ -82,9 +66,6 @@
+@@ -82,9 +66,6 @@ impl Theme {
                      &mut theme.variables_css,
                  ),
                  (theme_dir.join("favicon.png"), &mut theme.favicon),
@@ -324,7 +312,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
                  (
                      theme_dir.join("tomorrow-night.css"),
                      &mut theme.tomorrow_night_css,
-@@ -121,11 +102,8 @@
+@@ -121,11 +102,8 @@ impl Default for Theme {
              variables_css: VARIABLES_CSS.to_owned(),
              favicon: FAVICON.to_owned(),
              js: JS.to_owned(),
@@ -336,7 +324,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
          }
      }
  }
-@@ -175,11 +153,8 @@
+@@ -175,11 +153,8 @@ mod tests {
              "css/print.css",
              "css/variables.css",
              "book.js",
@@ -348,7 +336,7 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
          ];
  
          let temp = TempFileBuilder::new().prefix("mdbook-").tempdir().unwrap();
-@@ -201,11 +176,8 @@
+@@ -201,11 +176,8 @@ mod tests {
              variables_css: Vec::new(),
              favicon: Vec::new(),
              js: Vec::new(),
@@ -360,10 +348,8 @@ Index: rustc-1.37.0-src/vendor/mdbook/src/theme/mod.rs
          };
  
          assert_eq!(got, empty);
-Index: rustc-1.37.0-src/vendor/mdbook/src/theme/searcher/mod.rs
-===================================================================
---- rustc-1.37.0-src.orig/vendor/mdbook/src/theme/searcher/mod.rs	2019-08-22 11:17:30.020768197 -0700
-+++ rustc-1.37.0-src/vendor/mdbook/src/theme/searcher/mod.rs	2019-08-22 11:17:30.020768197 -0700
+--- a/vendor/mdbook/src/theme/searcher/mod.rs	2020-03-10 01:00:20.000000000 +0100
++++ b/vendor/mdbook/src/theme/searcher/mod.rs	2020-03-23 11:46:30.657963205 +0100
 @@ -2,5 +2,3 @@
  //! the "search" cargo feature is disabled.
  

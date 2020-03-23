@@ -9,16 +9,7 @@
  //! * `FOO_NO_PKG_CONFIG` - if set, this will disable running `pkg-config` when
  //!   probing for the library named `foo`.
  //!
-@@ -81,7 +79,7 @@
- 
-     // Only use pkg-config in host == target situations by default (allowing an
-     // override).
--    (host == target || env::var_os("PKG_CONFIG_ALLOW_CROSS").is_some())
-+    (host == target || true)
- }
- 
- #[derive(Clone, Default)]
-@@ -113,9 +111,8 @@
+@@ -106,9 +104,8 @@ pub enum Error {
      /// Contains the name of the responsible environment variable.
      EnvNoPkgConfig(String),
  
@@ -30,7 +21,7 @@
      CrossCompilation,
  
      /// Failed to run `pkg-config`.
-@@ -137,13 +134,9 @@
+@@ -130,13 +127,9 @@ impl error::Error for Error {
      fn description(&self) -> &str {
          match *self {
              Error::EnvNoPkgConfig(_) => "pkg-config requested to be aborted",
@@ -45,18 +36,19 @@
          }
      }
  
-@@ -214,10 +207,6 @@
-             Error::EnvNoPkgConfig(ref name) => {
-                 write!(f, "Aborted because {} is set", name)
-             }
--            Error::CrossCompilation => {
--                write!(f, "Cross compilation detected. \
--                       Use PKG_CONFIG_ALLOW_CROSS=1 to override")
--            }
-             Error::Command { ref command, ref cause } => {
-                 write!(f, "Failed to run `{}`: {}", command, cause)
-             }
-@@ -233,7 +222,7 @@
+@@ -152,11 +145,6 @@ impl fmt::Display for Error {
+     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+         match *self {
+             Error::EnvNoPkgConfig(ref name) => write!(f, "Aborted because {} is set", name),
+-            Error::CrossCompilation => write!(
+-                f,
+-                "Cross compilation detected. \
+-                 Use PKG_CONFIG_ALLOW_CROSS=1 to override"
+-            ),
+             Error::Command {
+                 ref command,
+                 ref cause,
+@@ -180,7 +168,7 @@ impl fmt::Display for Error {
                  }
                  Ok(())
              }
@@ -65,22 +57,31 @@
          }
      }
  }
-@@ -388,7 +377,11 @@
-     }
+@@ -341,6 +329,8 @@ impl Config {
+         if host == target {
+             return true;
+         }
++        // always enable PKG_CONFIG_ALLOW_CROSS override in Debian
++        return true;
  
+         // pkg-config may not be aware of cross-compilation, and require
+         // a wrapper script that sets up platform-specific prefixes.
+@@ -399,7 +389,11 @@ impl Config {
      fn command(&self, name: &str, args: &[&str]) -> Command {
--        let exe = self.env_var("PKG_CONFIG").unwrap_or_else(|_| String::from("pkg-config"));
-+        let exe = self.env_var("PKG_CONFIG").unwrap_or_else(|_| {
-+            self.env_var("DEB_HOST_GNU_TYPE")
-+                .map(|t| t.to_string() + "-pkg-config")
-+                .unwrap_or_else(|_| String::from("pkg-config"))
-+        });
+         let exe = self
+             .env_var("PKG_CONFIG")
+-            .unwrap_or_else(|_| String::from("pkg-config"));
++            .unwrap_or_else(|_| {
++                self.env_var("DEB_HOST_GNU_TYPE")
++                    .map(|t| t.to_string() + "-pkg-config")
++                    .unwrap_or_else(|_| String::from("pkg-config"))
++            });
          let mut cmd = Command::new(exe);
          if self.is_static(name) {
              cmd.arg("--static");
 --- a/vendor/pkg-config/tests/test.rs
 +++ b/vendor/pkg-config/tests/test.rs
-@@ -29,7 +29,6 @@
+@@ -34,7 +34,6 @@ fn find(name: &str) -> Result<pkg_config
      pkg_config::probe_library(name)
  }
  
@@ -88,7 +89,7 @@
  fn cross_disabled() {
      let _g = LOCK.lock();
      reset();
-@@ -41,7 +40,6 @@
+@@ -46,7 +45,6 @@ fn cross_disabled() {
      }
  }
  
