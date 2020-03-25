@@ -1,0 +1,22 @@
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index 204056598..4b65359b2 100644
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -324,15 +324,11 @@ impl Step for Standalone {
+                 .arg(&builder.src.join("src/doc/index.md"))
+                 .arg("--markdown-playground-url")
+                 .arg("https://play.rust-lang.org/")
++                .arg("--markdown-css")
++                .arg("rust.css")
+                 .arg("-o")
+                 .arg(&out)
+                 .arg(&path);
+-
+-            if filename == "not_found.md" {
+-                cmd.arg("--markdown-css").arg("https://doc.rust-lang.org/rust.css");
+-            } else {
+-                cmd.arg("--markdown-css").arg("rust.css");
+-            }
+             builder.run(&mut cmd);
+         }
+     }

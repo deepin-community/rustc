@@ -39,3 +39,4 @@ d-fix-mips64el-bootstrap.patch
 
 # Work around for some porterboxes, keep this commented
 #d-host-duplicates.patch
+d-use-local-css.patch
