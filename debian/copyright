@@ -426,6 +426,8 @@ Comment:
 
 Files:
  vendor/byteorder/*
+ vendor/globset/*
+ vendor/ignore/*
  vendor/same-file/*
  vendor/termcolor/*
  vendor/walkdir/*
@@ -438,6 +440,8 @@ Comment:
  see https://github.com/BurntSushi/same-file
  see https://github.com/BurntSushi/walkdir
  see https://github.com/BurntSushi/winapi-util
+ see https://github.com/BurntSushi/ripgrep/tree/master/globset
+ see https://github.com/BurntSushi/ripgrep/tree/master/ignore
  see https://github.com/BurntSushi/ripgrep/tree/master/termcolor
  see https://github.com/BurntSushi/ripgrep/tree/master/wincolor
 
@@ -483,6 +487,7 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/srijs/rust-crc32fast
 
 Files:
+ vendor/crossbeam-channel/*
  vendor/crossbeam-deque/*
  vendor/crossbeam-epoch/*
  vendor/crossbeam-queue/*
@@ -523,14 +528,16 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/utkarshkukreti/diff.rs
 
 Files:
+ vendor/anyhow/*
  vendor/itoa/*
  vendor/quote/*
  vendor/quote-0*/*
  vendor/syn/*
  vendor/syn-0*/*
-Copyright: 2016-2018 David Tolnay <dtolnay@gmail.com>
+Copyright: 2016-2020 David Tolnay <dtolnay@gmail.com>
 License: MIT or Apache-2.0
 Comment:
+ see https://github.com/dtolnay/anyhow
  see https://github.com/dtolnay/itoa
  see https://github.com/dtolnay/quote
  see https://github.com/dtolnay/syn
@@ -978,11 +985,14 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/SergioBenitez/version_check
 
 Files:
+ vendor/ucd-parse/*
  vendor/ucd-trie/*
  vendor/ucd-util/*
-Copyright: 2017-2018 Andrew Gallant <jamslam@gmail.com>
+Copyright: 2017-2020 Andrew Gallant <jamslam@gmail.com>
 License: MIT or Apache-2.0
-Comment: see https://github.com/BurntSushi/rucd
+Comment:
+ see https://github.com/BurntSushi/rucd
+ see https://github.com/BurntSushi/ucd-generate
 
 Files: vendor/unicase/*
 Copyright: 2014-2019 Sean McArthur <sean@seanmonstar.com>
@@ -1067,6 +1077,30 @@ Files: vendor/yaml-rust/*
 Copyright: 2015-2017 Yuheng Chen <yuhengchen@sensetime.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/chyh1990/yaml-rust
+
+Files: vendor/bstr/*
+Copyright: 2018-2020 Andrew Gallant <jamslam@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/BurntSushi/bstr
+
+Files: vendor/humantime-1.3.0/*
+Copyright:
+ 2016-2018 Paul Colomiets <paul@colomiets.name>
+ 2016 The humantime Developers
+ 2016 Pyfisch
+ 2005-2013 Rich Felker
+License: MIT or Apache-2.0
+
+Files: vendor/unicode-script/*
+Copyright: 2020-2020 Manish Goregaokar <manishsmail@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/unicode-rs/unicode-script
+
+Files: vendor/unicode-security/*
+Copyright: 2020-2020 Charles Lew <crlf0710@gmail.com>
+           2020-2020 Manish Goregaokar <manishsmail@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/unicode-rs/unicode-security
 
 Files: debian/*
 Copyright: 2013-2018 Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
