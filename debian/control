@@ -7,6 +7,7 @@ Uploaders:
  Sylvestre Ledru <sylvestre@debian.org>
 # :native annotations are to support cross-compiling, see README.Debian
 Build-Depends: debhelper (>= 9),
+               debhelper-compat (= 12),
                dpkg-dev (>= 1.17.14),
                python3:native,
                cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
