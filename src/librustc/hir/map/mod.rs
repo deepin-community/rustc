@@ -4,23 +4,23 @@ pub use self::definitions::{
 };
 
 use crate::dep_graph::{DepGraph, DepKind, DepNode, DepNodeIndex};
-use crate::hir::def_id::{DefId, LocalDefId, CRATE_DEF_INDEX};
-use crate::hir::itemlikevisit::ItemLikeVisitor;
-use crate::hir::print::Nested;
-use crate::hir::DefKind;
-use crate::hir::*;
 use crate::middle::cstore::CrateStoreDyn;
 use crate::ty::query::Providers;
-use crate::util::common::time;
-use crate::util::nodemap::FxHashMap;
-
+use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::svh::Svh;
+use rustc_hir::def::{DefKind, Res};
+use rustc_hir::def_id::{DefId, DefIndex, LocalDefId, CRATE_DEF_INDEX};
+use rustc_hir::intravisit;
+use rustc_hir::itemlikevisit::ItemLikeVisitor;
+use rustc_hir::print::Nested;
+use rustc_hir::*;
 use rustc_index::vec::IndexVec;
+use rustc_span::hygiene::MacroKind;
+use rustc_span::source_map::Spanned;
+use rustc_span::symbol::kw;
+use rustc_span::Span;
 use rustc_target::spec::abi::Abi;
 use syntax::ast::{self, Name, NodeId};
-use syntax::source_map::Spanned;
-use syntax_pos::hygiene::MacroKind;
-use syntax_pos::{Span, DUMMY_SP};
 
 pub mod blocks;
 mod collector;
@@ -43,7 +43,7 @@ impl<'hir> Entry<'hir> {
         }
     }
 
-    fn fn_decl(&self) -> Option<&'hir FnDecl> {
+    fn fn_decl(&self) -> Option<&'hir FnDecl<'hir>> {
         match self.node {
             Node::Item(ref item) => match item.kind {
                 ItemKind::Fn(ref sig, _, _) => Some(&sig.decl),
@@ -69,7 +69,7 @@ impl<'hir> Entry<'hir> {
         }
     }
 
-    fn fn_sig(&self) -> Option<&'hir FnSig> {
+    fn fn_sig(&self) -> Option<&'hir FnSig<'hir>> {
         match &self.node {
             Node::Item(item) => match &item.kind {
                 ItemKind::Fn(sig, _, _) => Some(sig),
@@ -130,17 +130,17 @@ impl<'hir> Entry<'hir> {
 }
 
 /// Stores a crate and any number of inlined items from other crates.
-pub struct Forest {
-    krate: Crate,
+pub struct Forest<'hir> {
+    krate: Crate<'hir>,
     pub dep_graph: DepGraph,
 }
 
-impl Forest {
-    pub fn new(krate: Crate, dep_graph: &DepGraph) -> Forest {
+impl Forest<'hir> {
+    pub fn new(krate: Crate<'hir>, dep_graph: &DepGraph) -> Forest<'hir> {
         Forest { krate, dep_graph: dep_graph.clone() }
     }
 
-    pub fn krate(&self) -> &Crate {
+    pub fn krate(&self) -> &Crate<'hir> {
         self.dep_graph.read(DepNode::new_no_params(DepKind::Krate));
         &self.krate
     }
@@ -148,7 +148,7 @@ impl Forest {
     /// This is used internally in the dependency tracking system.
     /// Use the `krate` method to ensure your dependency on the
     /// crate is tracked.
-    pub fn untracked_krate(&self) -> &Crate {
+    pub fn untracked_krate(&self) -> &Crate<'hir> {
         &self.krate
     }
 }
@@ -163,7 +163,7 @@ pub(super) type HirEntryMap<'hir> = IndexVec<DefIndex, IndexVec<ItemLocalId, Opt
 #[derive(Clone)]
 pub struct Map<'hir> {
     /// The backing storage for all the AST nodes.
-    pub forest: &'hir Forest,
+    pub forest: &'hir Forest<'hir>,
 
     /// Same as the dep_graph in forest, just available with one fewer
     /// deref. This is a gratuitous micro-optimization.
@@ -180,19 +180,19 @@ pub struct Map<'hir> {
     hir_to_node_id: FxHashMap<HirId, NodeId>,
 }
 
-struct ParentHirIterator<'map> {
+struct ParentHirIterator<'map, 'hir> {
     current_id: HirId,
-    map: &'map Map<'map>,
+    map: &'map Map<'hir>,
 }
 
-impl<'map> ParentHirIterator<'map> {
-    fn new(current_id: HirId, map: &'map Map<'map>) -> ParentHirIterator<'map> {
-        ParentHirIterator { current_id, map }
+impl<'map, 'hir> ParentHirIterator<'map, 'hir> {
+    fn new(current_id: HirId, map: &'map Map<'hir>) -> Self {
+        Self { current_id, map }
     }
 }
 
-impl<'map> Iterator for ParentHirIterator<'map> {
-    type Item = (HirId, Node<'map>);
+impl<'hir> Iterator for ParentHirIterator<'_, 'hir> {
+    type Item = (HirId, Node<'hir>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_id == CRATE_HIR_ID {
@@ -341,7 +341,7 @@ impl<'hir> Map<'hir> {
                 | ItemKind::Use(..)
                 | ItemKind::ForeignMod(..)
                 | ItemKind::GlobalAsm(..)
-                | ItemKind::Impl(..) => return None,
+                | ItemKind::Impl { .. } => return None,
             },
             Node::ForeignItem(item) => match item.kind {
                 ForeignItemKind::Fn(..) => DefKind::Fn,
@@ -401,11 +401,19 @@ impl<'hir> Map<'hir> {
         self.lookup(id).cloned()
     }
 
-    pub fn krate(&self) -> &'hir Crate {
+    pub fn krate(&self) -> &'hir Crate<'hir> {
         self.forest.krate()
     }
 
-    pub fn trait_item(&self, id: TraitItemId) -> &'hir TraitItem {
+    pub fn item(&self, id: HirId) -> &'hir Item<'hir> {
+        self.read(id);
+
+        // N.B., intentionally bypass `self.forest.krate()` so that we
+        // do not trigger a read of the whole krate here
+        self.forest.krate.item(id)
+    }
+
+    pub fn trait_item(&self, id: TraitItemId) -> &'hir TraitItem<'hir> {
         self.read(id.hir_id);
 
         // N.B., intentionally bypass `self.forest.krate()` so that we
@@ -413,7 +421,7 @@ impl<'hir> Map<'hir> {
         self.forest.krate.trait_item(id)
     }
 
-    pub fn impl_item(&self, id: ImplItemId) -> &'hir ImplItem {
+    pub fn impl_item(&self, id: ImplItemId) -> &'hir ImplItem<'hir> {
         self.read(id.hir_id);
 
         // N.B., intentionally bypass `self.forest.krate()` so that we
@@ -421,7 +429,7 @@ impl<'hir> Map<'hir> {
         self.forest.krate.impl_item(id)
     }
 
-    pub fn body(&self, id: BodyId) -> &'hir Body {
+    pub fn body(&self, id: BodyId) -> &'hir Body<'hir> {
         self.read(id.hir_id);
 
         // N.B., intentionally bypass `self.forest.krate()` so that we
@@ -429,7 +437,7 @@ impl<'hir> Map<'hir> {
         self.forest.krate.body(id)
     }
 
-    pub fn fn_decl_by_hir_id(&self, hir_id: HirId) -> Option<&'hir FnDecl> {
+    pub fn fn_decl_by_hir_id(&self, hir_id: HirId) -> Option<&'hir FnDecl<'hir>> {
         if let Some(entry) = self.find_entry(hir_id) {
             entry.fn_decl()
         } else {
@@ -437,7 +445,7 @@ impl<'hir> Map<'hir> {
         }
     }
 
-    pub fn fn_sig_by_hir_id(&self, hir_id: HirId) -> Option<&'hir FnSig> {
+    pub fn fn_sig_by_hir_id(&self, hir_id: HirId) -> Option<&'hir FnSig<'hir>> {
         if let Some(entry) = self.find_entry(hir_id) {
             entry.fn_sig()
         } else {
@@ -537,7 +545,7 @@ impl<'hir> Map<'hir> {
         &self.forest.krate.attrs
     }
 
-    pub fn get_module(&self, module: DefId) -> (&'hir Mod, Span, HirId) {
+    pub fn get_module(&self, module: DefId) -> (&'hir Mod<'hir>, Span, HirId) {
         let hir_id = self.as_local_hir_id(module).unwrap();
         self.read(hir_id);
         match self.find_entry(hir_id).unwrap().node {
@@ -584,7 +592,7 @@ impl<'hir> Map<'hir> {
         self.as_local_hir_id(id).map(|id| self.get(id)) // read recorded by `get`
     }
 
-    pub fn get_generics(&self, id: DefId) -> Option<&'hir Generics> {
+    pub fn get_generics(&self, id: DefId) -> Option<&'hir Generics<'hir>> {
         self.get_if_local(id).and_then(|node| match node {
             Node::ImplItem(ref impl_item) => Some(&impl_item.generics),
             Node::TraitItem(ref trait_item) => Some(&trait_item.generics),
@@ -596,7 +604,7 @@ impl<'hir> Map<'hir> {
                 | ItemKind::Union(_, ref generics)
                 | ItemKind::Trait(_, _, ref generics, ..)
                 | ItemKind::TraitAlias(ref generics, _)
-                | ItemKind::Impl(_, _, _, ref generics, ..) => Some(generics),
+                | ItemKind::Impl { ref generics, .. } => Some(generics),
                 _ => None,
             },
             _ => None,
@@ -782,7 +790,7 @@ impl<'hir> Map<'hir> {
     ///
     /// Used by error reporting when there's a type error in a match arm caused by the `match`
     /// expression needing to be unit.
-    pub fn get_match_if_cause(&self, hir_id: HirId) -> Option<&Expr> {
+    pub fn get_match_if_cause(&self, hir_id: HirId) -> Option<&'hir Expr<'hir>> {
         for (_, node) in ParentHirIterator::new(hir_id, &self) {
             match node {
                 Node::Item(_) | Node::ForeignItem(_) | Node::TraitItem(_) | Node::ImplItem(_) => {
@@ -813,7 +821,7 @@ impl<'hir> Map<'hir> {
                     | ItemKind::Struct(..)
                     | ItemKind::Union(..)
                     | ItemKind::Trait(..)
-                    | ItemKind::Impl(..) => true,
+                    | ItemKind::Impl { .. } => true,
                     _ => false,
                 },
                 Node::ForeignItem(fi) => match fi.kind {
@@ -875,7 +883,7 @@ impl<'hir> Map<'hir> {
         bug!("expected foreign mod or inlined parent, found {}", self.node_to_string(parent))
     }
 
-    pub fn expect_item(&self, id: HirId) -> &'hir Item {
+    pub fn expect_item(&self, id: HirId) -> &'hir Item<'hir> {
         match self.find(id) {
             // read recorded by `find`
             Some(Node::Item(item)) => item,
@@ -883,21 +891,21 @@ impl<'hir> Map<'hir> {
         }
     }
 
-    pub fn expect_impl_item(&self, id: HirId) -> &'hir ImplItem {
+    pub fn expect_impl_item(&self, id: HirId) -> &'hir ImplItem<'hir> {
         match self.find(id) {
             Some(Node::ImplItem(item)) => item,
             _ => bug!("expected impl item, found {}", self.node_to_string(id)),
         }
     }
 
-    pub fn expect_trait_item(&self, id: HirId) -> &'hir TraitItem {
+    pub fn expect_trait_item(&self, id: HirId) -> &'hir TraitItem<'hir> {
         match self.find(id) {
             Some(Node::TraitItem(item)) => item,
             _ => bug!("expected trait item, found {}", self.node_to_string(id)),
         }
     }
 
-    pub fn expect_variant_data(&self, id: HirId) -> &'hir VariantData {
+    pub fn expect_variant_data(&self, id: HirId) -> &'hir VariantData<'hir> {
         match self.find(id) {
             Some(Node::Item(i)) => match i.kind {
                 ItemKind::Struct(ref struct_def, _) | ItemKind::Union(ref struct_def, _) => {
@@ -911,21 +919,21 @@ impl<'hir> Map<'hir> {
         }
     }
 
-    pub fn expect_variant(&self, id: HirId) -> &'hir Variant {
+    pub fn expect_variant(&self, id: HirId) -> &'hir Variant<'hir> {
         match self.find(id) {
             Some(Node::Variant(variant)) => variant,
             _ => bug!("expected variant, found {}", self.node_to_string(id)),
         }
     }
 
-    pub fn expect_foreign_item(&self, id: HirId) -> &'hir ForeignItem {
+    pub fn expect_foreign_item(&self, id: HirId) -> &'hir ForeignItem<'hir> {
         match self.find(id) {
             Some(Node::ForeignItem(item)) => item,
             _ => bug!("expected foreign item, found {}", self.node_to_string(id)),
         }
     }
 
-    pub fn expect_expr(&self, id: HirId) -> &'hir Expr {
+    pub fn expect_expr(&self, id: HirId) -> &'hir Expr<'hir> {
         match self.find(id) {
             // read recorded by find
             Some(Node::Expr(expr)) => expr,
@@ -1085,6 +1093,24 @@ impl<'hir> Map<'hir> {
     }
 }
 
+impl<'hir> intravisit::Map<'hir> for Map<'hir> {
+    fn body(&self, id: BodyId) -> &'hir Body<'hir> {
+        self.body(id)
+    }
+
+    fn item(&self, id: HirId) -> &'hir Item<'hir> {
+        self.item(id)
+    }
+
+    fn trait_item(&self, id: TraitItemId) -> &'hir TraitItem<'hir> {
+        self.trait_item(id)
+    }
+
+    fn impl_item(&self, id: ImplItemId) -> &'hir ImplItem<'hir> {
+        self.impl_item(id)
+    }
+}
+
 pub struct NodesMatchingSuffix<'a> {
     map: &'a Map<'a>,
     item_name: &'a String,
@@ -1132,7 +1158,7 @@ impl<'a> NodesMatchingSuffix<'a> {
                 id = parent;
             }
 
-            fn item_is_mod(item: &Item) -> bool {
+            fn item_is_mod(item: &Item<'_>) -> bool {
                 match item.kind {
                     ItemKind::Mod(_) => true,
                     _ => false,
@@ -1171,41 +1197,41 @@ impl<T: Named> Named for Spanned<T> {
     }
 }
 
-impl Named for Item {
+impl Named for Item<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
-impl Named for ForeignItem {
+impl Named for ForeignItem<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
-impl Named for Variant {
+impl Named for Variant<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
-impl Named for StructField {
+impl Named for StructField<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
-impl Named for TraitItem {
+impl Named for TraitItem<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
-impl Named for ImplItem {
+impl Named for ImplItem<'_> {
     fn name(&self) -> Name {
         self.ident.name
     }
 }
 
 pub fn map_crate<'hir>(
-    sess: &crate::session::Session,
+    sess: &rustc_session::Session,
     cstore: &CrateStoreDyn,
-    forest: &'hir Forest,
+    forest: &'hir Forest<'hir>,
     definitions: Definitions,
 ) -> Map<'hir> {
     let _prof_timer = sess.prof.generic_activity("build_hir_map");
@@ -1244,7 +1270,7 @@ pub fn map_crate<'hir>(
         definitions,
     };
 
-    time(sess, "validate HIR map", || {
+    sess.time("validate_HIR_map", || {
         hir_id_validator::check_crate(&map, sess);
     });
 
@@ -1261,45 +1287,6 @@ impl<'hir> print::PpAnn for Map<'hir> {
             Nested::ImplItem(id) => state.print_impl_item(self.impl_item(id)),
             Nested::Body(id) => state.print_expr(&self.body(id).value),
             Nested::BodyParamPat(id, i) => state.print_pat(&self.body(id).params[i].pat),
-        }
-    }
-}
-
-impl<'a> print::State<'a> {
-    pub fn print_node(&mut self, node: Node<'_>) {
-        match node {
-            Node::Param(a) => self.print_param(&a),
-            Node::Item(a) => self.print_item(&a),
-            Node::ForeignItem(a) => self.print_foreign_item(&a),
-            Node::TraitItem(a) => self.print_trait_item(a),
-            Node::ImplItem(a) => self.print_impl_item(a),
-            Node::Variant(a) => self.print_variant(&a),
-            Node::AnonConst(a) => self.print_anon_const(&a),
-            Node::Expr(a) => self.print_expr(&a),
-            Node::Stmt(a) => self.print_stmt(&a),
-            Node::PathSegment(a) => self.print_path_segment(&a),
-            Node::Ty(a) => self.print_type(&a),
-            Node::TraitRef(a) => self.print_trait_ref(&a),
-            Node::Binding(a) | Node::Pat(a) => self.print_pat(&a),
-            Node::Arm(a) => self.print_arm(&a),
-            Node::Block(a) => {
-                // Containing cbox, will be closed by print-block at `}`.
-                self.cbox(print::INDENT_UNIT);
-                // Head-ibox, will be closed by print-block after `{`.
-                self.ibox(0);
-                self.print_block(&a)
-            }
-            Node::Lifetime(a) => self.print_lifetime(&a),
-            Node::Visibility(a) => self.print_visibility(&a),
-            Node::GenericParam(_) => bug!("cannot print Node::GenericParam"),
-            Node::Field(_) => bug!("cannot print StructField"),
-            // These cases do not carry enough information in the
-            // `hir_map` to reconstruct their full structure for pretty
-            // printing.
-            Node::Ctor(..) => bug!("cannot print isolated Ctor"),
-            Node::Local(a) => self.print_local_decl(&a),
-            Node::MacroDef(_) => bug!("cannot print MacroDef"),
-            Node::Crate => bug!("cannot print Crate"),
         }
     }
 }
@@ -1345,7 +1332,7 @@ fn hir_id_to_string(map: &Map<'_>, id: HirId, include_id: bool) -> String {
                 ItemKind::Union(..) => "union",
                 ItemKind::Trait(..) => "trait",
                 ItemKind::TraitAlias(..) => "trait alias",
-                ItemKind::Impl(..) => "impl",
+                ItemKind::Impl { .. } => "impl",
             };
             format!("{} {}{}", item_str, path_str(), id_str)
         }
