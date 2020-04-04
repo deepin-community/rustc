@@ -32,6 +32,7 @@ d-read-beta-version-from-file.patch
 d-ignore-avx-44056.patch
 d-i686-baseline.patch
 d-no-jemalloc.patch
+d-use-local-css.patch
 
 # Porter fixes under discussion, not suitable for upstreaming
 # as-is but a proper fix is being discussed
@@ -39,4 +40,3 @@ d-fix-mips64el-bootstrap.patch
 
 # Work around for some porterboxes, keep this commented
 #d-host-duplicates.patch
-d-use-local-css.patch
