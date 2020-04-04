@@ -1,10 +1,13 @@
-use crate::hir::def_id::{DefId, DefIndex, CRATE_DEF_INDEX};
-use crate::hir::itemlikevisit::ItemLikeVisitor;
-use crate::hir::{self, intravisit, HirId, ItemLocalId};
+use crate::hir::map::Map;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::sync::{par_iter, Lock, ParallelIterator};
+use rustc_hir as hir;
+use rustc_hir::def_id::{DefId, DefIndex, CRATE_DEF_INDEX};
+use rustc_hir::intravisit;
+use rustc_hir::itemlikevisit::ItemLikeVisitor;
+use rustc_hir::{HirId, ItemLocalId};
 
-pub fn check_crate(hir_map: &hir::map::Map<'_>, sess: &rustc_session::Session) {
+pub fn check_crate(hir_map: &Map<'_>, sess: &rustc_session::Session) {
     hir_map.dep_graph.assert_ignored();
 
     let errors = Lock::new(Vec::new());
@@ -21,24 +24,24 @@ pub fn check_crate(hir_map: &hir::map::Map<'_>, sess: &rustc_session::Session) {
 
     if !errors.is_empty() {
         let message = errors.iter().fold(String::new(), |s1, s2| s1 + "\n" + s2);
-        sess.delay_span_bug(syntax_pos::DUMMY_SP, &message);
+        sess.delay_span_bug(rustc_span::DUMMY_SP, &message);
     }
 }
 
 struct HirIdValidator<'a, 'hir> {
-    hir_map: &'a hir::map::Map<'hir>,
+    hir_map: &'a Map<'hir>,
     owner_def_index: Option<DefIndex>,
     hir_ids_seen: FxHashSet<ItemLocalId>,
     errors: &'a Lock<Vec<String>>,
 }
 
 struct OuterVisitor<'a, 'hir> {
-    hir_map: &'a hir::map::Map<'hir>,
+    hir_map: &'a Map<'hir>,
     errors: &'a Lock<Vec<String>>,
 }
 
 impl<'a, 'hir> OuterVisitor<'a, 'hir> {
-    fn new_inner_visitor(&self, hir_map: &'a hir::map::Map<'hir>) -> HirIdValidator<'a, 'hir> {
+    fn new_inner_visitor(&self, hir_map: &'a Map<'hir>) -> HirIdValidator<'a, 'hir> {
         HirIdValidator {
             hir_map,
             owner_def_index: None,
@@ -49,17 +52,17 @@ impl<'a, 'hir> OuterVisitor<'a, 'hir> {
 }
 
 impl<'a, 'hir> ItemLikeVisitor<'hir> for OuterVisitor<'a, 'hir> {
-    fn visit_item(&mut self, i: &'hir hir::Item) {
+    fn visit_item(&mut self, i: &'hir hir::Item<'hir>) {
         let mut inner_visitor = self.new_inner_visitor(self.hir_map);
         inner_visitor.check(i.hir_id, |this| intravisit::walk_item(this, i));
     }
 
-    fn visit_trait_item(&mut self, i: &'hir hir::TraitItem) {
+    fn visit_trait_item(&mut self, i: &'hir hir::TraitItem<'hir>) {
         let mut inner_visitor = self.new_inner_visitor(self.hir_map);
         inner_visitor.check(i.hir_id, |this| intravisit::walk_trait_item(this, i));
     }
 
-    fn visit_impl_item(&mut self, i: &'hir hir::ImplItem) {
+    fn visit_impl_item(&mut self, i: &'hir hir::ImplItem<'hir>) {
         let mut inner_visitor = self.new_inner_visitor(self.hir_map);
         inner_visitor.check(i.hir_id, |this| intravisit::walk_impl_item(this, i));
     }
@@ -130,7 +133,9 @@ impl<'a, 'hir> HirIdValidator<'a, 'hir> {
 }
 
 impl<'a, 'hir> intravisit::Visitor<'hir> for HirIdValidator<'a, 'hir> {
-    fn nested_visit_map<'this>(&'this mut self) -> intravisit::NestedVisitorMap<'this, 'hir> {
+    type Map = Map<'hir>;
+
+    fn nested_visit_map<'this>(&'this mut self) -> intravisit::NestedVisitorMap<'this, Self::Map> {
         intravisit::NestedVisitorMap::OnlyBodies(self.hir_map)
     }
 
@@ -161,7 +166,7 @@ impl<'a, 'hir> intravisit::Visitor<'hir> for HirIdValidator<'a, 'hir> {
         self.hir_ids_seen.insert(hir_id.local_id);
     }
 
-    fn visit_impl_item_ref(&mut self, _: &'hir hir::ImplItemRef) {
+    fn visit_impl_item_ref(&mut self, _: &'hir hir::ImplItemRef<'hir>) {
         // Explicitly do nothing here. ImplItemRefs contain hir::Visibility
         // values that actually belong to an ImplItem instead of the ItemKind::Impl
         // we are currently in. So for those it's correct that they have a
