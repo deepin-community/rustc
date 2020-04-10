@@ -1,8 +1,8 @@
-rustc (1.42.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.42.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 10 Apr 2020 11:32:53 +0100
+ -- Ximin Luo <infinity0@debian.org>  Fri, 10 Apr 2020 11:33:25 +0100
 
 rustc (1.42.0+dfsg1-1~exp1) experimental; urgency=medium
 
