@@ -19,9 +19,6 @@ RUSTFLAGS = $(addprefix -C link-args=,$(LDFLAGS))
 RUSTFLAGS += --cap-lints warn --remap-path-prefix=$(CURDIR)=/usr/src/rustc-$(RUST_LONG_VERSION)
 export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS RUSTFLAGS
 export CARGO_HOME = $(CURDIR)/debian/cargo
-ifneq (,$(filter $(DEB_BUILD_ARCH), sparc64))
-export CARGO_INCREMENTAL = 0
-endif
 
 # Defines DEB_*_RUST_TYPE triples
 include debian/architecture.mk
@@ -126,10 +123,6 @@ endif
 SRC_CLEAN = src/bootstrap/bootstrap.pyc \
 	src/etc/__pycache__/
 
-# Workaround for linux #865549
-ifeq (0,$(shell test $$(uname -s) = "Linux" -a $$(getconf PAGESIZE) -gt 4096; echo $$?))
-  SYSTEM_WORKAROUNDS += ulimit -s $$(expr $$(getconf PAGESIZE) / 1024 '*' 256 + 8192);
-endif
 # Try to work around #933045
 ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel))
   SYSTEM_WORKAROUNDS += export MALLOC_ARENA_MAX=1;
