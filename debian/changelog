@@ -1,9 +1,10 @@
-rustc (1.42.0+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.43.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
 
   * Drop sparc64 workaround. (Closes: #956413)
   * Drop stack-gap workaround for old kernels and rust versions.
+  * New upstream release.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 11 Apr 2020 20:36:26 +0100
+ -- Ximin Luo <infinity0@debian.org>  Sun, 26 Apr 2020 15:16:37 +0100
 
 rustc (1.42.0+dfsg1-1) unstable; urgency=medium
 
