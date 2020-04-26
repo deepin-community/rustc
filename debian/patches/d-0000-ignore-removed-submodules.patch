@@ -124,26 +124,19 @@ Forwarded: not-needed
  
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1472,14 +1472,14 @@ impl Step for RustcGuide {
+@@ -1472,14 +1472,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
--        let src = builder.src.join("src/doc/rustc-guide");
+-        let src = builder.src.join("src/doc/rustc-dev-guide");
 -        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
 -        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)) {
 -            ToolState::TestPass
 -        } else {
 -            ToolState::TestFail
 -        };
--        builder.save_toolstate("rustc-guide", toolstate);
-+        //let src = builder.src.join("src/doc/rustc-guide");
-+        //let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
-+        //let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)) {
-+        //    ToolState::TestPass
-+        //} else {
-+        //    ToolState::TestFail
-+        //};
-+        builder.save_toolstate("rustc-guide", ToolState::TestPass);
+-        builder.save_toolstate("rustc-dev-guide", toolstate);
++        builder.save_toolstate("rustc-dev-guide", ToolState::TestPass);
      }
  }
  
@@ -168,11 +161,11 @@ Forwarded: not-needed
      features
 --- a/src/tools/rustbook/Cargo.toml
 +++ b/src/tools/rustbook/Cargo.toml
-@@ -6,21 +6,15 @@ license = "MIT OR Apache-2.0"
+@@ -6,22 +6,16 @@ license = "MIT OR Apache-2.0"
  edition = "2018"
  
  [features]
--linkcheck = ["mdbook-linkcheck", "codespan-reporting"]
+-linkcheck = ["mdbook-linkcheck", "codespan-reporting", "codespan"]
 +linkcheck = []
  
  [dependencies]
@@ -180,6 +173,7 @@ Forwarded: not-needed
  failure = "0.1"
 -mdbook-linkcheck = { version = "0.5.0", optional = true }
  # Keep in sync with mdbook-linkcheck.
+ codespan = { version = "0.5", optional = true }
  codespan-reporting = { version = "0.5", optional = true }
  
  
