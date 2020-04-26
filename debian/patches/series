@@ -7,7 +7,6 @@ u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
 u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
-u-riscv64-68452.patch
 u-wasm32-libc-1625.patch
 
 # not forwarded, or forwarded but unlikely to be merged
@@ -22,7 +21,7 @@ d-0002-pkg-config-no-special-snowflake.patch
 d-0003-mdbook-strip-embedded-libs.patch
 # Other patches needed by the full Debian build
 #d-use-system-compiler-rt.patch
-d-ignore-error-detail-diff.patch
+d-ignore-error-detail-diff.patch # FIXME, broken for 1.43
 d-disable-cargo-vendor.patch
 d-rust-gdb-paths
 d-rust-lldb-paths
