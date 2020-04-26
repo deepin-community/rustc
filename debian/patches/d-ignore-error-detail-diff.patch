@@ -172,8 +172,8 @@ index 00b033004..b24aa1fe6 100644
 -   |
 -LL |     fn hash<H: Hasher>(&self, state: &mut H);
 -   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
+    |
+    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/derives/derives-span-Hash-enum.stderr b/src/test/ui/derives/derives-span-Hash-enum.stderr
 index 004cabf20..ff13218ed 100644
@@ -188,8 +188,8 @@ index 004cabf20..ff13218ed 100644
 -   |
 -LL |     fn hash<H: Hasher>(&self, state: &mut H);
 -   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
+    |
+    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/derives/derives-span-Hash-struct.stderr b/src/test/ui/derives/derives-span-Hash-struct.stderr
 index 27b8ff3d1..8a3d8a0f3 100644
@@ -204,8 +204,8 @@ index 27b8ff3d1..8a3d8a0f3 100644
 -   |
 -LL |     fn hash<H: Hasher>(&self, state: &mut H);
 -   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
+    |
+    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr b/src/test/ui/derives/derives-span-Hash-tuple-struct.stderr
 index f1142bc50..1396e1c8f 100644
@@ -220,8 +220,8 @@ index f1142bc50..1396e1c8f 100644
 -   |
 -LL |     fn hash<H: Hasher>(&self, state: &mut H);
 -   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
+    |
+    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/derives/deriving-meta-unknown-trait.stderr b/src/test/ui/derives/deriving-meta-unknown-trait.stderr
 index ead131323..abe382fc4 100644
@@ -284,9 +284,9 @@ index 245013a4e..4ead43890 100644
 -   |
 -LL | pub use crate::vec::Vec;
 -   |         ^^^^^^^^^^^^^^^
+    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
  error: aborting due to 2 previous errors
- 
 diff --git a/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr b/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
 index 374e308a6..555918964 100644
 --- a/src/test/ui/in-band-lifetimes/mismatched_trait_impl-2.stderr
@@ -368,8 +368,8 @@ index a7bb4fc51..a21bf1429 100644
 -   |
 -LL |     fn hash<H: Hasher>(&self, state: &mut H);
 -   |             - required by this bound in `std::hash::Hash::hash`
- 
- error: aborting due to previous error
+    |
+    = note: this error originates in a derive macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/issues/issue-27033.stderr b/src/test/ui/issues/issue-27033.stderr
 index c0de0f142..a5a59edc7 100644
@@ -491,9 +491,9 @@ index 9f0fefcfe..59d21f5c1 100644
 -   |
 -LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
 -   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
+    |
+    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
- error[E0425]: cannot find value `ok` in this scope
-   --> $DIR/parent-source-spans.rs:32:5
 @@ -146,11 +141,6 @@ LL |     parent_source_spans!($($tokens)*);
  ...
  LL |     two!("yay", "rust");
@@ -503,9 +503,9 @@ index 9f0fefcfe..59d21f5c1 100644
 -   |
 -LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
 -   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
+    |
+    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
- error[E0425]: cannot find value `ok` in this scope
-   --> $DIR/parent-source-spans.rs:32:5
 @@ -160,11 +150,6 @@ LL |     parent_source_spans!($($tokens)*);
  ...
  LL |     three!("hip", "hop");
@@ -515,8 +515,8 @@ index 9f0fefcfe..59d21f5c1 100644
 -   |
 -LL |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
 -   |     --------------------------------------------------- similarly named tuple variant `Ok` defined here
- 
- error: aborting due to 21 previous errors
+    |
+    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
  
 diff --git a/src/test/ui/proc-macro/resolve-error.stderr b/src/test/ui/proc-macro/resolve-error.stderr
 index 73a6ab1cf..5b13176c5 100644
@@ -582,7 +582,7 @@ index ed4f34b52..c79545db0 100644
 -   |                                ----------- required by this bound in `test::assert_test_result`
     |
     = help: the trait `std::process::Termination` is not implemented for `std::result::Result<f32, std::num::ParseFloatError>`
- 
+    = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
 diff --git a/src/test/ui/stability-in-private-module.stderr b/src/test/ui/stability-in-private-module.stderr
 index 3a974164f..f2ee71d37 100644
 --- a/src/test/ui/stability-in-private-module.stderr
