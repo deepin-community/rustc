@@ -16,7 +16,6 @@ Build-Depends: debhelper (>= 9),
                llvm-9-dev:native,
                llvm-9-tools:native,
                libllvm9 (>= 1:9.0.1-2),
-               autotools-dev,
                cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
                pkg-config,
