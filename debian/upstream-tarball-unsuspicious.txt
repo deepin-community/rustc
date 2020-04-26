@@ -17,14 +17,15 @@ CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/embedded-book/src/*/*.md
+src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc/src/targets/known-issues.md
-src/doc/rustc-guide/.travis.yml
-src/doc/rustc-guide/src/*.md
-src/doc/rustc-guide/src/*/*.md
+src/doc/rustc-dev-guide/.travis.yml
+src/doc/rustc-dev-guide/src/*.md
+src/doc/rustc-dev-guide/src/*/*.md
 src/doc/*/CODE_OF_CONDUCT.md
-src/doc/unstable-book/src/language-features/unsized-locals.md
+src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
 src/libstd/sys/cloudabi/abi/cloudabi.rs
@@ -96,6 +97,7 @@ vendor/walkdir/compare/nftw.c
 vendor/walkdir-*/compare/nftw.c
 
 # False-positive, misc
+src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
 src/stdarch/.travis.yml
 src/stdarch/crates/core_arch/foo.wasm
 src/test/run-make-fulldeps/target-specs/*.json
@@ -124,8 +126,8 @@ src/doc/book/2018-edition/src/img/ferris/*.svg
 src/doc/book/2018-edition/src/img/*.svg
 src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
-src/doc/rustc-guide/src/img/rustc_stages.svg
-src/doc/rustc-guide/src/queries/example-0.png
+src/doc/rustc-dev-guide/src/img/rustc_stages.svg
+src/doc/rustc-dev-guide/src/queries/example-0.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
 src/librustdoc/html/static/favicon.ico
@@ -150,6 +152,7 @@ src/stdarch/crates/std_detect/src/detect/test_data/*.auxv
 src/test/compile-fail/not-utf8.bin
 src/test/*/*.rs
 src/test/*/issues/*.rs
+src/test/*/*/issue-*.rs
 src/test/*/*/issues/*.rs
 src/test/*/*.stderr
 src/test/*/*/*.json
@@ -198,7 +201,7 @@ vendor/ucd-parse/src/sentence_break.rs
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
-src/doc/rustc-guide/src/mir/mir_*.svg
+src/doc/rustc-dev-guide/src/mir/mir_*.svg
 src/librustdoc/html/static/normalize.css
 vendor/pest_meta/src/grammar.rs
 vendor/unicode-normalization/src/tables.rs
