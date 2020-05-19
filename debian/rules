@@ -117,10 +117,7 @@ ifneq (,$(findstring nodoc,$(DEB_BUILD_OPTIONS)))
   BUILD_DOCS := false
 endif
 
-BUILD_WASM := true
-ifneq (,$(findstring nowasm,$(DEB_BUILD_PROFILES)))
-  BUILD_WASM := false
-endif
+BUILD_WASM := false
 
 WINDOWS_SUPPORT := amd64 i386
 BUILD_WINDOWS := true

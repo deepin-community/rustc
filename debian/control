@@ -39,8 +39,6 @@ Build-Depends:
  curl <pkg.rustc.dlstage0>,
  ca-certificates <pkg.rustc.dlstage0>,
 Build-Depends-Indep:
- wasi-libc (>= 0.0~git20220510.9886d3d~~) <!nowasm>,
- wasi-libc (<= 0.0~git20220510.9886d3d++) <!nowasm>,
  clang-14:native,
  libssl-dev,
 Build-Conflicts: gdb-minimal (<< 8.1-0ubuntu6) <!nocheck>
@@ -148,36 +146,6 @@ Description: Rust standard libraries - development files
  This package contains the standard Rust libraries including development files,
  needed to cross-compile Rust programs to the *-pc-windows-gnu target
  corresponding to the architecture of this package.
-
-Package: libstd-rust-dev-wasm32
-Section: libdevel
-Architecture: all
-Multi-Arch: foreign
-Depends: ${shlibs:Depends}, ${misc:Depends}
-# Embeds wasi-libc so doesn't need to depend on it
-# None of its licenses require source redistrib, so no need for Built-Using
-Recommends:
- lld-14, clang-14,
-Suggests:
-# nodejs contains wasi-node for running the program
- nodejs (>= 12.16),
-Build-Profiles: <!nowasm>
-Description: Rust standard libraries - development files
- Rust is a curly-brace, block-structured expression language.  It
- visually resembles the C language family, but differs significantly
- in syntactic and semantic details.  Its design is oriented toward
- concerns of "programming in the large", that is, of creating and
- maintaining boundaries - both abstract and operational - that
- preserve large-system integrity, availability and concurrency.
- .
- It supports a mixture of imperative procedural, concurrent actor,
- object-oriented and pure functional styles.  Rust also supports
- generic programming and meta-programming, in both static and dynamic
- styles.
- .
- This package contains the standard Rust libraries including development files,
- needed to cross-compile Rust programs to the wasm32-unknown-unknown and
- wasm32-wasi targets.
 
 Package: rust-gdb
 Architecture: all
@@ -326,9 +294,7 @@ Recommends:
  cargo (>= 0.65.0~~), cargo (<< 0.66.0~~)
 Suggests:
  rust-doc (>= ${binary:Version}),
- rust-src (>= ${binary:Version}),
- libstd-rust-dev-wasm32 (>= ${binary:Version}),
- libstd-rust-dev-windows (>= ${binary:Version}),
+ rust-src (>= ${binary:Version})
 Description: Rust systems programming language - all developer tools
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
