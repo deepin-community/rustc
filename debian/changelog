@@ -1,3 +1,10 @@
+rustc (1.43.0+dfsg1-1) UNRELEASED; urgency=medium
+
+  * Upload to unstable.
+  * Bump LLVM B-D version for some backported fixes affecting rustc.
+
+ -- Ximin Luo <infinity0@debian.org>  Sat, 04 Jul 2020 14:34:37 +0100
+
 rustc (1.43.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * Drop sparc64 workaround. (Closes: #956413)

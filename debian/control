@@ -15,7 +15,7 @@ Build-Depends: debhelper (>= 9),
                rustc:native (<= 1.43.0++)    <!pkg.rustc.dlstage0>,
                llvm-9-dev:native,
                llvm-9-tools:native,
-               libllvm9 (>= 1:9.0.1-2),
+               libllvm9 (>= 1:9.0.1-13),
                cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
                pkg-config,
