@@ -6,14 +6,16 @@
 // This pass is supposed to perform only simple checks not requiring name resolution
 // or type checking or some other kind of complex analysis.
 
+use itertools::{Either, Itertools};
 use rustc_ast::ast::*;
 use rustc_ast::attr;
 use rustc_ast::expand::is_proc_macro_attr;
+use rustc_ast::ptr::P;
 use rustc_ast::visit::{self, AssocCtxt, FnCtxt, FnKind, Visitor};
 use rustc_ast::walk_list;
 use rustc_ast_pretty::pprust;
 use rustc_data_structures::fx::FxHashMap;
-use rustc_errors::{error_code, struct_span_err, Applicability};
+use rustc_errors::{error_code, pluralize, struct_span_err, Applicability};
 use rustc_parse::validate_attr;
 use rustc_session::lint::builtin::PATTERNS_IN_FNS_WITHOUT_BODY;
 use rustc_session::lint::LintBuffer;
@@ -288,11 +290,7 @@ impl<'a> AstValidator<'a> {
         match expr.kind {
             ExprKind::Lit(..) | ExprKind::Err => {}
             ExprKind::Path(..) if allow_paths => {}
-            ExprKind::Unary(UnOp::Neg, ref inner)
-                if match inner.kind {
-                    ExprKind::Lit(_) => true,
-                    _ => false,
-                } => {}
+            ExprKind::Unary(UnOp::Neg, ref inner) if matches!(inner.kind, ExprKind::Lit(_)) => {}
             _ => self.err_handler().span_err(
                 expr.span,
                 "arbitrary expressions aren't allowed \
@@ -401,7 +399,7 @@ impl<'a> AstValidator<'a> {
 
     fn check_defaultness(&self, span: Span, defaultness: Defaultness) {
         if let Defaultness::Default(def_span) = defaultness {
-            let span = self.session.source_map().def_span(span);
+            let span = self.session.source_map().guess_head_span(span);
             self.err_handler()
                 .struct_span_err(span, "`default` is only allowed on items in `impl` definitions")
                 .span_label(def_span, "`default` because of this")
@@ -516,7 +514,7 @@ impl<'a> AstValidator<'a> {
     }
 
     fn current_extern_span(&self) -> Span {
-        self.session.source_map().def_span(self.extern_mod.unwrap().span)
+        self.session.source_map().guess_head_span(self.extern_mod.unwrap().span)
     }
 
     /// An `fn` in `extern { ... }` cannot have qualfiers, e.g. `async fn`.
@@ -563,28 +561,6 @@ impl<'a> AstValidator<'a> {
         }
     }
 
-    /// We currently do not permit const generics in `const fn`,
-    /// as this is tantamount to allowing compile-time dependent typing.
-    ///
-    /// FIXME(const_generics): Is this really true / necessary? Discuss with @varkor.
-    /// At any rate, the restriction feels too syntactic. Consider moving it to e.g. typeck.
-    fn check_const_fn_const_generic(&self, span: Span, sig: &FnSig, generics: &Generics) {
-        if let Const::Yes(const_span) = sig.header.constness {
-            // Look for const generics and error if we find any.
-            for param in &generics.params {
-                if let GenericParamKind::Const { .. } = param.kind {
-                    self.err_handler()
-                        .struct_span_err(
-                            span,
-                            "const parameters are not permitted in const functions",
-                        )
-                        .span_label(const_span, "`const` because of this")
-                        .emit();
-                }
-            }
-        }
-    }
-
     fn check_item_named(&self, ident: Ident, kind: &str) {
         if ident.name != kw::Underscore {
             return;
@@ -594,8 +570,125 @@ impl<'a> AstValidator<'a> {
             .span_label(ident.span, format!("`_` is not a valid name for this `{}` item", kind))
             .emit();
     }
+
+    fn deny_generic_params(&self, generics: &Generics, ident_span: Span) {
+        if !generics.params.is_empty() {
+            struct_span_err!(
+                self.session,
+                generics.span,
+                E0567,
+                "auto traits cannot have generic parameters"
+            )
+            .span_label(ident_span, "auto trait cannot have generic parameters")
+            .span_suggestion(
+                generics.span,
+                "remove the parameters",
+                String::new(),
+                Applicability::MachineApplicable,
+            )
+            .emit();
+        }
+    }
+
+    fn deny_super_traits(&self, bounds: &GenericBounds, ident_span: Span) {
+        if let [first @ last] | [first, .., last] = &bounds[..] {
+            let span = first.span().to(last.span());
+            struct_span_err!(self.session, span, E0568, "auto traits cannot have super traits")
+                .span_label(ident_span, "auto trait cannot have super traits")
+                .span_suggestion(
+                    span,
+                    "remove the super traits",
+                    String::new(),
+                    Applicability::MachineApplicable,
+                )
+                .emit();
+        }
+    }
+
+    fn deny_items(&self, trait_items: &[P<AssocItem>], ident_span: Span) {
+        if !trait_items.is_empty() {
+            let spans: Vec<_> = trait_items.iter().map(|i| i.ident.span).collect();
+            struct_span_err!(
+                self.session,
+                spans,
+                E0380,
+                "auto traits cannot have methods or associated items"
+            )
+            .span_label(ident_span, "auto trait cannot have items")
+            .emit();
+        }
+    }
+
+    fn correct_generic_order_suggestion(&self, data: &AngleBracketedArgs) -> String {
+        // Lifetimes always come first.
+        let lt_sugg = data.args.iter().filter_map(|arg| match arg {
+            AngleBracketedArg::Arg(lt @ GenericArg::Lifetime(_)) => {
+                Some(pprust::to_string(|s| s.print_generic_arg(lt)))
+            }
+            _ => None,
+        });
+        let args_sugg = data.args.iter().filter_map(|a| match a {
+            AngleBracketedArg::Arg(GenericArg::Lifetime(_)) | AngleBracketedArg::Constraint(_) => {
+                None
+            }
+            AngleBracketedArg::Arg(arg) => Some(pprust::to_string(|s| s.print_generic_arg(arg))),
+        });
+        // Constraints always come last.
+        let constraint_sugg = data.args.iter().filter_map(|a| match a {
+            AngleBracketedArg::Arg(_) => None,
+            AngleBracketedArg::Constraint(c) => {
+                Some(pprust::to_string(|s| s.print_assoc_constraint(c)))
+            }
+        });
+        format!(
+            "<{}>",
+            lt_sugg.chain(args_sugg).chain(constraint_sugg).collect::<Vec<String>>().join(", ")
+        )
+    }
+
+    /// Enforce generic args coming before constraints in `<...>` of a path segment.
+    fn check_generic_args_before_constraints(&self, data: &AngleBracketedArgs) {
+        // Early exit in case it's partitioned as it should be.
+        if data.args.iter().is_partitioned(|arg| matches!(arg, AngleBracketedArg::Arg(_))) {
+            return;
+        }
+        // Find all generic argument coming after the first constraint...
+        let (constraint_spans, arg_spans): (Vec<Span>, Vec<Span>) =
+            data.args.iter().partition_map(|arg| match arg {
+                AngleBracketedArg::Constraint(c) => Either::Left(c.span),
+                AngleBracketedArg::Arg(a) => Either::Right(a.span()),
+            });
+        let args_len = arg_spans.len();
+        let constraint_len = constraint_spans.len();
+        // ...and then error:
+        self.err_handler()
+            .struct_span_err(
+                arg_spans.clone(),
+                "generic arguments must come before the first constraint",
+            )
+            .span_label(constraint_spans[0], &format!("constraint{}", pluralize!(constraint_len)))
+            .span_label(
+                *arg_spans.iter().last().unwrap(),
+                &format!("generic argument{}", pluralize!(args_len)),
+            )
+            .span_labels(constraint_spans, "")
+            .span_labels(arg_spans, "")
+            .span_suggestion_verbose(
+                data.span,
+                &format!(
+                    "move the constraint{} after the generic argument{}",
+                    pluralize!(constraint_len),
+                    pluralize!(args_len)
+                ),
+                self.correct_generic_order_suggestion(&data),
+                Applicability::MachineApplicable,
+            )
+            .emit();
+    }
 }
 
+/// Checks that generic parameters are in the correct order,
+/// which is lifetimes, then types and then consts. (`<'a, T, const N: usize>`)
 fn validate_generic_param_order<'a>(
     sess: &Session,
     handler: &rustc_errors::Handler,
@@ -669,12 +762,12 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
 
     fn visit_expr(&mut self, expr: &'a Expr) {
         match &expr.kind {
-            ExprKind::InlineAsm(..) if !self.session.target.target.options.allow_asm => {
+            ExprKind::LlvmInlineAsm(..) if !self.session.target.target.options.allow_asm => {
                 struct_span_err!(
                     self.session,
                     expr.span,
                     E0472,
-                    "asm! is unsupported on this target"
+                    "llvm_asm! is unsupported on this target"
                 )
                 .emit();
             }
@@ -779,7 +872,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                 defaultness: _,
                 constness: _,
                 generics: _,
-                of_trait: Some(_),
+                of_trait: Some(ref t),
                 ref self_ty,
                 items: _,
             } => {
@@ -794,13 +887,14 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                             .help("use `auto trait Trait {}` instead")
                             .emit();
                     }
-                    if let (Unsafe::Yes(span), ImplPolarity::Negative) = (unsafety, polarity) {
+                    if let (Unsafe::Yes(span), ImplPolarity::Negative(sp)) = (unsafety, polarity) {
                         struct_span_err!(
                             this.session,
-                            item.span,
+                            sp.to(t.path.span),
                             E0198,
                             "negative impls cannot be unsafe"
                         )
+                        .span_label(sp, "negative because of this")
                         .span_label(span, "unsafe because of this")
                         .emit();
                     }
@@ -816,45 +910,42 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
                 constness,
                 generics: _,
                 of_trait: None,
-                self_ty: _,
+                ref self_ty,
                 items: _,
             } => {
+                let error = |annotation_span, annotation| {
+                    let mut err = self.err_handler().struct_span_err(
+                        self_ty.span,
+                        &format!("inherent impls cannot be {}", annotation),
+                    );
+                    err.span_label(annotation_span, &format!("{} because of this", annotation));
+                    err.span_label(self_ty.span, "inherent impl for this type");
+                    err
+                };
+
                 self.invalid_visibility(
                     &item.vis,
                     Some("place qualifiers on individual impl items instead"),
                 );
                 if let Unsafe::Yes(span) = unsafety {
-                    struct_span_err!(
-                        self.session,
-                        item.span,
-                        E0197,
-                        "inherent impls cannot be unsafe"
-                    )
-                    .span_label(span, "unsafe because of this")
-                    .emit();
+                    error(span, "unsafe").code(error_code!(E0197)).emit();
                 }
-                if polarity == ImplPolarity::Negative {
-                    self.err_handler().span_err(item.span, "inherent impls cannot be negative");
+                if let ImplPolarity::Negative(span) = polarity {
+                    error(span, "negative").emit();
                 }
                 if let Defaultness::Default(def_span) = defaultness {
-                    let span = self.session.source_map().def_span(item.span);
-                    self.err_handler()
-                        .struct_span_err(span, "inherent impls cannot be `default`")
-                        .span_label(def_span, "`default` because of this")
+                    error(def_span, "`default`")
                         .note("only trait implementations may be annotated with `default`")
                         .emit();
                 }
                 if let Const::Yes(span) = constness {
-                    self.err_handler()
-                        .struct_span_err(item.span, "inherent impls cannot be `const`")
-                        .span_label(span, "`const` because of this")
+                    error(span, "`const`")
                         .note("only trait implementations may be annotated with `const`")
                         .emit();
                 }
             }
-            ItemKind::Fn(def, ref sig, ref generics, ref body) => {
+            ItemKind::Fn(def, _, _, ref body) => {
                 self.check_defaultness(item.span, def);
-                self.check_const_fn_const_generic(item.span, sig, generics);
 
                 if body.is_none() {
                     let msg = "free function without a body";
@@ -882,33 +973,9 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             ItemKind::Trait(is_auto, _, ref generics, ref bounds, ref trait_items) => {
                 if is_auto == IsAuto::Yes {
                     // Auto traits cannot have generics, super traits nor contain items.
-                    if !generics.params.is_empty() {
-                        struct_span_err!(
-                            self.session,
-                            item.span,
-                            E0567,
-                            "auto traits cannot have generic parameters"
-                        )
-                        .emit();
-                    }
-                    if !bounds.is_empty() {
-                        struct_span_err!(
-                            self.session,
-                            item.span,
-                            E0568,
-                            "auto traits cannot have super traits"
-                        )
-                        .emit();
-                    }
-                    if !trait_items.is_empty() {
-                        struct_span_err!(
-                            self.session,
-                            item.span,
-                            E0380,
-                            "auto traits cannot have methods or associated items"
-                        )
-                        .emit();
-                    }
+                    self.deny_generic_params(generics, item.ident.span);
+                    self.deny_super_traits(bounds, item.ident.span);
+                    self.deny_items(trait_items, item.ident.span);
                 }
                 self.no_questions_in_bounds(bounds, "supertraits", true);
 
@@ -976,7 +1043,7 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
             ForeignItemKind::Static(_, _, body) => {
                 self.check_foreign_kind_bodyless(fi.ident, "static", body.as_ref().map(|b| b.span));
             }
-            ForeignItemKind::Macro(..) => {}
+            ForeignItemKind::MacCall(..) => {}
         }
 
         visit::walk_foreign_item(self, fi)
@@ -986,17 +1053,20 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
     fn visit_generic_args(&mut self, _: Span, generic_args: &'a GenericArgs) {
         match *generic_args {
             GenericArgs::AngleBracketed(ref data) => {
-                walk_list!(self, visit_generic_arg, &data.args);
+                self.check_generic_args_before_constraints(data);
 
-                // Type bindings such as `Item = impl Debug` in `Iterator<Item = Debug>`
-                // are allowed to contain nested `impl Trait`.
-                self.with_impl_trait(None, |this| {
-                    walk_list!(
-                        this,
-                        visit_assoc_ty_constraint_from_generic_args,
-                        &data.constraints
-                    );
-                });
+                for arg in &data.args {
+                    match arg {
+                        AngleBracketedArg::Arg(arg) => self.visit_generic_arg(arg),
+                        // Type bindings such as `Item = impl Debug` in `Iterator<Item = Debug>`
+                        // are allowed to contain nested `impl Trait`.
+                        AngleBracketedArg::Constraint(constraint) => {
+                            self.with_impl_trait(None, |this| {
+                                this.visit_assoc_ty_constraint_from_generic_args(constraint);
+                            });
+                        }
+                    }
+                }
             }
             GenericArgs::Parenthesized(ref data) => {
                 walk_list!(self, visit_ty, &data.inputs);
@@ -1153,9 +1223,13 @@ impl<'a> Visitor<'a> for AstValidator<'a> {
         }) = fk.header()
         {
             self.err_handler()
-                .struct_span_err(span, "functions cannot be both `const` and `async`")
+                .struct_span_err(
+                    vec![*cspan, *aspan],
+                    "functions cannot be both `const` and `async`",
+                )
                 .span_label(*cspan, "`const` because of this")
                 .span_label(*aspan, "`async` because of this")
+                .span_label(span, "") // Point at the fn header.
                 .emit();
         }
 
