@@ -8,5 +8,5 @@ Forwarded: TODO
 +RUSTC := $(RUSTC_ORIGINAL)
 +
  all:
--	python3 test.py
-+	$(HOST_RPATH_ENV) python3 test.py
+-	'$(PYTHON)' test.py
++	$(HOST_RPATH_ENV) '$(PYTHON)' test.py
