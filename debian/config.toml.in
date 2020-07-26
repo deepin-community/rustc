@@ -57,6 +57,8 @@ channel = "RELEASE_CHANNEL"
 debuginfo-level = 2
 debuginfo-level-std = 2
 rpath = false
+# see also d-custom-debuginfo-path.patch
+remap-debuginfo = true
 
 verbose-tests = true
 backtrace-on-ice = true

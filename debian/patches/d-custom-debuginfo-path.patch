@@ -1,0 +1,15 @@
+--- a/src/bootstrap/lib.rs
++++ b/src/bootstrap/lib.rs
+@@ -747,10 +747,9 @@
+ 
+         match which {
+             GitRepo::Rustc => {
+-                let sha = self.rust_sha().unwrap_or(channel::CFG_RELEASE_NUM);
+-                Some(format!("/rustc/{}", sha))
++                Some(format!("/usr/src/rustc-{}", channel::CFG_RELEASE_NUM))
+             }
+-            GitRepo::Llvm => Some(String::from("/rustc/llvm")),
++            GitRepo::Llvm => panic!("GitRepo::Llvm unsupported on Debian"),
+         }
+     }
+ 

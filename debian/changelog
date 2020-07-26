@@ -2,6 +2,7 @@ rustc (1.44.1+dfsg1-1) UNRELEASED; urgency=medium
 
   * Upload to unstable.
   * Backport a typenum fix for i386.
+  * Work around upstream #74786 involving debuginfo maps.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 26 Jul 2020 19:51:47 +0100
 
