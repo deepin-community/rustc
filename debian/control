@@ -13,9 +13,9 @@ Build-Depends: debhelper (>= 9),
                cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
                rustc:native (>= 1.44.0+dfsg) <!pkg.rustc.dlstage0>,
                rustc:native (<= 1.45.0++)    <!pkg.rustc.dlstage0>,
-               llvm-9-dev:native,
-               llvm-9-tools:native,
-               libllvm9 (>= 1:9.0.1-13),
+               llvm-10-dev:native,
+               llvm-10-tools:native,
+               libllvm10,
                cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
                pkg-config,
@@ -49,7 +49,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
 Recommends: cargo (>= 0.46.0~~), cargo (<< 0.47.0~~), rust-gdb | rust-lldb
-Suggests: rust-doc, rust-src, lld-9
+Suggests: rust-doc, rust-src, lld-10
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Description: Rust systems programming language
@@ -110,7 +110,7 @@ Description: Rust standard libraries - development files
 Package: libstd-rust-dev-wasm32-cross
 Section: libdevel
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, lld-9
+Depends: ${shlibs:Depends}, ${misc:Depends}, lld-10
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
 Build-Profiles: <!nowasm>
@@ -154,7 +154,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-9, ${misc:Depends}, python3-lldb-9
+Depends: lldb-10, ${misc:Depends}, python3-lldb-10
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It
