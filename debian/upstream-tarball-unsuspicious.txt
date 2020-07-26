@@ -11,6 +11,7 @@ src/test/run-pass/raw-str.rs
 src/ci/docker/*/patches/glibc/*/*.patch
 vendor/itertools*/examples/iris.data
 vendor/regex/tests/unicode.rs
+vendor/regex/tests/suffix_reverse.rs
 
 # False-positive, "verylongtext" but OK
 CONTRIBUTING.md
@@ -80,6 +81,7 @@ src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-js-std/tester.js
+vendor/stacker/src/arch/windows.c
 
 # Embedded libraries, justified in README.source
 vendor/backtrace-sys/src/libbacktrace/configure
