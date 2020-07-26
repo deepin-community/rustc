@@ -102,6 +102,7 @@ src/stdarch/.travis.yml
 src/stdarch/crates/core_arch/foo.wasm
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
+vendor/backtrace-sys/src/libbacktrace/libtool.m4
 vendor/clap/.mention-bot
 vendor/cloudabi/cloudabi.rs
 vendor/elasticlunr-rs/src/lang/*.rs
@@ -150,6 +151,12 @@ src/stdarch/crates/stdarch-verify/arm-intrinsics.html
 src/stdarch/crates/stdarch-verify/x86-intel.xml
 src/stdarch/crates/std_detect/src/detect/test_data/*.auxv
 src/test/compile-fail/not-utf8.bin
+src/test/mir-opt/*/*.mir
+src/test/mir-opt/*/*.diff
+src/test/mir-opt/*/*/*.mir
+src/test/mir-opt/*/*/*.diff
+src/test/mir-opt/*/*/*/*.mir
+src/test/mir-opt/*/*/*/*.diff
 src/test/*/*.rs
 src/test/*/issues/*.rs
 src/test/*/*/issue-*.rs
@@ -175,6 +182,8 @@ vendor/html5ever/data/bench/*.html
 vendor/html5ever/html5lib-tests/*/*.dat
 vendor/html5ever/html5lib-tests/*/*.test
 vendor/libz-sys/src/smoke.c
+vendor/md-5/tests/data/*.blb
+vendor/md-5/tests/data/*.bin
 vendor/mdbook/src/theme/searcher/searcher.js
 vendor/mdbook/tests/searchindex_fixture.json
 vendor/minifier/tests/files/test.json
@@ -188,7 +197,8 @@ vendor/regex/tests/fowler.rs
 vendor/regex-0*/src/testdata/basic.dat
 vendor/regex-0*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
-vendor/sha-1/tests/data/*.output.bin
+vendor/sha-1/tests/data/*.blb
+vendor/sha-1/tests/data/*.bin
 vendor/tar/tests/archives/*.tar
 vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
@@ -197,6 +207,7 @@ vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/url-1*/tests/*.json
 vendor/yaml-rust/tests/specexamples.rs.inc
+vendor/yaml-rust-0*/tests/specexamples.rs.inc
 vendor/ucd-parse/src/sentence_break.rs
 
 # Compromise, ideally we'd autogenerate these

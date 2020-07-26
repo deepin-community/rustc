@@ -171,8 +171,6 @@ debian/dh_auto_configure.stamp: debian/config.toml
 	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' --exclude-dir='.debhelper' -R debian
 	# fail the build if we accidentally vendored openssl, indicates we pulled in unnecessary dependencies
 	test ! -e vendor/openssl
-	# fail the build if we didn't update d-ignore-error-detail-diff.patch
-	! grep -Ri '\$$SRC_DIR' src/test/
 	# fail the build if our version contains ~exp and we are not releasing to experimental
 	v="$(DEB_VERSION)"; test "$$v" = "$${v%~exp*}" -o "$(DEB_DISTRIBUTION)" = "experimental" -o "$(DEB_DISTRIBUTION)" = "UNRELEASED"
 	$(PRECONFIGURE_CHECK)
@@ -180,7 +178,6 @@ debian/dh_auto_configure.stamp: debian/config.toml
 	# work around #842634
 	if test $$(grep "127.0.0.1\s*localhost" /etc/hosts | wc -l) -gt 1; then \
 	  debian/ensure-patch -N debian/patches/d-host-duplicates.patch; fi
-	# work around https://github.com/rust-lang/rust/issues/59264
 	# We patched some crates so have to rm the checksums
 	find vendor -name .cargo-checksum.json -execdir "$(CURDIR)/debian/prune-checksums" "{}" +
 	# Link against system liblzma, see https://github.com/alexcrichton/xz2-rs/issues/16

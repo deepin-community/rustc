@@ -12,7 +12,7 @@ Forwarded: not-needed
    "src/tools/compiletest",
    "src/tools/error_index_generator",
    "src/tools/linkchecker",
-@@ -14,14 +13,8 @@ members = [
+@@ -14,17 +14,10 @@ members = [
    "src/tools/unstable-book-gen",
    "src/tools/tidy",
    "src/tools/build-manifest",
@@ -26,7 +26,10 @@ Forwarded: not-needed
 -  "src/tools/miri",
    "src/tools/rustdoc-themes",
    "src/tools/unicode-table-generator",
+-  "src/tools/expand-yaml-anchors",
  ]
+ exclude = [
+   "build",
 @@ -47,29 +40,10 @@ debug-assertions = false
  debug = false
  debug-assertions = false
@@ -192,9 +195,9 @@ Forwarded: not-needed
          // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
          // under control.
 -        "cargo",
--        "rustc-ap-syntax",
+-        "rustc-ap-rustc_ast",
 +        //"cargo",
-+        //"rustc-ap-syntax",
++        //"rustc-ap-rustc_ast",
      ];
-     let mut name_to_id: HashMap<_, Vec<_>> = HashMap::new();
-     for node in resolve.nodes.iter() {
+ 
+     for &name in FORBIDDEN_TO_HAVE_DUPLICATES {
