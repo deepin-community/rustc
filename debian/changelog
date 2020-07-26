@@ -1,3 +1,9 @@
+rustc (1.45.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Sun, 26 Jul 2020 20:54:11 +0100
+
 rustc (1.44.1+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
