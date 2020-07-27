@@ -478,10 +478,15 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/cryptocorrosion/cryptocorrosion
 
 Files:
+ vendor/chalk-derive/*
  vendor/chalk-engine/*
+ vendor/chalk-ir/*
  vendor/chalk-macros/*
-Copyright: 2015-2018 Rust Compiler Team
-           2015-2018 Chalk developers
+ vendor/chalk-rust-ir/*
+ vendor/chalk-solve/*
+Copyright:
+ 2015-2020 Rust Compiler Team
+ 2015-2020 Chalk developers
 License: Apache-2.0 or MIT
 Comment: see https://github.com/rust-lang-nursery/chalk
 
@@ -599,8 +604,10 @@ Copyright: 2017-2018 Matt Ickstadt <mattico8@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/mattico/elasticlunr-rs
 
-Files: vendor/ena/*
-Copyright: 2015-2018 Niko Matsakis <niko@alum.mit.edu>
+Files:
+ vendor/ena-0*/*
+ vendor/ena/*
+Copyright: 2015-2020 Niko Matsakis <niko@alum.mit.edu>
 License: MIT or Apache-2.0
 Comment: see https://github.com/nikomatsakis/ena
 
@@ -766,6 +773,11 @@ Copyright: 2015-2017 Sebastian Thiel <byronimo@gmail.com>
 License: MIT
 Comment: see https://github.com/Byron/open-rs
 
+Files: vendor/opener/*
+Copyright: 2018-2020 Brian Bowman <seeker14491@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Seeker14491/opener
+
 Files: vendor/once_cell/*
 Copyright: 2018-2019 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
@@ -837,6 +849,11 @@ Copyright: 2017-2018 Colin Kiegel <kiegel@gmx.de>
 License: MIT or Apache-2.0
 Comment: see https://github.com/colin-kiegel/rust-pretty-assertions
 
+Files: vendor/psm/*
+Copyright: 2015-2020 Simonas Kazlauskas <git@kazlauskas.me>
+License: MIT or Apache-2.0
+Comment: see https://github.com/rust-lang/stacker/
+
 Files:
  vendor/pulldown-cmark/*
  vendor/pulldown-cmark-0*/*
@@ -903,11 +920,12 @@ License: Apache-2.0 or BSL-1.0
 Comment: see https://github.com/dtolnay/ryu
 
 Files:
+ vendor/semver-0.9.0/*
  vendor/semver/*
  vendor/semver-parser/*
 Copyright:
- 2014-2018 Steve Klabnik <steve@steveklabnik.com>
- 2014-2018 The Rust Project Developers
+ 2014-2020 Steve Klabnik <steve@steveklabnik.com>
+ 2014-2020 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/steveklabnik/semver
 
@@ -946,6 +964,12 @@ Files: vendor/stable_deref_trait/*
 Copyright: 2017-2017 Robert Grosse <n210241048576@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/storyyeller/stable_deref_trait
+
+Files: vendor/stacker/*
+Copyright: 2015-2020 Alex Crichton <alex@alexcrichton.com>
+           2015-2020 Simonas Kazlauskas <git@kazlauskas.me>
+License: MIT or Apache-2.0
+Comment: see https://github.com/rust-lang/stacker
 
 Files: vendor/strsim/*
 Copyright: 2015 Danny Guo <dannyguo91@gmail.com>
