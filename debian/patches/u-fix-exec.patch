@@ -1,0 +1,29 @@
+From 0cf17e750d7790e0f2fc1fb184b6f917f55462ca Mon Sep 17 00:00:00 2001
+From: Ximin Luo <infinity0@pwned.gg>
+Date: Mon, 27 Jul 2020 02:42:02 +0100
+Subject: [PATCH] rustbuild: fix bad usage of UNIX exec() in rustc wrapper
+
+exec never returns, it replaces the current process. so anything after it is
+unreachable. that's not how exec_cmd() is used in the surrounding code
+---
+ src/bootstrap/bin/rustc.rs | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/src/bootstrap/bin/rustc.rs b/src/bootstrap/bin/rustc.rs
+index fd36cd9bd8beb..c8ee4cb0cd2ef 100644
+--- a/src/bootstrap/bin/rustc.rs
++++ b/src/bootstrap/bin/rustc.rs
+@@ -186,13 +186,6 @@ fn main() {
+     std::process::exit(code);
+ }
+ 
+-#[cfg(unix)]
+-fn exec_cmd(cmd: &mut Command) -> io::Result<i32> {
+-    use std::os::unix::process::CommandExt;
+-    Err(cmd.exec())
+-}
+-
+-#[cfg(not(unix))]
+ fn exec_cmd(cmd: &mut Command) -> io::Result<i32> {
+     cmd.status().map(|status| status.code().unwrap())
+ }

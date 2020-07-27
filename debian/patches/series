@@ -7,6 +7,7 @@ u-tests-ignore-arm.patch
 u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
 u-vendor-typenum-115.patch 
+u-fix-exec.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustc-llvm-cross-flags.patch
