@@ -168,7 +168,7 @@ debian/rust-src.%: debian/rust-src.%.in
 
 debian/dh_auto_configure.stamp: debian/config.toml
 	# fail the build if we have any instances of OLD_LLVM_VERSION in debian, except for debian/changelog
-	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude='*.patch' --exclude-dir='.debhelper' -R debian
+	! grep --color=always -i 'll\(..\|d\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude=copyright --exclude='*.patch' --exclude-dir='.debhelper' -R debian
 	# fail the build if we accidentally vendored openssl, indicates we pulled in unnecessary dependencies
 	test ! -e vendor/openssl
 	# fail the build if our version contains ~exp and we are not releasing to experimental
