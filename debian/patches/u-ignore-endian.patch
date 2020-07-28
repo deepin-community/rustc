@@ -46,36 +46,51 @@
  }
 --- a/src/test/mir-opt/const-promotion-extern-static.rs
 +++ b/src/test/mir-opt/const-promotion-extern-static.rs
-@@ -1,3 +1,4 @@
+@@ -1,7 +1,7 @@
 +// ignore-endian-big
  extern "C" {
      static X: i32;
  }
+-
+ static Y: i32 = 42;
+ 
+ // EMIT_MIR rustc.BAR.PromoteTemps.diff
 --- a/src/test/mir-opt/const_allocation.rs
 +++ b/src/test/mir-opt/const_allocation.rs
-@@ -1,3 +1,4 @@
+@@ -1,5 +1,5 @@
 +// ignore-endian-big
  // EMIT_MIR_FOR_EACH_BIT_WIDTH
- 
+-
  static FOO: &[(Option<i32>, &[&str])] =
+     &[(None, &[]), (None, &["foo", "bar"]), (Some(42), &["meh", "mop", "möp"])];
+ 
 --- a/src/test/mir-opt/const_allocation2.rs
 +++ b/src/test/mir-opt/const_allocation2.rs
-@@ -1,3 +1,4 @@
+@@ -1,5 +1,5 @@
 +// ignore-endian-big
  // EMIT_MIR_FOR_EACH_BIT_WIDTH
- 
+-
  // EMIT_MIR rustc.main.ConstProp.after.mir
+ fn main() {
+     FOO;
 --- a/src/test/mir-opt/const_allocation3.rs
 +++ b/src/test/mir-opt/const_allocation3.rs
-@@ -1,3 +1,4 @@
+@@ -1,5 +1,5 @@
 +// ignore-endian-big
  // EMIT_MIR_FOR_EACH_BIT_WIDTH
- 
+-
  // EMIT_MIR rustc.main.ConstProp.after.mir
+ fn main() {
+     FOO;
 --- a/src/test/mir-opt/inline/inline-into-box-place.rs
 +++ b/src/test/mir-opt/inline/inline-into-box-place.rs
-@@ -1,3 +1,4 @@
+@@ -1,8 +1,8 @@
 +// ignore-endian-big
  // ignore-wasm32-bare compiled with panic=abort by default
  // compile-flags: -Z mir-opt-level=3
  // EMIT_MIR_FOR_EACH_BIT_WIDTH
+ #![feature(box_syntax)]
+-
+ // EMIT_MIR rustc.main.Inline.diff
+ fn main() {
+     let _x: Box<Vec<u32>> = box Vec::new();
