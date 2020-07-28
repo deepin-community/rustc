@@ -1,0 +1,74 @@
+--- a/src/tools/compiletest/src/header.rs
++++ b/src/tools/compiletest/src/header.rs
+@@ -853,6 +853,7 @@
+             name == util::get_pointer_width(&self.target) ||    // pointer width
+             name == self.stage_id.split('-').next().unwrap() || // stage
+             (self.target != self.host && name == "cross-compile") ||
++            (name == "endian-big" && util::is_big_endian(&self.target)) ||
+             match self.compare_mode {
+                 Some(CompareMode::Nll) => name == "compare-mode-nll",
+                 Some(CompareMode::Polonius) => name == "compare-mode-polonius",
+--- a/src/tools/compiletest/src/util.rs
++++ b/src/tools/compiletest/src/util.rs
+@@ -81,6 +81,20 @@
+     ("xcore", "xcore"),
+ ];
+ 
++const BIG_ENDIAN: &'static [&'static str] = &[
++    "armebv7r",
++    "mips",
++    "mips64",
++    "mipsisa32r6",
++    "mipsisa64r6",
++    "powerpc",
++    "powerpc64",
++    "s390x",
++    "sparc",
++    "sparc64",
++    "sparcv9",
++];
++
+ pub fn matches_os(triple: &str, name: &str) -> bool {
+     // For the wasm32 bare target we ignore anything also ignored on emscripten
+     // and then we also recognize `wasm32-bare` as the os for the target
+@@ -107,6 +121,12 @@
+     panic!("Cannot determine Architecture from triple");
+ }
+ 
++/// Determine the endianness from `triple`
++pub fn is_big_endian(triple: &str) -> bool {
++    let triple_arch = triple.split('-').next().unwrap();
++    BIG_ENDIAN.contains(&triple_arch)
++}
++
+ pub fn matches_env(triple: &str, name: &str) -> bool {
+     if let Some(env) = triple.split('-').nth(3) { env.starts_with(name) } else { false }
+ }
+--- a/src/test/mir-opt/const-promotion-extern-static.rs
++++ b/src/test/mir-opt/const-promotion-extern-static.rs
+@@ -1,3 +1,4 @@
++// ignore-endian-big
+ extern "C" {
+     static X: i32;
+ }
+--- a/src/test/mir-opt/const_allocation.rs
++++ b/src/test/mir-opt/const_allocation.rs
+@@ -1,3 +1,4 @@
++// ignore-endian-big
+ // EMIT_MIR_FOR_EACH_BIT_WIDTH
+ 
+ static FOO: &[(Option<i32>, &[&str])] =
+--- a/src/test/mir-opt/const_allocation2.rs
++++ b/src/test/mir-opt/const_allocation2.rs
+@@ -1,3 +1,4 @@
++// ignore-endian-big
+ // EMIT_MIR_FOR_EACH_BIT_WIDTH
+ 
+ // EMIT_MIR rustc.main.ConstProp.after.mir
+--- a/src/test/mir-opt/const_allocation3.rs
++++ b/src/test/mir-opt/const_allocation3.rs
+@@ -1,3 +1,4 @@
++// ignore-endian-big
+ // EMIT_MIR_FOR_EACH_BIT_WIDTH
+ 
+ // EMIT_MIR rustc.main.ConstProp.after.mir
