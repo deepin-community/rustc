@@ -1,9 +1,9 @@
-rustc (1.44.1+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.44.1+dfsg1-2) unstable; urgency=medium
 
   * Ignore tests that assume little-endian on big-endian arches.
     See upstream #74829 for details.
 
- -- Ximin Luo <infinity0@debian.org>  Tue, 28 Jul 2020 19:26:52 +0100
+ -- Ximin Luo <infinity0@debian.org>  Tue, 28 Jul 2020 21:20:24 +0100
 
 rustc (1.44.1+dfsg1-1) unstable; urgency=medium
 
