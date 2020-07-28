@@ -1,8 +1,8 @@
-rustc (1.44.1+dfsg1-3) UNRELEASED; urgency=medium
+rustc (1.44.1+dfsg1-3) unstable; urgency=medium
 
   * Fix patch for line numbers on little-endian arches.
 
- -- Ximin Luo <infinity0@debian.org>  Tue, 28 Jul 2020 21:51:11 +0100
+ -- Ximin Luo <infinity0@debian.org>  Tue, 28 Jul 2020 21:51:36 +0100
 
 rustc (1.44.1+dfsg1-2) unstable; urgency=medium
 
