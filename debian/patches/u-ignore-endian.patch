@@ -72,3 +72,10 @@
  // EMIT_MIR_FOR_EACH_BIT_WIDTH
  
  // EMIT_MIR rustc.main.ConstProp.after.mir
+--- a/src/test/mir-opt/inline/inline-into-box-place.rs
++++ b/src/test/mir-opt/inline/inline-into-box-place.rs
+@@ -1,3 +1,4 @@
++// ignore-endian-big
+ // ignore-wasm32-bare compiled with panic=abort by default
+ // compile-flags: -Z mir-opt-level=3
+ // EMIT_MIR_FOR_EACH_BIT_WIDTH
