@@ -6,8 +6,8 @@ Forwarded: not-needed
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/src/libstd/sys_common/net.rs
 +++ b/src/libstd/sys_common/net.rs
-@@ -609,21 +609,3 @@
-             .finish()
+@@ -659,26 +659,3 @@
+         res.field(name, &self.inner.as_inner()).finish()
      }
  }
 -
@@ -21,10 +21,15 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        let mut addrs = HashMap::new();
 -        let lh = match LookupHost::try_from(("localhost", 0)) {
 -            Ok(lh) => lh,
--            Err(e) => panic!("couldn't resolve `localhost': {}", e)
+-            Err(e) => panic!("couldn't resolve `localhost': {}", e),
 -        };
--        for sa in lh { *addrs.entry(sa).or_insert(0) += 1; };
--        assert_eq!(addrs.iter().filter(|&(_, &v)| v > 1).collect::<Vec<_>>(), vec![],
--                   "There should be no duplicate localhost entries");
+-        for sa in lh {
+-            *addrs.entry(sa).or_insert(0) += 1;
+-        }
+-        assert_eq!(
+-            addrs.iter().filter(|&(_, &v)| v > 1).collect::<Vec<_>>(),
+-            vec![],
+-            "There should be no duplicate localhost entries"
+-        );
 -    }
 -}
