@@ -1,3 +1,9 @@
+rustc (1.45.0+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 27 Jul 2020 17:45:24 +0100
+
 rustc (1.44.1+dfsg1-3) unstable; urgency=medium
 
   * Fix patch for line numbers on little-endian arches.

@@ -1,8 +1,6 @@
-diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 204056598..4b65359b2 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -324,15 +324,11 @@ impl Step for Standalone {
+@@ -361,15 +361,11 @@
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
                  .arg("https://play.rust-lang.org/")
@@ -19,4 +17,4 @@ index 204056598..4b65359b2 100644
 -            }
              builder.run(&mut cmd);
          }
-     }
+ 

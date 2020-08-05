@@ -12,7 +12,7 @@ Forwarded: not-needed
    "src/tools/compiletest",
    "src/tools/error_index_generator",
    "src/tools/linkchecker",
-@@ -14,17 +14,10 @@ members = [
+@@ -14,18 +14,10 @@ members = [
    "src/tools/unstable-book-gen",
    "src/tools/tidy",
    "src/tools/build-manifest",
@@ -24,6 +24,7 @@ Forwarded: not-needed
 -  "src/tools/rls",
 -  "src/tools/rustfmt",
 -  "src/tools/miri",
+-  "src/tools/miri/cargo-miri",
    "src/tools/rustdoc-themes",
    "src/tools/unicode-table-generator",
 -  "src/tools/expand-yaml-anchors",
@@ -83,10 +84,9 @@ Forwarded: not-needed
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -439,8 +439,6 @@ impl<'a> Builder<'a> {
+@@ -439,7 +439,5 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
-                 dist::Lldb,
 -                dist::Extended,
 -                dist::HashSign
              ),
@@ -186,7 +186,7 @@ Forwarded: not-needed
 -rustc-workspace-hack = "1.0.0"
 -
  [dependencies.mdbook]
- version = "0.3.0"
+ version = "0.3.7"
  default-features = false
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs

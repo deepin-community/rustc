@@ -203,7 +203,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        </script>
 -
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
+             <div class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
 @@ -214,53 +172,7 @@
          </script>
