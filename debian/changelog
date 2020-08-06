@@ -1,9 +1,9 @@
-rustc (1.45.0+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.45.0+dfsg1-2) unstable; urgency=medium
 
   * Add some more big-endian test patches.
   * Backport some patches to fix some testsuite ICEs.
 
- -- Ximin Luo <infinity0@debian.org>  Thu, 06 Aug 2020 14:21:07 +0100
+ -- Ximin Luo <infinity0@debian.org>  Thu, 06 Aug 2020 21:11:39 +0100
 
 rustc (1.45.0+dfsg1-1) unstable; urgency=medium
 
