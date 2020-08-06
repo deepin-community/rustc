@@ -15,6 +15,7 @@ for i in "$scriptdir/debian/patches"/d-00*.patch; do
 done
 test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
 rm -f Cargo.lock
+sed -i -e 's/dev: 1/#dev: 1/g' src/stage0.txt # allow beta builds
 ./x.py build nonexistent/path/to/trigger/cargo/metadata src/bootstrap
 
 massage_lock_file() {

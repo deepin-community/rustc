@@ -178,6 +178,8 @@ debian/dh_auto_configure.stamp: debian/config.toml
 	# work around #842634
 	if test $$(grep "127.0.0.1\s*localhost" /etc/hosts | wc -l) -gt 1; then \
 	  debian/ensure-patch -N debian/patches/d-host-duplicates.patch; fi
+	# allow beta builds
+	sed -i -e 's/dev: 1/#dev: 1/g' src/stage0.txt
 	# We patched some crates so have to rm the checksums
 	find vendor -name .cargo-checksum.json -execdir "$(CURDIR)/debian/prune-checksums" "{}" +
 	# Link against system liblzma, see https://github.com/alexcrichton/xz2-rs/issues/16

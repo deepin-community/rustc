@@ -32,8 +32,8 @@ Forwarded: not-needed
  exclude = [
    "build",
 @@ -47,29 +40,10 @@ debug-assertions = false
- debug = false
- debug-assertions = false
+ # per-crate configuration isn't specifiable in the environment.
+ codegen-units = 10000
  
 -# We want the RLS to use the version of Cargo that we've got vendored in this
 -# repository to ensure that the same exact version of Cargo is used by both the
@@ -143,51 +143,6 @@ Forwarded: not-needed
      }
  }
  
---- a/src/bootstrap/tool.rs
-+++ b/src/bootstrap/tool.rs
-@@ -273,14 +273,14 @@ pub fn prepare_tool_cargo(
- }
- 
- fn rustbook_features() -> Vec<String> {
--    let mut features = Vec::new();
-+    let features = Vec::new();
- 
-     // Due to CI budged and risk of spurious failures we want to limit jobs running this check.
-     // At same time local builds should run it regardless of the platform.
-     // `CiEnv::None` means it's local build and `CHECK_LINKS` is defined in x86_64-gnu-tools to
-     // explicitly enable it on single job
-     if CiEnv::current() == CiEnv::None || env::var("CHECK_LINKS").is_ok() {
--        features.push("linkcheck".to_string());
-+    //    features.push("linkcheck".to_string());
-     }
- 
-     features
---- a/src/tools/rustbook/Cargo.toml
-+++ b/src/tools/rustbook/Cargo.toml
-@@ -6,22 +6,16 @@ license = "MIT OR Apache-2.0"
- edition = "2018"
- 
- [features]
--linkcheck = ["mdbook-linkcheck", "codespan-reporting", "codespan"]
-+linkcheck = []
- 
- [dependencies]
- clap = "2.25.0"
- failure = "0.1"
--mdbook-linkcheck = { version = "0.5.0", optional = true }
- # Keep in sync with mdbook-linkcheck.
- codespan = { version = "0.5", optional = true }
- codespan-reporting = { version = "0.5", optional = true }
- 
- 
--# A noop dependency that changes in the Rust repository, it's a bit of a hack.
--# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
--# for more information.
--rustc-workspace-hack = "1.0.0"
--
- [dependencies.mdbook]
- version = "0.3.7"
- default-features = false
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
 @@ -406,8 +406,8 @@ fn check_crate_duplicate(resolve: &Resol
