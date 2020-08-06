@@ -1,0 +1,22 @@
+From 5ceff6b96af9a21e044545b9e064433feccaf659 Mon Sep 17 00:00:00 2001
+From: Nicholas Nethercote <nnethercote@mozilla.com>
+Date: Thu, 21 May 2020 10:36:32 +1000
+Subject: [PATCH] Fix off-by-one error in `DroplessArena::alloc_raw`.
+
+This causes unnecessary calls to `grow` when the allocation would fit
+exactly in the remaining space.
+---
+ src/librustc_arena/lib.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/src/libarena/lib.rs
++++ b/src/libarena/lib.rs
+@@ -386,7 +386,7 @@
+             self.align(align);
+ 
+             let future_end = intrinsics::arith_offset(self.ptr.get(), bytes as isize);
+-            if (future_end as *mut u8) >= self.end.get() {
++            if (future_end as *mut u8) > self.end.get() {
+                 self.grow(bytes);
+             }
+ 
