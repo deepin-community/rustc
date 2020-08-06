@@ -94,3 +94,27 @@
  // EMIT_MIR rustc.main.Inline.diff
  fn main() {
      let _x: Box<Vec<u32>> = box Vec::new();
+--- a/src/test/ui/simd/simd-intrinsic-generic-bitmask.rs
++++ b/src/test/ui/simd/simd-intrinsic-generic-bitmask.rs
+@@ -2,6 +2,7 @@
+ #![allow(non_camel_case_types)]
+ 
+ // ignore-emscripten
++// ignore-endian-big behavior of simd_bitmask is endian-specific
+ 
+ // Test that the simd_bitmask intrinsic produces correct results.
+ 
+--- a/src/test/ui/simd/simd-intrinsic-generic-select.rs
++++ b/src/test/ui/simd/simd-intrinsic-generic-select.rs
+@@ -2,10 +2,7 @@
+ #![allow(non_camel_case_types)]
+ 
+ // ignore-emscripten
+-// ignore-mips       behavior of simd_select_bitmask is endian-specific
+-// ignore-mips64     behavior of simd_select_bitmask is endian-specific
+-// ignore-powerpc    behavior of simd_select_bitmask is endian-specific
+-// ignore-powerpc64  behavior of simd_select_bitmask is endian-specific
++// ignore-endian-big behavior of simd_select_bitmask is endian-specific
+ 
+ // Test that the simd_select intrinsics produces correct results.
+ 

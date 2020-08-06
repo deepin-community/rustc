@@ -8,6 +8,8 @@ u-mips-fixes.diff
 #u-allow-system-compiler-rt.patch
 u-fix-exec.patch
 u-ignore-endian.patch
+u-fb9fa5ba3ee08171e7d2ff35d28ec0dd93b0287b.patch
+u-1629fed4c0bdc6d3246ea63a91f600bcb8874626.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustc-llvm-cross-flags.patch

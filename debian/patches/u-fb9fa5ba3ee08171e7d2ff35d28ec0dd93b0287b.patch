@@ -1,0 +1,56 @@
+From fb9fa5ba3ee08171e7d2ff35d28ec0dd93b0287b Mon Sep 17 00:00:00 2001
+From: Ralf Jung <post@ralfj.de>
+Date: Fri, 3 Jul 2020 12:12:50 +0200
+Subject: [PATCH] adjust ub-enum test to be endianess-independent
+
+---
+ src/test/ui/consts/const-eval/ub-enum.rs     |  5 +++--
+ src/test/ui/consts/const-eval/ub-enum.stderr | 12 ++++++------
+ 2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/test/ui/consts/const-eval/ub-enum.rs b/src/test/ui/consts/const-eval/ub-enum.rs
+index c49997c6c33f6..136b33208c293 100644
+--- a/src/test/ui/consts/const-eval/ub-enum.rs
++++ b/src/test/ui/consts/const-eval/ub-enum.rs
+@@ -88,9 +88,10 @@ const BAD_OPTION_CHAR: Option<(char, char)> = Some(('x', unsafe { mem::transmute
+ //~^ ERROR is undefined behavior
+ 
+ // All variants are uninhabited but also have data.
+-const BAD_UNINHABITED_WITH_DATA1: Result<(i32, Never), (i32, !)> = unsafe { mem::transmute(1u64) };
++// Use `0` as constant to make behavior endianess-independent.
++const BAD_UNINHABITED_WITH_DATA1: Result<(i32, Never), (i32, !)> = unsafe { mem::transmute(0u64) };
+ //~^ ERROR is undefined behavior
+-const BAD_UNINHABITED_WITH_DATA2: Result<(i32, !), (i32, Never)> = unsafe { mem::transmute(1u64) };
++const BAD_UNINHABITED_WITH_DATA2: Result<(i32, !), (i32, Never)> = unsafe { mem::transmute(0u64) };
+ //~^ ERROR is undefined behavior
+ 
+ fn main() {
+diff --git a/src/test/ui/consts/const-eval/ub-enum.stderr b/src/test/ui/consts/const-eval/ub-enum.stderr
+index 1f7593c6db9b6..9c29aa1a51d1c 100644
+--- a/src/test/ui/consts/const-eval/ub-enum.stderr
++++ b/src/test/ui/consts/const-eval/ub-enum.stderr
+@@ -87,18 +87,18 @@ LL | const BAD_OPTION_CHAR: Option<(char, char)> = Some(('x', unsafe { mem::tran
+    = note: The rules on what exactly is undefined behavior aren't clear, so this check might be overzealous. Please open an issue on the rustc repository if you believe it should not be considered undefined behavior.
+ 
+ error[E0080]: it is undefined behavior to use this value
+-  --> $DIR/ub-enum.rs:91:1
++  --> $DIR/ub-enum.rs:92:1
+    |
+-LL | const BAD_UNINHABITED_WITH_DATA1: Result<(i32, Never), (i32, !)> = unsafe { mem::transmute(1u64) };
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type validation failed: encountered a value of the never type `!` at .<enum-variant(Err)>.0.1
++LL | const BAD_UNINHABITED_WITH_DATA1: Result<(i32, Never), (i32, !)> = unsafe { mem::transmute(0u64) };
++   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type validation failed: encountered a value of uninhabited type Never at .<enum-variant(Ok)>.0.1
+    |
+    = note: The rules on what exactly is undefined behavior aren't clear, so this check might be overzealous. Please open an issue on the rustc repository if you believe it should not be considered undefined behavior.
+ 
+ error[E0080]: it is undefined behavior to use this value
+-  --> $DIR/ub-enum.rs:93:1
++  --> $DIR/ub-enum.rs:94:1
+    |
+-LL | const BAD_UNINHABITED_WITH_DATA2: Result<(i32, !), (i32, Never)> = unsafe { mem::transmute(1u64) };
+-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type validation failed: encountered a value of uninhabited type Never at .<enum-variant(Err)>.0.1
++LL | const BAD_UNINHABITED_WITH_DATA2: Result<(i32, !), (i32, Never)> = unsafe { mem::transmute(0u64) };
++   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type validation failed: encountered a value of the never type `!` at .<enum-variant(Ok)>.0.1
+    |
+    = note: The rules on what exactly is undefined behavior aren't clear, so this check might be overzealous. Please open an issue on the rustc repository if you believe it should not be considered undefined behavior.
+ 

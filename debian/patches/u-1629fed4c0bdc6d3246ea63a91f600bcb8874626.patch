@@ -1,0 +1,32 @@
+From 1629fed4c0bdc6d3246ea63a91f600bcb8874626 Mon Sep 17 00:00:00 2001
+From: Yuki Okushi <huyuumi.dev@gmail.com>
+Date: Fri, 31 Jul 2020 09:03:14 +0900
+Subject: [PATCH] Presort restrictions to make output consistent
+
+---
+ src/librustc_typeck/check/method/suggest.rs | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/librustc_typeck/check/method/suggest.rs b/src/librustc_typeck/check/method/suggest.rs
+index ae2cf6daf5350..e69102d1995d3 100644
+--- a/src/librustc_typeck/check/method/suggest.rs
++++ b/src/librustc_typeck/check/method/suggest.rs
+@@ -678,6 +678,9 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
+                         .collect::<Vec<(usize, String)>>();
+                     for ((span, empty_where), obligations) in type_params.into_iter() {
+                         restrict_type_params = true;
++                        // #74886: Sort here so that the output is always the same.
++                        let mut obligations = obligations.into_iter().collect::<Vec<_>>();
++                        obligations.sort();
+                         err.span_suggestion_verbose(
+                             span,
+                             &format!(
+@@ -688,7 +691,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
+                             format!(
+                                 "{} {}",
+                                 if empty_where { " where" } else { "," },
+-                                obligations.into_iter().collect::<Vec<_>>().join(", ")
++                                obligations.join(", ")
+                             ),
+                             Applicability::MaybeIncorrect,
+                         );
