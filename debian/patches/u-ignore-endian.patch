@@ -1,18 +1,18 @@
 --- a/src/tools/compiletest/src/header.rs
 +++ b/src/tools/compiletest/src/header.rs
-@@ -853,6 +853,7 @@
-             name == util::get_pointer_width(&self.target) ||    // pointer width
+@@ -872,6 +872,7 @@
              name == self.stage_id.split('-').next().unwrap() || // stage
              (self.target != self.host && name == "cross-compile") ||
+             (self.remote_test_client.is_some() && name == "remote") ||
 +            (name == "endian-big" && util::is_big_endian(&self.target)) ||
              match self.compare_mode {
                  Some(CompareMode::Nll) => name == "compare-mode-nll",
                  Some(CompareMode::Polonius) => name == "compare-mode-polonius",
 --- a/src/tools/compiletest/src/util.rs
 +++ b/src/tools/compiletest/src/util.rs
-@@ -81,6 +81,20 @@
-     ("xcore", "xcore"),
- ];
+@@ -99,6 +99,20 @@
+ pub const TSAN_SUPPORTED_TARGETS: &'static [&'static str] =
+     &["aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"];
  
 +const BIG_ENDIAN: &'static [&'static str] = &[
 +    "armebv7r",
@@ -31,7 +31,7 @@
  pub fn matches_os(triple: &str, name: &str) -> bool {
      // For the wasm32 bare target we ignore anything also ignored on emscripten
      // and then we also recognize `wasm32-bare` as the os for the target
-@@ -107,6 +121,12 @@
+@@ -125,6 +139,12 @@
      panic!("Cannot determine Architecture from triple");
  }
  

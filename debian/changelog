@@ -1,3 +1,9 @@
+rustc (1.46.0~beta.2+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Thu, 06 Aug 2020 23:20:39 +0100
+
 rustc (1.45.0+dfsg1-2) unstable; urgency=medium
 
   * Add some more big-endian test patches.

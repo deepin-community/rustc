@@ -2,11 +2,9 @@ Description: Don't check for cargo-vendor when building from (Debian's) git
 Author: Matthijs van Otterdijk <matthijs@wirevirt.net>
 Forwarded: not-needed
 ---
-Index: rust/src/bootstrap/dist.rs
-===================================================================
---- rust.orig/src/bootstrap/dist.rs
-+++ rust/src/bootstrap/dist.rs
-@@ -1084,7 +1084,10 @@ impl Step for PlainSourceTarball {
+--- a/src/bootstrap/dist.rs
++++ b/src/bootstrap/dist.rs
+@@ -1106,7 +1106,10 @@
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
@@ -17,4 +15,4 @@ Index: rust/src/bootstrap/dist.rs
 +        if false && builder.rust_info.is_git() {
              // Vendor all Cargo dependencies
              let mut cmd = Command::new(&builder.initial_cargo);
-             cmd.arg("vendor").current_dir(&plain_dst_src);
+             cmd.arg("vendor")

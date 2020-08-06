@@ -15,12 +15,11 @@ Forwarded: not-needed
  if [ -f "$RUST_LLDB" ]; then
      lldb="$RUST_LLDB"
  else
-@@ -31,7 +31,7 @@
- fi
- 
- # Prepare commands that will be loaded before any file on the command line has been loaded
--script_import="command script import \"$RUSTC_SYSROOT/lib/rustlib/etc/lldb_rust_formatters.py\""
-+script_import="command script import \"$RUSTC_SYSROOT/share/rust-lldb/lldb_rust_formatters.py\""
- category_definition="type summary add --no-value --python-function lldb_rust_formatters.print_val -x \".*\" --category Rust"
- category_enable="type category enable Rust"
- 
+--- a/src/etc/lldb_commands
++++ b/src/etc/lldb_commands
+@@ -1,4 +1,4 @@
+-command script import \"$RUSTC_SYSROOT/lib/rustlib/etc/lldb_lookup.py\"
++command script import \"/usr/share/rust-lldb/lldb_lookup.py\"
+ type synthetic add -l lldb_lookup.synthetic_lookup -x \".*\" --category Rust
+ type summary add -F lldb_lookup.summary_lookup  -e -x -h \"^(alloc::([a-z_]+::)+)String$\" --category Rust
+ type summary add -F lldb_lookup.summary_lookup  -e -x -h \"^&str$\" --category Rust
