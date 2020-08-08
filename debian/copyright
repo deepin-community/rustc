@@ -931,7 +931,7 @@ Comment:
  see https://github.com/GuillaumeGomez/minifier-rs
 
 Files:
- vendor/miniz-oxide/*
+ vendor/miniz_oxide/*
 Copyright: 2017-2020 Frommi <daniil.liferenko@gmail.com>
 License: MIT
 Comment: see https://github.com/Frommi/miniz_oxide

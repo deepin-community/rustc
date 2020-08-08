@@ -5,3 +5,5 @@ rustc source: source-is-missing vendor/minifier/tests/files/minified_main.js lin
 # Lintian out-of-date
 rustc source: invalid-profile-name-in-build-profiles-field nowasm *
 rustc source: invalid-profile-name-in-source-relation nowasm *
+rustc source: invalid-profile-name-in-build-profiles-field nowindows *
+rustc source: invalid-profile-name-in-source-relation nowindows *
