@@ -14,10 +14,7 @@ SED_RUSTC_BUILDDEP := sed -ne "/^Build-Depends:/,/^[^[:space:]\#]/{/^ *rustc:nat
 LOCAL_RUST_VERSION := $(shell rustc --version --verbose | sed -ne 's/^release: //p')
 
 include /usr/share/dpkg/buildflags.mk
-# TODO: more correct to use `[build] rustflags = []` list syntax in Cargo.toml
-RUSTFLAGS = $(addprefix -C link-args=,$(LDFLAGS))
-RUSTFLAGS += --cap-lints warn
-export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS RUSTFLAGS
+export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
 export CARGO_HOME = $(CURDIR)/debian/cargo
 
 # Defines DEB_*_RUST_TYPE triples
@@ -114,6 +111,25 @@ ifneq (,$(findstring nowasm,$(DEB_BUILD_PROFILES)))
   BUILD_WASM := false
 endif
 
+BUILD_WINDOWS := true
+ifneq (,$(findstring nowindows,$(DEB_BUILD_PROFILES)))
+  BUILD_WINDOWS := false
+endif
+ifeq (,$(filter $(DEB_HOST_ARCH), amd64 i386))
+  BUILD_WINDOWS := false
+else
+  ifeq (,$(filter $(DEB_BUILD_ARCH), amd64 i386))
+    ifeq (true,$(BUILD_WINDOWS))
+      $(error cannot cross-compile from $(DEB_BUILD_ARCH) to $(DEB_HOST_ARCH), unless "nowindows" is in DEB_BUILD_PROFILES)
+    endif
+  endif
+  ifeq (i386,$(DEB_HOST_ARCH))
+    WINDOWS_ARCH := i686
+  else
+    WINDOWS_ARCH := x86_64
+  endif
+endif
+
 MAKE_OPTIMISATIONS := true
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
   MAKE_OPTIMISATIONS := false
@@ -130,6 +146,10 @@ endif
 
 %:
 	$(SYSTEM_WORKAROUNDS) dh $@ --parallel
+
+.PHONY: .dbg-windows
+.dbg-windows:
+	@echo host=$(DEB_BUILD_ARCH) target=$(DEB_HOST_ARCH) BUILD_WINDOWS=$(BUILD_WINDOWS) WINDOWS_ARCH=$(WINDOWS_ARCH)
 
 .PHONY: build
 build:
@@ -206,6 +226,13 @@ debian/dh_auto_build.stamp:
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS)
 
 override_dh_auto_build-arch: debian/dh_auto_build.stamp
+ifeq (true,$(BUILD_WINDOWS))
+	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) \
+	  --target $(WINDOWS_ARCH)-pc-windows-gnu \
+	  src/libstd
+endif
+
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
 ifeq (true,$(BUILD_WASM))
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
@@ -264,6 +291,7 @@ ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	fi
 # don't continue if RUSTBUILD_TEST_FLAGS is non-empty
 	test -z "$(RUSTBUILD_TEST_FLAGS)"
+# don't run windows tests yet
 endif
 endif
 
@@ -307,6 +335,13 @@ debian/dh_auto_install.stamp:
 	touch "$@"
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp
+ifeq (true,$(BUILD_WINDOWS))
+	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
+	  --host $(DEB_BUILD_RUST_TYPE) \
+	  --target $(WINDOWS_ARCH)-pc-windows-gnu \
+	  src/libstd
+endif
+
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
 ifeq (true,$(BUILD_WASM))
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
@@ -333,6 +368,9 @@ override_dh_install-arch:
 	dh_install
 	dh_install -p$(LIBSTD_PKG) usr/lib/$(DEB_HOST_MULTIARCH)/
 	dh_install -plibstd-rust-dev usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
+ifeq (true,$(BUILD_WINDOWS))
+	dh_install -plibstd-rust-dev-windows-cross usr/lib/rustlib/*-pc-windows-gnu/lib/
+endif
 
 override_dh_install-indep: debian/rust-src.install debian/rust-src.links
 	dh_install

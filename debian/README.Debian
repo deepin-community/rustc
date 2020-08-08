@@ -1,6 +1,9 @@
 Architecture-specific notes
 ===========================
 
+This section talks about the rustc compiler on your host architecture. For
+cross-compiling to a foreign target architecture, see the next section.
+
 armhf armel mips mipsel powerpc powerpcspe
 ------------------------------------------
 
@@ -12,67 +15,21 @@ See https://github.com/rust-lang/rust/issues/45854 for details.
 If all your armhf build machines have ~8GB memory or more, you can experiment
 with disabling this work-around (i.e. revert to normal) in d/rules.
 
-wasm32
-------
-
-We ship two different wasm32 targets - wasm32-unknown-unknown and wasm32-wasi -
-in the libstd-rust-dev-wasm32-cross package.
-
-wasm32-unknown-unknown is suitable for web stuff, where you typically will need
-to depending on the rust-wasm-bindgen, js-sys, and web-sys crates. Here, calls
-to libstd stuff (such as println!()) will silently do nothing, as defined in
-``src/libstd/sys/wasm/fs.rs`` and explained in upstream #48564.
-
-wasm32-wasi is suitable for non-web stuff, and is closer to a "normal" target
-where you expect libstd to be available, and for println!() to actually print
-to stdout. If you just want to cross-compile a regular non-wasm library or
-program to wasm for whatever reason, and only want to run it natively and not
-inside a web browser, use this target.
-
-To run the generated wasm, you will need a runtime:
-
-- https://github.com/bytecodealliance/wasmtime
-- https://github.com/bytecodealliance/lucet
-- https://github.com/wasmerio/wasmer
-- https://nodejs.org/api/wasi.html (sadly Debian's is too old, ATTOW)
-
-The first 3 are actually also all written in Rust, so one day some of them may
-even be packaged for Debian.
-
 
 Cross-compiling
 ===============
+
+Rust supports cross-compiling to many different architectures, and we expose
+this feature as fully as feasible in Debian, including to wasm and windows.
+
+Introduction
+------------
 
 Rust uses LLVM, so cross-compiling works a bit differently from the GNU
 toolchain. The most important difference is that there are no "cross"
 compilers, every compiler is already a cross compiler. All you need to do is
 install the standard libraries for each target architecture you want to compile
-to. For rustc, this is libstd-rust-dev, so your debian/control would look
-something like this:
-
-    Build-Depends:
-     [..]
-     rustc:native    (>= $version),
-     libstd-rust-dev (>= $version),
-     [..]
-
-You need both, this is important. When Debian build toolchains satisfy the
-build-depends of a cross-build, (1) a "rustc:native" Build-Depends selects
-rustc for the native architecture, which is possible because it's "Multi-Arch:
-allowed", and this will implicitly pull in libstd-rust-dev also for the native
-architecture; and (2) a "libstd-rust-dev" Build-Depends implies libstd-rust-dev
-for the foreign architecture, since it's "Multi-Arch: same".
-
-You'll probably also want to add
-
-    include /usr/share/rustc/architecture.mk
-
-to your debian/rules. This sets some useful variables like DEB_HOST_RUST_TYPE.
-
-See the cargo package for an example.
-
-Terminology
------------
+to.
 
 The rust ecosystem generally uses the term "host" for the native architecture
 running the compiler, equivalent to DEB_BUILD_RUST_TYPE or "build" in GNU
@@ -114,6 +71,82 @@ target  DEB_TARGET_{ARCH,RUST_TYPE}     N/A             target(s)
   the one architecture that the built                     extra architectures
   cross-compiler itself builds for                        to build "std" for
 --------------------------------------- --------------- ------------------------
+
+wasm32
+------
+
+We ship two different wasm32 targets - wasm32-unknown-unknown and wasm32-wasi -
+in the libstd-rust-dev-wasm32-cross package.
+
+wasm32-unknown-unknown is suitable for web stuff, where you typically will need
+to depending on the rust-wasm-bindgen, js-sys, and web-sys crates. Here, calls
+to libstd stuff (such as println!()) will silently do nothing, as defined in
+``src/libstd/sys/wasm/fs.rs`` and explained in upstream #48564.
+
+wasm32-wasi is suitable for non-web stuff, and is closer to a "normal" target
+where you expect libstd to be available, and for println!() to actually print
+to stdout. If you just want to cross-compile a regular non-wasm library or
+program to wasm for whatever reason, and only want to run it natively and not
+inside a web browser, use this target.
+
+To run the generated wasm, you will need a runtime:
+
+- https://github.com/bytecodealliance/wasmtime
+- https://github.com/bytecodealliance/lucet
+- https://github.com/wasmerio/wasmer
+- https://nodejs.org/api/wasi.html (sadly Debian's is too old, ATTOW)
+
+The first 3 are actually also all written in Rust, so one day some of them may
+even be packaged for Debian.
+
+windows
+-------
+
+We ship the following targets:
+
+- x86_64-pc-windows-gnu in the libstd-rust-dev-windows-cross:amd64 package
+-   i686-pc-windows-gnu in the libstd-rust-dev-windows-cross:i386  package
+
+To run the compiled binaries, you can use wine. You will need to set one of:
+
+- WINEPATH=/usr/lib/gcc/x86_64-w64-mingw32/10-win32;/usr/lib/rustlib/x86_64-pc-windows-gnu/lib
+- WINEPATH=/usr/lib/gcc/i686-w64-mingw32/10-win32;/usr/lib/rustlib/i686-pc-windows-gnu/lib
+
+If you get "import_dll ... not found" errors, check that these paths are mapped
+to some windows drive path - run "winecfg $path" for each path in the component
+of WINEPATH; if any begin with "\\?\unix\" then you'll need to map them to a
+drive in "winecfg" -> Drives. If all begin with some windows drive letter, then
+your error is something unrelated and we sadly can't help you here.
+
+
+Using rustc in a Debian package
+===============================
+
+You are encouraged to support cross-compiling. See the above section for more
+details; in summary you need to install rustc for the host architecture and
+libstd-rust-dev for the target architecture, so your debian/control would look
+something like this:
+
+    Build-Depends:
+     [..]
+     rustc:native    (>= $version),
+     libstd-rust-dev (>= $version),
+     [..]
+
+You need both, this is important. When Debian build toolchains satisfy the
+build-depends of a cross-build, (1) a "rustc:native" Build-Depends selects
+rustc for the native architecture, which is possible because it's "Multi-Arch:
+allowed", and this will implicitly pull in libstd-rust-dev also for the native
+architecture; and (2) a "libstd-rust-dev" Build-Depends implies libstd-rust-dev
+for the foreign architecture, since it's "Multi-Arch: same".
+
+You'll probably also want to add
+
+    include /usr/share/rustc/architecture.mk
+
+to your debian/rules. This sets some useful variables like DEB_HOST_RUST_TYPE.
+
+See the cargo package for an example.
 
 
 Porting to new architectures (on the same distro)

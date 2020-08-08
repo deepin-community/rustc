@@ -28,6 +28,8 @@ d-disable-cargo-vendor.patch
 d-rust-gdb-paths
 d-rust-lldb-paths
 d-add-soname.patch
+d-rustflags.patch
+d-windows-ssp.patch
 d-dont-download-stage0.patch
 d-read-beta-version-from-file.patch
 d-ignore-avx-44056.patch

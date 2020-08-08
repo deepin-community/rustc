@@ -1,0 +1,24 @@
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -831,6 +831,21 @@
+             rustflags.arg("--cfg=bootstrap");
+         }
+ 
++        // Debian-specific stuff here
++        // don't error on warnings, this sometimes causes builds to fail when
++        // we re-bootstrap using the same version, that introduced a new warning
++        rustflags.arg("--cap-lints=warn");
++        // set linker flags from LDFLAGS
++        if let Ok(ldflags) = env::var("LDFLAGS") {
++            for flag in ldflags.split_whitespace() {
++                if target.contains("windows") && flag.contains("relro") {
++                    // relro is ELF-specific
++                    continue;
++                }
++                rustflags.arg(&format!("-Clink-args={}", flag));
++            }
++        }
++
+         // FIXME: It might be better to use the same value for both `RUSTFLAGS` and `RUSTDOCFLAGS`,
+         // but this breaks CI. At the very least, stage0 `rustdoc` needs `--cfg bootstrap`. See
+         // #71458.
