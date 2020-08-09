@@ -17,7 +17,7 @@ Build-Depends:
  llvm-10-dev:native,
  llvm-10-tools:native,
  gcc-mingw-w64-x86-64-win32:native [amd64] <!nowindows>,
- gcc-mingw-w64-i686-win32:native [i386] <!nowindows>,
+# FIXME #540782 gcc-mingw-w64-i686-win32:native [i386] <!nowindows>,
  libllvm10,
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
@@ -114,10 +114,11 @@ Description: Rust standard libraries - development files
 
 Package: libstd-rust-dev-windows-cross
 Section: libdevel
-Architecture: amd64 i386
+# FIXME #540782 Architecture: amd64 i386
+Architecture: amd64
 Depends: ${shlibs:Depends}, ${misc:Depends},
  gcc-mingw-w64-x86-64-win32:any [amd64],
- gcc-mingw-w64-i686-win32:any [i386],
+# FIXME #540782 gcc-mingw-w64-i686-win32:any [i386],
 Build-Profiles: <!nowindows>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It

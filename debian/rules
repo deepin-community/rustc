@@ -111,14 +111,17 @@ ifneq (,$(findstring nowasm,$(DEB_BUILD_PROFILES)))
   BUILD_WASM := false
 endif
 
+# FIXME: 32-bit doesn't work yet, https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=540782#64
+#WINDOWS_SUPPORT := amd64 i386
+WINDOWS_SUPPORT := amd64
 BUILD_WINDOWS := true
 ifneq (,$(findstring nowindows,$(DEB_BUILD_PROFILES)))
   BUILD_WINDOWS := false
 endif
-ifeq (,$(filter $(DEB_HOST_ARCH), amd64 i386))
+ifeq (,$(filter $(DEB_HOST_ARCH), $(WINDOWS_SUPPORT)))
   BUILD_WINDOWS := false
 else
-  ifeq (,$(filter $(DEB_BUILD_ARCH), amd64 i386))
+  ifeq (,$(filter $(DEB_BUILD_ARCH), $(WINDOWS_SUPPORT)))
     ifeq (true,$(BUILD_WINDOWS))
       $(error cannot cross-compile from $(DEB_BUILD_ARCH) to $(DEB_HOST_ARCH), unless "nowindows" is in DEB_BUILD_PROFILES)
     endif

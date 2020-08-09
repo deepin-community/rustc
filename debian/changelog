@@ -1,6 +1,7 @@
 rustc (1.46.0~beta.2+dfsg1-1~exp2) UNRELEASED; urgency=medium
 
   * Add support for cross-compiling to windows. See README.Debian for details.
+    Currently only 64-bit works, we are waiting on #540782 for 32-bit.
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 08 Aug 2020 04:50:32 +0100
 
