@@ -116,9 +116,11 @@ Package: libstd-rust-dev-windows
 Section: libdevel
 # FIXME #540782 Architecture: amd64 i386
 Architecture: amd64
-Depends: ${shlibs:Depends}, ${misc:Depends},
- gcc-mingw-w64-x86-64-win32:any [amd64],
-# FIXME #540782 gcc-mingw-w64-i686-win32:any [i386],
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends:
+ gcc-mingw-w64-x86-64-win32 [amd64],
+# FIXME #540782 gcc-mingw-w64-i686-win32 [i386],
 Build-Profiles: <!nowindows>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
@@ -140,9 +142,11 @@ Description: Rust standard libraries - development files
 Package: libstd-rust-dev-wasm32
 Section: libdevel
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, lld-10:any
+Multi-Arch: foreign
+Depends: ${shlibs:Depends}, ${misc:Depends}
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
+Recommends: lld-10
 Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It

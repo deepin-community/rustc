@@ -1,3 +1,11 @@
+rustc (1.46.0~beta.2+dfsg1-1~exp4) UNRELEASED; urgency=medium
+
+  * Move cross-linker Depends to Recommends - for cross-compiling support
+    libraries should never hard-depend on toolchains. This also allows us to
+    add the usual M-A annotations for libraries.
+
+ -- Ximin Luo <infinity0@debian.org>  Sun, 09 Aug 2020 18:10:11 +0100
+
 rustc (1.46.0~beta.2+dfsg1-1~exp3) experimental; urgency=medium
 
   * Drop "-cross" suffix from libstd naming, after discussion with Helmut
