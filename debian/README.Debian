@@ -76,7 +76,7 @@ wasm32
 ------
 
 We ship two different wasm32 targets - wasm32-unknown-unknown and wasm32-wasi -
-in the libstd-rust-dev-wasm32-cross package.
+in the libstd-rust-dev-wasm32 package.
 
 wasm32-unknown-unknown is suitable for web stuff, where you typically will need
 to depending on the rust-wasm-bindgen, js-sys, and web-sys crates. Here, calls
@@ -107,8 +107,8 @@ https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=540782#64
 
 We ship the following targets:
 
-- x86_64-pc-windows-gnu in the libstd-rust-dev-windows-cross:amd64 package
--   i686-pc-windows-gnu in the libstd-rust-dev-windows-cross:i386  package
+- x86_64-pc-windows-gnu in the libstd-rust-dev-windows:amd64 package
+-   i686-pc-windows-gnu in the libstd-rust-dev-windows:i386  package
 
 To run the compiled binaries, you can use wine. You will need to set one of:
 

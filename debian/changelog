@@ -1,3 +1,11 @@
+rustc (1.46.0~beta.2+dfsg1-1~exp3) UNRELEASED; urgency=medium
+
+  * Drop "-cross" suffix from libstd naming, after discussion with Helmut
+    Grohne. Since libstd-rust-dev-wasm-cross is not yet in stable and only
+    has 4 installed users, we do not retain a migration package. 
+
+ -- Ximin Luo <infinity0@debian.org>  Sun, 09 Aug 2020 14:25:50 +0100
+
 rustc (1.46.0~beta.2+dfsg1-1~exp2) experimental; urgency=medium
 
   * Add support for cross-compiling to windows. See README.Debian for details.

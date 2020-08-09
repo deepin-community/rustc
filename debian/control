@@ -112,7 +112,7 @@ Description: Rust standard libraries - development files
  needed to compile Rust programs. It may also be installed on a system
  of another host architecture, for cross-compiling to this architecture.
 
-Package: libstd-rust-dev-windows-cross
+Package: libstd-rust-dev-windows
 Section: libdevel
 # FIXME #540782 Architecture: amd64 i386
 Architecture: amd64
@@ -137,7 +137,7 @@ Description: Rust standard libraries - development files
  needed to cross-compile Rust programs to the *-pc-windows-gnu target
  corresponding to the architecture of this package.
 
-Package: libstd-rust-dev-wasm32-cross
+Package: libstd-rust-dev-wasm32
 Section: libdevel
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, lld-10:any

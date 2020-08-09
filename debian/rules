@@ -372,13 +372,13 @@ override_dh_install-arch:
 	dh_install -p$(LIBSTD_PKG) usr/lib/$(DEB_HOST_MULTIARCH)/
 	dh_install -plibstd-rust-dev usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
 ifeq (true,$(BUILD_WINDOWS))
-	dh_install -plibstd-rust-dev-windows-cross usr/lib/rustlib/*-pc-windows-gnu/lib/
+	dh_install -plibstd-rust-dev-windows usr/lib/rustlib/*-pc-windows-gnu/lib/
 endif
 
 override_dh_install-indep: debian/rust-src.install debian/rust-src.links
 	dh_install
 ifeq (true,$(BUILD_WASM))
-	dh_install -plibstd-rust-dev-wasm32-cross usr/lib/rustlib/wasm32-*/lib/
+	dh_install -plibstd-rust-dev-wasm32 usr/lib/rustlib/wasm32-*/lib/
 endif
 	chmod -x \
 	  debian/rust-gdb/usr/share/rust-gdb/*.py \

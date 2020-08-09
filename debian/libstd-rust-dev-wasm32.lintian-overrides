@@ -1,0 +1,3 @@
+# wasm object files count as arch-independent for now,
+# at least until we starting offering Debian in wasm
+libstd-rust-dev-wasm32 binary: arch-independent-package-contains-binary-or-object usr/lib/rustlib/wasm32-*/lib/lib*.rlib
