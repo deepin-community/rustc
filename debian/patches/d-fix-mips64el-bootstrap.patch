@@ -8,7 +8,7 @@ Index: rust/src/bootstrap/bootstrap.py
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"
 +        if self.build_triple().startswith('mips'):
-+            env["RUSTFLAGS"] += " -Cllvm-args=-mxgot"
++            env["RUSTFLAGS"] += " -Ctarget-feature=+xgot"
  
          build_section = "target.{}".format(self.build_triple())
          target_features = []

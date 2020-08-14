@@ -1,3 +1,11 @@
+rustc (1.46.0~beta.2+dfsg1-1~exp5) UNRELEASED; urgency=medium
+
+  * Fix rust-gdb install path. (Closes: #968279)
+  * Drop powerpc allowed-failures to 12. (Closes: #955774)
+  * Update d-fix-mips64el-bootstrap.patch for newer LLVM.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 14 Aug 2020 23:32:55 +0100
+
 rustc (1.46.0~beta.2+dfsg1-1~exp4) experimental; urgency=medium
 
   * Move cross-linker Depends to Recommends - for cross-compiling support
