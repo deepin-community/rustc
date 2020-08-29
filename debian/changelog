@@ -1,3 +1,9 @@
+rustc (1.46.0+dfsg1-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Sat, 29 Aug 2020 15:11:50 +0100
+
 rustc (1.46.0~beta.2+dfsg1-1~exp5) experimental; urgency=medium
 
   * Fix rust-gdb install path. (Closes: #968279)

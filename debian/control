@@ -13,7 +13,7 @@ Build-Depends:
  python3:native,
  cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
  rustc:native (>= 1.45.0+dfsg) <!pkg.rustc.dlstage0>,
- rustc:native (<= 1.46.0~beta.2++)    <!pkg.rustc.dlstage0>,
+ rustc:native (<= 1.46.0++)    <!pkg.rustc.dlstage0>,
  llvm-10-dev:native,
  llvm-10-tools:native,
  gcc-mingw-w64-x86-64-win32:native [amd64] <!nowindows>,
