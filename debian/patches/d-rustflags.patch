@@ -1,7 +1,7 @@
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -831,6 +831,21 @@
-             rustflags.arg("--cfg=bootstrap");
+@@ -860,6 +860,21 @@
+             rustflags.arg("-Zsymbol-mangling-version=v0");
          }
  
 +        // Debian-specific stuff here

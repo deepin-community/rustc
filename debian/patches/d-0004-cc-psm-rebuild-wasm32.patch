@@ -1,0 +1,35 @@
+--- a/vendor/cc/src/lib.rs
++++ b/vendor/cc/src/lib.rs
+@@ -2000,7 +2000,7 @@
+                     || target == "wasm32-unknown-wasi"
+                     || target == "wasm32-unknown-unknown"
+                 {
+-                    "clang".to_string()
++                    "rust-clang".to_string()
+                 } else if target.contains("vxworks") {
+                     "wr-c++".to_string()
+                 } else if self.get_host()? != target {
+--- a/vendor/psm/build.rs
++++ b/vendor/psm/build.rs
+@@ -27,7 +27,7 @@
+         ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
+         ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
+         ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
+-        ("wasm32", _, _, _) => Some(("src/arch/wasm32.o", true)),
++        ("wasm32", _, _, _) => Some(("src/arch/wasm32.s", true)),
+         _ => None,
+     }
+ }
+@@ -61,11 +61,8 @@
+         cfg.define(&*format!("CFG_TARGET_ENV_{}", env), None);
+     }
+ 
+-    // For wasm targets we ship a precompiled `*.o` file so we just pass that
+-    // directly to `ar` to assemble an archive. Otherwise we're actually
+-    // compiling the source assembly file.
+     if asm.ends_with(".o") {
+-        cfg.object(asm);
++        panic!("Debian does not allow embedded object files in source code")
+     } else {
+         cfg.file(asm);
+     }

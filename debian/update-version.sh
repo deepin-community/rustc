@@ -20,7 +20,7 @@ ORIG_M1=$(prev_stable $ORIG)
 NEW_M1=$(prev_stable $NEW)
 ORIG_R="${ORIG/./\\.}" # match a literal dot, otherwise this might sometimes match e.g. debhelper (>= 9.20141010)
 
-WASI_CI="$(grep -Rl "git clone https://github.com/CraneStation/wasi-libc" ../src/ci | head -n1)"
+WASI_CI="$(grep -Rl "git clone https://github.com/WebAssembly/wasi-libc" ../src/ci | head -n1)"
 WASI_COMMIT="$(egrep -o '\b[0-9A-Fa-f]{7}' "$WASI_CI")"
 WASI_REGEX='wasi-libc \(([><=]+) 0.0~git([0-9]+).([0-9a-f]+)([~+]+)\)'
 

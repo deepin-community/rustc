@@ -38,8 +38,12 @@ llvm-config = "LLVM_DESTDIR/usr/lib/llvm-LLVM_VERSION/bin/llvm-config"
 linker = "DEB_TARGET_GNU_TYPE-gcc"
 
 )dnl
+[target.wasm32-unknown-unknown]
+cc = "clang-10" # FIXME: remove after 1.47 is stage0, which contains the rust-clang symlink
+
 [target.wasm32-wasi]
 wasi-root = "/usr"
+cc = "clang-10" # FIXME: remove after 1.47 is stage0, which contains the rust-clang symlink
 
 [llvm]
 link-shared = true
