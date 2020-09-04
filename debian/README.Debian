@@ -112,8 +112,8 @@ We ship the following targets:
 
 To run the compiled binaries, you can use wine. You will need to set one of:
 
-- WINEPATH="/usr/lib/gcc/x86_64-w64-mingw32/10-win32;/usr/lib/rustlib/x86_64-pc-windows-gnu/lib"
-- WINEPATH="/usr/lib/gcc/i686-w64-mingw32/10-win32;/usr/lib/rustlib/i686-pc-windows-gnu/lib"
+- WINEPATH="/usr/lib/gcc/x86_64-w64-mingw32/10-posix;/usr/lib/rustlib/x86_64-pc-windows-gnu/lib"
+- WINEPATH="/usr/lib/gcc/i686-w64-mingw32/10-posix;/usr/lib/rustlib/i686-pc-windows-gnu/lib"
 
 If you get "import_dll ... not found" errors, check that these paths are mapped
 to some windows drive path - run "winecfg $path" for each path in the component
