@@ -37,8 +37,9 @@ Build-Depends:
  curl <pkg.rustc.dlstage0>,
  ca-certificates <pkg.rustc.dlstage0>,
 Build-Depends-Indep:
- wasi-libc (>= 0.0~gitFIXME.215adc8~~) <!nowasm>,
- wasi-libc (<= 0.0~gitFIXME.215adc8++) <!nowasm>,
+ wasi-libc (>= 0.0~git20200731.215adc8~~) <!nowasm>,
+ wasi-libc (<= 0.0~git20200731.215adc8++) <!nowasm>,
+ clang-10:native,
 Build-Conflicts: gdb-minimal <!nocheck>
 Standards-Version: 4.2.1
 Homepage: http://www.rust-lang.org/
