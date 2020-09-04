@@ -21,21 +21,6 @@
      CrossCompilation,
  
      /// Failed to run `pkg-config`.
-@@ -130,13 +127,9 @@ impl error::Error for Error {
-     fn description(&self) -> &str {
-         match *self {
-             Error::EnvNoPkgConfig(_) => "pkg-config requested to be aborted",
--            Error::CrossCompilation => {
--                "pkg-config doesn't handle cross compilation. \
--                 Use PKG_CONFIG_ALLOW_CROSS=1 to override"
--            }
-             Error::Command { .. } => "failed to run pkg-config",
-             Error::Failure { .. } => "pkg-config did not exit sucessfully",
--            Error::__Nonexhaustive => panic!(),
-+            Error::CrossCompilation | Error::__Nonexhaustive => panic!(),
-         }
-     }
- 
 @@ -152,11 +145,6 @@ impl fmt::Display for Error {
      fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
          match *self {
@@ -69,12 +54,12 @@
 @@ -399,7 +389,11 @@ impl Config {
      fn command(&self, name: &str, args: &[&str]) -> Command {
          let exe = self
-             .env_var("PKG_CONFIG")
--            .unwrap_or_else(|_| String::from("pkg-config"));
-+            .unwrap_or_else(|_| {
-+                self.env_var("DEB_HOST_GNU_TYPE")
-+                    .map(|t| t.to_string() + "-pkg-config")
-+                    .unwrap_or_else(|_| String::from("pkg-config"))
+             .env_var_os("PKG_CONFIG")
+-            .unwrap_or_else(|| OsString::from("pkg-config"));
++            .unwrap_or_else(|| {
++                self.env_var_os("DEB_HOST_GNU_TYPE")
++                    .map(|mut t| { t.push(OsString::from("-pkg-config")); t })
++                    .unwrap_or_else(|| OsString::from("pkg-config"))
 +            });
          let mut cmd = Command::new(exe);
          if self.is_static(name) {

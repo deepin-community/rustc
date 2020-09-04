@@ -15,10 +15,15 @@ vendor/regex/tests/suffix_reverse.rs
 
 # False-positive, "verylongtext" but OK
 CONTRIBUTING.md
+library/std/sys/cloudabi/abi/cloudabi.rs
+library/std/src/os/raw/*.md
+library/std/src/sys/sgx/abi/entry.S
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
+src/doc/edition-guide/src/rust-next/cargo-vendor.md
 src/doc/embedded-book/src/*/*.md
 src/doc/rust-by-example/src/flow_control/if_let.md
+src/doc/rust-by-example/src/std/arc.md
 src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc/src/targets/known-issues.md
@@ -30,9 +35,6 @@ src/doc/*/CODE_OF_CONDUCT.md
 src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
-src/libstd/sys/cloudabi/abi/cloudabi.rs
-src/libstd/os/raw/*.md
-src/libstd/sys/sgx/abi/entry.S
 vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -50,6 +52,7 @@ vendor/clap/.github/CONTRIBUTING.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
 vendor/lazy_static/src/lib.rs
+vendor/oorandom/tarpaulin-report.html
 vendor/pulldown-cmark/tests/suite/footnotes.rs
 vendor/pulldown-cmark/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark/specs/footnotes.txt
@@ -58,13 +61,16 @@ vendor/pulldown-cmark-*/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark-*/specs/footnotes.txt
 vendor/rustc-demangle/src/legacy.rs
 vendor/stable_deref_trait/src/lib.rs
+vendor/tracing-subscriber/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
 vendor/winapi-*/src/winnt.rs
 vendor/winapi/src/lib.rs
+vendor/xml5ever/examples/README.md
 
 # False-positive, audit-vendor-source automatically flags JS/C files
 # The below ones are OK since they're actually part of rust's own source code
 # and are not "embedded libraries".
+library/backtrace/crates/line-tables-only/src/callback.c
 src/ci/docker/scripts/qemu-bare-bones-addentropy.c
 src/doc/book/*/ferris.js
 src/doc/book/ferris.js
@@ -84,10 +90,10 @@ vendor/salsa/book/mermaid-init.js
 vendor/stacker/src/arch/windows.c
 
 # Embedded libraries, justified in README.source
-vendor/backtrace-sys/src/libbacktrace/configure
-vendor/backtrace-sys/src/libbacktrace/config/libtool.m4
-vendor/backtrace-sys/src/libbacktrace/*.c
-vendor/backtrace-sys/src/android-api.c
+library/backtrace/crates/backtrace-sys/src/libbacktrace/configure
+library/backtrace/crates/backtrace-sys/src/libbacktrace/config/libtool.m4
+library/backtrace/crates/backtrace-sys/src/libbacktrace/*.c
+library/backtrace/crates/backtrace-sys/src/android-api.c
 vendor/compiler_builtins/compiler-rt/lib/BlocksRuntime/*.c
 vendor/compiler_builtins/compiler-rt/lib/builtins/*.c
 vendor/compiler_builtins/compiler-rt/lib/builtins/*/*.c
@@ -99,12 +105,12 @@ vendor/walkdir/compare/nftw.c
 vendor/walkdir-*/compare/nftw.c
 
 # False-positive, misc
+library/backtrace/crates/backtrace-sys/src/libbacktrace/libtool.m4
+library/stdarch/.travis.yml
+library/stdarch/crates/core_arch/foo.wasm
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
-src/stdarch/.travis.yml
-src/stdarch/crates/core_arch/foo.wasm
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
-vendor/backtrace-sys/src/libbacktrace/libtool.m4
 vendor/clap/.mention-bot
 vendor/cloudabi/cloudabi.rs
 vendor/elasticlunr-rs/src/lang/*.rs
@@ -154,13 +160,17 @@ vendor/termion/logo.svg
 vendor/html5ever/examples/capi/tokenize.c
 
 # Test data
-src/stdarch/ci/gba.json
-src/stdarch/crates/stdarch-verify/arm-intrinsics.html
-src/stdarch/crates/stdarch-verify/x86-intel.xml
-src/stdarch/crates/std_detect/src/detect/test_data/*.auxv
+library/stdarch/ci/gba.json
+library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+library/stdarch/crates/stdarch-verify/x86-intel.xml
+library/stdarch/crates/std_detect/src/detect/test_data/*.auxv
 src/test/compile-fail/not-utf8.bin
+src/test/mir-opt/*.mir
+src/test/mir-opt/*.diff
+src/test/mir-opt/*.diff.*
 src/test/mir-opt/*/*.mir
 src/test/mir-opt/*/*.diff
+src/test/mir-opt/*/*.diff.*
 src/test/mir-opt/*/*/*.mir
 src/test/mir-opt/*/*/*.diff
 src/test/mir-opt/*/*/*/*.mir
@@ -174,6 +184,7 @@ src/test/*/*/*.rs
 src/test/*/*/*.json
 src/test/*/*/*.stderr
 src/test/*/*/*.stdout
+src/test/*/*/*/*.stdout
 src/test/*/*/*/*.stderr
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
@@ -181,7 +192,7 @@ vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
-vendor/elasticlunr-rs/tests/data/tr.in.txt
+vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/flate2/tests/*.gz
 vendor/gimli/fixtures/self/*
 vendor/goblin/etc/*.rs
@@ -224,9 +235,9 @@ vendor/toml/tests/*/*.json
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/url-1*/tests/*.json
+vendor/xml5ever/data/bench/strong.xml
 vendor/yaml-rust/tests/specexamples.rs.inc
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
-vendor/ucd-parse/src/sentence_break.rs
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
@@ -234,6 +245,8 @@ src/doc/rustc-dev-guide/src/mir/mir_*.svg
 src/librustdoc/html/static/normalize.css
 vendor/pest_meta/src/grammar.rs
 vendor/regex-syntax/src/unicode_tables/*.rs
+vendor/ucd-parse/src/sentence_break.rs
+vendor/ucd-trie/src/general_category.rs
 vendor/unicode-normalization/src/tables.rs
 vendor/unicode-script/src/tables.rs
 vendor/unicode-segmentation/src/tables.rs

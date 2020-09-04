@@ -147,6 +147,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
 Recommends: lld-10
+Suggests: clang-10
 Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
