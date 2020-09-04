@@ -253,16 +253,6 @@ declare_lint! {
 }
 
 declare_lint! {
-    pub MISSING_FRAGMENT_SPECIFIER,
-    Deny,
-    "detects missing fragment specifiers in unused `macro_rules!` patterns",
-    @future_incompatible = FutureIncompatibleInfo {
-        reference: "issue #40107 <https://github.com/rust-lang/rust/issues/40107>",
-        edition: None,
-    };
-}
-
-declare_lint! {
     pub LATE_BOUND_LIFETIME_ARGUMENTS,
     Warn,
     "detects generic lifetime arguments in path segments with late bound lifetime parameters",
@@ -398,7 +388,7 @@ declare_lint! {
 }
 
 declare_lint! {
-    pub INTRA_DOC_LINK_RESOLUTION_FAILURE,
+    pub BROKEN_INTRA_DOC_LINKS,
     Warn,
     "failures in resolving intra-doc link targets"
 }
@@ -584,7 +574,6 @@ declare_lint_pass! {
         UNALIGNED_REFERENCES,
         SAFE_PACKED_BORROWS,
         PATTERNS_IN_FNS_WITHOUT_BODY,
-        MISSING_FRAGMENT_SPECIFIER,
         LATE_BOUND_LIFETIME_ARGUMENTS,
         ORDER_DEPENDENT_TRAIT_OBJECTS,
         COHERENCE_LEAK_CHECK,
@@ -601,7 +590,7 @@ declare_lint_pass! {
         ABSOLUTE_PATHS_NOT_STARTING_WITH_CRATE,
         UNSTABLE_NAME_COLLISIONS,
         IRREFUTABLE_LET_PATTERNS,
-        INTRA_DOC_LINK_RESOLUTION_FAILURE,
+        BROKEN_INTRA_DOC_LINKS,
         INVALID_CODEBLOCK_ATTRIBUTES,
         MISSING_CRATE_LEVEL_DOCS,
         MISSING_DOC_CODE_EXAMPLES,

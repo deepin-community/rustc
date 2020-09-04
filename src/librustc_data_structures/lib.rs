@@ -7,6 +7,7 @@
 //! This API is completely unstable and subject to change.
 
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/")]
+#![allow(incomplete_features)]
 #![feature(in_band_lifetimes)]
 #![feature(unboxed_closures)]
 #![feature(generators)]
@@ -23,12 +24,16 @@
 #![feature(associated_type_bounds)]
 #![feature(thread_id_value)]
 #![feature(extend_one)]
+#![feature(const_panic)]
+#![feature(const_generics)]
 #![allow(rustc::default_hash_types)]
 
 #[macro_use]
-extern crate log;
+extern crate tracing;
 #[macro_use]
 extern crate cfg_if;
+#[macro_use]
+extern crate rustc_macros;
 
 #[inline(never)]
 #[cold]
@@ -95,6 +100,8 @@ pub mod vec_linked_list;
 pub mod work_queue;
 pub use atomic_ref::AtomicRef;
 pub mod frozen;
+pub mod tagged_ptr;
+pub mod temp_dir;
 
 pub struct OnDrop<F: Fn()>(pub F);
 

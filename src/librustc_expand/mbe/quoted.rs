@@ -1,9 +1,9 @@
 use crate::mbe::macro_parser;
 use crate::mbe::{Delimited, KleeneOp, KleeneToken, SequenceRepetition, TokenTree};
 
-use rustc_ast::ast::{NodeId, DUMMY_NODE_ID};
 use rustc_ast::token::{self, Token};
 use rustc_ast::tokenstream;
+use rustc_ast::NodeId;
 use rustc_ast_pretty::pprust;
 use rustc_session::parse::ParseSess;
 use rustc_span::symbol::{kw, Ident};
@@ -11,6 +11,10 @@ use rustc_span::symbol::{kw, Ident};
 use rustc_span::Span;
 
 use rustc_data_structures::sync::Lrc;
+
+const VALID_FRAGMENT_NAMES_MSG: &str = "valid fragment specifiers are \
+                                        `ident`, `block`, `stmt`, `expr`, `pat`, `ty`, `lifetime`, \
+                                        `literal`, `path`, `meta`, `tt`, `item` and `vis`";
 
 /// Takes a `tokenstream::TokenStream` and returns a `Vec<self::TokenTree>`. Specifically, this
 /// takes a generic `TokenStream`, such as is used in the rest of the compiler, and returns a
@@ -55,8 +59,20 @@ pub(super) fn parse(
                     Some(tokenstream::TokenTree::Token(Token { kind: token::Colon, span })) => {
                         match trees.next() {
                             Some(tokenstream::TokenTree::Token(token)) => match token.ident() {
-                                Some((kind, _)) => {
+                                Some((frag, _)) => {
                                     let span = token.span.with_lo(start_sp.lo());
+                                    let kind = token::NonterminalKind::from_symbol(frag.name)
+                                        .unwrap_or_else(|| {
+                                            let msg = format!(
+                                                "invalid fragment specifier `{}`",
+                                                frag.name
+                                            );
+                                            sess.span_diagnostic
+                                                .struct_span_err(span, &msg)
+                                                .help(VALID_FRAGMENT_NAMES_MSG)
+                                                .emit();
+                                            token::NonterminalKind::Ident
+                                        });
                                     result.push(TokenTree::MetaVarDecl(span, ident, kind));
                                     continue;
                                 }
@@ -67,11 +83,8 @@ pub(super) fn parse(
                     }
                     tree => tree.as_ref().map(tokenstream::TokenTree::span).unwrap_or(start_sp),
                 };
-                if node_id != DUMMY_NODE_ID {
-                    // Macros loaded from other crates have dummy node ids.
-                    sess.missing_fragment_specifiers.borrow_mut().insert(span, node_id);
-                }
-                result.push(TokenTree::MetaVarDecl(span, ident, Ident::invalid()));
+                sess.span_diagnostic.struct_span_err(span, "missing fragment specifier").emit();
+                continue;
             }
 
             // Not a metavar or no matchers allowed, so just return the tree
