@@ -206,6 +206,7 @@ Files: C*.md
        configure
        config.toml.example
        git-commit-hash
+       library/*
        src/README.md
        src/bootstrap/*
        src/build_helper/*
@@ -213,10 +214,8 @@ Files: C*.md
        src/doc/*
        src/etc/*
        src/lib*
-       src/rt*
        src/rust*
        src/stage0.txt
-       src/stdarch/*
        src/tools/*
        src/test/*
        version
@@ -226,10 +225,25 @@ Copyright: 2006-2009 Graydon Hoare
            2012-2017 The Rust Project Developers (see AUTHORS.txt)
 License: MIT or Apache-2.0
 
-Files: vendor/compiler_builtins/*
-Copyright: 2016-2019 Jorge Aparicio <japaricious@gmail.com>
+Files: library/backtrace/crates/backtrace-sys/src/libbacktrace/*
+Copyright: 2012-2016 Free Software Foundation, Inc.
+License: BSD-3-Clause
+Comment: written by Ian Lance Taylor, Google.
+
+Files:
+ library/backtrace/crates/backtrace-sys/src/libbacktrace/filenames.h
+ library/backtrace/crates/backtrace-sys/src/libbacktrace/ltmain.sh
+Copyright: 2000, 2001, 2007, 2010 Free Software Foundation, Inc.
+License: GPL-2+
+
+Files: library/std/src/memchr.rs
+Copyright: 2015 Andrew Gallant, bluss and Nicolas Koch
 License: MIT or Apache-2.0
-Comment: see https://github.com/rust-lang-nursery/compiler-builtins
+
+Files: library/std/src/sync/mpsc/mpsc_queue.rs
+       library/std/src/sync/mpsc/spsc_queue.rs
+Copyright: 2010-2011 Dmitry Vyukov
+License: BSD-2-Clause
 
 Files: src/librustdoc/html/static/FiraSans*
 Copyright: 2014, Mozilla Foundation, 2014, Telefonica S.A.
@@ -247,14 +261,10 @@ Files: src/librustdoc/html/static/main.js
 Copyright: 2014 The Rust Project Developers
 License: MIT or Apache-2.0
 
-Files: src/libstd/memchr.rs
-Copyright: 2015 Andrew Gallant, bluss and Nicolas Koch
+Files: vendor/compiler_builtins/*
+Copyright: 2016-2019 Jorge Aparicio <japaricious@gmail.com>
 License: MIT or Apache-2.0
-
-Files: src/libstd/sync/mpsc/mpsc_queue.rs
-       src/libstd/sync/mpsc/spsc_queue.rs
-Copyright: 2010-2011 Dmitry Vyukov
-License: BSD-2-Clause
+Comment: see https://github.com/rust-lang-nursery/compiler-builtins
 
 Files:
  vendor/bitflags/*
@@ -263,19 +273,25 @@ Files:
  vendor/env_logger/*
  vendor/env_logger-0*/*
  vendor/getopts/*
+ vendor/glob/*
  vendor/libc/*
  vendor/log/*
  vendor/regex/*
  vendor/regex-syntax/*
  vendor/rustc-hash/*
  vendor/time/*
-Copyright: 2010-2018 The Rust Project Developers
+Copyright: 2010-2020 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment:
  This is a collection of external crates embedded here to bootstrap cargo.
  Most of them come from the original upstream Rust project, thus share the
  same MIT/Apache-2.0 dual-license. See https://github.com/rust-lang.
  Exceptions are noted below.
+
+Files: vendor/adler/*
+Copyright: 2020-2020 Jonas Schievink <jonasschievink@gmail.com>
+License: 0BSD or MIT or Apache-2.0
+Comment: see https://github.com/jonas-schievink/adler.git
 
 Files: vendor/num-integer/*
        vendor/num-traits/*
@@ -321,8 +337,6 @@ Comment:
  see https://github.com/rust-random/small-rngs
 
 Files:
- vendor/backtrace/*
- vendor/backtrace-sys/*
  vendor/cfg-if/*
  vendor/filetime/*
  vendor/flate2/*
@@ -354,17 +368,6 @@ Files: vendor/dlmalloc/src/dlmalloc.c
 Copyright: 2000-2012 Doug Lea <dl@cs.oswego.edu>
 License: CC0-1.0
 
-Files: vendor/backtrace-sys/src/libbacktrace/*
-Copyright: 2012-2016 Free Software Foundation, Inc.
-License: BSD-3-Clause
-Comment: written by Ian Lance Taylor, Google.
-
-Files:
- vendor/backtrace-sys/src/libbacktrace/filenames.h
- vendor/backtrace-sys/src/libbacktrace/ltmain.sh
-Copyright: 2000, 2001, 2007, 2010 Free Software Foundation, Inc.
-License: GPL-2+
-
 Files: vendor/addr2line/*
 Copyright: 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
            2016-2020 Philip Craig <philipjcraig@gmail.com>
@@ -388,9 +391,13 @@ Copyright: 2018-2019 Zibi Braniecki <gandalf@mozilla.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/zbraniecki/annotate-snippets-rs
 
-Files: vendor/ansi_term/*
-Copyright: 2014-2016 ogham@bsago.me
-           2014-2016 Ryan Scheel (Havvy) <ryan.havvy@gmail.com>
+Files:
+ vendor/ansi_term/*
+ vendor/ansi_term-0*/*
+Copyright:
+ 2014-2020 ogham@bsago.me
+ 2014-2020 Ryan Scheel (Havvy) <ryan.havvy@gmail.com>
+ 2014-2020 Josh Triplett <josh@joshtriplett.org>
 License: MIT
 Comment: see https://github.com/ogham/rust-ansi-term
 
@@ -449,6 +456,11 @@ Comment:
  see https://github.com/RustCrypto/traits
  see https://github.com/RustCrypto/utils
 
+Files: vendor/bstr/*
+Copyright: 2018-2020 Andrew Gallant <jamslam@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/BurntSushi/bstr
+
 Files:
  vendor/byteorder/*
  vendor/fst/*
@@ -498,6 +510,7 @@ Files:
  vendor/chalk-engine/*
  vendor/chalk-ir/*
  vendor/chalk-macros/*
+ vendor/chalk-recursive/*
  vendor/chalk-rust-ir/*
  vendor/chalk-solve/*
 Copyright:
@@ -655,6 +668,11 @@ Copyright: 2016-2017 Brian Anderson <banderson@mozilla.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/brson/error-chain
 
+Files: vendor/expect-test/*
+Copyright: 2017-2020 rust-analyzer developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-analyzer/rust-analyzer
+
 Files:
  vendor/failure/*
  vendor/failure_derive/*
@@ -731,8 +749,9 @@ Comment: see https://github.com/hermitcore/hermit-abi
 Files:
  vendor/html5ever/*
  vendor/markup5ever/*
-Copyright: 2014-2018 The html5ever Project Developers
-License: MIT  or  Apache-2.0
+ vendor/markup5ever_rcdom/*
+Copyright: 2014-2020 The html5ever Project Developers
+License: MIT or Apache-2.0
 Comment: see https://github.com/servo/html5ever
 
 Files: vendor/home/*
@@ -846,6 +865,13 @@ Copyright: 2016-2020 Markus Westerlind <marwes91@gmail.com>
 License: MIT
 Comment: see https://github.com/gluon-lang/lsp-types
 
+Files:
+ vendor/mac/*
+Copyright: 2014-2017 Jonathan Reem <jonathan.reem@gmail.com>
+License: MIT
+Comment:
+ see https://github.com/reem/rust-mac.git
+
 Files: vendor/matchers/*
 Copyright: 2019-2019 Eliza Weisman <eliza@buoyant.io>
 License: MIT
@@ -939,6 +965,11 @@ Copyright: 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/object
 
+Files: vendor/oorandom/*
+Copyright: 2019-2020 Simon Heath <icefox@dreamquest.io>
+License: MIT
+Comment: see https://sr.ht/~icefox/oorandom/
+
 Files: vendor/open/*
 Copyright: 2015-2017 Sebastian Thiel <byronimo@gmail.com>
 License: MIT
@@ -983,6 +1014,18 @@ Files:
 Copyright: 2018-2020 David Tolnay <dtolnay@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/dtolnay/paste
+
+Files: vendor/pathdiff/*
+Copyright: 2017-2020 Manish Goregaokar <manishsmail@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/Manishearth/pathdiff
+
+Files:
+ vendor/perf-event/*
+ vendor/perf-event-open-sys/*
+Copyright: 2019-2020 Jim Blandy <jimb@red-bean.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/jimblandy/perf-event.git
 
 Files:
  vendor/pest/*
@@ -1059,9 +1102,12 @@ Copyright: 2015-2019 mcarton <cartonmartin+git@gmail.com>
 License: MIT
 Comment: see https://github.com/mcarton/rust-punycode.git
 
-Files: vendor/quick-error/*
-Copyright: 2015-2017 Paul Colomiets <paul@colomiets.name>
-           2015-2017 Colin Kiegel <kiegel@gmx.de>
+Files:
+ vendor/quick-error/*
+ vendor/quick-error-1*/*
+Copyright:
+ 2015-2020 Paul Colomiets <paul@colomiets.name>
+ 2015-2020 Colin Kiegel <kiegel@gmx.de>
 License: MIT or Apache-2.0
 Comment: see http://github.com/tailhook/quick-error
 
@@ -1199,7 +1245,7 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/comex/rust-shlex
 
 Files:
- vendor/smallvec-0.6.10/*
+ vendor/smallvec-0*/*
  vendor/smallvec/*
 Copyright: 2015-2020 Simon Sapin <simon.sapin@exyr.org>
 License: MPL-2.0
@@ -1335,6 +1381,12 @@ Copyright:
 License: MIT
 Comment: see https://github.com/tokio-rs/tracing
 
+Files: vendor/tracing-tree/*
+Copyright: 2020-2020 David Barsky <me@davidbarsky.com>
+           2020-2020 Nathan Whitaker
+License: MIT OR Apache-2.0
+Comment: see https://github.com/davidbarsky/tracing-tree
+
 Files: vendor/typenum/*
 Copyright: 2015-2019 Paho Lurie-Gregg <paho@paholg.com>
            2015-2019 Andre Bogus <bogusandre@gmail.com>
@@ -1357,6 +1409,11 @@ License: MIT or Apache-2.0
 Comment:
  see https://github.com/BurntSushi/rucd
  see https://github.com/BurntSushi/ucd-generate
+
+Files: vendor/ungrammar/*
+Copyright: 2020-2020 Aleksey Kladov <aleksey.kladov@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/matklad/ungrammar
 
 Files: vendor/unicase/*
 Copyright: 2014-2019 Sean McArthur <sean@seanmonstar.com>
@@ -1395,15 +1452,6 @@ Copyright: 2015-2017 Alexis Beingessner <a.beingessner@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/contain-rs/vec-map
 
-Files:
- vendor/mac/*
-Copyright: 2014-2017 Jonathan Reem <jonathan.reem@gmail.com>
-License: MIT
-Comment:
- see https://github.com/reem/rust-mac.git
- see https://github.com/reem/rust-unreachable.git
- see https://github.com/reem/rust-void.git
-
 Files: vendor/utf-8/*
 Copyright: 2015-2018 Simon Sapin <simon.sapin@exyr.org>
 License: MIT OR Apache-2.0
@@ -1432,10 +1480,20 @@ Copyright: 2014-2018 Peter Atashian <retep998@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/retep998/winapi-rs
 
+Files: vendor/write-json/*
+Copyright: 2020-2020 Aleksey Kladov <aleksey.kladov@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/matklad/write-json
+
 Files: vendor/xattr/*
 Copyright: 2015-2017 Steven Allen <steven@stebalien.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/Stebalien/xattr
+
+Files: vendor/xml5ever/*
+Copyright: 2014-2020 The xml5ever project developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/servo/html5ever
 
 Files:
  vendor/yaml-rust-0*/*
@@ -1443,11 +1501,6 @@ Files:
 Copyright: 2015-2020 Yuheng Chen <yuhengchen@sensetime.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/chyh1990/yaml-rust
-
-Files: vendor/bstr/*
-Copyright: 2018-2020 Andrew Gallant <jamslam@gmail.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/BurntSushi/bstr
 
 Files: vendor/humantime-1.3.0/*
 Copyright:
@@ -1458,7 +1511,7 @@ Copyright:
 License: MIT or Apache-2.0
 
 Files: vendor/unicode-script/*
-Copyright: 2020-2020 Manish Goregaokar <manishsmail@gmail.com>
+Copyright: 2017-2020 Manish Goregaokar <manishsmail@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/unicode-rs/unicode-script
 
@@ -1477,6 +1530,18 @@ Copyright: Mozilla Foundation
 License: CC-BY
 Comment:
  Relevant discussion in https://github.com/rust-lang/rust/issues/11562
+
+License: 0BSD
+ Permission to use, copy, modify, and/or distribute this software for
+ any purpose with or without fee is hereby granted.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+ AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 License: Apache-2.0
  On Debian systems, the full text of the Apache License Version 2.0
