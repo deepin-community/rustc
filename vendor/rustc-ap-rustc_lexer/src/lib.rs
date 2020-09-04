@@ -6,17 +6,18 @@
 //! produces simple tokens which are a pair of type-tag and a bit of original text,
 //! and does not report errors, instead storing them as flags on the token.
 //!
-//! Tokens produced by this lexer are not yet ready for parsing the Rust syntax,
-//! for that see `librustc_parse::lexer`, which converts this basic token stream
+//! Tokens produced by this lexer are not yet ready for parsing the Rust syntax.
+//! For that see [`librustc_parse::lexer`], which converts this basic token stream
 //! into wide tokens used by actual parser.
 //!
 //! The purpose of this crate is to convert raw sources into a labeled sequence
 //! of well-known token types, so building an actual Rust token stream will
 //! be easier.
 //!
-//! Main entity of this crate is [`TokenKind`] enum which represents common
+//! The main entity of this crate is the [`TokenKind`] enum which represents common
 //! lexeme types.
-
+//!
+//! [`librustc_parse::lexer`]: ../rustc_parse/lexer/index.html
 // We want to be able to build this crate with a stable compiler, so no
 // `#![feature]` attributes should be added.
 
@@ -51,8 +52,9 @@ pub enum TokenKind {
     // Multi-char tokens:
     /// "// comment"
     LineComment,
-    /// "/* block comment */"
-    /// Block comments can be recursive, so the sequence like "/* /* */"
+    /// `/* block comment */`
+    ///
+    /// Block comments can be recursive, so the sequence like `/* /* */`
     /// will not be considered terminated and will result in a parsing error.
     BlockComment { terminated: bool },
     /// Any whitespace characters sequence.
@@ -179,21 +181,18 @@ pub enum Base {
 /// but shebang isn't a part of rust syntax.
 pub fn strip_shebang(input: &str) -> Option<usize> {
     // Shebang must start with `#!` literally, without any preceding whitespace.
-    if input.starts_with("#!") {
-        let input_tail = &input[2..];
-        // Shebang must have something non-whitespace after `#!` on the first line.
-        let first_line_tail = input_tail.lines().next()?;
-        if first_line_tail.contains(|c| !is_whitespace(c)) {
-            // Ok, this is a shebang but if the next non-whitespace token is `[` or maybe
-            // a doc comment (due to `TokenKind::(Line,Block)Comment` ambiguity at lexer level),
-            // then it may be valid Rust code, so consider it Rust code.
-            let next_non_whitespace_token = tokenize(input_tail).map(|tok| tok.kind).find(|tok|
-                !matches!(tok, TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment { .. })
-            );
-            if next_non_whitespace_token != Some(TokenKind::OpenBracket) {
-                // No other choice than to consider this a shebang.
-                return Some(2 + first_line_tail.len());
-            }
+    // For simplicity we consider any line starting with `#!` a shebang,
+    // regardless of restrictions put on shebangs by specific platforms.
+    if let Some(input_tail) = input.strip_prefix("#!") {
+        // Ok, this is a shebang but if the next non-whitespace token is `[` or maybe
+        // a doc comment (due to `TokenKind::(Line,Block)Comment` ambiguity at lexer level),
+        // then it may be valid Rust code, so consider it Rust code.
+        let next_non_whitespace_token = tokenize(input_tail).map(|tok| tok.kind).find(|tok|
+            !matches!(tok, TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment { .. })
+        );
+        if next_non_whitespace_token != Some(TokenKind::OpenBracket) {
+            // No other choice than to consider this a shebang.
+            return Some(2 + input_tail.lines().next().unwrap_or_default().len());
         }
     }
     None

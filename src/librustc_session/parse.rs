@@ -13,7 +13,6 @@ use rustc_span::hygiene::ExpnId;
 use rustc_span::source_map::{FilePathMapping, SourceMap};
 use rustc_span::{MultiSpan, Span, Symbol};
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::str;
 
@@ -63,8 +62,8 @@ impl GatedSpans {
 
 #[derive(Default)]
 pub struct SymbolGallery {
-    /// All symbols occurred and their first occurrance span.
-    pub symbols: Lock<BTreeMap<Symbol, Span>>,
+    /// All symbols occurred and their first occurrence span.
+    pub symbols: Lock<FxHashMap<Symbol, Span>>,
 }
 
 impl SymbolGallery {
@@ -120,7 +119,6 @@ pub struct ParseSess {
     pub unstable_features: UnstableFeatures,
     pub config: CrateConfig,
     pub edition: Edition,
-    pub missing_fragment_specifiers: Lock<FxHashMap<Span, NodeId>>,
     /// Places where raw identifiers were used. This is used for feature-gating raw identifiers.
     pub raw_identifier_spans: Lock<Vec<Span>>,
     /// Used to determine and report recursive module inclusions.
@@ -138,6 +136,8 @@ pub struct ParseSess {
     pub reached_eof: Lock<bool>,
     /// Environment variables accessed during the build and their values when they exist.
     pub env_depinfo: Lock<FxHashSet<(Symbol, Option<Symbol>)>>,
+    /// All the type ascriptions expressions that have had a suggestion for likely path typo.
+    pub type_ascription_path_suggestions: Lock<FxHashSet<Span>>,
 }
 
 impl ParseSess {
@@ -153,7 +153,6 @@ impl ParseSess {
             unstable_features: UnstableFeatures::from_environment(),
             config: FxHashSet::default(),
             edition: ExpnId::root().expn_data().edition,
-            missing_fragment_specifiers: Default::default(),
             raw_identifier_spans: Lock::new(Vec::new()),
             included_mod_stack: Lock::new(vec![]),
             source_map,
@@ -164,6 +163,7 @@ impl ParseSess {
             symbol_gallery: SymbolGallery::default(),
             reached_eof: Lock::new(false),
             env_depinfo: Default::default(),
+            type_ascription_path_suggestions: Default::default(),
         }
     }
 
