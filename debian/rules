@@ -233,7 +233,7 @@ ifeq (true,$(BUILD_WINDOWS))
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) \
 	  --target $(WINDOWS_ARCH)-pc-windows-gnu \
-	  src/libstd
+	  library/std
 endif
 
 override_dh_auto_build-indep: debian/dh_auto_build.stamp
@@ -241,7 +241,7 @@ ifeq (true,$(BUILD_WASM))
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) \
 	  --target wasm32-unknown-unknown,wasm32-wasi \
-	  src/libstd
+	  library/std
 endif
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
@@ -306,7 +306,7 @@ ifeq (true,$(BUILD_WASM))
 	-PATH=$(CURDIR)/debian/bin:$(PATH) $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) \
 	  --target wasm32-unknown-unknown,wasm32-wasi \
-	  src/libstd
+	  library/std
 endif
 ifeq (true,$(BUILD_DOCS))
 	# Run all rules that test the docs, i.e. that depend on default:doc
@@ -342,7 +342,7 @@ ifeq (true,$(BUILD_WINDOWS))
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) \
 	  --target $(WINDOWS_ARCH)-pc-windows-gnu \
-	  src/libstd
+	  library/std
 endif
 
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
@@ -350,7 +350,7 @@ ifeq (true,$(BUILD_WASM))
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS) \
 	  --host $(DEB_BUILD_RUST_TYPE) \
 	  --target wasm32-unknown-unknown,wasm32-wasi \
-	  src/libstd
+	  library/std
 endif
 ifeq (true,$(BUILD_DOCS))
 	# Brute force to remove privacy-breach-logo lintian warning.

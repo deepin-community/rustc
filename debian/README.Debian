@@ -81,7 +81,7 @@ in the libstd-rust-dev-wasm32 package.
 wasm32-unknown-unknown is suitable for web stuff, where you typically will need
 to depending on the rust-wasm-bindgen, js-sys, and web-sys crates. Here, calls
 to libstd stuff (such as println!()) will silently do nothing, as defined in
-``src/libstd/sys/wasm/fs.rs`` and explained in upstream #48564.
+``library/std/src/sys/wasm/mod.rs`` and explained in upstream #48564.
 
 wasm32-wasi is suitable for non-web stuff, and is closer to a "normal" target
 where you expect libstd to be available, and for println!() to actually print
