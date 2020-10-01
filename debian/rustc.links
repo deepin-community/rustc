@@ -1,2 +1,2 @@
-usr/bin/lld-10 usr/bin/rust-lld
-usr/bin/clang-10 usr/bin/rust-clang
+usr/bin/lld-11 usr/bin/rust-lld
+usr/bin/clang-11 usr/bin/rust-clang
