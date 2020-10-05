@@ -1,8 +1,8 @@
-Index: rust/src/librustc_llvm/build.rs
+Index: rustc.git/src/librustc_llvm/build.rs
 ===================================================================
---- rust.orig/src/librustc_llvm/build.rs
-+++ rust/src/librustc_llvm/build.rs
-@@ -223,7 +223,7 @@ fn main() {
+--- rustc.git.orig/src/librustc_llvm/build.rs
++++ rustc.git/src/librustc_llvm/build.rs
+@@ -249,7 +249,7 @@ fn main() {
          if is_crossed {
              if lib.starts_with("-LIBPATH:") {
                  println!("cargo:rustc-link-search=native={}", lib[9..].replace(&host, &target));

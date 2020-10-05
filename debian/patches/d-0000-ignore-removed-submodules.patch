@@ -2,8 +2,10 @@ Description: Ignore submodules that we're not building, or that are unused like
  mdbook-linkcheck that pull in a ton of dependencies that are unneeded.
 Author: Ximin Luo <infinity0@debian.org>
 Forwarded: not-needed
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: rustc.git/Cargo.toml
+===================================================================
+--- rustc.git.orig/Cargo.toml
++++ rustc.git/Cargo.toml
 @@ -6,7 +6,6 @@ members = [
    "library/std",
    "library/test",
@@ -12,7 +14,7 @@ Forwarded: not-needed
    "src/tools/compiletest",
    "src/tools/error_index_generator",
    "src/tools/linkchecker",
-@@ -14,19 +14,11 @@ members = [
+@@ -15,19 +14,11 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -32,7 +34,7 @@ Forwarded: not-needed
  ]
  exclude = [
    "build",
-@@ -47,36 +40,18 @@ debug-assertions = false
+@@ -69,24 +60,8 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -57,21 +59,17 @@ Forwarded: not-needed
  
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
- rustc-std-workspace-core = { path = 'library/rustc-std-workspace-core' }
- rustc-std-workspace-alloc = { path = 'library/rustc-std-workspace-alloc' }
- rustc-std-workspace-std = { path = 'library/rustc-std-workspace-std' }
- 
- # This crate's integration with libstd is a bit wonky, so we use a submodule
- # instead of a crates.io dependency. Make sure everything else in the repo is
- # also using the submodule, however, so we can avoid duplicate copies of the
+@@ -100,5 +75,3 @@ rustc-std-workspace-std = { path = 'libr
  # source code for this crate.
  backtrace = { path = "library/backtrace" }
  
 -[patch."https://github.com/rust-lang/rust-clippy"]
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }
---- a/src/bootstrap/bootstrap.py
-+++ b/src/bootstrap/bootstrap.py
-@@ -705,10 +705,6 @@ class RustBuild(object):
+Index: rustc.git/src/bootstrap/bootstrap.py
+===================================================================
+--- rustc.git.orig/src/bootstrap/bootstrap.py
++++ rustc.git/src/bootstrap/bootstrap.py
+@@ -754,10 +754,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -82,9 +80,11 @@ Forwarded: not-needed
          run(args, env=env, verbose=self.verbose)
  
      def build_triple(self):
---- a/src/bootstrap/builder.rs
-+++ b/src/bootstrap/builder.rs
-@@ -417,7 +417,6 @@ impl<'a> Builder<'a> {
+Index: rustc.git/src/bootstrap/builder.rs
+===================================================================
+--- rustc.git.orig/src/bootstrap/builder.rs
++++ rustc.git/src/bootstrap/builder.rs
+@@ -449,7 +449,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -92,7 +92,8 @@ Forwarded: not-needed
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -439,7 +439,5 @@ impl<'a> Builder<'a> {
+@@ -471,8 +470,6 @@ impl<'a> Builder<'a> {
+                 dist::Clippy,
                  dist::Miri,
                  dist::LlvmTools,
 -                dist::Extended,
@@ -100,7 +101,7 @@ Forwarded: not-needed
              ),
              Kind::Install => describe!(
                  install::Docs,
-@@ -1177,10 +1175,7 @@ impl<'a> Builder<'a> {
+@@ -1343,10 +1340,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -112,8 +113,10 @@ Forwarded: not-needed
              cargo.arg("--frozen");
          }
  
---- a/src/bootstrap/doc.rs
-+++ b/src/bootstrap/doc.rs
+Index: rustc.git/src/bootstrap/doc.rs
+===================================================================
+--- rustc.git.orig/src/bootstrap/doc.rs
++++ rustc.git/src/bootstrap/doc.rs
 @@ -60,7 +60,6 @@ macro_rules! book {
  // NOTE: When adding a book here, make sure to ALSO build the book by
  // adding a build step in `src/bootstrap/builder.rs`!
@@ -122,8 +125,10 @@ Forwarded: not-needed
      EditionGuide, "src/doc/edition-guide", "edition-guide";
      EmbeddedBook, "src/doc/embedded-book", "embedded-book";
      Nomicon, "src/doc/nomicon", "nomicon";
---- a/src/doc/index.md
-+++ b/src/doc/index.md
+Index: rustc.git/src/doc/index.md
+===================================================================
+--- rustc.git.orig/src/doc/index.md
++++ rustc.git/src/doc/index.md
 @@ -87,7 +87,7 @@ accomplishing various tasks.
  
  ## The Cargo Book
@@ -133,9 +138,11 @@ Forwarded: not-needed
  
  ## The Rustdoc Book
  
---- a/src/bootstrap/test.rs
-+++ b/src/bootstrap/test.rs
-@@ -1472,14 +1472,7 @@ impl Step for RustcGuide {
+Index: rustc.git/src/bootstrap/test.rs
+===================================================================
+--- rustc.git.orig/src/bootstrap/test.rs
++++ rustc.git/src/bootstrap/test.rs
+@@ -1535,14 +1535,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -151,9 +158,11 @@ Forwarded: not-needed
      }
  }
  
---- a/src/tools/tidy/src/deps.rs
-+++ b/src/tools/tidy/src/deps.rs
-@@ -406,8 +406,8 @@ fn check_crate_duplicate(resolve: &Resol
+Index: rustc.git/src/tools/tidy/src/deps.rs
+===================================================================
+--- rustc.git.orig/src/tools/tidy/src/deps.rs
++++ rustc.git/src/tools/tidy/src/deps.rs
+@@ -370,8 +370,8 @@ fn check_crate_duplicate(metadata: &Meta
          // These two crates take quite a long time to build, so don't allow two versions of them
          // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
          // under control.

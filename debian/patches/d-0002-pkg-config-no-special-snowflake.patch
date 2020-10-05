@@ -1,5 +1,7 @@
---- a/vendor/pkg-config/src/lib.rs
-+++ b/vendor/pkg-config/src/lib.rs
+Index: rustc.git/vendor/pkg-config/src/lib.rs
+===================================================================
+--- rustc.git.orig/vendor/pkg-config/src/lib.rs
++++ rustc.git/vendor/pkg-config/src/lib.rs
 @@ -9,8 +9,6 @@
  //! A number of environment variables are available to globally configure how
  //! this crate will invoke `pkg-config`:
@@ -21,7 +23,7 @@
      CrossCompilation,
  
      /// Failed to run `pkg-config`.
-@@ -152,11 +145,6 @@ impl fmt::Display for Error {
+@@ -132,11 +129,6 @@ impl fmt::Display for Error {
      fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
          match *self {
              Error::EnvNoPkgConfig(ref name) => write!(f, "Aborted because {} is set", name),
@@ -33,7 +35,7 @@
              Error::Command {
                  ref command,
                  ref cause,
-@@ -180,7 +168,7 @@ impl fmt::Display for Error {
+@@ -160,7 +152,7 @@ impl fmt::Display for Error {
                  }
                  Ok(())
              }
@@ -42,7 +44,7 @@
          }
      }
  }
-@@ -341,6 +329,8 @@ impl Config {
+@@ -321,6 +313,8 @@ impl Config {
          if host == target {
              return true;
          }
@@ -51,7 +53,7 @@
  
          // pkg-config may not be aware of cross-compilation, and require
          // a wrapper script that sets up platform-specific prefixes.
-@@ -399,7 +389,11 @@ impl Config {
+@@ -380,7 +374,11 @@ impl Config {
      fn command(&self, name: &str, args: &[&str]) -> Command {
          let exe = self
              .env_var_os("PKG_CONFIG")
@@ -64,8 +66,10 @@
          let mut cmd = Command::new(exe);
          if self.is_static(name) {
              cmd.arg("--static");
---- a/vendor/pkg-config/tests/test.rs
-+++ b/vendor/pkg-config/tests/test.rs
+Index: rustc.git/vendor/pkg-config/tests/test.rs
+===================================================================
+--- rustc.git.orig/vendor/pkg-config/tests/test.rs
++++ rustc.git/vendor/pkg-config/tests/test.rs
 @@ -34,7 +34,6 @@ fn find(name: &str) -> Result<pkg_config
      pkg_config::probe_library(name)
  }

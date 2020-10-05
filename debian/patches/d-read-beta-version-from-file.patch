@@ -1,6 +1,8 @@
---- a/src/bootstrap/lib.rs
-+++ b/src/bootstrap/lib.rs
-@@ -985,15 +985,13 @@
+Index: rustc.git/src/bootstrap/lib.rs
+===================================================================
+--- rustc.git.orig/src/bootstrap/lib.rs
++++ rustc.git/src/bootstrap/lib.rs
+@@ -979,15 +979,13 @@ impl Build {
              return s;
          }
  

@@ -5,11 +5,11 @@ Author: Ximin Luo <infinity0@debian.org>
 Forwarded: not-needed
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: rust/src/bootstrap/bootstrap.py
+Index: rustc.git/src/bootstrap/bootstrap.py
 ===================================================================
---- rust.orig/src/bootstrap/bootstrap.py
-+++ rust/src/bootstrap/bootstrap.py
-@@ -14,16 +14,18 @@ import tempfile
+--- rustc.git.orig/src/bootstrap/bootstrap.py
++++ rustc.git/src/bootstrap/bootstrap.py
+@@ -15,16 +15,18 @@ import tempfile
  from time import time
  
  
@@ -32,7 +32,7 @@ Index: rust/src/bootstrap/bootstrap.py
          if os.path.exists(path):
              if verify(path, sha_path, False):
                  if verbose:
-@@ -41,7 +43,6 @@ def get(url, path, verbose=False):
+@@ -42,7 +44,6 @@ def get(url, path, verbose=False):
              print("moving {} to {}".format(temp_path, path))
          shutil.move(temp_path, path)
      finally:
@@ -40,7 +40,7 @@ Index: rust/src/bootstrap/bootstrap.py
          delete_if_present(temp_path, verbose)
  
  
-@@ -419,7 +420,7 @@ class RustBuild(object):
+@@ -441,7 +442,7 @@ class RustBuild(object):
  
          url = "{}/dist/{}".format(self._download_url, date)
          tarball = os.path.join(rustc_cache, filename)

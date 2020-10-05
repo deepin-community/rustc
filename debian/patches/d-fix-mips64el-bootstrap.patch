@@ -1,9 +1,9 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
-Index: rust/src/bootstrap/bootstrap.py
+Index: rustc.git/src/bootstrap/bootstrap.py
 ===================================================================
---- rust.orig/src/bootstrap/bootstrap.py
-+++ rust/src/bootstrap/bootstrap.py
-@@ -681,6 +681,8 @@ class RustBuild(object):
+--- rustc.git.orig/src/bootstrap/bootstrap.py
++++ rustc.git/src/bootstrap/bootstrap.py
+@@ -730,6 +730,8 @@ class RustBuild(object):
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"

@@ -1,6 +1,8 @@
---- a/src/bootstrap/lib.rs
-+++ b/src/bootstrap/lib.rs
-@@ -747,10 +747,9 @@
+Index: rustc.git/src/bootstrap/lib.rs
+===================================================================
+--- rustc.git.orig/src/bootstrap/lib.rs
++++ rustc.git/src/bootstrap/lib.rs
+@@ -777,10 +777,9 @@ impl Build {
  
          match which {
              GitRepo::Rustc => {
