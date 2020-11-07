@@ -1,10 +1,10 @@
-rustc (1.47.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.47.0+dfsg1-1) unstable; urgency=medium
 
   * New upstream release.
   * Update to LLVM 11.
   * Ignore more tests on big-endian.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 07 Nov 2020 13:19:28 +0000
+ -- Ximin Luo <infinity0@debian.org>  Sat, 07 Nov 2020 21:21:03 +0000
 
 rustc (1.47.0~beta.2+dfsg1-1~exp1) experimental; urgency=medium
 
