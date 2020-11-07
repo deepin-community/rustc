@@ -1,0 +1,2 @@
+# lintian does not know about rust arch-specific directories
+usr/lib/rustlib/x86_64-unknown-linux-gnu/lib/libadler-9f5a81c849831ad8.rlib binary: arch-dependent-file-not-in-arch-specific-directory usr/lib/rustlib/*/lib/lib*.rlib
