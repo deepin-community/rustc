@@ -211,6 +211,7 @@ Files: C*.md
        Cargo.toml
        COPYRIGHT
        LICENSE*
+       compiler/*
        configure
        config.toml.example
        git-commit-hash
@@ -226,6 +227,7 @@ Files: C*.md
        src/stage0.txt
        src/tools/*
        src/test/*
+       src/version
        version
        x.py
 Copyright: 2006-2009 Graydon Hoare
@@ -277,6 +279,7 @@ Comment: see https://github.com/rust-lang-nursery/compiler-builtins
 Files:
  vendor/bitflags/*
  vendor/cc/*
+ vendor/cc-1*/*
  vendor/cmake/*
  vendor/env_logger/*
  vendor/env_logger-0*/*
@@ -323,6 +326,7 @@ Comment: see https://github.com/servo/
 
 Files:
  vendor/getrandom/*
+ vendor/getrandom-0*/*
  vendor/rand/*
  vendor/rand-0*/*
  vendor/rand_chacha/*
@@ -450,13 +454,18 @@ Comment: see https://github.com/marshallpierce/rust-base64
 
 Files:
  vendor/block-buffer/*
+ vendor/block-buffer-0*/*
  vendor/block-padding/*
  vendor/byte-tools/*
+ vendor/cpuid-bool/*
  vendor/digest/*
+ vendor/digest-0*/*
  vendor/fake-simd/*
  vendor/md-5/*
  vendor/opaque-debug/*
+ vendor/opaque-debug-0*/*
  vendor/sha-1/*
+ vendor/sha2/*
 Copyright: 2016-2020 RustCrypto Developers
 License: MIT or Apache-2.0
 Comment:
@@ -695,6 +704,11 @@ Copyright: 2015-2019 Jethro Beekman <jethro@fortanix.com>
 License: MPL-2.0
 Comment: see https://github.com/fortanix/rust-sgx
 
+Files: vendor/fs-err/*
+Copyright: 2020-2020 Andrew Hickman <andrew.hickman1@sky.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/andrewhickman/fs-err
+
 Files:
  vendor/fsevent/*
  vendor/fsevent-sys/*
@@ -719,8 +733,12 @@ Copyright: 2015-2018 Keegan McAllister <kmcallister@mozilla.com>
 License: MIT  or  Apache-2.0
 Comment: see https://github.com/servo/futf
 
-Files: vendor/generic-array/*
-Copyright: 2015-2019 Bartłomiej Kamiński <fizyk20@gmail.com>
+Files:
+ vendor/generic-array/*
+ vendor/generic-array-0*/*
+Copyright:
+ 2015-2020 Bartłomiej Kamiński <fizyk20@gmail.com>
+ 2015-2020 Aaron Trent <novacrazy@gmail.com>
 License: MIT
 Comment: see https://github.com/fizyk20/generic-array.git
 
@@ -753,6 +771,11 @@ Files: vendor/hermit-abi/*
 Copyright: 2019-2019 Stefan Lankes
 License: MIT or Apache-2.0
 Comment: see https://github.com/hermitcore/hermit-abi
+
+Files: vendor/hex/*
+Copyright: 2015-2020 KokaKiwi <kokakiwi@kokakiwi.net>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/KokaKiwi/rust-hex
 
 Files:
  vendor/html5ever/*
@@ -918,6 +941,13 @@ Files:
 Copyright: 2017-2019 Gilad Naaman <gilad.naaman@gmail.com>
 License: MIT
 Comment: see https://github.com/Gilnaa/memoffset
+
+Files:
+ vendor/merge/*
+ vendor/merge_derive/*
+Copyright: 2020-2020 Robin Krahl <robin.krahl@ireas.org>
+License: Apache-2.0 OR MIT
+Comment: see https://git.sr.ht/~ireas/merge-rs
 
 Files:
  vendor/macro-utils/*
@@ -1088,6 +1118,13 @@ Copyright: 2017-2018 Colin Kiegel <kiegel@gmx.de>
 License: MIT or Apache-2.0
 Comment: see https://github.com/colin-kiegel/rust-pretty-assertions
 
+Files:
+ vendor/proc-macro-error/*
+ vendor/proc-macro-error-attr/*
+Copyright: 2019-2020 CreepySkeleton <creepy-skeleton@yandex.ru>
+License: MIT OR Apache-2.0
+Comment: see https://gitlab.com/CreepySkeleton/proc-macro-error
+
 Files: vendor/proc-macro-hack/*
 Copyright: 2016-2020 David Tolnay <dtolnay@gmail.com>
 License: MIT OR Apache-2.0
@@ -1104,6 +1141,12 @@ Files:
 Copyright: 2015-2017 Raph Levien <raph@google.com>
 License: MIT
 Comment: see https://github.com/google/pulldown-cmark
+
+Files: vendor/pulldown-cmark-to-cmark/*
+Copyright: 2018-2020 Sebastian Thiel <byronimo@gmail.com>
+           2018-2020 Dylan Owen <dyltotheo@gmail.com>
+License: Apache-2.0
+Comment: see https://github.com/Byron/pulldown-cmark-to-cmark
 
 Files: vendor/punycode/*
 Copyright: 2015-2019 mcarton <cartonmartin+git@gmail.com>
@@ -1165,9 +1208,11 @@ Copyright: 2018-2020 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/matklad/rowan
 
-Files: vendor/rustc-ap-rustc_lexer/*
+Files:
+ vendor/rustc-ap-rustc_lexer/*
+ vendor/rustc-ap-rustc_lexer-*/*
 Copyright: 2010-2020 The Rust Project Developers
-License: MIT  or  Apache-2.0
+License: MIT or Apache-2.0
 Comment: see https://github.com/rust-lang/rust
 
 Files: vendor/rustc_version/*
@@ -1263,6 +1308,11 @@ Files: vendor/smol_str/*
 Copyright: 2018-2020 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/matklad/smol_str
+
+Files: vendor/snap/*
+Copyright: 2016-2020 Andrew Gallant <jamslam@gmail.com>
+License: BSD-3-Clause
+Comment: see https://github.com/BurntSushi/rust-snappy
 
 Files: vendor/stable_deref_trait/*
 Copyright: 2017-2017 Robert Grosse <n210241048576@gmail.com>
