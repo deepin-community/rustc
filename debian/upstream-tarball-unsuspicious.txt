@@ -35,6 +35,7 @@ src/doc/*/CODE_OF_CONDUCT.md
 src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
+src/librustdoc/html/highlight/fixtures/sample.html
 vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -49,6 +50,7 @@ vendor/ammonia/src/lib.rs
 vendor/base64/RELEASE-NOTES.md
 vendor/clap/SPONSORS.md
 vendor/clap/.github/CONTRIBUTING.md
+vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
 vendor/lazy_static/src/lib.rs
@@ -142,6 +144,7 @@ src/doc/rustc-dev-guide/src/queries/example-0.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
 src/librustdoc/html/static/favicon.ico
+src/librustdoc/html/static/favicon-*.png
 vendor/addr2line/memory.png
 vendor/addr2line/time.png
 vendor/base64/icon_CLion.svg
@@ -186,10 +189,13 @@ src/test/*/*/*.stderr
 src/test/*/*/*.stdout
 src/test/*/*/*/*.stdout
 src/test/*/*/*/*.stderr
+src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
+src/test/run-make/*-sgx-lvi/enclave/*.c
+src/test/run-make-fulldeps/*/*/*.html
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 vendor/bstr/src/unicode/data/*Test.txt
-vendor/cargo_metadata/tests/test_samples.rs
+vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
 vendor/elasticlunr-rs/tests/data/*.in.txt
@@ -228,6 +234,9 @@ vendor/regex-0*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
 vendor/sha-1/tests/data/*.blb
 vendor/sha-1/tests/data/*.bin
+vendor/sha2/tests/data/*.blb
+vendor/sha2/tests/data/*.bin
+vendor/snap/data/*
 vendor/tar/tests/archives/*.tar
 vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
