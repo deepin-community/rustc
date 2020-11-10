@@ -84,16 +84,15 @@ Compatibility Notes
   `Delimiter::None`.
 - [Moved support for the CloudABI target to tier 3.][75568]
 - [`linux-gnu` targets now require minimum kernel 2.6.32 and glibc 2.11.][74163]
-
-Internal Only
---------
-- [Improved default settings for bootstrapping in `x.py`.][73964] You can read details about this change in the ["Changes to `x.py` defaults"](https://blog.rust-lang.org/inside-rust/2020/08/30/changes-to-x-py-defaults.html) post on the Inside Rust blog.
 - [Added the `rustc-docs` component.][75560] This allows you to install
   and read the documentation for the compiler internal APIs. (Currently only
   available for `x86_64-unknown-linux-gnu`.)
 
+Internal Only
+--------
+- [Improved default settings for bootstrapping in `x.py`.][73964] You can read details about this change in the ["Changes To `x.py` Defaults"](https://blog.rust-lang.org/inside-rust/2020/08/30/changes-to-x-py-defaults.html) post on the Inside Rust blog.
+
 [1.47.0-cfg]: https://docs.microsoft.com/en-us/windows/win32/secbp/control-flow-guard
-[76980]: https://github.com/rust-lang/rust/issues/76980
 [75048]: https://github.com/rust-lang/rust/pull/75048/
 [74163]: https://github.com/rust-lang/rust/pull/74163/
 [71237]: https://github.com/rust-lang/rust/pull/71237/

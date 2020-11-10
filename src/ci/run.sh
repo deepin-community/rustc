@@ -63,7 +63,7 @@ fi
 #
 # FIXME: need a scheme for changing this `nightly` value to `beta` and `stable`
 #        either automatically or manually.
-export RUST_RELEASE_CHANNEL=stable
+export RUST_RELEASE_CHANNEL=beta
 
 # Always set the release channel for bootstrap; this is normally not important (i.e., only dist
 # builds would seem to matter) but in practice bootstrap wants to know whether we're targeting
@@ -103,6 +103,8 @@ fi
 if [ "$RUST_RELEASE_CHANNEL" = "nightly" ] || [ "$DIST_REQUIRE_ALL_TOOLS" = "" ]; then
     RUST_CONFIGURE_ARGS="$RUST_CONFIGURE_ARGS --enable-missing-tools"
 fi
+
+export COMPILETEST_NEEDS_ALL_LLVM_COMPONENTS=1
 
 # Print the date from the local machine and the date from an external source to
 # check for clock drifts. An HTTP URL is used instead of HTTPS since on Azure
