@@ -186,15 +186,6 @@ Index: rustc.git/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
  use crate::utils;
  
  use std::borrow::Cow;
-@@ -177,7 +177,7 @@ impl HtmlHandlebars {
-         &self,
-         destination: &Path,
-         theme: &Theme,
--        html_config: &HtmlConfig,
-+        _html_config: &HtmlConfig,
-     ) -> Result<()> {
-         use crate::utils::fs::write_file;
- 
 @@ -198,80 +198,8 @@ impl HtmlHandlebars {
          if let Some(contents) = &theme.favicon_svg {
              write_file(destination, "favicon.svg", &contents)?;
