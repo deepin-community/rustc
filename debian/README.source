@@ -43,7 +43,7 @@ stage0 compiler for the version being built from rust-lang.org. At the time of
 writing "official" means "the previous stable version".
 
     sudo apt-get build-dep -P pkg.rustc.dlstage0 ./
-    dpkg-buildpackage
+    dpkg-buildpackage -P pkg.rustc.dlstage0
     # Or, to directly use what's in the Debian FTP archive
     sudo apt-get build-dep -P pkg.rustc.dlstage0 rustc
     apt-get source --compile -P pkg.rustc.dlstage0 rustc
