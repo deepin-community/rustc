@@ -1,11 +1,11 @@
-Index: rust/src/rustc/Cargo.toml
+Index: rust/compiler/rustc/Cargo.toml
 ===================================================================
---- rust.orig/src/rustc/Cargo.toml
-+++ rust/src/rustc/Cargo.toml
-@@ -14,12 +14,5 @@ rustc_driver = { path = "../librustc_dri
+--- rust.orig/compiler/rustc/Cargo.toml
++++ rust/compiler/rustc/Cargo.toml
+@@ -14,13 +14,6 @@ rustc_driver = { path = "../librustc_dri
  # Make sure rustc_codegen_ssa ends up in the sysroot, because this
  # crate is intended to be used by codegen backends, which may not be in-tree.
- rustc_codegen_ssa = { path = "../librustc_codegen_ssa" }
+ rustc_codegen_ssa = { path = "../rustc_codegen_ssa" }
 -
 -[dependencies.jemalloc-sys]
 -version = '0.3.0'
@@ -15,3 +15,4 @@ Index: rust/src/rustc/Cargo.toml
  [features]
 -jemalloc = ['jemalloc-sys']
  llvm = ['rustc_driver/llvm']
+ max_level_info = ['rustc_driver/max_level_info']

@@ -18,10 +18,10 @@ Description: Set DT_SONAME when building dylibs
 Author: Angus Lees <gus@debian.org>
 Forwarded: no
 
-Index: rustc.git/src/librustc_codegen_ssa/back/link.rs
+Index: rustc.git/compiler/rustc_codegen_ssa/src/back/link.rs
 ===================================================================
---- rustc.git.orig/src/librustc_codegen_ssa/back/link.rs
-+++ rustc.git/src/librustc_codegen_ssa/back/link.rs
+--- rustc.git.orig/compiler/rustc_codegen_ssa/src/back/link.rs
++++ rustc.git/compiler/rustc_codegen_ssa/src/back/link.rs
 @@ -1716,6 +1716,13 @@ fn linker_with_args<'a, B: ArchiveBuilde
      // OBJECT-FILES-NO, AUDIT-ORDER
      add_rpath_args(cmd, sess, codegen_results, out_filename);

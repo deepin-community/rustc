@@ -1,9 +1,9 @@
 Bug: https://github.com/rust-lang/rust/issues/68973s
 
-Index: rustc.git/src/librustc_target/spec/windows_gnu_base.rs
+Index: rustc.git/compiler/rustc_target/src/spec/windows_gnu_base.rs
 ===================================================================
---- rustc.git.orig/src/librustc_target/spec/windows_gnu_base.rs
-+++ rustc.git/src/librustc_target/spec/windows_gnu_base.rs
+--- rustc.git.orig/compiler/rustc_target/src/spec/windows_gnu_base.rs
++++ rustc.git/compiler/rustc_target/src/spec/windows_gnu_base.rs
 @@ -33,6 +33,8 @@ pub fn opts() -> TargetOptions {
          "-lmsvcrt".to_string(),
          "-luser32".to_string(),

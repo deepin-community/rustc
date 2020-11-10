@@ -1,7 +1,7 @@
-Index: rustc.git/src/librustc_llvm/build.rs
+Index: rustc.git/compiler/rustc_llvm/build.rs
 ===================================================================
---- rustc.git.orig/src/librustc_llvm/build.rs
-+++ rustc.git/src/librustc_llvm/build.rs
+--- rustc.git.orig/compiler/rustc_llvm/build.rs
++++ rustc.git/compiler/rustc_llvm/build.rs
 @@ -249,7 +249,7 @@ fn main() {
          if is_crossed {
              if lib.starts_with("-LIBPATH:") {

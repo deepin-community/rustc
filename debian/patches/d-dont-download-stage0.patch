@@ -5,16 +5,14 @@ Author: Ximin Luo <infinity0@debian.org>
 Forwarded: not-needed
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: rustc.git/src/bootstrap/bootstrap.py
-===================================================================
---- rustc.git.orig/src/bootstrap/bootstrap.py
-+++ rustc.git/src/bootstrap/bootstrap.py
-@@ -15,16 +15,18 @@ import tempfile
- from time import time
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -24,17 +24,19 @@
+     except tarfile.CompressionError:
+         return False
  
- 
--def get(url, path, verbose=False):
-+def get(url, path, verbose=False, use_local_hash_if_present=True):
+-def get(url, path, verbose=False, do_verify=True):
++def get(url, path, verbose=False, do_verify=True, use_local_hash_if_present=True):
      suffix = '.sha256'
      sha_url = url + suffix
      with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -24,15 +22,16 @@ Index: rustc.git/src/bootstrap/bootstrap.py
 +    sha_path = path + suffix
  
      try:
--        download(sha_path, sha_url, False, verbose)
-+        if use_local_hash_if_present and os.path.exists(sha_path):
-+            print("using already-download file " + sha_path)
-+        else:
-+            download(sha_path, sha_url, False, verbose)
-         if os.path.exists(path):
-             if verify(path, sha_path, False):
-                 if verbose:
-@@ -42,7 +44,6 @@ def get(url, path, verbose=False):
+         if do_verify:
+-            download(sha_path, sha_url, False, verbose)
++            if use_local_hash_if_present and os.path.exists(sha_path):
++                print("using already-download file " + sha_path)
++            else:
++                download(sha_path, sha_url, False, verbose)
+             if os.path.exists(path):
+                 if verify(path, sha_path, False):
+                     if verbose:
+@@ -52,7 +54,6 @@
              print("moving {} to {}".format(temp_path, path))
          shutil.move(temp_path, path)
      finally:
@@ -40,7 +39,7 @@ Index: rustc.git/src/bootstrap/bootstrap.py
          delete_if_present(temp_path, verbose)
  
  
-@@ -441,7 +442,7 @@ class RustBuild(object):
+@@ -459,7 +460,7 @@
  
          url = "{}/dist/{}".format(self._download_url, date)
          tarball = os.path.join(rustc_cache, filename)
