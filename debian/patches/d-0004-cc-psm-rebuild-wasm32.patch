@@ -7,8 +7,8 @@
 -                    "clang".to_string()
 +                    "rust-clang".to_string()
                  } else if target.contains("vxworks") {
-                     "wr-c++".to_string()
-                 } else if self.get_host()? != target {
+                     if self.cpp {
+                         "wr-c++".to_string()
 --- a/vendor/psm/build.rs
 +++ b/vendor/psm/build.rs
 @@ -27,7 +27,7 @@

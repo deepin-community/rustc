@@ -50,9 +50,8 @@ Files-Excluded:
  vendor/bytecount
  vendor/bytes
  vendor/bytesize
+ vendor/cargo_metadata-0.11.1
  vendor/cargo_metadata-0.8.2
- vendor/cargo_metadata-0.9.1
- vendor/cc-1.0.58
  vendor/colored
  vendor/commoncrypto
  vendor/commoncrypto-sys
@@ -60,7 +59,7 @@ Files-Excluded:
  vendor/constant_time_eq
  vendor/core-foundation
  vendor/core-foundation-sys
- vendor/crossbeam-channel
+ vendor/crossbeam-queue
  vendor/crypto-hash
  vendor/curl
  vendor/curl-sys
@@ -80,16 +79,17 @@ Files-Excluded:
  vendor/fuchsia-zircon-sys
  vendor/futures
  vendor/fwdansi
+ vendor/getrandom
  vendor/git2
  vendor/git2-curl
  vendor/hex-0.3.2
- vendor/hex
  vendor/home
  vendor/humantime
  vendor/idna-0.1.5
  vendor/if_chain
  vendor/im-rc
  vendor/iovec
+ vendor/itertools-0.8.2
  vendor/json
  vendor/jsonrpc-client-transports
  vendor/jsonrpc-core
@@ -100,7 +100,6 @@ Files-Excluded:
  vendor/jsonrpc-server-utils
  vendor/kernel32-sys
  vendor/lazycell
- vendor/libc-0.2.74
  vendor/libgit2-sys
  vendor/libnghttp2-sys
  vendor/libssh2-sys
@@ -108,11 +107,12 @@ Files-Excluded:
  vendor/linked-hash-map
  vendor/lsp-codec
  vendor/lsp-types-0.60.0
+ vendor/miniz_oxide-0.4.0
  vendor/mio
  vendor/mio-named-pipes
  vendor/mio-uds
  vendor/miow-0.2.1
- vendor/net2
+ vendor/net2-0.2.34
  vendor/openssl
  vendor/openssl-probe
  vendor/openssl-src
@@ -120,14 +120,17 @@ Files-Excluded:
  vendor/ordslice
  vendor/packed_simd
  vendor/parity-tokio-ipc
+ vendor/parking_lot-0.10.2
+ vendor/parking_lot_core-0.7.2
  vendor/percent-encoding-1.0.1
  vendor/pretty_env_logger
+ vendor/proc-macro2-1.0.19
  vendor/proc-macro-crate
- vendor/proc-macro-error-attr
- vendor/proc-macro-error
  vendor/quine-mc_cluskey
  vendor/racer
  vendor/rand_xoshiro
+ vendor/rayon-1.3.1
+ vendor/rayon-core-1.7.1
  vendor/redox_users
  vendor/rls-analysis
  vendor/rls-vfs
@@ -144,7 +147,7 @@ Files-Excluded:
  vendor/rustc-ap-rustc_fs_util
  vendor/rustc-ap-rustc_graphviz
  vendor/rustc-ap-rustc_index
- vendor/rustc-ap-rustc_lexer-671.0.0
+ vendor/rustc-ap-rustc_lexer
  vendor/rustc-ap-rustc_macros
  vendor/rustc-ap-rustc_parse
  vendor/rustc-ap-rustc_serialize
@@ -153,6 +156,8 @@ Files-Excluded:
  vendor/rustc-ap-rustc_target
  vendor/rustc_tools_util
  vendor/schannel
+ vendor/serde-1.0.115
+ vendor/serde_derive-1.0.115
  vendor/serde_ignored
  vendor/serde_repr
  vendor/shell-escape
@@ -162,10 +167,12 @@ Files-Excluded:
  vendor/strip-ansi-escapes
  vendor/structopt
  vendor/structopt-derive
+ vendor/syn-1.0.38
  vendor/term
  vendor/tester
  vendor/thiserror
  vendor/thiserror-impl
+ vendor/time-0.1.43
  vendor/tokio
  vendor/tokio-codec
  vendor/tokio-current-thread
@@ -183,12 +190,13 @@ Files-Excluded:
  vendor/tokio-timer
  vendor/tokio-udp
  vendor/tokio-uds
- vendor/tracing-attributes-0.1.10
+ vendor/tracing-core-0.1.15
  vendor/unicode_categories
  vendor/url-1.7.2
  vendor/utf8parse
  vendor/vcpkg
  vendor/vergen
+ vendor/version_check-0.9.1
  vendor/vte
  vendor/winapi-0.2.8
  vendor/winapi-build

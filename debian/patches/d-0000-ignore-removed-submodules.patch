@@ -92,11 +92,12 @@ Index: rustc.git/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -471,8 +470,6 @@ impl<'a> Builder<'a> {
-                 dist::Clippy,
+@@ -471,9 +470,7 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
+                 dist::RustDev,
 -                dist::Extended,
+                 dist::BuildManifest,
 -                dist::HashSign
              ),
              Kind::Install => describe!(
