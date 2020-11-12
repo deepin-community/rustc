@@ -1,7 +1,9 @@
 # Patches for upstream
 
 # pending, or forwarded
+u-ignore-gdb-10-failures.patch
 u-disable-copy-file-range.patch
+u-update-version-check.patch
 u-backtrace-373.patch
 u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch
