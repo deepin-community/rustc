@@ -1,6 +1,7 @@
 # Patches for upstream
 
 # pending, or forwarded
+u-disable-copy-file-range.patch
 u-backtrace-373.patch
 u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch

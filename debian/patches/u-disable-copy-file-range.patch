@@ -1,0 +1,13 @@
+Bug: https://github.com/rust-lang/rust/issues/78979
+
+--- a/library/std/src/sys/unix/fs.rs
++++ b/library/std/src/sys/unix/fs.rs
+@@ -1126,7 +1126,7 @@
+ 
+     // Kernel prior to 4.5 don't have copy_file_range
+     // We store the availability in a global to avoid unnecessary syscalls
+-    static HAS_COPY_FILE_RANGE: AtomicBool = AtomicBool::new(true);
++    static HAS_COPY_FILE_RANGE: AtomicBool = AtomicBool::new(false);
+ 
+     unsafe fn copy_file_range(
+         fd_in: libc::c_int,
