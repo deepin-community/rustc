@@ -38,6 +38,7 @@ src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
 src/librustdoc/html/highlight/fixtures/sample.html
+src/tools/rustfmt/*.md
 vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -212,6 +213,9 @@ src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 src/tools/clippy/tests/ui-toml/*/*.stderr
 src/tools/clippy/tests/ui/wildcard_enum_match_arm.fixed
+src/tools/rustfmt/tests/writemode/target/*.json
+src/tools/rustfmt/tests/writemode/target/*.xml
+src/tools/rustfmt/tests/source/*.rs
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
@@ -271,6 +275,7 @@ vendor/url-1*/tests/*.json
 vendor/xml5ever/data/bench/strong.xml
 vendor/yaml-rust/tests/specexamples.rs.inc
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
+
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
