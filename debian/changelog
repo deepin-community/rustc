@@ -1,3 +1,9 @@
+rustc (1.48.0~beta.8+dfsg1-1~exp3) UNRELEASED; urgency=medium
+
+  * Update u-update-version-check.patch
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 13 Nov 2020 01:36:08 +0000
+
 rustc (1.48.0~beta.8+dfsg1-1~exp2) experimental; urgency=medium
 
   * Disable copy_file_range optimisation for now, see upstream #78979.
