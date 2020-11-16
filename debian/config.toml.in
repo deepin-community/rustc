@@ -19,6 +19,9 @@ target = ["DEB_TARGET_RUST_TYPE"]
 # we do it this way to avoid spurious rebuilds
 docs = false
 
+extended = true
+tools = ["clippy"]
+
 [install]
 prefix = "/usr"
 

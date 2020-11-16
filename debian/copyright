@@ -22,13 +22,14 @@ Files-Excluded:
 # cargo's own test suite (in its own package) also called cargotest.
 # NB: don't exclude rust-installer, it's needed for "install" functionality
  src/tools/cargo
- src/tools/clippy
  src/tools/rls
  src/tools/remote-test-client
  src/tools/remote-test-server
  src/tools/rust-analyzer
  src/tools/rustfmt
  src/tools/miri
+# Embedded GH pages
+ src/tools/clippy/util/gh-pages
 # Embedded C libraries
  vendor/libz-sys/src/zlib*
  vendor/lzma-sys*/xz-*
@@ -60,7 +61,6 @@ Files-Excluded:
  vendor/bytes
  vendor/bytesize
  vendor/camino
- vendor/cargo_metadata-0.12.0
  vendor/cargo_metadata-0.8.2
  vendor/cargo_metadata
  vendor/cargo-platform
@@ -73,7 +73,6 @@ Files-Excluded:
  vendor/commoncrypto
  vendor/commoncrypto-sys
  vendor/compiletest_rs-0.5.0
- vendor/compiletest_rs
  vendor/constant_time_eq
  vendor/const_fn
  vendor/core-foundation
@@ -97,12 +96,9 @@ Files-Excluded:
  vendor/curl-sys
  vendor/dashmap
  vendor/derive_more
- vendor/derive-new
  vendor/directories
  vendor/dirs
- vendor/dirs-next
  vendor/dirs-sys
- vendor/dirs-sys-next
  vendor/drop_bomb
  vendor/either-1.6.0
  vendor/env_logger-0.6.2
@@ -134,7 +130,6 @@ Files-Excluded:
  vendor/futures-util
  vendor/fwdansi
  vendor/gcc
- vendor/getrandom
  vendor/git2
  vendor/git2-curl
  vendor/heck-0.3.1
@@ -144,7 +139,6 @@ Files-Excluded:
  vendor/humantime
  vendor/idna-0.1.5
  vendor/idna-0.2.0
- vendor/if_chain
  vendor/im-rc
  vendor/indexmap-1.6.0
  vendor/indexmap-1.6.1
@@ -222,7 +216,6 @@ Files-Excluded:
  vendor/proc-macro-hack
  vendor/proc-macro-nested
  vendor/pulldown-cmark-to-cmark
- vendor/quine-mc_cluskey
  vendor/quote-1.0.7
  vendor/racer
  vendor/rand
@@ -233,7 +226,6 @@ Files-Excluded:
  vendor/rayon-1.3.1
  vendor/rayon-core-1.7.1
  vendor/redox_users-0.3.4
- vendor/redox_users
  vendor/regalloc
  vendor/region
  vendor/rls-analysis
@@ -261,18 +253,13 @@ Files-Excluded:
  vendor/rustc-ap-rustc_session
  vendor/rustc-ap-rustc_span
  vendor/rustc-ap-rustc_target
- vendor/rustc-semver
- vendor/rustc_tools_util
  vendor/rustc_version
- vendor/rustversion
  vendor/salsa
  vendor/salsa-macros
  vendor/schannel
  vendor/security-framework
  vendor/security-framework-sys
  vendor/semver-0.9.0
- vendor/semver
- vendor/semver-parser
  vendor/serde-1.0.118
  vendor/serde_derive-1.0.118
  vendor/serde_ignored
@@ -295,10 +282,8 @@ Files-Excluded:
  vendor/syn-1.0.60
  vendor/target-lexicon
  vendor/term-0.6.1
- vendor/term
  vendor/termcolor-1.1.0
  vendor/tester-0.7.0
- vendor/tester
  vendor/text-size
  vendor/thiserror-1.0.20
  vendor/thiserror
