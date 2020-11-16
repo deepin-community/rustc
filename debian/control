@@ -252,3 +252,30 @@ Description: Rust systems programming language - source code
  .
  This package contains sources of the Rust compiler and standard
  libraries, useful for IDEs and code analysis tools such as Racer.
+
+Package: rust-clippy
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ libstd-rust-1.48
+Recommends: cargo
+Description: Rust linter
+ Rust is a curly-brace, block-structured expression language.  It
+ visually resembles the C language family, but differs significantly
+ in syntactic and semantic details.  Its design is oriented toward
+ concerns of "programming in the large", that is, of creating and
+ maintaining boundaries - both abstract and operational - that
+ preserve large-system integrity, availability and concurrency.
+ .
+ It supports a mixture of imperative procedural, concurrent actor,
+ object-oriented and pure functional styles.  Rust also supports
+ generic programming and meta-programming, in both static and dynamic
+ styles.
+ .
+ This package contains 'clippy', a linter to catch common mistakes and improve
+ your Rust code as well a collection of over 400 compatible lints.
+ .
+ Lints are divided into categories, each with a default lint level. You can
+ choose how much Clippy is supposed to annoy help you by changing the lint
+ level by category.
+ .
+ Clippy is integrated into the 'cargo' build tool, available via 'cargo clippy'.
