@@ -39,7 +39,7 @@ d-bootstrap-no-assume-tools.patch
 d-bootstrap-cargo-doc-paths.patch
 d-bootstrap-use-local-css.patch
 d-bootstrap-old-cargo-compat.patch
-d-bootstrap-custom-debuginfo-path.patch
+# d-bootstrap-custom-debuginfo-path.patch
 d-bootstrap-permit-symlink-in-docs.patch
 d-test-ignore-avx-44056.patch
 d-bootstrap-cargo-check-cfg.patch
