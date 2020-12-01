@@ -107,6 +107,7 @@ Files-Excluded:
  vendor/linked-hash-map
  vendor/lsp-codec
  vendor/lsp-types-0.60.0
+ vendor/measureme
  vendor/miniz_oxide-0.4.0
  vendor/mio
  vendor/mio-named-pipes
