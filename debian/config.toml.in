@@ -20,7 +20,7 @@ target = ["DEB_TARGET_RUST_TYPE"]
 docs = false
 
 extended = true
-tools = ["clippy"]
+tools = ["clippy", "rustfmt"]
 
 [install]
 prefix = "/usr"
