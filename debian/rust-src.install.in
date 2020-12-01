@@ -12,3 +12,4 @@ config.toml.example    usr/src/rustc-RUST_LONG_VERSION
 Cargo.toml      usr/src/rustc-RUST_LONG_VERSION
 src             usr/src/rustc-RUST_LONG_VERSION
 library         usr/src/rustc-RUST_LONG_VERSION
+compiler        usr/src/rustc-RUST_LONG_VERSION

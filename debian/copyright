@@ -925,9 +925,11 @@ Copyright: 2015-2017 Mathieu David <mathieudavid@mathieudavid.org>
 License: MPL-2.0
 Comment: see https://github.com/azerupi/mdBook
 
-Files: vendor/measureme/*
-Copyright: 2019-2019 Wesley Wiser <wwiser@gmail.com>
-           2019-2019 Michael Woerister <michaelwoerister@posteo>
+Files:
+ vendor/measureme/*
+ vendor/measureme-0*/*
+Copyright: 2019-2020 Wesley Wiser <wwiser@gmail.com>
+           2019-2020 Michael Woerister <michaelwoerister@posteo>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-lang/measureme
 
