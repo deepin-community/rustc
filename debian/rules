@@ -119,27 +119,7 @@ endif
 
 BUILD_WASM := false
 
-WINDOWS_SUPPORT := amd64 i386
-BUILD_WINDOWS := true
-ifneq (,$(findstring nowindows,$(DEB_BUILD_PROFILES)))
-  BUILD_WINDOWS := false
-endif
-ifeq (,$(filter $(DEB_HOST_ARCH), $(WINDOWS_SUPPORT)))
-  BUILD_WINDOWS := false
-else
-  ifeq (,$(filter $(DEB_BUILD_ARCH), $(WINDOWS_SUPPORT)))
-    ifeq (true,$(BUILD_WINDOWS))
-      $(error cannot cross-compile from $(DEB_BUILD_ARCH) to $(DEB_HOST_ARCH), unless "nowindows" is in DEB_BUILD_PROFILES)
-    endif
-  endif
-  ifeq (i386,$(DEB_HOST_ARCH))
-    WINDOWS_ARCH := i686
-  else
-    WINDOWS_ARCH := x86_64
-  endif
-endif
-# for dh_install substitution variable
-export WINDOWS_ARCH
+BUILD_WINDOWS := false
 
 MAKE_OPTIMISATIONS := true
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))

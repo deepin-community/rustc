@@ -17,8 +17,6 @@ Build-Depends:
  rustc:native (<= 1.64.0++)    <!pkg.rustc.dlstage0>,
  llvm-14-dev:native,
  llvm-14-tools:native,
- gcc-mingw-w64-x86-64-posix:native [amd64] <!nowindows>,
- gcc-mingw-w64-i686-posix:native [i386] <!nowindows>,
  libllvm14 (>= 1:14.0.0),
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
@@ -120,32 +118,6 @@ Description: Rust standard libraries - development files
  This package contains development files for the standard Rust libraries,
  needed to compile Rust programs. It may also be installed on a system
  of another host architecture, for cross-compiling to this architecture.
-
-Package: libstd-rust-dev-windows
-Section: libdevel
-Architecture: amd64 i386
-Multi-Arch: same
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends:
- gcc-mingw-w64-x86-64-posix [amd64],
- gcc-mingw-w64-i686-posix [i386],
-Build-Profiles: <!nowindows>
-Description: Rust standard libraries - development files
- Rust is a curly-brace, block-structured expression language.  It
- visually resembles the C language family, but differs significantly
- in syntactic and semantic details.  Its design is oriented toward
- concerns of "programming in the large", that is, of creating and
- maintaining boundaries - both abstract and operational - that
- preserve large-system integrity, availability and concurrency.
- .
- It supports a mixture of imperative procedural, concurrent actor,
- object-oriented and pure functional styles.  Rust also supports
- generic programming and meta-programming, in both static and dynamic
- styles.
- .
- This package contains the standard Rust libraries including development files,
- needed to cross-compile Rust programs to the *-pc-windows-gnu target
- corresponding to the architecture of this package.
 
 Package: rust-gdb
 Architecture: all
