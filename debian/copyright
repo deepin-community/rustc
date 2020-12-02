@@ -1788,6 +1788,138 @@ Copyright: 2016-2019 The Rust Project Developers
 License: MIT OR Apache-2.0
 Comment: see https://github.com/messense/rustc-test
 
+Files: vendor/annotate-snippets-0.6.1/*
+Copyright: 2018-2020 Zibi Braniecki <gandalf@mozilla.com>
+License: Apache-2.0 or MIT
+Comment: see https://github.com/rust-lang/annotate-snippets-rs
+
+Files: vendor/bytecount/*
+Copyright: 2016-2020 Andre Bogus <bogusandre@gmail.de>
+           2016-2020 Joshua Landau <joshua@landau.ws>
+License: Apache-2.0 or MIT
+Comment: see https://github.com/llogiq/bytecount
+
+Files: vendor/packed_simd/*
+Copyright: 2018-2020 Gonzalo Brito Gadeschi <gonzalobg88@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/rust-lang-nursery/packed_simd
+
+Files: vendor/rustc-ap-rustc_arena/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_ast/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_ast_passes/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_ast_pretty/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_attr/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_data_structures/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_errors/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_expand/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_feature/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_fs_util/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_graphviz/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_index/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_macros/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_parse/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_serialize/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_session/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_span/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rustc-ap-rustc_target/*
+Copyright: 2010-2020 The Rust Project Developers
+License: MIT  or  Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/structopt/*
+Copyright: 2017-2020 Guillaume Pinot <texitoi@texitoi.eu>
+           2017-2020 others
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/TeXitoi/structopt
+
+Files: vendor/structopt-derive/*
+Copyright: 2017-2020 Guillaume Pinot <texitoi@texitoi.eu>
+License: Apache-2.0 or MIT
+Comment: see https://github.com/TeXitoi/structopt
+
+Files: vendor/thiserror/*
+Copyright: 2019-2020 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/thiserror
+
+Files: vendor/thiserror-impl/*
+Copyright: 2019-2020 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/thiserror
+
+Files: vendor/unicode_categories/*
+Copyright: 2015-2016 Sean Gillespie <sean@swgillespie.me>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/swgillespie/unicode-categories
+
 Files: debian/*
 Copyright: 2013-2018 Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 License: MIT or Apache-2.0
