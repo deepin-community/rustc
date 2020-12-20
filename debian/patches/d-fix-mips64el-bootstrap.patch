@@ -1,9 +1,7 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
-Index: rustc.git/src/bootstrap/bootstrap.py
-===================================================================
---- rustc.git.orig/src/bootstrap/bootstrap.py
-+++ rustc.git/src/bootstrap/bootstrap.py
-@@ -730,6 +730,8 @@ class RustBuild(object):
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -793,6 +793,8 @@
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"
@@ -12,3 +10,25 @@ Index: rustc.git/src/bootstrap/bootstrap.py
  
          build_section = "target.{}".format(self.build_triple())
          target_features = []
+--- a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
++++ b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
+@@ -15,7 +15,7 @@
+         options: TargetOptions {
+             // NOTE(mips64r2) matches C toolchain
+             cpu: "mips64r2".to_string(),
+-            features: "+mips64r2".to_string(),
++            features: "+mips64r2,+xgot".to_string(),
+             max_atomic_width: Some(64),
+             target_mcount: "_mcount".to_string(),
+ 
+--- a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
++++ b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
+@@ -15,7 +15,7 @@
+         options: TargetOptions {
+             // NOTE(mips64r2) matches C toolchain
+             cpu: "mips64r2".to_string(),
+-            features: "+mips64r2".to_string(),
++            features: "+mips64r2,+xgot".to_string(),
+             max_atomic_width: Some(64),
+             target_mcount: "_mcount".to_string(),
+ 
