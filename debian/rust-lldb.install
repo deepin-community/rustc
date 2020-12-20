@@ -1,3 +1,4 @@
-src/etc/rust-lldb usr/bin/
-src/etc/lldb_* usr/share/rust-lldb/
-src/etc/rust_types.py usr/share/rust-lldb/
+usr/bin/rust-lldb
+usr/lib/rustlib/etc/lldb_commands
+usr/lib/rustlib/etc/lldb_lookup.py
+usr/lib/rustlib/etc/lldb_providers.py

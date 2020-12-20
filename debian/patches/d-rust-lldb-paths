@@ -6,8 +6,12 @@ Forwarded: not-needed
 
 --- a/src/etc/rust-lldb
 +++ b/src/etc/rust-lldb
-@@ -10,7 +10,7 @@
- RUSTC_SYSROOT=$(rustc --print sysroot)
+@@ -7,10 +7,10 @@
+ host=$(rustc -vV | sed -n -e 's/^host: //p')
+ 
+ # Find out where to look for the pretty printer Python module
+-RUSTC_SYSROOT=$(rustc --print sysroot)
++RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  RUST_LLDB="$RUSTC_SYSROOT/lib/rustlib/$host/bin/lldb"
  
 -lldb=lldb
@@ -15,14 +19,3 @@ Forwarded: not-needed
  if [ -f "$RUST_LLDB" ]; then
      lldb="$RUST_LLDB"
  else
-@@ -30,8 +30,8 @@
-     fi
- fi
- 
--script_import="command script import \"$RUSTC_SYSROOT/lib/rustlib/etc/lldb_lookup.py\""
--commands_file="$RUSTC_SYSROOT/lib/rustlib/etc/lldb_commands"
-+script_import="command script import \"/usr/share/rust-lldb/lldb_lookup.py\""
-+commands_file="/usr/share/rust-lldb/lldb_commands"
- 
- # Call LLDB with the commands added to the argument list
- exec "$lldb" --one-line-before-file "$script_import" --source-before-file "$commands_file" "$@"

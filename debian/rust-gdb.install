@@ -1,3 +1,5 @@
-src/etc/rust-gdb usr/bin/
-src/etc/gdb_* usr/share/rust-gdb/
-src/etc/rust_types.py usr/share/rust-gdb/
+usr/bin/rust-gdb
+usr/bin/rust-gdbgui
+usr/lib/rustlib/etc/gdb_load_rust_pretty_printers.py
+usr/lib/rustlib/etc/gdb_lookup.py
+usr/lib/rustlib/etc/gdb_providers.py
