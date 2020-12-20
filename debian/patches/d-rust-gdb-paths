@@ -15,3 +15,14 @@ Forwarded: not-needed
  GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
  
  # Run GDB with the additional arguments that load the pretty printers
+--- a/src/etc/rust-gdbgui
++++ b/src/etc/rust-gdbgui
+@@ -40,7 +40,7 @@
+ fi
+ 
+ # Find out where the pretty printer Python module is
+-RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
++RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
+ GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
+ 
+ # Set the environment variable `RUST_GDB` to overwrite the call to a
