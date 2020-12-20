@@ -380,9 +380,6 @@ override_dh_install-indep: debian/rust-src.install debian/rust-src.links
 ifeq (true,$(BUILD_WASM))
 	dh_install -plibstd-rust-dev-wasm32 usr/lib/rustlib/wasm32-*/lib/
 endif
-	chmod -x \
-	  debian/rust-gdb/usr/share/rust-gdb/*.py \
-	  debian/rust-lldb/usr/share/rust-lldb/*.py
 	$(RM) -rf $(SRC_CLEAN:%=debian/rust-src/usr/src/rustc-$(RUST_LONG_VERSION)/%)
 	# Get rid of lintian warnings
 	find debian/rust-src/usr/src/rustc-$(RUST_LONG_VERSION) \
