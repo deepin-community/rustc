@@ -442,6 +442,7 @@ Comment:
  see https://github.com/rust-random/small-rngs
 
 Files:
+ vendor/cfg-if-0*/*
  vendor/cfg-if/*
  vendor/filetime/*
  vendor/flate2/*
@@ -459,7 +460,7 @@ Files:
  vendor/tar/*
  vendor/toml/*
  vendor/xz2/*
-Copyright: 2014-2019 Alex Crichton <alex@alexcrichton.com>
+Copyright: 2014-2020 Alex Crichton <alex@alexcrichton.com>
            2015-2017 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/alexcrichton/
@@ -557,6 +558,7 @@ Files:
  vendor/md-5/*
  vendor/opaque-debug/*
  vendor/opaque-debug-0*/*
+ vendor/sha-1-0*/*
  vendor/sha-1/*
  vendor/sha2/*
 Copyright: 2016-2020 RustCrypto Developers
@@ -1092,9 +1094,12 @@ Copyright: 2015 Sean McArthur <sean.monstar@gmail.com>
 License: MIT
 Comment: see https://github.com/seanmonstar/num_cpus
 
-Files: vendor/object/*
-Copyright: 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
-           2016-2020 Philip Craig <philipjcraig@gmail.com>
+Files:
+ vendor/object-0*/*
+ vendor/object/*
+Copyright:
+ 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
+ 2016-2020 Philip Craig <philipjcraig@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/object
 
@@ -1343,14 +1348,17 @@ License: MIT
 Comment: see https://github.com/m4b/scroll
 
 Files:
- vendor/semver-0.9.0/*
+ vendor/semver-0*/*
  vendor/semver/*
+ vendor/semver-parser-0*/*
  vendor/semver-parser/*
 Copyright:
  2014-2020 Steve Klabnik <steve@steveklabnik.com>
  2014-2020 The Rust Project Developers
 License: MIT or Apache-2.0
-Comment: see https://github.com/steveklabnik/semver
+Comment:
+ see https://github.com/steveklabnik/semver
+ see https://github.com/steveklabnik/semver-parser
 
 Files: vendor/serde/*
        vendor/serde_json/*

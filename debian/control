@@ -5,6 +5,7 @@ Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.ne
 Uploaders:
  Ximin Luo <infinity0@debian.org>,
  Sylvestre Ledru <sylvestre@debian.org>
+Rules-Requires-Root: no
 # :native annotations are to support cross-compiling, see README.Debian
 Build-Depends:
  debhelper (>= 9),
