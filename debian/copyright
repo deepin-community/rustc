@@ -43,7 +43,6 @@ Files-Excluded:
  vendor/arc-swap
  vendor/arrayref
  vendor/autocfg-1.0.0
- vendor/backtrace
  vendor/base64-0.11.0
  vendor/bitmaps
  vendor/blake2b_simd
@@ -52,14 +51,20 @@ Files-Excluded:
  vendor/bytesize
  vendor/cargo_metadata-0.11.1
  vendor/cargo_metadata-0.8.2
+ vendor/cargo_metadata
+ vendor/cc-1.0.60
+ vendor/cfg-if
+ vendor/cloudabi-0.0.3
  vendor/colored
  vendor/commoncrypto
  vendor/commoncrypto-sys
  vendor/compiletest_rs
  vendor/constant_time_eq
+ vendor/const_fn
  vendor/core-foundation
  vendor/core-foundation-sys
  vendor/crossbeam-queue
+ vendor/crossbeam-utils
  vendor/crypto-hash
  vendor/curl
  vendor/curl-sys
@@ -69,6 +74,7 @@ Files-Excluded:
  vendor/dirs
  vendor/dirs-sys
  vendor/env_logger-0.6.2
+ vendor/env_logger
  vendor/failure
  vendor/failure_derive
  vendor/flate2-1.0.16
@@ -82,6 +88,7 @@ Files-Excluded:
  vendor/getrandom
  vendor/git2
  vendor/git2-curl
+ vendor/hashbrown-0.9.0
  vendor/hex-0.3.2
  vendor/home
  vendor/humantime
@@ -105,15 +112,17 @@ Files-Excluded:
  vendor/libssh2-sys
  vendor/libz-sys
  vendor/linked-hash-map
+ vendor/lock_api-0.3.4
  vendor/lsp-codec
  vendor/lsp-types-0.60.0
- vendor/measureme
+ vendor/md-5-0.8.0
  vendor/miniz_oxide-0.4.0
  vendor/mio
  vendor/mio-named-pipes
  vendor/mio-uds
  vendor/miow-0.2.1
  vendor/net2-0.2.34
+ vendor/object
  vendor/openssl
  vendor/openssl-probe
  vendor/openssl-src
@@ -122,6 +131,8 @@ Files-Excluded:
  vendor/packed_simd
  vendor/parity-tokio-ipc
  vendor/parking_lot-0.10.2
+ vendor/parking_lot-0.9.0
+ vendor/parking_lot_core-0.6.2
  vendor/parking_lot_core-0.7.2
  vendor/percent-encoding-1.0.1
  vendor/pretty_env_logger
@@ -156,7 +167,11 @@ Files-Excluded:
  vendor/rustc-ap-rustc_span
  vendor/rustc-ap-rustc_target
  vendor/rustc_tools_util
+ vendor/rustc_version
  vendor/schannel
+ vendor/semver-0.9.0
+ vendor/semver
+ vendor/semver-parser
  vendor/serde-1.0.115
  vendor/serde_derive-1.0.115
  vendor/serde_ignored
@@ -165,14 +180,15 @@ Files-Excluded:
  vendor/signal-hook-registry
  vendor/sized-chunks
  vendor/slab
+ vendor/smallvec-0.6.13
  vendor/strip-ansi-escapes
  vendor/structopt
  vendor/structopt-derive
  vendor/syn-1.0.38
  vendor/term
  vendor/tester
- vendor/thiserror
- vendor/thiserror-impl
+ vendor/thiserror-1.0.20
+ vendor/thiserror-impl-1.0.20
  vendor/time-0.1.43
  vendor/tokio
  vendor/tokio-codec
@@ -191,7 +207,6 @@ Files-Excluded:
  vendor/tokio-timer
  vendor/tokio-udp
  vendor/tokio-uds
- vendor/tracing-core-0.1.15
  vendor/unicode_categories
  vendor/url-1.7.2
  vendor/utf8parse
