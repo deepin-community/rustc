@@ -29,7 +29,6 @@ use rustc_passes::{self, hir_stats, layout_test};
 use rustc_plugin_impl as plugin;
 use rustc_resolve::{Resolver, ResolverArenas};
 use rustc_session::config::{CrateType, Input, OutputFilenames, OutputType, PpMode, PpSourceMode};
-use rustc_session::lint;
 use rustc_session::output::{filename_for_input, filename_for_metadata};
 use rustc_session::search_paths::PathKind;
 use rustc_session::Session;
@@ -205,7 +204,10 @@ pub fn register_plugins<'a>(
         }
     });
 
-    Ok((krate, Lrc::new(lint_store)))
+    let lint_store = Lrc::new(lint_store);
+    sess.init_lint_store(lint_store.clone());
+
+    Ok((krate, lint_store))
 }
 
 fn pre_expansion_lint(sess: &Session, lint_store: &LintStore, krate: &ast::Crate) {
@@ -308,27 +310,11 @@ fn configure_and_expand_inner<'a>(
             ecx.check_unused_macros();
         });
 
-        let mut missing_fragment_specifiers: Vec<_> = ecx
-            .sess
-            .parse_sess
-            .missing_fragment_specifiers
-            .borrow()
-            .iter()
-            .map(|(span, node_id)| (*span, *node_id))
-            .collect();
-        missing_fragment_specifiers.sort_unstable_by_key(|(span, _)| *span);
-
-        let recursion_limit_hit = ecx.reduced_recursion_limit.is_some();
-
-        for (span, node_id) in missing_fragment_specifiers {
-            let lint = lint::builtin::MISSING_FRAGMENT_SPECIFIER;
-            let msg = "missing fragment specifier";
-            resolver.lint_buffer().buffer_lint(lint, node_id, span, msg);
-        }
         if cfg!(windows) {
             env::set_var("PATH", &old_path);
         }
 
+        let recursion_limit_hit = ecx.reduced_recursion_limit.is_some();
         if recursion_limit_hit {
             // If we hit a recursion limit, exit early to avoid later passes getting overwhelmed
             // with a large AST
@@ -567,6 +553,10 @@ fn write_out_deps(
             .filter(|fmap| !fmap.is_imported())
             .map(|fmap| escape_dep_filename(&fmap.unmapped_path.as_ref().unwrap_or(&fmap.name)))
             .collect();
+
+        if let Some(ref backend) = sess.opts.debugging_opts.codegen_backend {
+            files.push(backend.to_string());
+        }
 
         if sess.binary_dep_depinfo() {
             boxed_resolver.borrow().borrow_mut().access(|resolver| {
