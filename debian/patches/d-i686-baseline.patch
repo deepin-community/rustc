@@ -4,8 +4,8 @@ Index: rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 +++ rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 @@ -2,7 +2,7 @@ use crate::spec::{LinkerFlavor, Target,
  
- pub fn target() -> TargetResult {
-     let mut base = super::linux_base::opts();
+ pub fn target() -> Target {
+     let mut base = super::linux_gnu_base::opts();
 -    base.cpu = "pentium4".to_string();
 +    base.cpu = "pentiumpro".to_string();
      base.max_atomic_width = Some(64);
