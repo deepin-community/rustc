@@ -22,15 +22,15 @@ Index: rustc.git/src/tools/linkchecker/main.rs
 +        if url.starts_with("../") {
 +            return;
 +        }
-         let mut parts = url.splitn(2, '#');
-         let url = parts.next().unwrap();
-         let fragment = parts.next();
+         let (url, fragment) = match url.split_once('#') {
+             None => (url, None),
+             Some((url, fragment)) => (url, Some(fragment)),
 Index: rustc.git/vendor/mdbook/src/theme/index.hbs
 ===================================================================
 --- rustc.git.orig/vendor/mdbook/src/theme/index.hbs
 +++ rustc.git/vendor/mdbook/src/theme/index.hbs
 @@ -32,13 +32,10 @@
-         <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
+         {{/if}}
  
          <!-- Fonts -->
 -        <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
