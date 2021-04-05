@@ -19,6 +19,7 @@ compiler/rustc_codegen_cranelift/docs/dwarf.md
 library/std/sys/cloudabi/abi/cloudabi.rs
 library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
+library/stdarch/CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/edition-guide/src/rust-next/cargo-vendor.md
@@ -143,6 +144,7 @@ src/doc/book/2018-edition/src/img/ferris/*.svg
 src/doc/book/2018-edition/src/img/*.svg
 src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
+src/doc/rustc/src/images/*.png
 src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
 src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
@@ -198,6 +200,7 @@ src/test/*/*/*/*.stderr
 src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/run-make/*-sgx-lvi/enclave/*.c
 src/test/run-make-fulldeps/*/*/*.html
+src/test/rustdoc-json/*.expected
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 vendor/bstr/src/unicode/data/*Test.txt
@@ -211,6 +214,7 @@ vendor/gimli/fixtures/self/*
 vendor/goblin/etc/*.rs
 vendor/goblin/tests/bins/elf/gnu_hash/helloworld.c
 vendor/goblin/tests/bins/elf/gnu_hash/*.so
+vendor/gsgdt/tests/*.json
 vendor/idna/tests/IdnaTest.txt
 vendor/idna/tests/punycode_tests.json
 vendor/idna-0*/tests/IdnaTest.txt
