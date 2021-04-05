@@ -1,14 +1,12 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
-Index: rustc.git/src/bootstrap/bootstrap.py
-===================================================================
---- rustc.git.orig/src/bootstrap/bootstrap.py
-+++ rustc.git/src/bootstrap/bootstrap.py
-@@ -730,6 +730,8 @@ class RustBuild(object):
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -795,6 +795,8 @@
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"
 +        if self.build_triple().startswith('mips'):
 +            env["RUSTFLAGS"] += " -Ctarget-feature=+xgot"
  
-         build_section = "target.{}".format(self.build_triple())
+         build_section = "target.{}".format(self.build)
          target_features = []
