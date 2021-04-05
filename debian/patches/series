@@ -2,7 +2,6 @@
 
 # pending, or forwarded
 u-ignore-gdb-10-failures.patch
-u-update-version-check.patch
 u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
@@ -12,7 +11,6 @@ u-ignore-endian-big.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustc-llvm-cross-flags.patch
-u-dont-install-libllvm.patch
 u-reproducible-dl-stage0.patch
 
 # Debian-specific patches, not suitable for upstream
