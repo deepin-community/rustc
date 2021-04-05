@@ -20,6 +20,7 @@ pub type rlim_t = ::c_ulong;
 pub type speed_t = ::c_uint;
 pub type tcflag_t = ::c_uint;
 pub type time_t = ::c_long;
+pub type timer_t = ::c_int;
 pub type wchar_t = ::c_int;
 pub type nfds_t = ::c_ulong;
 pub type projid_t = ::c_int;
@@ -118,6 +119,11 @@ s! {
         pub ifa_netmask: *mut ::sockaddr,
         pub ifa_dstaddr: *mut ::sockaddr,
         pub ifa_data: *mut ::c_void
+    }
+
+    pub struct itimerspec {
+        pub it_interval: ::timespec,
+        pub it_value: ::timespec,
     }
 
     pub struct tm {
@@ -362,6 +368,11 @@ s! {
         pub portev_pad: ::c_ushort,
         pub portev_object: ::uintptr_t,
         pub portev_user: *mut ::c_void,
+    }
+
+    pub struct port_notify {
+        pub portnfy_port: ::c_int,
+        pub portnfy_user: *mut ::c_void,
     }
 
     pub struct exit_status {
@@ -1385,8 +1396,25 @@ pub const IP_DROP_MEMBERSHIP: ::c_int = 20;
 pub const IPV6_JOIN_GROUP: ::c_int = 9;
 pub const IPV6_LEAVE_GROUP: ::c_int = 10;
 
-pub const TCP_NODELAY: ::c_int = 1;
-pub const TCP_KEEPIDLE: ::c_int = 34;
+// These TCP socket options are common between illumos and Solaris, while higher
+// numbers have generally diverged:
+pub const TCP_NODELAY: ::c_int = 0x1;
+pub const TCP_MAXSEG: ::c_int = 0x2;
+pub const TCP_KEEPALIVE: ::c_int = 0x8;
+pub const TCP_NOTIFY_THRESHOLD: ::c_int = 0x10;
+pub const TCP_ABORT_THRESHOLD: ::c_int = 0x11;
+pub const TCP_CONN_NOTIFY_THRESHOLD: ::c_int = 0x12;
+pub const TCP_CONN_ABORT_THRESHOLD: ::c_int = 0x13;
+pub const TCP_RECVDSTADDR: ::c_int = 0x14;
+pub const TCP_INIT_CWND: ::c_int = 0x15;
+pub const TCP_KEEPALIVE_THRESHOLD: ::c_int = 0x16;
+pub const TCP_KEEPALIVE_ABORT_THRESHOLD: ::c_int = 0x17;
+pub const TCP_CORK: ::c_int = 0x18;
+pub const TCP_RTO_INITIAL: ::c_int = 0x19;
+pub const TCP_RTO_MIN: ::c_int = 0x1a;
+pub const TCP_RTO_MAX: ::c_int = 0x1b;
+pub const TCP_LINGER2: ::c_int = 0x1c;
+
 pub const SOL_SOCKET: ::c_int = 0xffff;
 pub const SO_DEBUG: ::c_int = 0x01;
 pub const SO_ACCEPTCONN: ::c_int = 0x0002;
@@ -2638,6 +2666,21 @@ extern "C" {
 
     pub fn ntp_adjtime(buf: *mut timex) -> ::c_int;
     pub fn ntp_gettime(buf: *mut ntptimeval) -> ::c_int;
+
+    pub fn timer_create(
+        clock_id: clockid_t,
+        evp: *mut sigevent,
+        timerid: *mut timer_t,
+    ) -> ::c_int;
+    pub fn timer_delete(timerid: timer_t) -> ::c_int;
+    pub fn timer_getoverrun(timerid: timer_t) -> ::c_int;
+    pub fn timer_gettime(timerid: timer_t, value: *mut itimerspec) -> ::c_int;
+    pub fn timer_settime(
+        timerid: timer_t,
+        flags: ::c_int,
+        value: *const itimerspec,
+        ovalue: *mut itimerspec,
+    ) -> ::c_int;
 
     pub fn ucred_get(pid: ::pid_t) -> *mut ucred_t;
     pub fn getpeerucred(fd: ::c_int, ucred: *mut *mut ucred_t) -> ::c_int;

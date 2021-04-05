@@ -1,9 +1,5 @@
 //! AArch64-specific definitions for 64-bit linux-like values
 
-use pthread_mutex_t;
-
-pub type c_long = i64;
-pub type c_ulong = u64;
 pub type c_char = u8;
 pub type wchar_t = u32;
 pub type nlink_t = u32;
@@ -143,7 +139,7 @@ s! {
     }
 
     pub struct pthread_attr_t {
-        __size: [u64; 8]
+        __size: [usize; 8]
     }
 
     pub struct ipc_perm {
@@ -212,7 +208,6 @@ s! {
 }
 
 pub const VEOF: usize = 4;
-pub const __SIZEOF_PTHREAD_RWLOCK_T: usize = 56;
 
 pub const RTLD_DEEPBIND: ::c_int = 0x8;
 pub const RTLD_GLOBAL: ::c_int = 0x100;
@@ -381,6 +376,25 @@ pub const SO_BPF_EXTENSIONS: ::c_int = 48;
 pub const SO_INCOMING_CPU: ::c_int = 49;
 pub const SO_ATTACH_BPF: ::c_int = 50;
 pub const SO_DETACH_BPF: ::c_int = SO_DETACH_FILTER;
+pub const SO_ATTACH_REUSEPORT_CBPF: ::c_int = 51;
+pub const SO_ATTACH_REUSEPORT_EBPF: ::c_int = 52;
+pub const SO_CNX_ADVICE: ::c_int = 53;
+pub const SCM_TIMESTAMPING_OPT_STATS: ::c_int = 54;
+pub const SO_MEMINFO: ::c_int = 55;
+pub const SO_INCOMING_NAPI_ID: ::c_int = 56;
+pub const SO_COOKIE: ::c_int = 57;
+pub const SCM_TIMESTAMPING_PKTINFO: ::c_int = 58;
+pub const SO_PEERGROUPS: ::c_int = 59;
+pub const SO_ZEROCOPY: ::c_int = 60;
+pub const SO_TXTIME: ::c_int = 61;
+pub const SCM_TXTIME: ::c_int = SO_TXTIME;
+pub const SO_BINDTOIFINDEX: ::c_int = 62;
+pub const SO_TIMESTAMP_NEW: ::c_int = 63;
+pub const SO_TIMESTAMPNS_NEW: ::c_int = 64;
+pub const SO_TIMESTAMPING_NEW: ::c_int = 65;
+pub const SO_RCVTIMEO_NEW: ::c_int = 66;
+pub const SO_SNDTIMEO_NEW: ::c_int = 67;
+pub const SO_DETACH_REUSEPORT_BPF: ::c_int = 68;
 
 pub const SOCK_STREAM: ::c_int = 1;
 pub const SOCK_DGRAM: ::c_int = 2;
@@ -494,37 +508,6 @@ pub const SA_NOCLDSTOP: ::c_int = 0x00000001;
 pub const EPOLL_CLOEXEC: ::c_int = 0x80000;
 
 pub const EFD_CLOEXEC: ::c_int = 0x80000;
-
-pub const __SIZEOF_PTHREAD_CONDATTR_T: usize = 8;
-pub const __SIZEOF_PTHREAD_MUTEX_T: usize = 48;
-pub const __SIZEOF_PTHREAD_MUTEXATTR_T: usize = 8;
-
-align_const! {
-    pub const PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP: ::pthread_mutex_t =
-        pthread_mutex_t {
-            size: [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0,
-            ],
-        };
-    pub const PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP: ::pthread_mutex_t =
-        pthread_mutex_t {
-            size: [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0,
-            ],
-        };
-    pub const PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP: ::pthread_mutex_t =
-        pthread_mutex_t {
-            size: [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0,
-            ],
-        };
-}
 
 pub const O_DIRECT: ::c_int = 0x10000;
 pub const O_DIRECTORY: ::c_int = 0x4000;
@@ -757,7 +740,7 @@ pub const SYS_mkdirat: ::c_long = 34;
 pub const SYS_unlinkat: ::c_long = 35;
 pub const SYS_symlinkat: ::c_long = 36;
 pub const SYS_linkat: ::c_long = 37;
-pub const SYS_renameat: ::c_long = 38;
+// 38 is renameat only on LP64
 pub const SYS_umount2: ::c_long = 39;
 pub const SYS_mount: ::c_long = 40;
 pub const SYS_pivot_root: ::c_long = 41;
@@ -802,7 +785,7 @@ pub const SYS_fstat: ::c_long = 80;
 pub const SYS_sync: ::c_long = 81;
 pub const SYS_fsync: ::c_long = 82;
 pub const SYS_fdatasync: ::c_long = 83;
-pub const SYS_sync_file_range: ::c_long = 84;
+// 84 sync_file_range on LP64 and sync_file_range2 on ILP32
 pub const SYS_timerfd_create: ::c_long = 85;
 pub const SYS_timerfd_settime: ::c_long = 86;
 pub const SYS_timerfd_gettime: ::c_long = 87;
@@ -881,8 +864,8 @@ pub const SYS_setgroups: ::c_long = 159;
 pub const SYS_uname: ::c_long = 160;
 pub const SYS_sethostname: ::c_long = 161;
 pub const SYS_setdomainname: ::c_long = 162;
-pub const SYS_getrlimit: ::c_long = 163;
-pub const SYS_setrlimit: ::c_long = 164;
+// 163 is getrlimit only on LP64
+// 164 is setrlimit only on LP64
 pub const SYS_getrusage: ::c_long = 165;
 pub const SYS_umask: ::c_long = 166;
 pub const SYS_prctl: ::c_long = 167;
@@ -996,7 +979,6 @@ pub const SYS_statx: ::c_long = 291;
 pub const SYS_pidfd_open: ::c_long = 434;
 pub const SYS_clone3: ::c_long = 435;
 
-#[link(name = "util")]
 extern "C" {
     pub fn sysctl(
         name: *mut ::c_int,
@@ -1006,6 +988,16 @@ extern "C" {
         newp: *mut ::c_void,
         newlen: ::size_t,
     ) -> ::c_int;
+}
+
+cfg_if! {
+    if #[cfg(target_pointer_width = "32")] {
+        mod ilp32;
+        pub use self::ilp32::*;
+    } else {
+        mod lp64;
+        pub use self::lp64::*;
+    }
 }
 
 cfg_if! {

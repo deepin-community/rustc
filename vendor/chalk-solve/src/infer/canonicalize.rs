@@ -1,6 +1,6 @@
 use crate::debug_span;
 use chalk_ir::fold::shift::Shift;
-use chalk_ir::fold::{Fold, Folder};
+use chalk_ir::fold::{Fold, Folder, SuperFold};
 use chalk_ir::interner::{HasInterner, Interner};
 use chalk_ir::*;
 use std::cmp::max;
@@ -27,7 +27,7 @@ impl<I: Interner> InferenceTable<I> {
     ///
     /// A substitution mapping from the free variables to their re-bound form is
     /// also returned.
-    pub fn canonicalize<T>(&mut self, interner: &I, value: &T) -> Canonicalized<T::Result>
+    pub fn canonicalize<T>(&mut self, interner: &I, value: T) -> Canonicalized<T::Result>
     where
         T: Fold<I>,
         T::Result: HasInterner<Interner = I>,
@@ -137,7 +137,7 @@ where
 
     fn fold_free_placeholder_const(
         &mut self,
-        ty: &Ty<I>,
+        ty: Ty<I>,
         universe: PlaceholderIndex,
         _outer_binder: DebruijnIndex,
     ) -> Fallible<Const<I>> {
@@ -163,6 +163,7 @@ where
                 let ty = ty.assert_ty_ref(interner);
                 debug!("bound to {:?}", ty);
                 Ok(ty
+                    .clone()
                     .fold_with(self, DebruijnIndex::INNERMOST)?
                     .shifted_in_from(interner, outer_binder))
             }
@@ -192,7 +193,8 @@ where
             Some(l) => {
                 let l = l.assert_lifetime_ref(interner);
                 debug!("bound to {:?}", l);
-                Ok(l.fold_with(self, DebruijnIndex::INNERMOST)?
+                Ok(l.clone()
+                    .fold_with(self, DebruijnIndex::INNERMOST)?
                     .shifted_in_from(interner, outer_binder))
             }
             None => {
@@ -211,7 +213,7 @@ where
     #[instrument(level = "debug", skip(self, ty))]
     fn fold_inference_const(
         &mut self,
-        ty: &Ty<I>,
+        ty: Ty<I>,
         var: InferenceVar,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Const<I>> {
@@ -220,7 +222,8 @@ where
             Some(c) => {
                 let c = c.assert_const_ref(interner);
                 debug!("bound to {:?}", c);
-                Ok(c.fold_with(self, DebruijnIndex::INNERMOST)?
+                Ok(c.clone()
+                    .fold_with(self, DebruijnIndex::INNERMOST)?
                     .shifted_in_from(interner, outer_binder))
             }
             None => {
@@ -232,16 +235,27 @@ where
                 debug!(position = ?bound_var, "not yet unified");
                 Ok(bound_var
                     .shifted_in_from(outer_binder)
-                    .to_const(interner, ty.clone()))
+                    .to_const(interner, ty))
             }
+        }
+    }
+
+    fn fold_lifetime(
+        &mut self,
+        lifetime: Lifetime<I>,
+        outer_binder: DebruijnIndex,
+    ) -> Fallible<Lifetime<I>> {
+        match *lifetime.data(self.interner) {
+            LifetimeData::Empty(ui) if ui.counter != 0 => {
+                // ReEmpty in non-root universes is only used by lexical region
+                // inference. We shouldn't see it in canonicalization.
+                panic!("Cannot canonicalize ReEmpty in non-root universe")
+            }
+            _ => lifetime.super_fold_with(self, outer_binder),
         }
     }
 
     fn interner(&self) -> &'i I {
         self.interner
-    }
-
-    fn target_interner(&self) -> &'i I {
-        self.interner()
     }
 }

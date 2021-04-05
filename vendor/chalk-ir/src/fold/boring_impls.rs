@@ -4,84 +4,48 @@
 //!
 //! The more interesting impls of `Fold` remain in the `fold` module.
 
-use crate::interner::TargetInterner;
+use super::in_place;
 use crate::*;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
-impl<'a, T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for &'a T {
-    type Result = T::Result;
-    fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
-        outer_binder: DebruijnIndex,
-    ) -> Fallible<Self::Result>
-    where
-        I: 'i,
-        TI: 'i,
-    {
-        (**self).fold_with(folder, outer_binder)
-    }
-}
-
-impl<T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Vec<T> {
+impl<T: Fold<I>, I: Interner> Fold<I> for Vec<T> {
     type Result = Vec<T::Result>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
-        self.iter()
-            .map(|e| e.fold_with(folder, outer_binder))
-            .collect()
+        in_place::fallible_map_vec(self, |e| e.fold_with(folder, outer_binder))
     }
 }
 
-impl<T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Box<T> {
+impl<T: Fold<I>, I: Interner> Fold<I> for Box<T> {
     type Result = Box<T::Result>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
-        Ok(Box::new((**self).fold_with(folder, outer_binder)?))
-    }
-}
-
-impl<T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Arc<T> {
-    type Result = Arc<T::Result>;
-    fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
-        outer_binder: DebruijnIndex,
-    ) -> Fallible<Self::Result>
-    where
-        I: 'i,
-        TI: 'i,
-    {
-        Ok(Arc::new((**self).fold_with(folder, outer_binder)?))
+        in_place::fallible_map_box(self, |e| e.fold_with(folder, outer_binder))
     }
 }
 
 macro_rules! tuple_fold {
     ($($n:ident),*) => {
-        impl<$($n: Fold<I, TI>,)* I: Interner, TI: TargetInterner<I>> Fold<I, TI> for ($($n,)*) {
+        impl<$($n: Fold<I>,)* I: Interner> Fold<I> for ($($n,)*) {
             type Result = ($($n::Result,)*);
-            fn fold_with<'i>(&self, folder: &mut dyn Folder<'i, I, TI>, outer_binder: DebruijnIndex) -> Fallible<Self::Result>
+            fn fold_with<'i>(self, folder: &mut dyn Folder<'i, I>, outer_binder: DebruijnIndex) -> Fallible<Self::Result>
             where
                 I: 'i,
-                TI: 'i,
             {
                 #[allow(non_snake_case)]
-                let &($(ref $n),*) = self;
+                let ($($n),*) = self;
                 Ok(($($n.fold_with(folder, outer_binder)?,)*))
             }
         }
@@ -93,16 +57,15 @@ tuple_fold!(A, B, C);
 tuple_fold!(A, B, C, D);
 tuple_fold!(A, B, C, D, E);
 
-impl<T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Option<T> {
+impl<T: Fold<I>, I: Interner> Fold<I> for Option<T> {
     type Result = Option<T::Result>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         match self {
             None => Ok(None),
@@ -111,125 +74,119 @@ impl<T: Fold<I, TI>, I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Option<
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for GenericArg<I> {
-    type Result = GenericArg<TI>;
+impl<I: Interner> Fold<I> for GenericArg<I> {
+    type Result = GenericArg<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
 
-        let data = self.data(interner).fold_with(folder, outer_binder)?;
-        Ok(GenericArg::new(target_interner, data))
+        let data = self
+            .data(interner)
+            .clone()
+            .fold_with(folder, outer_binder)?;
+        Ok(GenericArg::new(interner, data))
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Substitution<I> {
-    type Result = Substitution<TI>;
+impl<I: Interner> Fold<I> for Substitution<I> {
+    type Result = Substitution<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
+
         let folded = self
             .iter(interner)
+            .cloned()
             .map(|p| p.fold_with(folder, outer_binder));
-        Ok(Substitution::from_fallible(target_interner, folded)?)
+        Ok(Substitution::from_fallible(interner, folded)?)
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Goals<I> {
-    type Result = Goals<TI>;
+impl<I: Interner> Fold<I> for Goals<I> {
+    type Result = Goals<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
         let folded = self
             .iter(interner)
+            .cloned()
             .map(|p| p.fold_with(folder, outer_binder));
-        Ok(Goals::from_fallible(target_interner, folded)?)
+        Ok(Goals::from_fallible(interner, folded)?)
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for ProgramClauses<I> {
-    type Result = ProgramClauses<TI>;
+impl<I: Interner> Fold<I> for ProgramClauses<I> {
+    type Result = ProgramClauses<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
         let folded = self
             .iter(interner)
+            .cloned()
             .map(|p| p.fold_with(folder, outer_binder));
-        Ok(ProgramClauses::from_fallible(target_interner, folded)?)
+        Ok(ProgramClauses::from_fallible(interner, folded)?)
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for QuantifiedWhereClauses<I> {
-    type Result = QuantifiedWhereClauses<TI>;
+impl<I: Interner> Fold<I> for QuantifiedWhereClauses<I> {
+    type Result = QuantifiedWhereClauses<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
         let folded = self
             .iter(interner)
+            .cloned()
             .map(|p| p.fold_with(folder, outer_binder));
-        Ok(QuantifiedWhereClauses::from_fallible(
-            target_interner,
-            folded,
-        )?)
+        Ok(QuantifiedWhereClauses::from_fallible(interner, folded)?)
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Constraints<I> {
-    type Result = Constraints<TI>;
+impl<I: Interner> Fold<I> for Constraints<I> {
+    type Result = Constraints<I>;
     fn fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         let interner = folder.interner();
-        let target_interner = folder.target_interner();
         let folded = self
             .iter(interner)
+            .cloned()
             .map(|p| p.fold_with(folder, outer_binder));
-        Ok(Constraints::from_fallible(target_interner, folded)?)
+        Ok(Constraints::from_fallible(interner, folded)?)
     }
 }
 
@@ -237,18 +194,17 @@ impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for Constraints<I> {
 #[macro_export]
 macro_rules! copy_fold {
     ($t:ty) => {
-        impl<I: Interner, TI: TargetInterner<I>> $crate::fold::Fold<I, TI> for $t {
+        impl<I: Interner> $crate::fold::Fold<I> for $t {
             type Result = Self;
             fn fold_with<'i>(
-                &self,
-                _folder: &mut dyn ($crate::fold::Folder<'i, I, TI>),
+                self,
+                _folder: &mut dyn ($crate::fold::Folder<'i, I>),
                 _outer_binder: DebruijnIndex,
             ) -> ::chalk_ir::Fallible<Self::Result>
             where
                 I: 'i,
-                TI: 'i,
             {
-                Ok(*self)
+                Ok(self)
             }
         }
     };
@@ -273,31 +229,24 @@ copy_fold!(Safety);
 #[macro_export]
 macro_rules! id_fold {
     ($t:ident) => {
-        $crate::id_fold!($t, transfer_def_id);
-    };
-
-    ($t:ident, $transfer_fn:ident) => {
-        impl<I: Interner, TI: TargetInterner<I>> $crate::fold::Fold<I, TI> for $t<I> {
-            type Result = $t<TI>;
+        impl<I: Interner> $crate::fold::Fold<I> for $t<I> {
+            type Result = $t<I>;
             fn fold_with<'i>(
-                &self,
-                _folder: &mut dyn ($crate::fold::Folder<'i, I, TI>),
+                self,
+                _folder: &mut dyn ($crate::fold::Folder<'i, I>),
                 _outer_binder: DebruijnIndex,
             ) -> ::chalk_ir::Fallible<Self::Result>
             where
                 I: 'i,
-                TI: 'i,
             {
-                let $t(def_id_tf) = *self;
-                let def_id_ttf = TI::$transfer_fn(def_id_tf);
-                Ok($t(def_id_ttf))
+                Ok(self)
             }
         }
     };
 }
 
 id_fold!(ImplId);
-id_fold!(AdtId, transfer_adt_id);
+id_fold!(AdtId);
 id_fold!(TraitId);
 id_fold!(AssocTypeId);
 id_fold!(OpaqueTyId);
@@ -306,48 +255,45 @@ id_fold!(ClosureId);
 id_fold!(GeneratorId);
 id_fold!(ForeignDefId);
 
-impl<I: Interner, TI: TargetInterner<I>> SuperFold<I, TI> for ProgramClauseData<I> {
+impl<I: Interner> SuperFold<I> for ProgramClauseData<I> {
     fn super_fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> ::chalk_ir::Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         Ok(ProgramClauseData(self.0.fold_with(folder, outer_binder)?))
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> SuperFold<I, TI> for ProgramClause<I> {
+impl<I: Interner> SuperFold<I> for ProgramClause<I> {
     fn super_fold_with<'i>(
-        &self,
-        folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        folder: &mut dyn Folder<'i, I>,
         outer_binder: DebruijnIndex,
     ) -> ::chalk_ir::Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
-        let clause = self.data(folder.interner());
+        let clause = self.data(folder.interner()).clone();
         Ok(clause
             .super_fold_with(folder, outer_binder)?
-            .intern(folder.target_interner()))
+            .intern(folder.interner()))
     }
 }
 
-impl<I: Interner, TI: TargetInterner<I>> Fold<I, TI> for PhantomData<I> {
-    type Result = PhantomData<TI>;
+impl<I: Interner> Fold<I> for PhantomData<I> {
+    type Result = PhantomData<I>;
 
     fn fold_with<'i>(
-        &self,
-        _folder: &mut dyn Folder<'i, I, TI>,
+        self,
+        _folder: &mut dyn Folder<'i, I>,
         _outer_binder: DebruijnIndex,
     ) -> ::chalk_ir::Fallible<Self::Result>
     where
         I: 'i,
-        TI: 'i,
     {
         Ok(PhantomData)
     }

@@ -7,7 +7,7 @@ use chalk_ir::{
     cast::*,
     fold::shift::Shift,
     interner::Interner,
-    visit::{Visit, VisitResult, Visitor},
+    visit::{ControlFlow, Visit, Visitor},
     *,
 };
 use tracing::debug;
@@ -69,9 +69,8 @@ impl<'i, I: Interner> InputTypeCollector<'i, I> {
 }
 
 impl<'i, I: Interner> Visitor<'i, I> for InputTypeCollector<'i, I> {
-    type Result = ();
-
-    fn as_dyn(&mut self) -> &mut dyn Visitor<'i, I, Result = Self::Result> {
+    type BreakTy = ();
+    fn as_dyn(&mut self) -> &mut dyn Visitor<'i, I, BreakTy = Self::BreakTy> {
         self
     }
 
@@ -79,131 +78,138 @@ impl<'i, I: Interner> Visitor<'i, I> for InputTypeCollector<'i, I> {
         self.interner
     }
 
-    fn visit_where_clause(&mut self, where_clause: &WhereClause<I>, outer_binder: DebruijnIndex) {
+    fn visit_where_clause(
+        &mut self,
+        where_clause: &WhereClause<I>,
+        outer_binder: DebruijnIndex,
+    ) -> ControlFlow<()> {
         match where_clause {
             WhereClause::AliasEq(alias_eq) => alias_eq
                 .alias
                 .clone()
                 .intern(self.interner)
                 .visit_with(self, outer_binder),
-            WhereClause::Implemented(trait_ref) => {
-                trait_ref.visit_with(self, outer_binder);
-            }
+            WhereClause::Implemented(trait_ref) => trait_ref.visit_with(self, outer_binder),
             WhereClause::TypeOutlives(TypeOutlives { ty, .. }) => ty.visit_with(self, outer_binder),
-            WhereClause::LifetimeOutlives(..) => {}
+            WhereClause::LifetimeOutlives(..) => ControlFlow::CONTINUE,
         }
     }
 
-    fn visit_ty(&mut self, ty: &Ty<I>, outer_binder: DebruijnIndex) {
+    fn visit_ty(&mut self, ty: &Ty<I>, outer_binder: DebruijnIndex) -> ControlFlow<()> {
         let interner = self.interner();
 
         let mut push_ty = || {
             self.types
-                .push(ty.shifted_out_to(interner, outer_binder).unwrap())
+                .push(ty.clone().shifted_out_to(interner, outer_binder).unwrap())
         };
         match ty.kind(interner) {
             TyKind::Adt(id, substitution) => {
                 push_ty();
                 id.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::AssociatedType(assoc_ty, substitution) => {
                 push_ty();
                 assoc_ty.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Scalar(scalar) => {
                 push_ty();
-                scalar.visit_with(self, outer_binder);
+                scalar.visit_with(self, outer_binder)
             }
             TyKind::Str => {
                 push_ty();
+                ControlFlow::CONTINUE
             }
             TyKind::Tuple(arity, substitution) => {
                 push_ty();
                 arity.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::OpaqueType(opaque_ty, substitution) => {
                 push_ty();
                 opaque_ty.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Slice(substitution) => {
                 push_ty();
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::FnDef(fn_def, substitution) => {
                 push_ty();
                 fn_def.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Ref(mutability, lifetime, ty) => {
                 push_ty();
                 mutability.visit_with(self, outer_binder);
                 lifetime.visit_with(self, outer_binder);
-                ty.visit_with(self, outer_binder);
+                ty.visit_with(self, outer_binder)
             }
             TyKind::Raw(mutability, substitution) => {
                 push_ty();
                 mutability.visit_with(self, outer_binder);
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Never => {
                 push_ty();
+                ControlFlow::CONTINUE
             }
             TyKind::Array(ty, const_) => {
                 push_ty();
-                ty.visit_with(self, outer_binder)
-                    .combine(const_.visit_with(self, outer_binder))
+                ty.visit_with(self, outer_binder);
+                const_.visit_with(self, outer_binder)
             }
             TyKind::Closure(_id, substitution) => {
                 push_ty();
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Generator(_generator, substitution) => {
                 push_ty();
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::GeneratorWitness(_witness, substitution) => {
                 push_ty();
-                substitution.visit_with(self, outer_binder);
+                substitution.visit_with(self, outer_binder)
             }
             TyKind::Foreign(_foreign_ty) => {
                 push_ty();
+                ControlFlow::CONTINUE
             }
             TyKind::Error => {
                 push_ty();
+                ControlFlow::CONTINUE
             }
 
             TyKind::Dyn(clauses) => {
                 push_ty();
-                clauses.visit_with(self, outer_binder);
+                clauses.visit_with(self, outer_binder)
             }
 
             TyKind::Alias(AliasTy::Projection(proj)) => {
                 push_ty();
-                proj.visit_with(self, outer_binder);
+                proj.visit_with(self, outer_binder)
             }
 
             TyKind::Alias(AliasTy::Opaque(opaque_ty)) => {
                 push_ty();
-                opaque_ty.visit_with(self, outer_binder);
+                opaque_ty.visit_with(self, outer_binder)
             }
 
             TyKind::Placeholder(_) => {
                 push_ty();
+                ControlFlow::CONTINUE
             }
 
             // Type parameters do not carry any input types (so we can sort of assume they are
             // always WF).
-            TyKind::BoundVar(..) => (),
+            TyKind::BoundVar(..) => ControlFlow::CONTINUE,
 
             // Higher-kinded types such as `for<'a> fn(&'a u32)` introduce their own implied
             // bounds, and these bounds will be enforced upon calling such a function. In some
             // sense, well-formedness requirements for the input types of an HKT will be enforced
             // lazily, so no need to include them here.
-            TyKind::Function(..) => (),
+            TyKind::Function(..) => ControlFlow::CONTINUE,
 
             TyKind::InferenceVar(..) => {
                 panic!("unexpected inference variable in wf rules: {:?}", ty)
@@ -356,8 +362,8 @@ where
 
             let subst = Substitution::from1(interner, gb.db().hidden_opaque_type(opaque_ty_id));
 
-            let bounds = bound.bounds.substitute(interner, &subst);
-            let where_clauses = bound.where_clauses.substitute(interner, &subst);
+            let bounds = bound.bounds.clone().substitute(interner, &subst);
+            let where_clauses = bound.where_clauses.clone().substitute(interner, &subst);
 
             let clauses = where_clauses
                 .iter()
@@ -419,7 +425,8 @@ where
             | WellKnownTrait::FnOnce
             | WellKnownTrait::FnMut
             | WellKnownTrait::Unsize
-            | WellKnownTrait::Sized => false,
+            | WellKnownTrait::Sized
+            | WellKnownTrait::DiscriminantKind => false,
         };
 
         if is_legal {
@@ -575,7 +582,10 @@ fn compute_assoc_ty_goal<I: Interner>(
             let ImplDatumBound {
                 trait_ref: impl_trait_ref,
                 where_clauses: impl_where_clauses,
-            } = impl_datum.binders.substitute(interner, impl_parameters);
+            } = impl_datum
+                .binders
+                .clone()
+                .substitute(interner, impl_parameters);
             let impl_wf_clauses =
                 impl_wf_environment(interner, &impl_where_clauses, &impl_trait_ref);
             gb.implies(impl_wf_clauses, |gb| {
@@ -598,6 +608,7 @@ fn compute_assoc_ty_goal<I: Interner>(
                     where_clauses: defn_where_clauses,
                 } = assoc_ty_datum
                     .binders
+                    .clone()
                     .substitute(interner, &projection.substitution);
 
                 // Create `if (/* where clauses on associated type value */) { .. }`
@@ -747,6 +758,7 @@ impl WfWellKnownConstraints {
                         let goals = adt_datum
                             .binders
                             .map_ref(|b| &b.variants)
+                            .cloned()
                             .substitute(interner, substitution)
                             .into_iter()
                             .flat_map(|v| {
@@ -889,7 +901,7 @@ impl WfWellKnownConstraints {
     ///    and consider their types with both substitutes. We are looking to find
     ///    exactly one (non-phantom) field that has changed its type (from T to U), and
     ///    expect T to be unsizeable to U, i.e. T: CoerceUnsized<U>.
-    ///        
+    ///
     ///    As an example, consider a struct
     ///    ```rust
     ///    struct Foo<T, U> {
@@ -904,10 +916,10 @@ impl WfWellKnownConstraints {
     ///    impl<T, U: Unsize<V>, V> CoerceUnsized<Foo<T, V>> for Foo<T, U> {}
     ///    ```
     ///    In this case:
-    ///   
+    ///
     ///    - `extra` has type `T` before and type `T` after
     ///    - `ptr` has type `*mut U` before and type `*mut V` after
-    ///   
+    ///
     ///    Since just one field changed, we would then check that `*mut U: CoerceUnsized<*mut V>`
     ///    is implemented. This will work out because `U: Unsize<V>`, and we have a libcore rule
     ///    that `*mut U` can be coerced to `*mut V` if `U: Unsize<V>`.
@@ -986,10 +998,11 @@ impl WfWellKnownConstraints {
 
                 let fields = adt_datum
                     .binders
-                    .map_ref(|bound| &bound.variants.last().unwrap().fields);
+                    .map_ref(|bound| &bound.variants.last().unwrap().fields)
+                    .cloned();
 
                 let (source_fields, target_fields) = (
-                    fields.substitute(interner, subst_a),
+                    fields.clone().substitute(interner, subst_a),
                     fields.substitute(interner, subst_b),
                 );
 
