@@ -686,6 +686,15 @@ Copyright: 2017-2020 Armin Ronacher <armin.ronacher@active-4.com>
 License: MIT
 Comment: see https://github.com/mitsuhiko/console
 
+Files:
+ vendor/const_fn/*
+ vendor/pin-project-lite/*
+Copyright: 2018-2021 Taiki Endo <te316e89@gmail.com>
+License: Apache-2.0 or MIT
+Comment:
+ see https://github.com/taiki-e/const_fn
+ see https://github.com/taiki-e/pin-project-lite
+
 Files: vendor/crc32fast/*
 Copyright: 2018-2019 Sam Rijs <srijs@airpost.net>
            2018-2019 Alex Crichton <alex@alexcrichton.com>
@@ -695,12 +704,14 @@ Comment: see https://github.com/srijs/rust-crc32fast
 Files:
  vendor/crossbeam-channel/*
  vendor/crossbeam-deque/*
+ vendor/crossbeam-deque-0*/*
  vendor/crossbeam-epoch/*
+ vendor/crossbeam-epoch-0*/*
  vendor/crossbeam-queue/*
  vendor/crossbeam-queue-0*/*
  vendor/crossbeam-utils/*
  vendor/crossbeam-utils-0*/*
-Copyright: 2015-2020 The Crossbeam Project Developers
+Copyright: 2015-2021 The Crossbeam Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/crossbeam-rs
 
@@ -741,17 +752,19 @@ Comment: see https://github.com/utkarshkukreti/diff.rs
 
 Files:
  vendor/anyhow/*
+ vendor/dissimilar/*
  vendor/dtoa/*
  vendor/itoa/*
  vendor/quote/*
  vendor/quote-0*/*
  vendor/syn/*
  vendor/syn-0*/*
-Copyright: 2016-2020 David Tolnay <dtolnay@gmail.com>
+Copyright: 2016-2021 David Tolnay <dtolnay@gmail.com>
 License: MIT or Apache-2.0
 Comment:
  see https://github.com/dtolnay/anyhow
  see https://github.com/dtolnay/itoa
+ see https://github.com/dtolnay/dissimilar
  see https://github.com/dtolnay/quote
  see https://github.com/dtolnay/syn
  see https://github.com/dtolnay/synom
@@ -934,12 +947,12 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/TedDriggs/ident_case
 
 Files:
+ vendor/form_urlencoded/*
  vendor/idna/*
- vendor/idna-0.1.5/*
  vendor/percent-encoding/*
  vendor/percent-encoding-1*/*
  vendor/url/*
-Copyright: 2013-2020 The rust-url developers
+Copyright: 2013-2021 The rust-url developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/rust-url/
 
@@ -1312,12 +1325,15 @@ Comment:
  see https://github.com/rayon-rs/rayon
  see https://github.com/Zoxc/rayon/tree/rustc
 
-Files: vendor/redox_syscall/*
-       vendor/redox_termios/*
-Copyright: 2016-2017 Jeremy Soller <jackpot51@gmail.com>
+Files:
+ vendor/redox_syscall/*
+ vendor/redox_syscall-0*/*
+ vendor/redox_termios/*
+Copyright: 2016-2021 Jeremy Soller <jackpot51@gmail.com>
 License: MIT
-Comment: see https://github.com/redox-os/syscall
-         see https://github.com/redox-os/termios
+Comment:
+ see https://github.com/redox-os/syscall
+ see https://github.com/redox-os/termios
 
 Files: vendor/regex-automata/*
 Copyright: 2018-2020 Andrew Gallant <jamslam@gmail.com>
@@ -1557,9 +1573,14 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/rust-threadpool/rust-threadpool
 
 Files: vendor/tinyvec/*
-Copyright: 2020-2020 Lokathor <zefria@gmail.com>
+Copyright: 2020 Lokathor <zefria@gmail.com>
 License: Zlib
 Comment: see https://github.com/Lokathor/tinyvec
+
+Files: vendor/tinyvec_macros/*
+Copyright: 2020 Soveu <marx.tomasz@gmail.com>
+License: MIT or Apache-2.0 or Zlib
+Comment: see https://github.com/Soveu/tinyvec_macros
 
 Files: vendor/toml-query_derive/*
 Copyright: 2017-2019 Matthias Beyer <mail@beyermatthias.de>
