@@ -65,9 +65,12 @@ vendor/pulldown-cmark-*/tests/suite/footnotes.rs
 vendor/pulldown-cmark-*/third_party/xi-editor/crdt.md
 vendor/pulldown-cmark-*/specs/footnotes.txt
 vendor/rustc-demangle/src/legacy.rs
+vendor/socket2/diff.patch
 vendor/stable_deref_trait/src/lib.rs
+vendor/tinyvec/LICENSE-*.md
 vendor/tracing-subscriber/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
+vendor/unicode-normalization/src/stream_safe.rs
 vendor/winapi-*/src/winnt.rs
 vendor/winapi/src/lib.rs
 vendor/xml5ever/examples/README.md
@@ -201,12 +204,14 @@ src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/run-make/*-sgx-lvi/enclave/*.c
 src/test/run-make-fulldeps/*/*/*.html
 src/test/rustdoc-json/*.expected
+src/test/ui/macros/not-utf8.bin
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
+vendor/dissimilar/benches/*.txt
 vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
@@ -229,6 +234,7 @@ vendor/md-5/tests/data/*.blb
 vendor/md-5/tests/data/*.bin
 vendor/mdbook/src/theme/searcher/searcher.js
 vendor/mdbook/tests/searchindex_fixture.json
+vendor/memchr/src/tests/*.json
 vendor/minifier/tests/files/test.json
 vendor/minifier/tests/files/main.js
 vendor/minifier/tests/files/minified_main.js
