@@ -65,7 +65,7 @@ pub trait RustIrDatabase<I: Interner>: Debug {
     ) -> Arc<GeneratorWitnessDatum<I>>;
 
     /// Returns the representation for the ADT definition with the given id.
-    fn adt_repr(&self, id: AdtId<I>) -> AdtRepr;
+    fn adt_repr(&self, id: AdtId<I>) -> Arc<AdtRepr<I>>;
 
     /// Returns the datum for the fn definition with the given id.
     fn fn_def_datum(&self, fn_def_id: FnDefId<I>) -> Arc<FnDefDatum<I>>;
@@ -161,6 +161,8 @@ pub trait RustIrDatabase<I: Interner>: Debug {
         substs: &Substitution<I>,
     ) -> Substitution<I>;
 
+    fn unification_database(&self) -> &dyn UnificationDatabase<I>;
+
     /// Retrieves a trait's original name. No uniqueness guarantees, but must
     /// a valid Rust identifier.
     fn trait_name(&self, trait_id: TraitId<I>) -> String {
@@ -190,6 +192,9 @@ pub trait RustIrDatabase<I: Interner>: Debug {
     fn fn_def_name(&self, fn_def_id: FnDefId<I>) -> String {
         sanitize_debug_name(|f| I::debug_fn_def_id(fn_def_id, f))
     }
+
+    // Retrieves the discriminant type for a type (mirror of rustc `TyS::discriminant_ty`)
+    fn discriminant_type(&self, ty: Ty<I>) -> Ty<I>;
 }
 
 pub use clauses::program_clauses_for_env;

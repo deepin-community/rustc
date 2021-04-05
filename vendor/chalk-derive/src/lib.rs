@@ -162,10 +162,7 @@ fn derive_any_visit(
 
     let body = s.each(|bi| {
         quote! {
-            result = result.combine(::chalk_ir::visit::Visit::visit_with(#bi, visitor, outer_binder));
-            if result.return_early() {
-                return result;
-            }
+            ::chalk_ir::try_break!(::chalk_ir::visit::Visit::visit_with(#bi, visitor, outer_binder));
         }
     });
 
@@ -178,19 +175,18 @@ fn derive_any_visit(
     s.bound_impl(
         quote!(::chalk_ir::visit:: #trait_name <#interner>),
         quote! {
-            fn #method_name <'i, R: ::chalk_ir::visit::VisitResult>(
+            fn #method_name <'i, B>(
                 &self,
-                visitor: &mut dyn ::chalk_ir::visit::Visitor < 'i, #interner, Result = R >,
+                visitor: &mut dyn ::chalk_ir::visit::Visitor < 'i, #interner, BreakTy = B >,
                 outer_binder: ::chalk_ir::DebruijnIndex,
-            ) -> R
+            ) -> ::chalk_ir::visit::ControlFlow<B>
             where
                 #interner: 'i
             {
-                let mut result = R::new();
                 match *self {
                     #body
                 }
-                return result;
+                ::chalk_ir::visit::ControlFlow::CONTINUE
             }
         },
     )
@@ -228,7 +224,7 @@ fn derive_zip(mut s: synstructure::Structure) -> TokenStream {
     let mut body = each_variant_pair(&mut a, &mut b, |v_a, v_b| {
         let mut t = TokenStream::new();
         for (b_a, b_b) in v_a.bindings().iter().zip(v_b.bindings().iter()) {
-            quote!(chalk_ir::zip::Zip::zip_with(zipper, #b_a, #b_b)?;).to_tokens(&mut t);
+            quote!(chalk_ir::zip::Zip::zip_with(zipper, variance, #b_a, #b_b)?;).to_tokens(&mut t);
         }
         quote!(Ok(())).to_tokens(&mut t);
         t
@@ -244,8 +240,9 @@ fn derive_zip(mut s: synstructure::Structure) -> TokenStream {
 
             fn zip_with<'i, Z: ::chalk_ir::zip::Zipper<'i, #interner>>(
                 zipper: &mut Z,
-                 a: &Self,
-                 b: &Self,
+                variance: ::chalk_ir::Variance,
+                a: &Self,
+                b: &Self,
             ) -> ::chalk_ir::Fallible<()>
             where
                 #interner: 'i,
@@ -261,7 +258,7 @@ fn derive_zip(mut s: synstructure::Structure) -> TokenStream {
 /// - There is a single parameter `T: HasInterner` (does not have to be named `T`)
 /// - There is a single parameter `I: Interner` (does not have to be named `I`)
 fn derive_fold(mut s: synstructure::Structure) -> TokenStream {
-    let input = s.ast();
+    s.bind_with(|_| synstructure::BindStyle::Move);
 
     let (interner, kind) = find_interner(&mut s);
 
@@ -275,53 +272,38 @@ fn derive_fold(mut s: synstructure::Structure) -> TokenStream {
         })
     });
 
+    let input = s.ast();
     let type_name = &input.ident;
 
-    let (target_interner, result) = match kind {
-        DeriveKind::FromHasInternerAttr => (interner.clone(), quote! { #type_name }),
-        DeriveKind::FromHasInterner => {
-            let param = get_generic_param_name(input).unwrap();
-
-            s.add_impl_generic(parse_quote! { _U })
-                .add_impl_generic(parse_quote! { _TI })
-                .add_where_predicate(
-                    parse_quote! { #param: ::chalk_ir::fold::Fold<#interner, _TI, Result = _U> },
-                )
-                .add_where_predicate(
-                    parse_quote! { _U: ::chalk_ir::interner::HasInterner<Interner = _TI> },
-                )
-                .add_where_predicate(
-                    parse_quote! { _TI: ::chalk_ir::interner::TargetInterner<#interner> },
-                );
-
-            (quote! { _TI }, quote! { #type_name<_U> })
-        }
-        DeriveKind::FromInterner => {
-            s.add_impl_generic(parse_quote! { _TI })
-                .add_where_predicate(
-                    parse_quote! { _TI: ::chalk_ir::interner::TargetInterner<#interner> },
-                );
-
-            (quote! { _TI }, quote! { #type_name<_TI> })
-        }
+    let result = if kind == DeriveKind::FromHasInterner {
+        let param = get_generic_param_name(input).unwrap();
+        s.add_impl_generic(parse_quote! { _U })
+            .add_where_predicate(
+                parse_quote! { #param: ::chalk_ir::fold::Fold<#interner, Result = _U> },
+            )
+            .add_where_predicate(
+                parse_quote! { _U: ::chalk_ir::interner::HasInterner<Interner = #interner> },
+            );
+        quote! { #type_name <_U> }
+    } else {
+        quote! { #type_name < #interner > }
     };
 
     s.add_bounds(synstructure::AddBounds::None);
     s.bound_impl(
-        quote!(::chalk_ir::fold::Fold<#interner, #target_interner>),
+        quote!(::chalk_ir::fold::Fold<#interner>),
         quote! {
             type Result = #result;
 
             fn fold_with<'i>(
-                &self,
-                folder: &mut dyn ::chalk_ir::fold::Folder < 'i, #interner, #target_interner >,
+                self,
+                folder: &mut dyn ::chalk_ir::fold::Folder < 'i, #interner >,
                 outer_binder: ::chalk_ir::DebruijnIndex,
             ) -> ::chalk_ir::Fallible<Self::Result>
             where
                 #interner: 'i,
-                #target_interner: 'i,
             {
-                Ok(match *self { #body })
+                Ok(match self { #body })
             }
         },
     )

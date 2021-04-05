@@ -257,6 +257,12 @@ impl Debug for InferenceVar {
     }
 }
 
+impl<I: Interner> Debug for FnSubst<I> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(fmt, "{:?}", self.0)
+    }
+}
+
 impl<I: Interner> Debug for FnPointer<I> {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
         // FIXME -- we should introduce some names or something here
@@ -267,8 +273,14 @@ impl<I: Interner> Debug for FnPointer<I> {
         } = self;
         write!(
             fmt,
-            "for<{}> {:?} {:?} {:?}",
-            num_binders, sig.safety, sig.abi, substitution
+            "{}{:?} for<{}> {:?}",
+            match sig.safety {
+                Safety::Unsafe => "unsafe ",
+                Safety::Safe => "",
+            },
+            sig.abi,
+            num_binders,
+            substitution
         )
     }
 }
@@ -280,6 +292,9 @@ impl<I: Interner> Debug for LifetimeData<I> {
             LifetimeData::InferenceVar(var) => write!(fmt, "'{:?}", var),
             LifetimeData::Placeholder(index) => write!(fmt, "'{:?}", index),
             LifetimeData::Static => write!(fmt, "'static"),
+            LifetimeData::Empty(UniverseIndex::ROOT) => write!(fmt, "'<empty>"),
+            LifetimeData::Empty(universe) => write!(fmt, "'<empty:{:?}>", universe),
+            LifetimeData::Erased => write!(fmt, "'<erased>"),
             LifetimeData::Phantom(..) => unreachable!(),
         }
     }
@@ -362,6 +377,7 @@ impl<I: Interner> Debug for GoalData<I> {
             GoalData::All(ref goals) => write!(fmt, "all{:?}", goals),
             GoalData::Not(ref g) => write!(fmt, "not {{ {:?} }}", g),
             GoalData::EqGoal(ref wc) => write!(fmt, "{:?}", wc),
+            GoalData::SubtypeGoal(ref wc) => write!(fmt, "{:?}", wc),
             GoalData::DomainGoal(ref wc) => write!(fmt, "{:?}", wc),
             GoalData::CannotProve => write!(fmt, r"¯\_(ツ)_/¯"),
         }
@@ -812,6 +828,12 @@ impl<I: Interner> Debug for EqGoal<I> {
     }
 }
 
+impl<I: Interner> Debug for SubtypeGoal<I> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(fmt, "({:?} <: {:?})", self.a, self.b)
+    }
+}
+
 impl<T: HasInterner + Debug> Debug for Binders<T> {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
         let Binders {
@@ -959,5 +981,11 @@ impl<I: Interner> Substitution<I> {
 impl<I: Interner> Debug for Substitution<I> {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
         Display::fmt(self, fmt)
+    }
+}
+
+impl<I: Interner> Debug for Variances<I> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), Error> {
+        I::debug_variances(self, fmt).unwrap_or_else(|| write!(fmt, "{:?}", self.interned))
     }
 }

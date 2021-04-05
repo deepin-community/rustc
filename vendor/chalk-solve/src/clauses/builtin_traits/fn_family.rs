@@ -1,11 +1,10 @@
 use crate::clauses::ClauseBuilder;
-use crate::infer::instantiate::IntoBindersAndValue;
 use crate::rust_ir::{ClosureKind, FnDefInputsAndOutputDatum, WellKnownTrait};
 use crate::{Interner, RustIrDatabase, TraitRef};
 use chalk_ir::cast::Cast;
 use chalk_ir::{
     AliasTy, Binders, Floundered, Normalize, ProjectionTy, Safety, Substitution, TraitId, Ty,
-    TyKind, VariableKinds,
+    TyKind,
 };
 
 fn push_clauses<I: Interner>(
@@ -55,7 +54,7 @@ fn push_clauses_for_apply<I: Interner>(
     well_known: WellKnownTrait,
     trait_id: TraitId<I>,
     self_ty: Ty<I>,
-    inputs_and_output: &Binders<FnDefInputsAndOutputDatum<I>>,
+    inputs_and_output: Binders<FnDefInputsAndOutputDatum<I>>,
 ) {
     let interner = db.interner();
     builder.push_binders(inputs_and_output, |builder, inputs_and_output| {
@@ -97,6 +96,7 @@ pub fn add_fn_trait_program_clauses<I: Interner>(
             if fn_def_datum.sig.safety == Safety::Safe && !fn_def_datum.sig.variadic {
                 let bound = fn_def_datum
                     .binders
+                    .clone()
                     .substitute(builder.interner(), &substitution);
                 push_clauses_for_apply(
                     db,
@@ -104,7 +104,7 @@ pub fn add_fn_trait_program_clauses<I: Interner>(
                     well_known,
                     trait_id,
                     self_ty,
-                    &bound.inputs_and_output,
+                    bound.inputs_and_output,
                 );
             }
             Ok(())
@@ -129,18 +129,18 @@ pub fn add_fn_trait_program_clauses<I: Interner>(
                 well_known,
                 trait_id,
                 self_ty,
-                &closure_inputs_and_output,
+                closure_inputs_and_output,
             );
             Ok(())
         }
         TyKind::Function(fn_val) if fn_val.sig.safety == Safety::Safe && !fn_val.sig.variadic => {
-            let (binders, orig_sub) = fn_val.into_binders_and_value(interner);
-            let bound_ref = Binders::new(VariableKinds::from_iter(interner, binders), orig_sub);
-            builder.push_binders(&bound_ref, |builder, orig_sub| {
+            let bound_ref = fn_val.clone().into_binders(interner);
+            builder.push_binders(bound_ref, |builder, orig_sub| {
                 // The last parameter represents the function return type
                 let (arg_sub, fn_output_ty) = orig_sub
+                    .0
                     .as_slice(interner)
-                    .split_at(orig_sub.len(interner) - 1);
+                    .split_at(orig_sub.0.len(interner) - 1);
                 let arg_sub = Substitution::from_iter(interner, arg_sub);
                 let output_ty = fn_output_ty[0].assert_ty_ref(interner).clone();
 
@@ -157,7 +157,7 @@ pub fn add_fn_trait_program_clauses<I: Interner>(
             Ok(())
         }
         // Function traits are non-enumerable
-        TyKind::InferenceVar(..) | TyKind::Alias(..) => Err(Floundered),
+        TyKind::InferenceVar(..) | TyKind::BoundVar(_) | TyKind::Alias(..) => Err(Floundered),
         _ => Ok(()),
     }
 }

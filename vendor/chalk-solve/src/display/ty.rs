@@ -184,7 +184,7 @@ impl<I: Interner> RenderAsRust<I> for FnPointer<I> {
                     .format(", ")
             )?;
         }
-        let parameters = self.substitution.as_slice(interner);
+        let parameters = self.substitution.0.as_slice(interner);
         write!(
             f,
             "fn({}) -> {}",
@@ -240,6 +240,8 @@ impl<I: Interner> RenderAsRust<I> for LifetimeData<I> {
                 write!(f, "'_placeholder_{}_{}", ix.ui.counter, ix.idx)
             }
             LifetimeData::Static => write!(f, "'static"),
+            LifetimeData::Empty(_) => write!(f, "'<empty>"),
+            LifetimeData::Erased => write!(f, "'_"),
             // Matching the void ensures at compile time that this code is
             // unreachable
             LifetimeData::Phantom(void, _) => match *void {},
@@ -259,7 +261,7 @@ impl<I: Interner> RenderAsRust<I> for ConstValue<I> {
             ConstValue::BoundVar(v) => write!(f, "{}", s.display_bound_var(v)),
             ConstValue::InferenceVar(_) => write!(f, "_"),
             ConstValue::Placeholder(_) => write!(f, "<const placeholder>"),
-            ConstValue::Concrete(_value) => unimplemented!("const values"),
+            ConstValue::Concrete(value) => write!(f, "{:?}", value.interned),
         }
     }
 }
