@@ -102,9 +102,6 @@ even be packaged for Debian.
 windows
 -------
 
-TODO FIXME: 32-bit does not currently work, we are awaiting
-https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=540782#64
-
 We ship the following targets:
 
 - x86_64-pc-windows-gnu in the libstd-rust-dev-windows:amd64 package
