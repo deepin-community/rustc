@@ -1,8 +1,8 @@
-rustc (1.50.0+dfsg1-1~exp2) UNRELEASED; urgency=medium
+rustc (1.50.0+dfsg1-1~exp2) experimental; urgency=medium
 
   * Fix tests, fix s390x breakage.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 09 Apr 2021 16:53:52 +0100
+ -- Ximin Luo <infinity0@debian.org>  Fri, 09 Apr 2021 16:54:20 +0100
 
 rustc (1.50.0+dfsg1-1~exp1) experimental; urgency=medium
 
