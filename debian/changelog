@@ -1,8 +1,8 @@
-rustc (1.50.0+dfsg1-1~exp3) UNRELEASED; urgency=medium
+rustc (1.50.0+dfsg1-1~exp3) experimental; urgency=medium
 
   * Fix cross-compile to windows using same-version stage0.
 
- -- Ximin Luo <infinity0@debian.org>  Sun, 11 Apr 2021 13:50:59 +0100
+ -- Ximin Luo <infinity0@debian.org>  Sun, 11 Apr 2021 13:52:41 +0100
 
 rustc (1.50.0+dfsg1-1~exp2) experimental; urgency=medium
 
