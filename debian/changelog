@@ -1,8 +1,8 @@
-rustc (1.50.0+dfsg1-1~exp4) UNRELEASED; urgency=medium
+rustc (1.50.0+dfsg1-1~exp4) experimental; urgency=medium
 
   * Fix more tests with a backported upstream PR.
 
- -- Ximin Luo <infinity0@debian.org>  Mon, 12 Apr 2021 01:50:35 +0100
+ -- Ximin Luo <infinity0@debian.org>  Mon, 12 Apr 2021 01:51:22 +0100
 
 rustc (1.50.0+dfsg1-1~exp3) experimental; urgency=medium
 
