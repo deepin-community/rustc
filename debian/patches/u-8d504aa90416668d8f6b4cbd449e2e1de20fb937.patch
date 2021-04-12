@@ -1,0 +1,30 @@
+commit 8d504aa90416668d8f6b4cbd449e2e1de20fb937
+Bug: https://github.com/rust-lang/rust/issues/84057
+Author: Ximin Luo <infinity0@pwned.gg>
+Date:   Sun Apr 11 13:47:58 2021 +0100
+
+    bootstrap: check local_rebuild before adding --cfg=bootstrap, closes #84057
+
+diff --git a/src/bootstrap/compile.rs b/src/bootstrap/compile.rs
+index 8244c7710ab..f6f07a10842 100644
+--- a/src/bootstrap/compile.rs
++++ b/src/bootstrap/compile.rs
+@@ -462,11 +462,14 @@ fn run(self, builder: &Builder<'_>) -> Vec<(PathBuf, DependencyType)> {
+             let dst_file = &dst_dir.join(file.to_string() + ".o");
+             if !up_to_date(src_file, dst_file) {
+                 let mut cmd = Command::new(&builder.initial_rustc);
++                cmd.env("RUSTC_BOOTSTRAP", "1");
++                if !builder.local_rebuild {
++                    // a local_rebuild compiler already has stage1 features
++                    cmd.arg("--cfg")
++                        .arg("bootstrap");
++                }
+                 builder.run(
+-                    cmd.env("RUSTC_BOOTSTRAP", "1")
+-                        .arg("--cfg")
+-                        .arg("bootstrap")
+-                        .arg("--target")
++                    cmd.arg("--target")
+                         .arg(target.rustc_target_arg())
+                         .arg("--emit=obj")
+                         .arg("-o")
