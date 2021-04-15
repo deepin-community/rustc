@@ -684,6 +684,11 @@ Copyright: 2016-2020 Nuxi (https://nuxi.nl/) and contributors
 License: BSD-2-Clause
 Comment: see https://github.com/nuxinl/cloudabi
 
+Files: vendor/colored/*
+Copyright: 2016-2020 Thomas Wickham <mackwic@gmail.com>
+License: MPL-2.0
+Comment: see https://github.com/mackwic/colored
+
 Files: vendor/console/*
 Copyright: 2017-2020 Armin Ronacher <armin.ronacher@active-4.com>
 License: MIT
@@ -727,6 +732,11 @@ Files: vendor/codespan-reporting/*
 Copyright: 2018-2020 Brendan Zabarauskas <bjzaba@yahoo.com.au>
 License: Apache-2.0
 Comment: see https://github.com/brendanzab/codespan
+
+Files: vendor/cstr/*
+Copyright: 2018-2020 Xidorn Quan <me@upsuper.org>
+License: MIT
+Comment: see https://github.com/upsuper/cstr
 
 Files: vendor/ctor/*
 Copyright: 2018-2020 Matt Mastracci <matthew@mastracci.com>
@@ -1085,6 +1095,12 @@ Files: vendor/memmap/*
 Copyright: 2015-2018 Dan Burkert <dan@danburkert.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/danburkert/memmap-rs
+
+Files: vendor/memmap2/*
+Copyright: 2015-2021 Dan Burkert <dan@danburkert.com>
+           2015-2021 Evgeniy Reizner <razrfalcon@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/RazrFalcon/memmap2-rs
 
 Files:
  vendor/memoffset/*
@@ -1661,6 +1677,12 @@ Copyright: 2015-2017 erick.tryzelaar <erick.tryzelaar@gmail.com>
            2015-2017 kwantam <kwantam@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/unicode-rs/unicode-xid
+
+Files: vendor/unified-diff/*
+Copyright: 2021-2021 Michael Howell <michael@notriddle.com>
+           2021-2021 The Rust Project Developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/notriddle/rust-unified-diff
 
 Files: vendor/vcpkg/*
 Copyright: 2017-2019 Jim McGrath <jimmc2@gmail.com>
