@@ -94,6 +94,7 @@ src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-js-std/tester.js
+src/tools/rustdoc-gui/tester.js
 vendor/errno-dragonfly/src/errno.c
 vendor/raw-cpuid/src/cpuid.c
 vendor/salsa/book/mermaid-init.js
@@ -150,6 +151,7 @@ src/doc/book/tools/docx-to-md.xsl
 src/doc/rustc/src/images/*.png
 src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
+src/doc/rustc-dev-guide/src/img/*.png
 src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
@@ -220,7 +222,7 @@ vendor/goblin/etc/*.rs
 vendor/goblin/tests/bins/elf/gnu_hash/helloworld.c
 vendor/goblin/tests/bins/elf/gnu_hash/*.so
 vendor/gsgdt/tests/*.json
-vendor/idna/tests/IdnaTest.txt
+vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
 vendor/idna-0*/tests/IdnaTest.txt
 vendor/idna-0*/tests/punycode_tests.json
@@ -281,6 +283,7 @@ vendor/unicode-segmentation/src/tables.rs
 
 # Compromise, ideally we'd package these in their own package
 src/librustdoc/html/static/*.woff
+src/librustdoc/html/static/*.woff2
 
 # Compromise, ideally we'd autogenerate these
 vendor/bstr/src/unicode/fsm/*.dfa
