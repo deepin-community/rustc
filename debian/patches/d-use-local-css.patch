@@ -1,6 +1,6 @@
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -361,15 +361,11 @@
+@@ -361,19 +361,15 @@
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
                  .arg("https://play.rust-lang.org/")
@@ -9,6 +9,10 @@
                  .arg("-o")
                  .arg(&out)
                  .arg(&path);
+ 
+             if !builder.config.docs_minification {
+                 cmd.arg("--disable-minification");
+             }
 -
 -            if filename == "not_found.md" {
 -                cmd.arg("--markdown-css").arg("https://doc.rust-lang.org/rust.css");
