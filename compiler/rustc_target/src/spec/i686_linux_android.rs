@@ -11,8 +11,7 @@ pub fn target() -> Target {
     // http://developer.android.com/ndk/guides/abis.html#x86
     base.cpu = "pentiumpro".to_string();
     base.features = "+mmx,+sse,+sse2,+sse3,+ssse3".to_string();
-    // don't use probe-stack=inline-asm until rust-lang/rust#83139 is resolved.
-    base.stack_probes = StackProbeType::Call;
+    base.stack_probes = StackProbeType::InlineOrCall { min_llvm_version_for_inline: (11, 0, 1) };
 
     Target {
         llvm_target: "i686-linux-android".to_string(),
