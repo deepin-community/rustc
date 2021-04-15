@@ -10,8 +10,7 @@ pub fn target() -> Target {
         vec!["-m64".to_string(), "-arch".to_string(), "x86_64".to_string()],
     );
     base.link_env_remove.extend(super::apple_base::macos_link_env_remove());
-    // don't use probe-stack=inline-asm until rust-lang/rust#83139 is resolved.
-    base.stack_probes = StackProbeType::Call;
+    base.stack_probes = StackProbeType::InlineOrCall { min_llvm_version_for_inline: (11, 0, 1) };
 
     // Clang automatically chooses a more specific target based on
     // MACOSX_DEPLOYMENT_TARGET.  To enable cross-language LTO to work
