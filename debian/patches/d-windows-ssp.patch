@@ -1,4 +1,4 @@
-Bug: https://github.com/rust-lang/rust/issues/68973s
+Bug: https://github.com/rust-lang/rust/issues/68973
 
 Index: rustc.git/compiler/rustc_target/src/spec/windows_gnu_base.rs
 ===================================================================
