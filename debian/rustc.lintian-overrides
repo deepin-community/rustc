@@ -1,0 +1,6 @@
+# unofficial example script, no dependency needed
+rustc binary: missing-dep-for-interpreter node => nodejs (usr/share/rustc/bin/wasi-node) #!/usr/bin/node
+
+# symlinks to other programs
+rustc binary: no-manual-page usr/bin/rust-clang
+rustc binary: no-manual-page usr/bin/rust-lld
