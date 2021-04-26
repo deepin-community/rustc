@@ -1,9 +1,15 @@
 rustc (1.52.0~beta.3+dfsg1-1~exp1) UNRELEASED; urgency=medium
 
-  * Drop patch fixed upstream.
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Fri, 16 Apr 2021 00:03:25 +0100
+
+rustc (1.51.0+dfsg1-1~exp2) experimental; urgency=medium
+
+  * Drop patch fixed upstream.
+  * Fix bootstrap with self version.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 12:26:43 +0100
 
 rustc (1.51.0+dfsg1-1~exp1) experimental; urgency=medium
 
