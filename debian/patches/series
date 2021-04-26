@@ -9,6 +9,7 @@ u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
 u-mips-fixes.diff
+u-ignore-endian-big.patch
 #u-allow-system-compiler-rt.patch
 
 # not forwarded, or forwarded but unlikely to be merged
