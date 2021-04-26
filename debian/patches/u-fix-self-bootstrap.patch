@@ -1,0 +1,11 @@
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -1490,7 +1490,7 @@
+                 for el in stack.iter().rev() {
+                     out += &format!("\t{:?}\n", el);
+                 }
+-                panic!(out);
++                panic!("{}", out);
+             }
+             if let Some(out) = self.cache.get(&step) {
+                 self.verbose(&format!("{}c {:?}", "  ".repeat(stack.len()), step));
