@@ -1,8 +1,8 @@
-rustc (1.51.0+dfsg1-1~exp3) UNRELEASED; urgency=medium
+rustc (1.51.0+dfsg1-1~exp3) experimental; urgency=medium
 
   * Restore patch, not actually fixed upstream.
 
- -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 16:14:08 +0100
+ -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 16:17:12 +0100
 
 rustc (1.51.0+dfsg1-1~exp2) experimental; urgency=medium
 
