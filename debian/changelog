@@ -1,3 +1,9 @@
+rustc (1.52.0~beta.3+dfsg1-1~exp3) UNRELEASED; urgency=medium
+
+  * Fix Makefile addition syntax.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 05 May 2021 22:24:06 +0100
+
 rustc (1.52.0~beta.3+dfsg1-1~exp2) experimental; urgency=medium
 
   * Install the rust-llvm-dwp symlink.
