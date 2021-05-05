@@ -400,7 +400,7 @@ override_dh_installdocs:
 	dh_installdocs -X.tex -X.aux -X.log -X.out -X.toc
 
 override_dh_missing:
-	dh_missing --list-missing
+	dh_missing --fail-missing
 
 override_dh_compress:
 	dh_compress -X.woff
