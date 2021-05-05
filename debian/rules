@@ -258,6 +258,7 @@ endif
 ifneq (,$(filter $(DEB_BUILD_ARCH), powerpcspe riscv64 sparc64 x32))
   FAILURES_ALLOWED = 180
 endif
+FAILURES_ALLOWED += 2 # FIXME: temp hack for 1.52.0~beta.3+dfsg1-1~exp2 to account for the fact that 1.51.0+dfsg1-1~exp3 did not install rust-llvm-dwp; remove in 1.52.0~beta.3+dfsg1-1~exp3 and 1.51.0+dfsg1-1
 FAILED_TESTS = grep "FAILED\|^command did not execute successfully" $(TEST_LOG) | grep -v '^test result: FAILED' | grep -v 'FAILED (allowed)'
 override_dh_auto_test-arch:
 	# ensure that rustc_llvm is actually dynamically linked to libLLVM
