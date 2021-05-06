@@ -371,7 +371,7 @@ override_dh_install-arch:
 	dh_install -p$(LIBSTD_PKG) usr/lib/$(DEB_HOST_MULTIARCH)/
 	dh_install -plibstd-rust-dev usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
 ifeq (true,$(BUILD_WINDOWS))
-	dh_install -plibstd-rust-dev-windows usr/lib/rustlib/*-pc-windows-gnu/lib/
+	dh_install -plibstd-rust-dev-windows usr/lib/rustlib/$(WINDOWS_ARCH)-pc-windows-gnu/lib/
 endif
 
 override_dh_install-indep: debian/rust-src.install debian/rust-src.links
@@ -401,6 +401,10 @@ override_dh_installdocs:
 	dh_installdocs -X.tex -X.aux -X.log -X.out -X.toc
 
 override_dh_missing:
+	# if we did an arch-indep build then these artifacts exist but aren't installed
+	# so we remove them now to avoid false-positive in dh_missing --fail-missing
+	rm -rf debian/tmp/usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
+	rm -rf debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/
 	dh_missing --fail-missing
 
 override_dh_compress:

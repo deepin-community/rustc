@@ -6,7 +6,7 @@ usr/lib/rustlib/rust-installer-version
 usr/lib/rustlib/uninstall.sh
 
 # redundant copy of llvm-dwp, we already link it in rustc.links
-usr/bin/rust-llvm-dwp
+usr/lib/rustlib/*/bin/rust-llvm-dwp
 
 # docs, we already install into /usr/share/doc/rustc
 usr/share/doc/rust/*
