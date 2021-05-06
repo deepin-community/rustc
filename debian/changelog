@@ -1,3 +1,9 @@
+rustc (1.51.0+dfsg1-1~exp4) UNRELEASED; urgency=medium
+
+  * Install the rust-llvm-dwp symlink.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 05 May 2021 22:07:55 +0100
+
 rustc (1.51.0+dfsg1-1~exp3) experimental; urgency=medium
 
   * Restore patch, not actually fixed upstream.

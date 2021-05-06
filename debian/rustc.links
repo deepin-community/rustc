@@ -1,2 +1,3 @@
 usr/bin/lld-11 usr/bin/rust-lld
 usr/bin/clang-11 usr/bin/rust-clang
+usr/bin/llvm-dwp-11 usr/bin/rust-llvm-dwp
