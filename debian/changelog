@@ -1,8 +1,8 @@
-rustc (1.52.0~beta.3+dfsg1-1~exp4) UNRELEASED; urgency=medium
+rustc (1.52.0~beta.3+dfsg1-1~exp4) experimental; urgency=medium
 
   * Fix issue with dh_missing --fail-missing
 
- -- Ximin Luo <infinity0@debian.org>  Thu, 06 May 2021 01:52:10 +0100
+ -- Ximin Luo <infinity0@debian.org>  Thu, 06 May 2021 01:52:30 +0100
 
 rustc (1.52.0~beta.3+dfsg1-1~exp3) experimental; urgency=medium
 
