@@ -1,3 +1,9 @@
+rustc (1.52.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 07 May 2021 20:31:05 +0100
+
 rustc (1.52.0~beta.3+dfsg1-1~exp4) experimental; urgency=medium
 
   * Fix issue with dh_missing --fail-missing
