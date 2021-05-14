@@ -1338,6 +1338,16 @@ Copyright: 2010-2020 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/rust-lang/rust
 
+Files: vendor/rustc-semver/*
+Copyright: 2020-2020 flip1995 <hello@philkrones.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/flip1995/rustc-semver
+
+Files: vendor/rustc_tools_util/*
+Copyright: 2014-2021 Matthias Krüger <matthias.krueger@famsik.de>
+License: MIT or Apache-2.0
+Comment: see https://github.com/rust-lang/rust-clippy
+
 Files: vendor/rustc_version/*
 Copyright: 2015-2018 Marvin Löbel <loebel.marvin@gmail.com>
 License: MIT or Apache-2.0
@@ -1348,6 +1358,11 @@ Copyright: 2016-2018 Pascal Hertleif <killercup@gmail.com>
            2016-2018 Oliver Schneider <oli-obk@users.noreply.github.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/killercup/rustfix
+
+Files: vendor/rustversion/*
+Copyright: 2019-2021 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/rustversion
 
 Files: vendor/ryu/*
 Copyright: 2018-2018 David Tolnay <dtolnay@gmail.com>
@@ -1748,6 +1763,13 @@ Comment:
  see https://github.com/dirs-dev/dirs-rs
  see https://github.com/dirs-dev/dirs-sys-rs
 
+Files:
+ vendor/dirs-next/*
+ vendor/dirs-sys-next/*
+Copyright: 2017-2021 The @xdg-rs members
+License: MIT OR Apache-2.0
+Comment: see https://github.com/xdg-rs/dirs
+
 Files: vendor/if_chain/*
 Copyright: 2016-2020 Chris Wong <lambda.fairy@gmail.com>
 License: MIT or Apache-2.0
@@ -1764,9 +1786,11 @@ Copyright: 2016-2016 Oliver Schneider <git-spam-no-reply9815368754983@oli-obk.de
 License: MIT
 Comment: see https://github.com/oli-obk/quine-mc_cluskey
 
-Files: vendor/redox_users/*
-Copyright: 2017-2020 Jose Narvaez <goyox86@gmail.com>
-           2017-2020 Wesley Hershberger <mggmugginsmc@gmail.com>
+Files:
+ vendor/redox_users/*
+ vendor/redox_users-0*/*
+Copyright: 2017-2021 Jose Narvaez <goyox86@gmail.com>
+           2017-2021 Wesley Hershberger <mggmugginsmc@gmail.com>
 License: MIT
 Comment: see https://gitlab.redox-os.org/redox-os/users
 
@@ -1775,9 +1799,12 @@ Copyright: 2017-2020 Martijn Rijkeboer <mrr@sru-systems.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/sru-systems/rust-argon2
 
-Files: vendor/term/*
-Copyright: 2014-2020 The Rust Project Developers
-           2014-2020 Steven Allen
+Files:
+ vendor/term/*
+ vendor/term-0*/*
+Copyright:
+ 2014-2021 The Rust Project Developers
+ 2014-2021 Steven Allen
 License: MIT or Apache-2.0
 Comment: see https://github.com/Stebalien/term
 
