@@ -178,41 +178,6 @@ Index: rustc.git/src/tools/rustfmt/Cargo.toml
  [dependencies.rustc_ast]
  package = "rustc-ap-rustc_ast"
  version = "705.0.0"
-Index: rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
-===================================================================
---- rustc.git.orig/src/tools/rustfmt/src/cargo-fmt/main.rs
-+++ rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
-@@ -519,7 +519,7 @@ fn get_cargo_metadata(
-     if let Some(manifest_path) = manifest_path {
-         cmd.manifest_path(manifest_path);
-     }
--    cmd.other_options(&[String::from("--offline")]);
-+    cmd.other_options(vec![String::from("--offline")]);
- 
-     match cmd.exec() {
-         Ok(metadata) => Ok(metadata),
-Index: rustc.git/src/bootstrap/tool.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/tool.rs
-+++ rustc.git/src/bootstrap/tool.rs
-@@ -545,7 +545,16 @@ impl Step for Cargo {
- 
-     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-         let builder = run.builder;
--        run.path("src/tools/cargo").default_condition(builder.config.extended)
-+        run.path("src/tools/cargo").default_condition(
-+            builder.config.extended
-+                && builder.config.tools.as_ref().map_or(
-+                    true,
-+                    // If `tools` is set, search list for this tool.
-+                    |tools| {
-+                        tools.iter().any(|tool| tool == "cargo")
-+                    }
-+                )
-+        )
-     }
- 
-     fn make_run(run: RunConfig<'_>) {
 Index: rustc.git/src/tools/clippy/Cargo.toml
 ===================================================================
 --- rustc.git.orig/src/tools/clippy/Cargo.toml
