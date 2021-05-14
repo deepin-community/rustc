@@ -178,6 +178,19 @@ Index: rustc.git/src/tools/rustfmt/Cargo.toml
  [dependencies.rustc_ast]
  package = "rustc-ap-rustc_ast"
  version = "705.0.0"
+Index: rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
+===================================================================
+--- rustc.git.orig/src/tools/rustfmt/src/cargo-fmt/main.rs
++++ rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
+@@ -519,7 +519,7 @@ fn get_cargo_metadata(
+     if let Some(manifest_path) = manifest_path {
+         cmd.manifest_path(manifest_path);
+     }
+-    cmd.other_options(&[String::from("--offline")]);
++    cmd.other_options(vec![String::from("--offline")]);
+ 
+     match cmd.exec() {
+         Ok(metadata) => Ok(metadata),
 Index: rustc.git/src/tools/clippy/Cargo.toml
 ===================================================================
 --- rustc.git.orig/src/tools/clippy/Cargo.toml
