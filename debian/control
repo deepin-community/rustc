@@ -257,6 +257,7 @@ Description: Rust systems programming language - source code
 
 Package: rust-clippy
 Architecture: any
+Multi-Arch: allowed
 Depends: ${misc:Depends}, ${shlibs:Depends},
  libstd-rust-1.48
 Recommends: cargo
@@ -284,6 +285,7 @@ Description: Rust linter
 
 Package: rustfmt
 Architecture: any
+Multi-Arch: allowed
 Depends: ${misc:Depends}, ${shlibs:Depends},
 Recommends: cargo
 Description: Rust formatting helper
@@ -302,3 +304,28 @@ Description: Rust formatting helper
  This package contains 'rustfmt', a tool for formatting Rust code according to
  style guidelines, as well as 'cargo-fmt', a helper enabling running rustfmt
  directly with 'cargo fmt'.
+
+Package: rust-all
+Architecture: all
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ rustc (>= ${binary:Version}),
+ rustfmt (>= ${binary:Version}),
+ rust-clippy (>= ${binary:Version}),
+ rust-gdb (>= ${binary:Version}) | rust-lldb (>= ${binary:Version}),
+ cargo,
+Recommends: cargo (>= 0.53.0~~), cargo (<< 0.54.0~~)
+Description: Rust systems programming language - all developer tools
+ Rust is a curly-brace, block-structured expression language.  It
+ visually resembles the C language family, but differs significantly
+ in syntactic and semantic details.  Its design is oriented toward
+ concerns of "programming in the large", that is, of creating and
+ maintaining boundaries - both abstract and operational - that
+ preserve large-system integrity, availability and concurrency.
+ .
+ It supports a mixture of imperative procedural, concurrent actor,
+ object-oriented and pure functional styles.  Rust also supports
+ generic programming and meta-programming, in both static and dynamic
+ styles.
+ .
+ This package is an empty metapackage that depends on all developer tools
+ in the standard rustc distribution that have been packaged for Debian.
