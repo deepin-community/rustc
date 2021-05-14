@@ -267,6 +267,7 @@ vendor/sha2/tests/data/*.bin
 vendor/snap/data/*
 vendor/tar/tests/archives/*.tar
 vendor/term/tests/data/*
+vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
 vendor/unicode-segmentation/src/testdata.rs
