@@ -1,6 +1,6 @@
 --- a/vendor/cc/src/lib.rs
 +++ b/vendor/cc/src/lib.rs
-@@ -2000,7 +2000,7 @@
+@@ -2069,7 +2069,7 @@
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {

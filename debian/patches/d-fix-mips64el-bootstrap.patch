@@ -1,7 +1,7 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -795,6 +795,8 @@
+@@ -868,6 +868,8 @@
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"

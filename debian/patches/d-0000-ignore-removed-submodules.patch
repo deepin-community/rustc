@@ -2,11 +2,9 @@ Description: Ignore submodules that we're not building, or that are unused like
  mdbook-linkcheck that pull in a ton of dependencies that are unneeded.
 Author: Ximin Luo <infinity0@debian.org>
 Forwarded: not-needed
-Index: rustc.git/Cargo.toml
-===================================================================
---- rustc.git.orig/Cargo.toml
-+++ rustc.git/Cargo.toml
-@@ -16,23 +16,12 @@ members = [
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -16,23 +16,12 @@
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -30,7 +28,7 @@ Index: rustc.git/Cargo.toml
  ]
  
  exclude = [
-@@ -81,24 +70,8 @@ gimli.debug = 0
+@@ -81,24 +70,8 @@
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -55,11 +53,9 @@ Index: rustc.git/Cargo.toml
  
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
-Index: rustc.git/src/bootstrap/bootstrap.py
-===================================================================
---- rustc.git.orig/src/bootstrap/bootstrap.py
-+++ rustc.git/src/bootstrap/bootstrap.py
-@@ -754,10 +754,6 @@ class RustBuild(object):
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -893,10 +893,6 @@
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -70,11 +66,9 @@ Index: rustc.git/src/bootstrap/bootstrap.py
          run(args, env=env, verbose=self.verbose)
  
      def build_triple(self):
-Index: rustc.git/src/bootstrap/builder.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/builder.rs
-+++ rustc.git/src/bootstrap/builder.rs
-@@ -449,7 +449,6 @@ impl<'a> Builder<'a> {
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -447,7 +447,6 @@
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -82,7 +76,7 @@ Index: rustc.git/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -471,7 +470,6 @@ impl<'a> Builder<'a> {
+@@ -470,7 +469,6 @@
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -90,7 +84,7 @@ Index: rustc.git/src/bootstrap/builder.rs
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1343,10 +1340,7 @@ impl<'a> Builder<'a> {
+@@ -1456,10 +1454,7 @@
              }
          }
  
@@ -102,11 +96,9 @@ Index: rustc.git/src/bootstrap/builder.rs
              cargo.arg("--frozen");
          }
  
-Index: rustc.git/src/bootstrap/doc.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/doc.rs
-+++ rustc.git/src/bootstrap/doc.rs
-@@ -60,7 +60,6 @@ macro_rules! book {
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -60,7 +60,6 @@
  // NOTE: When adding a book here, make sure to ALSO build the book by
  // adding a build step in `src/bootstrap/builder.rs`!
  book!(
@@ -114,11 +106,9 @@ Index: rustc.git/src/bootstrap/doc.rs
      EditionGuide, "src/doc/edition-guide", "edition-guide";
      EmbeddedBook, "src/doc/embedded-book", "embedded-book";
      Nomicon, "src/doc/nomicon", "nomicon";
-Index: rustc.git/src/bootstrap/test.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/test.rs
-+++ rustc.git/src/bootstrap/test.rs
-@@ -1535,14 +1535,7 @@ impl Step for RustcGuide {
+--- a/src/bootstrap/test.rs
++++ b/src/bootstrap/test.rs
+@@ -1642,14 +1642,7 @@
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -134,11 +124,9 @@ Index: rustc.git/src/bootstrap/test.rs
      }
  }
  
-Index: rustc.git/src/tools/tidy/src/deps.rs
-===================================================================
---- rustc.git.orig/src/tools/tidy/src/deps.rs
-+++ rustc.git/src/tools/tidy/src/deps.rs
-@@ -370,8 +370,8 @@ fn check_crate_duplicate(metadata: &Meta
+--- a/src/tools/tidy/src/deps.rs
++++ b/src/tools/tidy/src/deps.rs
+@@ -374,8 +374,8 @@
          // These two crates take quite a long time to build, so don't allow two versions of them
          // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
          // under control.
@@ -149,11 +137,9 @@ Index: rustc.git/src/tools/tidy/src/deps.rs
      ];
  
      for &name in FORBIDDEN_TO_HAVE_DUPLICATES {
-Index: rustc.git/src/tools/rustfmt/Cargo.toml
-===================================================================
---- rustc.git.orig/src/tools/rustfmt/Cargo.toml
-+++ rustc.git/src/tools/rustfmt/Cargo.toml
-@@ -43,10 +43,10 @@ regex = "1.0"
+--- a/src/tools/rustfmt/Cargo.toml
++++ b/src/tools/rustfmt/Cargo.toml
+@@ -43,10 +43,10 @@
  term = "0.6"
  diff = "0.1"
  log = "0.4"
@@ -166,7 +152,7 @@ Index: rustc.git/src/tools/rustfmt/Cargo.toml
  bytecount = "0.6"
  unicode-width = "0.1.5"
  unicode_categories = "0.1.1"
-@@ -59,11 +59,6 @@ lazy_static = "1.0.0"
+@@ -59,11 +59,6 @@
  anyhow = "1.0"
  thiserror = "1.0"
  
@@ -178,11 +164,9 @@ Index: rustc.git/src/tools/rustfmt/Cargo.toml
  [dependencies.rustc_ast]
  package = "rustc-ap-rustc_ast"
  version = "705.0.0"
-Index: rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
-===================================================================
---- rustc.git.orig/src/tools/rustfmt/src/cargo-fmt/main.rs
-+++ rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
-@@ -519,7 +519,7 @@ fn get_cargo_metadata(
+--- a/src/tools/rustfmt/src/cargo-fmt/main.rs
++++ b/src/tools/rustfmt/src/cargo-fmt/main.rs
+@@ -529,7 +529,7 @@
      if let Some(manifest_path) = manifest_path {
          cmd.manifest_path(manifest_path);
      }
@@ -191,11 +175,9 @@ Index: rustc.git/src/tools/rustfmt/src/cargo-fmt/main.rs
  
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
-Index: rustc.git/src/tools/clippy/Cargo.toml
-===================================================================
---- rustc.git.orig/src/tools/clippy/Cargo.toml
-+++ rustc.git/src/tools/clippy/Cargo.toml
-@@ -46,11 +46,6 @@ clippy-mini-macro-test = { version = "0.
+--- a/src/tools/clippy/Cargo.toml
++++ b/src/tools/clippy/Cargo.toml
+@@ -38,11 +38,6 @@
  derive-new = "0.5"
  regex = "1.4"
  

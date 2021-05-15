@@ -1,8 +1,6 @@
-Index: rustc.git/src/bootstrap/tool.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/tool.rs
-+++ rustc.git/src/bootstrap/tool.rs
-@@ -545,7 +545,16 @@ impl Step for Cargo {
+--- a/src/bootstrap/tool.rs
++++ b/src/bootstrap/tool.rs
+@@ -573,7 +573,16 @@
  
      fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
          let builder = run.builder;

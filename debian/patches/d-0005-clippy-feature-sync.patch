@@ -1,11 +1,9 @@
 enable features needed by rustfmt to make build system happy and speedup build.
 this is what rustc_workspace_hack does in the upstream build.
 
-diff --git a/src/tools/clippy/clippy_lints/Cargo.toml b/src/tools/clippy/clippy_lints/Cargo.toml
-index e959c1a6511..39308996342 100644
 --- a/src/tools/clippy/clippy_lints/Cargo.toml
 +++ b/src/tools/clippy/clippy_lints/Cargo.toml
-@@ -25,7 +25,7 @@ pulldown-cmark = { version = "0.8", default-features = false }
+@@ -20,7 +20,7 @@
  quine-mc_cluskey = "0.2.2"
  regex-syntax = "0.6"
  serde = { version = "1.0", features = ["derive"] }
@@ -14,7 +12,7 @@ index e959c1a6511..39308996342 100644
  toml = "0.5.3"
  unicode-normalization = "0.1"
  semver = "0.11"
-@@ -29,7 +29,7 @@ rustc-semver = "1.1.0"
+@@ -29,7 +29,7 @@
  # see <https://github.com/rust-lang/rust/pull/63587#issuecomment-522343864>
  url = { version = "2.1.0", features = ["serde"] }
  quote = "1"
@@ -23,11 +21,9 @@ index e959c1a6511..39308996342 100644
  
  [features]
  deny-warnings = []
-diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 0f5bec2dcca..c9a64f05949 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -37,7 +37,7 @@ generic-simd = ["bytecount/generic-simd"]
+@@ -37,7 +37,7 @@
  itertools = "0.8"
  toml = "0.5"
  serde = { version = "1.0", features = ["derive"] }

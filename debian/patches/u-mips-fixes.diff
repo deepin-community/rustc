@@ -3,11 +3,9 @@ Author: Dragan Mladjenovic <dmladjenovic@wavecomp.com>
 Bug-Debian: https://bugs.debian.org/881845
 Last-Update: 2020-03-23
 
-Index: rustc.git/compiler/rustc_codegen_llvm/src/llvm_util.rs
-===================================================================
---- rustc.git.orig/compiler/rustc_codegen_llvm/src/llvm_util.rs
-+++ rustc.git/compiler/rustc_codegen_llvm/src/llvm_util.rs
-@@ -106,6 +106,12 @@ unsafe fn configure_llvm(sess: &Session)
+--- a/compiler/rustc_codegen_llvm/src/llvm_util.rs
++++ b/compiler/rustc_codegen_llvm/src/llvm_util.rs
+@@ -98,6 +98,12 @@
          // during inlining. Unfortunately these may block other optimizations.
          add("-preserve-alignment-assumptions-during-inlining=false", false);
  

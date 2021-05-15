@@ -2,11 +2,9 @@ Description: Don't split dwarf debug for a fully-reproducible build
 Author: Ximin Luo <infinity0@debian.org>
 Bug: https://github.com/rust-lang/rust/issues/34902
 
-Index: rustc.git/compiler/rustc_llvm/build.rs
-===================================================================
---- rustc.git.orig/compiler/rustc_llvm/build.rs
-+++ rustc.git/compiler/rustc_llvm/build.rs
-@@ -137,6 +137,11 @@ fn main() {
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -134,6 +134,11 @@
      let mut cfg = cc::Build::new();
      cfg.warnings(false);
      for flag in cxxflags.split_whitespace() {

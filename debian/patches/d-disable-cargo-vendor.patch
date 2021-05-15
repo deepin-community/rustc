@@ -2,11 +2,9 @@ Description: Don't check for cargo-vendor when building from (Debian's) git
 Author: Matthijs van Otterdijk <matthijs@wirevirt.net>
 Forwarded: not-needed
 ---
-Index: rustc.git/src/bootstrap/dist.rs
-===================================================================
---- rustc.git.orig/src/bootstrap/dist.rs
-+++ rustc.git/src/bootstrap/dist.rs
-@@ -1112,7 +1112,10 @@ impl Step for PlainSourceTarball {
+--- a/src/bootstrap/dist.rs
++++ b/src/bootstrap/dist.rs
+@@ -904,7 +904,10 @@
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
