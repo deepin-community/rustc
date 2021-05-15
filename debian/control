@@ -258,8 +258,7 @@ Description: Rust systems programming language - source code
 Package: rust-clippy
 Architecture: any
 Multi-Arch: allowed
-Depends: ${misc:Depends}, ${shlibs:Depends},
- libstd-rust-1.48
+Depends: ${misc:Depends}, ${shlibs:Depends}, libstd-rust-1.52 (= ${binary:Version})
 Recommends: cargo
 Description: Rust linter
  Rust is a curly-brace, block-structured expression language.  It
