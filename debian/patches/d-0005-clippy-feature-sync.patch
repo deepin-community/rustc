@@ -14,6 +14,15 @@ index e959c1a6511..39308996342 100644
  toml = "0.5.3"
  unicode-normalization = "0.1"
  semver = "0.11"
+@@ -29,7 +29,7 @@ rustc-semver = "1.1.0"
+ # see <https://github.com/rust-lang/rust/pull/63587#issuecomment-522343864>
+ url = { version = "2.1.0", features = ["serde"] }
+ quote = "1"
+-syn = { version = "1", features = ["full"] }
++syn = { version = "1", features = ["full", "visit-mut", "extra-traits", "visit"] }
+ 
+ [features]
+ deny-warnings = []
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
 index 0f5bec2dcca..c9a64f05949 100644
 --- a/src/tools/rustfmt/Cargo.toml
