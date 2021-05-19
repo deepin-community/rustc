@@ -15,7 +15,7 @@ Forwarded: not-needed
  RUST_LLDB="$RUSTC_SYSROOT/lib/rustlib/$host/bin/lldb"
  
 -lldb=lldb
-+lldb=lldb-11
++lldb=lldb-12
  if [ -f "$RUST_LLDB" ]; then
      lldb="$RUST_LLDB"
  else

@@ -15,11 +15,11 @@ Build-Depends:
  cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
  rustc:native (>= 1.51.0+dfsg) <!pkg.rustc.dlstage0>,
  rustc:native (<= 1.52.1++)    <!pkg.rustc.dlstage0>,
- llvm-11-dev:native,
- llvm-11-tools:native,
+ llvm-12-dev:native,
+ llvm-12-tools:native,
  gcc-mingw-w64-x86-64-posix:native [amd64] <!nowindows>,
  gcc-mingw-w64-i686-posix:native [i386] <!nowindows>,
- libllvm11,
+ libllvm12,
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
  pkg-config,
@@ -40,7 +40,7 @@ Build-Depends:
 Build-Depends-Indep:
  wasi-libc (>= 0.0~git20201130.5879558~~) <!nowasm>,
  wasi-libc (<= 0.0~git20201130.5879558++) <!nowasm>,
- clang-11:native,
+ clang-12:native,
 Build-Conflicts: gdb-minimal <!nocheck>
 Standards-Version: 4.2.1
 Homepage: http://www.rust-lang.org/
@@ -56,7 +56,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-dev (= ${binary:Version
 Recommends: cargo (>= 0.53.0~~), cargo (<< 0.54.0~~), rust-gdb | rust-lldb
 # lld is needed for wasm compilation
 # llvm is needed for llvm-dwp for split-debuginfo
-Suggests: rust-doc, rust-src, lld-11, llvm-11
+Suggests: rust-doc, rust-src, lld-12, llvm-12
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Description: Rust systems programming language
@@ -149,8 +149,8 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
-Recommends: lld-11
-Suggests: clang-11, nodejs (>= 12.16)
+Recommends: lld-12
+Suggests: clang-12, nodejs (>= 12.16)
 # nodejs contains wasi-node for running the program
 Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
@@ -194,7 +194,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-11, ${misc:Depends}, python3-lldb-11
+Depends: lldb-12, ${misc:Depends}, python3-lldb-12
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It
