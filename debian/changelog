@@ -1,8 +1,8 @@
-rustc (1.52.1+dfsg1-1~exp3) UNRELEASED; urgency=medium
+rustc (1.52.1+dfsg1-1~exp3) experimental; urgency=medium
 
   * Update to LLVM 12.
 
- -- Ximin Luo <infinity0@debian.org>  Wed, 19 May 2021 17:47:57 +0100
+ -- Ximin Luo <infinity0@debian.org>  Wed, 19 May 2021 17:52:44 +0100
 
 rustc (1.52.1+dfsg1-1~exp2) experimental; urgency=medium
 
