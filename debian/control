@@ -51,12 +51,16 @@ Package: rustc
 Architecture: any
 Multi-Arch: allowed
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-dev (= ${binary:Version}),
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ libstd-rust-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
-Recommends: cargo (>= 0.53.0~~), cargo (<< 0.54.0~~), rust-gdb | rust-lldb
-# lld is needed for wasm compilation
-# llvm is needed for llvm-dwp for split-debuginfo
-Suggests: rust-doc, rust-src, lld-12, llvm-12
+Recommends:
+ cargo (>= 0.53.0~~), cargo (<< 0.54.0~~),
+# llvm is needed for llvm-dwp for -C split-debuginfo=packed
+ llvm-12,
+Suggests:
+# lld and clang are needed for wasm compilation
+ lld-12, clang-12,
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Description: Rust systems programming language
@@ -98,7 +102,8 @@ Package: libstd-rust-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: ${shlibs:Depends}, ${misc:Depends}, libstd-rust-1.52 (= ${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ libstd-rust-1.52 (= ${binary:Version}),
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -149,9 +154,11 @@ Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
-Recommends: lld-12
-Suggests: clang-12, nodejs (>= 12.16)
+Recommends:
+ lld-12, clang-12,
+Suggests:
 # nodejs contains wasi-node for running the program
+ nodejs (>= 12.16),
 Build-Profiles: <!nowasm>
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
@@ -258,7 +265,8 @@ Description: Rust systems programming language - source code
 Package: rust-clippy
 Architecture: any
 Multi-Arch: allowed
-Depends: ${misc:Depends}, ${shlibs:Depends}, libstd-rust-1.52 (= ${binary:Version})
+Depends: ${misc:Depends}, ${shlibs:Depends},
+ libstd-rust-1.52 (= ${binary:Version})
 Recommends: cargo
 Description: Rust linter
  Rust is a curly-brace, block-structured expression language.  It
@@ -312,7 +320,13 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
  rust-clippy (>= ${binary:Version}),
  rust-gdb (>= ${binary:Version}) | rust-lldb (>= ${binary:Version}),
  cargo,
-Recommends: cargo (>= 0.53.0~~), cargo (<< 0.54.0~~)
+Recommends:
+ cargo (>= 0.53.0~~), cargo (<< 0.54.0~~)
+Suggests:
+ rust-doc (>= ${binary:Version}),
+ rust-src (>= ${binary:Version}),
+ libstd-rust-dev-wasm32 (>= ${binary:Version}),
+ libstd-rust-dev-windows (>= ${binary:Version}),
 Description: Rust systems programming language - all developer tools
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly

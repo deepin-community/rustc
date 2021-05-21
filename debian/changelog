@@ -1,3 +1,9 @@
+rustc (1.52.1+dfsg1-1~exp4) UNRELEASED; urgency=medium
+
+  * Reorganise dependencies, move optional rustc deps to rust-all.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 21 May 2021 15:34:38 +0100
+
 rustc (1.52.1+dfsg1-1~exp3) experimental; urgency=medium
 
   * Update to LLVM 12.
