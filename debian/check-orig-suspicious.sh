@@ -16,6 +16,8 @@ find . -name '*.rs' -execdir sed -i -e '\,^\s*//,d' -e '/^\s*$/d' '{}' \;
 
 /usr/share/cargo/scripts/audit-vendor-source \
   "$SUS_WHITELIST" \
-  "Files-Excluded: in debian/copyright and run a repack."
+  "Files-Excluded: in debian/copyright and run a repack." \
+  -m text/x-script.python \
+  -m application/csv
 
 echo "Artifacts left in rustc-$ver-src, please remove them yourself."

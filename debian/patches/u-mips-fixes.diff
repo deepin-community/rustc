@@ -11,8 +11,8 @@ Index: rustc.git/compiler/rustc_codegen_llvm/src/llvm_util.rs
          // during inlining. Unfortunately these may block other optimizations.
          add("-preserve-alignment-assumptions-during-inlining=false", false);
  
-+        if sess.target.target.arch == "mips"
-+            || sess.target.target.arch == "mips64"
++        if sess.target.arch == "mips"
++            || sess.target.arch == "mips64"
 +        {
 +            add("-fast-isel=0", false);
 +        }

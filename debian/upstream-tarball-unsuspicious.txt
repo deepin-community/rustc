@@ -15,6 +15,7 @@ vendor/regex/tests/suffix_reverse.rs
 
 # False-positive, "verylongtext" but OK
 CONTRIBUTING.md
+compiler/rustc_codegen_cranelift/docs/dwarf.md
 library/std/sys/cloudabi/abi/cloudabi.rs
 library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
@@ -50,6 +51,7 @@ vendor/ammonia/src/lib.rs
 vendor/base64/RELEASE-NOTES.md
 vendor/clap/SPONSORS.md
 vendor/clap/.github/CONTRIBUTING.md
+vendor/cranelift-codegen/src/isa/x86/unwind/systemv.rs
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
@@ -88,6 +90,8 @@ src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-js-std/tester.js
+vendor/errno-dragonfly/src/errno.c
+vendor/raw-cpuid/src/cpuid.c
 vendor/salsa/book/mermaid-init.js
 vendor/stacker/src/arch/windows.c
 
@@ -141,10 +145,12 @@ src/doc/book/2018-edition/src/img/*.png
 src/doc/book/tools/docx-to-md.xsl
 src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
+src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
 src/librustdoc/html/static/favicon.ico
 src/librustdoc/html/static/favicon-*.png
+src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
 vendor/addr2line/memory.png
 vendor/addr2line/time.png
 vendor/base64/icon_CLion.svg
@@ -199,6 +205,7 @@ vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
 vendor/cssparser/src/big-data-url.css
 vendor/elasticlunr-rs/tests/data/*.in.txt
+vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
 vendor/gimli/fixtures/self/*
 vendor/goblin/etc/*.rs
@@ -232,6 +239,8 @@ vendor/regex/tests/fowler.rs
 vendor/regex-0*/src/testdata/basic.dat
 vendor/regex-0*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
+vendor/sha-1-0*/tests/data/*.blb
+vendor/sha-1-0*/tests/data/*.bin
 vendor/sha-1/tests/data/*.blb
 vendor/sha-1/tests/data/*.bin
 vendor/sha2/tests/data/*.blb

@@ -32,8 +32,8 @@ Index: rustc.git/Cargo.toml
    "src/tools/unicode-table-generator",
 -  "src/tools/expand-yaml-anchors",
  ]
+ 
  exclude = [
-   "build",
 @@ -69,24 +60,8 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
@@ -92,16 +92,14 @@ Index: rustc.git/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -471,9 +470,7 @@ impl<'a> Builder<'a> {
+@@ -471,7 +470,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
 -                dist::Extended,
                  dist::BuildManifest,
--                dist::HashSign
              ),
              Kind::Install => describe!(
-                 install::Docs,
 @@ -1343,10 +1340,7 @@ impl<'a> Builder<'a> {
              }
          }
