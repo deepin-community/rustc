@@ -1,3 +1,27 @@
+rustc (1.50.0+dfsg1-1~exp4) experimental; urgency=medium
+
+  * Fix more tests with a backported upstream PR.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 12 Apr 2021 01:51:22 +0100
+
+rustc (1.50.0+dfsg1-1~exp3) experimental; urgency=medium
+
+  * Fix cross-compile to windows using same-version stage0.
+
+ -- Ximin Luo <infinity0@debian.org>  Sun, 11 Apr 2021 13:52:41 +0100
+
+rustc (1.50.0+dfsg1-1~exp2) experimental; urgency=medium
+
+  * Fix tests, fix s390x breakage.
+
+ -- Ximin Luo <infinity0@debian.org>  Fri, 09 Apr 2021 16:54:20 +0100
+
+rustc (1.50.0+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 05 Apr 2021 21:30:18 +0100
+
 rustc (1.49.0+dfsg1-2) unstable; urgency=medium
 
   * Backport upstream PR 85807 to fix powerpc test issues.

@@ -1,13 +1,11 @@
-Index: rustc.git/compiler/rustc_llvm/build.rs
-===================================================================
---- rustc.git.orig/compiler/rustc_llvm/build.rs
-+++ rustc.git/compiler/rustc_llvm/build.rs
-@@ -249,7 +249,7 @@ fn main() {
-         if is_crossed {
-             if lib.starts_with("-LIBPATH:") {
-                 println!("cargo:rustc-link-search=native={}", lib[9..].replace(&host, &target));
--            } else if lib.starts_with("-L") {
-+            } else if lib.starts_with("-L") && lib[2..].contains(&host) {
-                 println!("cargo:rustc-link-search=native={}", lib[2..].replace(&host, &target));
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -249,7 +249,7 @@
+             if let Some(stripped) = lib.strip_prefix("-LIBPATH:") {
+                 println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target));
+             } else if let Some(stripped) = lib.strip_prefix("-L") {
+-                println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target));
++                if stripped.contains(&host) { println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target)); }
              }
-         } else if lib.starts_with("-LIBPATH:") {
+         } else if let Some(stripped) = lib.strip_prefix("-LIBPATH:") {
+             println!("cargo:rustc-link-search=native={}", stripped);
