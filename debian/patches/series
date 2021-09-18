@@ -1,6 +1,7 @@
 # Patches for upstream
 
 # pending, or forwarded
+u-85807.patch
 u-ignore-gdb-10-failures.patch
 u-update-version-check.patch
 u-reproducible-build.patch
