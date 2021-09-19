@@ -34,6 +34,8 @@ use crate::Ty;
 use crate::TyData;
 use crate::VariableKind;
 use crate::VariableKinds;
+use crate::Variance;
+use crate::Variances;
 use crate::{Const, ConstData};
 use std::fmt::{self, Debug};
 use std::hash::Hash;
@@ -175,6 +177,15 @@ pub trait Interner: Debug + Copy + Eq + Ord + Hash {
     /// An `InternedConstraints` is created by `intern_constraints`
     /// and can be converted back to its underlying data via `constraints_data`.
     type InternedConstraints: Debug + Clone + Eq + Hash;
+
+    /// "Interned" representation of a list of `chalk_ir::Variance`.
+    /// In normal user code, `Self::InternedVariances` is not referenced.
+    /// Instead, we refer to `Variances<Self>`, which wraps this type.
+    ///
+    /// An `InternedVariances` is created by
+    /// `intern_variances` and can be converted back
+    /// to its underlying data via `variances_data`.
+    type InternedVariances: Debug + Clone + Eq + Hash;
 
     /// The core "id" type used for trait-ids and the like.
     type DefId: Debug + Copy + Eq + Ord + Hash;
@@ -446,6 +457,16 @@ pub trait Interner: Debug + Copy + Eq + Ord + Hash {
         None
     }
 
+    /// Prints the debug representation of a Variances.
+    /// Returns `None` to fallback to the default debug output.
+    #[allow(unused_variables)]
+    fn debug_variances(
+        variances: &Variances<Self>,
+        fmt: &mut fmt::Formatter<'_>,
+    ) -> Option<fmt::Result> {
+        None
+    }
+
     /// Create an "interned" type from `ty`. This is not normally
     /// invoked directly; instead, you invoke `TyKind::intern` (which
     /// will ultimately call this method).
@@ -618,73 +639,19 @@ pub trait Interner: Debug + Copy + Eq + Ord + Hash {
         &self,
         constraints: &'a Self::InternedConstraints,
     ) -> &'a [InEnvironment<Constraint<Self>>];
-}
 
-/// "Target" interner, used to specify the interner of the folded value.
-/// In most cases, both interners are the same, but in some cases you want
-/// to change a value to a different internal representation, and as such
-/// a different target interner.
-///
-/// Contains several methods to transfer types from another interner to
-/// the `TargetInterner`.
-pub trait TargetInterner<I: Interner>: Interner {
-    /// Transfer a `DefId` to the target interner.
-    fn transfer_def_id(def_id: I::DefId) -> Self::DefId;
-
-    /// Transfer an AdtId to the target interner.
-    fn transfer_adt_id(adt_id: I::InternedAdtId) -> Self::InternedAdtId;
-
-    /// Transfer variable kinds to the target interner.
-    fn transfer_variable_kinds(
-        variable_kinds: I::InternedVariableKinds,
-    ) -> Self::InternedVariableKinds;
-
-    /// Transfer canonical var kinds to the target interner.
-    fn transfer_canonical_var_kinds(
-        variable_kinds: I::InternedCanonicalVarKinds,
-    ) -> Self::InternedCanonicalVarKinds;
-
-    /// Transfer constant values to the target interner.
-    fn transfer_const(
+    /// Create "interned" variances from `data`. This is not
+    /// normally invoked directly; instead, you invoke
+    /// `Variances::from` (which will ultimately call this
+    /// method).
+    fn intern_variances<E>(
         &self,
-        const_evaluated: &I::InternedConcreteConst,
-    ) -> Self::InternedConcreteConst;
+        data: impl IntoIterator<Item = Result<Variance, E>>,
+    ) -> Result<Self::InternedVariances, E>;
 
-    /// Transfer function ABI to the target interner.
-    fn transfer_abi(abi: I::FnAbi) -> Self::FnAbi;
-}
-
-impl<I: Interner> TargetInterner<I> for I {
-    fn transfer_def_id(def_id: I::DefId) -> Self::DefId {
-        def_id
-    }
-
-    fn transfer_adt_id(adt_id: I::InternedAdtId) -> Self::InternedAdtId {
-        adt_id
-    }
-
-    fn transfer_variable_kinds(
-        variable_kinds: I::InternedVariableKinds,
-    ) -> Self::InternedVariableKinds {
-        variable_kinds
-    }
-
-    fn transfer_canonical_var_kinds(
-        variable_kinds: I::InternedCanonicalVarKinds,
-    ) -> Self::InternedCanonicalVarKinds {
-        variable_kinds
-    }
-
-    fn transfer_const(
-        &self,
-        const_evaluated: &I::InternedConcreteConst,
-    ) -> Self::InternedConcreteConst {
-        const_evaluated.clone()
-    }
-
-    fn transfer_abi(abi: I::FnAbi) -> Self::FnAbi {
-        abi
-    }
+    /// Lookup the slice of `Variance` that was interned to
+    /// create a `Variances`.
+    fn variances_data<'a>(&self, variances: &'a Self::InternedVariances) -> &'a [Variance];
 }
 
 /// Implemented by types that have an associated interner (which

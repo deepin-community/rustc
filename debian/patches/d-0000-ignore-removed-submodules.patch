@@ -7,14 +7,14 @@ Index: rustc.git/Cargo.toml
 --- rustc.git.orig/Cargo.toml
 +++ rustc.git/Cargo.toml
 @@ -6,7 +6,6 @@ members = [
-   "library/std",
    "library/test",
+   "src/rustdoc-json-types",
    "src/tools/cargotest",
 -  "src/tools/clippy",
    "src/tools/compiletest",
    "src/tools/error_index_generator",
    "src/tools/linkchecker",
-@@ -15,22 +14,11 @@ members = [
+@@ -15,23 +14,11 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -34,6 +34,7 @@ Index: rustc.git/Cargo.toml
    "src/tools/rustdoc-themes",
    "src/tools/unicode-table-generator",
 -  "src/tools/expand-yaml-anchors",
+-  "src/tools/jsondocck",
  ]
  
  exclude = [
@@ -63,8 +64,8 @@ Index: rustc.git/Cargo.toml
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 @@ -100,5 +75,3 @@ rustc-std-workspace-std = { path = 'libr
- # source code for this crate.
- backtrace = { path = "library/backtrace" }
+ rustc-std-workspace-alloc = { path = 'library/rustc-std-workspace-alloc' }
+ rustc-std-workspace-std = { path = 'library/rustc-std-workspace-std' }
  
 -[patch."https://github.com/rust-lang/rust-clippy"]
 -clippy_lints = { path = "src/tools/clippy/clippy_lints" }

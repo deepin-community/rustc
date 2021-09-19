@@ -1,8 +1,6 @@
-Index: rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-===================================================================
---- rust.orig/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-+++ rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-@@ -2,7 +2,7 @@ use crate::spec::{LinkerFlavor, Target,
+--- a/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
++++ b/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
+@@ -2,7 +2,7 @@
  
  pub fn target() -> Target {
      let mut base = super::linux_gnu_base::opts();
@@ -10,4 +8,4 @@ Index: rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 +    base.cpu = "pentiumpro".to_string();
      base.max_atomic_width = Some(64);
      base.pre_link_args.get_mut(&LinkerFlavor::Gcc).unwrap().push("-m32".to_string());
-     base.stack_probes = true;
+     // don't use probe-stack=inline-asm until rust-lang/rust#83139 is resolved.

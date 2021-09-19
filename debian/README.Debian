@@ -89,21 +89,20 @@ to stdout. If you just want to cross-compile a regular non-wasm library or
 program to wasm for whatever reason, and only want to run it natively and not
 inside a web browser, use this target.
 
-To run the generated wasm, you will need a runtime:
+To run the generated wasm, you can either:
 
-- https://github.com/bytecodealliance/wasmtime
-- https://github.com/bytecodealliance/lucet
-- https://github.com/wasmerio/wasmer
-- https://nodejs.org/api/wasi.html (sadly Debian's is too old, ATTOW)
+1. Use /usr/share/rustc/bin/wasi-node, which depends on nodejs.
 
-The first 3 are actually also all written in Rust, so one day some of them may
-even be packaged for Debian.
+   Pending #986616, this will be added to the nodejs package directly.
+
+2. Compile and use one of the following runtimes:
+
+   - https://github.com/bytecodealliance/wasmtime
+   - https://github.com/bytecodealliance/lucet
+   - https://github.com/wasmerio/wasmer
 
 windows
 -------
-
-TODO FIXME: 32-bit does not currently work, we are awaiting
-https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=540782#64
 
 We ship the following targets:
 

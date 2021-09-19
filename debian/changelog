@@ -1,3 +1,29 @@
+rustc (1.51.0+dfsg1-1~exp4) UNRELEASED; urgency=medium
+
+  * Install the rust-llvm-dwp symlink.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 05 May 2021 22:07:55 +0100
+
+rustc (1.51.0+dfsg1-1~exp3) experimental; urgency=medium
+
+  * Restore patch, not actually fixed upstream.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 16:17:12 +0100
+
+rustc (1.51.0+dfsg1-1~exp2) experimental; urgency=medium
+
+  * Drop patch fixed upstream.
+  * Fix bootstrap with self version.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 12:26:43 +0100
+
+rustc (1.51.0+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream release.
+  * Enable 32-bit windows support.
+
+ -- Ximin Luo <infinity0@debian.org>  Mon, 12 Apr 2021 11:04:36 +0100
+
 rustc (1.50.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.

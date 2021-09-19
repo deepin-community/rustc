@@ -4,6 +4,7 @@ use chalk_ir::{Floundered, Substitution, Ty};
 
 mod clone;
 mod copy;
+mod discriminant_kind;
 mod fn_family;
 mod sized;
 mod unsize;
@@ -14,33 +15,35 @@ pub fn add_builtin_program_clauses<I: Interner>(
     db: &dyn RustIrDatabase<I>,
     builder: &mut ClauseBuilder<'_, I>,
     well_known: WellKnownTrait,
-    trait_ref: &TraitRef<I>,
+    trait_ref: TraitRef<I>,
     binders: &CanonicalVarKinds<I>,
 ) -> Result<(), Floundered> {
     // If `trait_ref` contains bound vars, we want to universally quantify them.
     // `Generalize` collects them for us.
     let generalized = generalize::Generalize::apply(db.interner(), trait_ref);
 
-    builder.push_binders(&generalized, |builder, trait_ref| {
+    builder.push_binders(generalized, |builder, trait_ref| {
         let self_ty = trait_ref.self_type_parameter(db.interner());
-        let ty = self_ty.kind(db.interner());
+        let ty = self_ty.kind(db.interner()).clone();
 
         match well_known {
             WellKnownTrait::Sized => {
-                sized::add_sized_program_clauses(db, builder, &trait_ref, ty, binders)
+                sized::add_sized_program_clauses(db, builder, trait_ref, ty, binders)?;
             }
             WellKnownTrait::Copy => {
-                copy::add_copy_program_clauses(db, builder, &trait_ref, ty, binders)
+                copy::add_copy_program_clauses(db, builder, trait_ref, ty, binders)?;
             }
             WellKnownTrait::Clone => {
-                clone::add_clone_program_clauses(db, builder, &trait_ref, ty, binders)
+                clone::add_clone_program_clauses(db, builder, trait_ref, ty, binders)?;
             }
             WellKnownTrait::FnOnce | WellKnownTrait::FnMut | WellKnownTrait::Fn => {
                 fn_family::add_fn_trait_program_clauses(db, builder, well_known, self_ty)?
             }
             WellKnownTrait::Unsize => {
-                unsize::add_unsize_program_clauses(db, builder, &trait_ref, ty)
+                unsize::add_unsize_program_clauses(db, builder, trait_ref, ty)
             }
+            // DiscriminantKind is automatically implemented for all types
+            WellKnownTrait::DiscriminantKind => builder.push_fact(trait_ref),
             // There are no builtin impls provided for the following traits:
             WellKnownTrait::Unpin | WellKnownTrait::Drop | WellKnownTrait::CoerceUnsized => (),
         }
@@ -60,12 +63,15 @@ pub fn add_builtin_assoc_program_clauses<I: Interner>(
         WellKnownTrait::FnOnce => {
             // If `self_ty` contains bound vars, we want to universally quantify them.
             // `Generalize` collects them for us.
-            let generalized = generalize::Generalize::apply(db.interner(), &self_ty);
+            let generalized = generalize::Generalize::apply(db.interner(), self_ty);
 
-            builder.push_binders(&generalized, |builder, self_ty| {
+            builder.push_binders(generalized, |builder, self_ty| {
                 fn_family::add_fn_trait_program_clauses(db, builder, well_known, self_ty)?;
                 Ok(())
             })
+        }
+        WellKnownTrait::DiscriminantKind => {
+            discriminant_kind::add_discriminant_clauses(db, builder, self_ty)
         }
         _ => Ok(()),
     }
@@ -76,20 +82,17 @@ pub fn add_builtin_assoc_program_clauses<I: Interner>(
 pub fn needs_impl_for_tys<I: Interner>(
     db: &dyn RustIrDatabase<I>,
     builder: &mut ClauseBuilder<'_, I>,
-    trait_ref: &TraitRef<I>,
+    trait_ref: TraitRef<I>,
     tys: impl Iterator<Item = Ty<I>>,
 ) {
+    let trait_id = trait_ref.trait_id;
+
     // The trait must take one parameter (a type)
-    debug_assert_eq!(
-        db.trait_datum(trait_ref.trait_id)
-            .binders
-            .len(db.interner()),
-        1,
-    );
+    debug_assert_eq!(db.trait_datum(trait_id).binders.len(db.interner()), 1,);
     builder.push_clause(
-        trait_ref.clone(),
+        trait_ref,
         tys.map(|ty| TraitRef {
-            trait_id: trait_ref.trait_id,
+            trait_id: trait_id,
             substitution: Substitution::from1(db.interner(), ty),
         }),
     );

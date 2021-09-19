@@ -11,7 +11,8 @@ use crate::{
     RustIrDatabase,
 };
 use chalk_ir::{
-    interner::Interner, Binders, CanonicalVarKinds, GeneratorId, Substitution, VariableKinds,
+    interner::Interner, Binders, CanonicalVarKinds, GeneratorId, Substitution, Ty,
+    UnificationDatabase, VariableKinds, Variances,
 };
 
 #[derive(Debug)]
@@ -22,6 +23,16 @@ pub struct StubWrapper<'a, DB> {
 impl<'a, DB> StubWrapper<'a, DB> {
     pub fn new(db: &'a DB) -> Self {
         StubWrapper { db }
+    }
+}
+
+impl<I: Interner, DB: RustIrDatabase<I>> UnificationDatabase<I> for StubWrapper<'_, DB> {
+    fn fn_def_variance(&self, fn_def_id: chalk_ir::FnDefId<I>) -> Variances<I> {
+        self.db.unification_database().fn_def_variance(fn_def_id)
+    }
+
+    fn adt_variance(&self, adt_id: chalk_ir::AdtId<I>) -> Variances<I> {
+        self.db.unification_database().adt_variance(adt_id)
     }
 }
 
@@ -75,7 +86,7 @@ impl<I: Interner, DB: RustIrDatabase<I>> RustIrDatabase<I> for StubWrapper<'_, D
         Arc::new(v)
     }
 
-    fn adt_repr(&self, id: chalk_ir::AdtId<I>) -> crate::rust_ir::AdtRepr {
+    fn adt_repr(&self, id: chalk_ir::AdtId<I>) -> std::sync::Arc<crate::rust_ir::AdtRepr<I>> {
         self.db.adt_repr(id)
     }
 
@@ -223,6 +234,10 @@ impl<I: Interner, DB: RustIrDatabase<I>> RustIrDatabase<I> for StubWrapper<'_, D
         unimplemented!("cannot stub closures")
     }
 
+    fn unification_database(&self) -> &dyn UnificationDatabase<I> {
+        self
+    }
+
     fn trait_name(&self, trait_id: chalk_ir::TraitId<I>) -> String {
         self.db.trait_name(trait_id)
     }
@@ -241,5 +256,9 @@ impl<I: Interner, DB: RustIrDatabase<I>> RustIrDatabase<I> for StubWrapper<'_, D
 
     fn fn_def_name(&self, fn_def_id: chalk_ir::FnDefId<I>) -> String {
         self.db.fn_def_name(fn_def_id)
+    }
+
+    fn discriminant_type(&self, ty: Ty<I>) -> Ty<I> {
+        self.db.discriminant_type(ty)
     }
 }

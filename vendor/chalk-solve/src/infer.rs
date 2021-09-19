@@ -1,7 +1,7 @@
 use chalk_ir::interner::{HasInterner, Interner};
 use chalk_ir::*;
 use chalk_ir::{cast::Cast, fold::Fold};
-use tracing::{debug, instrument};
+use tracing::debug;
 
 mod canonicalize;
 pub(crate) mod instantiate;
@@ -49,7 +49,7 @@ impl<I: Interner> InferenceTable<I> {
     pub fn from_canonical<T>(
         interner: &I,
         num_universes: usize,
-        canonical: &Canonical<T>,
+        canonical: Canonical<T>,
     ) -> (Self, Substitution<I>, T)
     where
         T: HasInterner<Interner = I> + Fold<I, Result = T> + Clone,
@@ -62,7 +62,7 @@ impl<I: Interner> InferenceTable<I> {
         }
 
         let subst = table.fresh_subst(interner, canonical.binders.as_slice(interner));
-        let value = subst.apply(&canonical.value, interner);
+        let value = subst.apply(canonical.value, interner);
         // let value = canonical.value.fold_with(&mut &subst, 0).unwrap();
 
         (table, subst, value)
@@ -119,6 +119,15 @@ impl<I: Interner> InferenceTable<I> {
     }
 
     pub fn normalize_ty_shallow(&mut self, interner: &I, leaf: &Ty<I>) -> Option<Ty<I>> {
+        // An integer/float type variable will never normalize to another
+        // variable; but a general type variable might normalize to an
+        // integer/float variable. So we potentially need to normalize twice to
+        // get at the actual value.
+        self.normalize_ty_shallow_inner(interner, leaf)
+            .map(|ty| self.normalize_ty_shallow_inner(interner, &ty).unwrap_or(ty))
+    }
+
+    fn normalize_ty_shallow_inner(&mut self, interner: &I, leaf: &Ty<I>) -> Option<Ty<I>> {
         self.probe_var(leaf.inference_var(interner)?)
             .map(|p| p.assert_ty_ref(interner).clone())
     }
@@ -135,6 +144,33 @@ impl<I: Interner> InferenceTable<I> {
     pub fn normalize_const_shallow(&mut self, interner: &I, leaf: &Const<I>) -> Option<Const<I>> {
         self.probe_var(leaf.inference_var(interner)?)
             .map(|p| p.assert_const_ref(interner).clone())
+    }
+
+    pub fn ty_root(&mut self, interner: &I, leaf: &Ty<I>) -> Option<Ty<I>> {
+        Some(
+            self.unify
+                .find(leaf.inference_var(interner)?)
+                .to_ty(interner),
+        )
+    }
+
+    pub fn lifetime_root(&mut self, interner: &I, leaf: &Lifetime<I>) -> Option<Lifetime<I>> {
+        Some(
+            self.unify
+                .find(leaf.inference_var(interner)?)
+                .to_lifetime(interner),
+        )
+    }
+
+    /// Finds the root inference var for the given variable.
+    ///
+    /// The returned variable will be exactly equivalent to the given
+    /// variable except in name. All variables which have been unified to
+    /// eachother (but don't yet have a value) have the same "root".
+    ///
+    /// This is useful for `DeepNormalizer`.
+    pub fn inference_var_root(&mut self, var: InferenceVar) -> InferenceVar {
+        self.unify.find(var).into()
     }
 
     /// If type `leaf` is a free inference variable, and that variable has been

@@ -2,12 +2,11 @@
 
 # pending, or forwarded
 u-85807.patch
-9756838f612da2ef6c359aaea8bf0a69ad76716a.patch
+u-fix-self-bootstrap.patch
 0001-Revert-Auto-merge-of-79547.patch
 u-84099.patch
 u-8d504aa90416668d8f6b4cbd449e2e1de20fb937.patch
 u-ignore-gdb-10-failures.patch
-u-update-version-check.patch
 u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
@@ -17,7 +16,6 @@ u-ignore-endian-big.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-rustc-llvm-cross-flags.patch
-u-dont-install-libllvm.patch
 u-reproducible-dl-stage0.patch
 
 # Debian-specific patches, not suitable for upstream
