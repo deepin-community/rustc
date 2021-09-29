@@ -1,0 +1,34 @@
+enable features needed by rustfmt to make build system happy and speedup build.
+this is what rustc_workspace_hack does in the upstream build.
+
+--- a/src/tools/clippy/clippy_lints/Cargo.toml
++++ b/src/tools/clippy/clippy_lints/Cargo.toml
+@@ -20,7 +20,7 @@
+ quine-mc_cluskey = "0.2.2"
+ regex-syntax = "0.6"
+ serde = { version = "1.0", features = ["derive"] }
+-smallvec = { version = "1", features = ["union"] }
++smallvec = { version = "1", features = ["may_dangle", "union"] }
+ toml = "0.5.3"
+ unicode-normalization = "0.1"
+ semver = "0.11"
+@@ -29,7 +29,7 @@
+ # see <https://github.com/rust-lang/rust/pull/63587#issuecomment-522343864>
+ url = { version = "2.1.0", features = ["serde"] }
+ quote = "1"
+-syn = { version = "1", features = ["full"] }
++syn = { version = "1", features = ["full", "visit-mut", "extra-traits", "visit"] }
+ 
+ [features]
+ deny-warnings = []
+--- a/src/tools/rustfmt/Cargo.toml
++++ b/src/tools/rustfmt/Cargo.toml
+@@ -37,7 +37,7 @@
+ itertools = "0.8"
+ toml = "0.5"
+ serde = { version = "1.0", features = ["derive"] }
+-serde_json = "1.0"
++serde_json = { version = "1.0", features = ["unbounded_depth"] }
+ unicode-segmentation = "1.0.0"
+ regex = "1.0"
+ term = "0.6"

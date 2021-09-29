@@ -1,6 +1,6 @@
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -860,6 +860,21 @@
+@@ -923,6 +923,21 @@
              rustflags.arg("-Zsymbol-mangling-version=v0");
          }
  

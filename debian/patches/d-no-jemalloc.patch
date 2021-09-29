@@ -1,8 +1,6 @@
-Index: rust/compiler/rustc/Cargo.toml
-===================================================================
---- rust.orig/compiler/rustc/Cargo.toml
-+++ rust/compiler/rustc/Cargo.toml
-@@ -14,13 +14,6 @@ rustc_driver = { path = "../librustc_dri
+--- a/compiler/rustc/Cargo.toml
++++ b/compiler/rustc/Cargo.toml
+@@ -10,13 +10,6 @@
  # Make sure rustc_codegen_ssa ends up in the sysroot, because this
  # crate is intended to be used by codegen backends, which may not be in-tree.
  rustc_codegen_ssa = { path = "../rustc_codegen_ssa" }

@@ -2,7 +2,6 @@
 
 # pending, or forwarded
 u-85807.patch
-u-fix-self-bootstrap.patch
 0001-Revert-Auto-merge-of-79547.patch
 u-84099.patch
 u-8d504aa90416668d8f6b4cbd449e2e1de20fb937.patch
@@ -12,6 +11,8 @@ u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
 u-mips-fixes.diff
 u-ignore-endian-big.patch
+u-build-cargo-only-if-requested.patch
+u-fix-cross-compile-tools.patch
 #u-allow-system-compiler-rt.patch
 
 # not forwarded, or forwarded but unlikely to be merged
@@ -25,14 +26,17 @@ d-0001-disable-miniz.patch
 d-0002-pkg-config-no-special-snowflake.patch
 d-0003-mdbook-strip-embedded-libs.patch
 # Other patches needed by the full Debian build
-#d-use-system-compiler-rt.patch
 d-0004-cc-psm-rebuild-wasm32.patch
+d-0005-clippy-feature-sync.patch
+#d-use-system-compiler-rt.patch
+d-cargo-doc-paths.patch
 d-custom-debuginfo-path.patch
 d-disable-cargo-vendor.patch
 d-rust-gdb-paths
 d-rust-lldb-paths
 d-add-soname.patch
 d-rustflags.patch
+d-install-symlinks.patch
 d-windows-ssp.patch
 d-dont-download-stage0.patch
 d-read-beta-version-from-file.patch

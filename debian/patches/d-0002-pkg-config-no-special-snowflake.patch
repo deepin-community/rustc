@@ -1,7 +1,5 @@
-Index: rustc.git/vendor/pkg-config/src/lib.rs
-===================================================================
---- rustc.git.orig/vendor/pkg-config/src/lib.rs
-+++ rustc.git/vendor/pkg-config/src/lib.rs
+--- a/vendor/pkg-config/src/lib.rs
++++ b/vendor/pkg-config/src/lib.rs
 @@ -9,8 +9,6 @@
  //! A number of environment variables are available to globally configure how
  //! this crate will invoke `pkg-config`:
@@ -11,7 +9,7 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
  //! * `FOO_NO_PKG_CONFIG` - if set, this will disable running `pkg-config` when
  //!   probing for the library named `foo`.
  //!
-@@ -106,9 +104,8 @@ pub enum Error {
+@@ -106,9 +104,8 @@
      /// Contains the name of the responsible environment variable.
      EnvNoPkgConfig(String),
  
@@ -23,7 +21,7 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
      CrossCompilation,
  
      /// Failed to run `pkg-config`.
-@@ -132,11 +129,6 @@ impl fmt::Display for Error {
+@@ -132,11 +129,6 @@
      fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
          match *self {
              Error::EnvNoPkgConfig(ref name) => write!(f, "Aborted because {} is set", name),
@@ -35,7 +33,7 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
              Error::Command {
                  ref command,
                  ref cause,
-@@ -160,7 +152,7 @@ impl fmt::Display for Error {
+@@ -160,7 +152,7 @@
                  }
                  Ok(())
              }
@@ -44,7 +42,7 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
          }
      }
  }
-@@ -321,6 +313,8 @@ impl Config {
+@@ -321,6 +313,8 @@
          if host == target {
              return true;
          }
@@ -53,7 +51,7 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
  
          // pkg-config may not be aware of cross-compilation, and require
          // a wrapper script that sets up platform-specific prefixes.
-@@ -380,7 +374,11 @@ impl Config {
+@@ -380,7 +374,11 @@
      fn command(&self, name: &str, args: &[&str]) -> Command {
          let exe = self
              .env_var_os("PKG_CONFIG")
@@ -66,11 +64,9 @@ Index: rustc.git/vendor/pkg-config/src/lib.rs
          let mut cmd = Command::new(exe);
          if self.is_static(name) {
              cmd.arg("--static");
-Index: rustc.git/vendor/pkg-config/tests/test.rs
-===================================================================
---- rustc.git.orig/vendor/pkg-config/tests/test.rs
-+++ rustc.git/vendor/pkg-config/tests/test.rs
-@@ -34,7 +34,6 @@ fn find(name: &str) -> Result<pkg_config
+--- a/vendor/pkg-config/tests/test.rs
++++ b/vendor/pkg-config/tests/test.rs
+@@ -34,7 +34,6 @@
      pkg_config::probe_library(name)
  }
  
@@ -78,7 +74,7 @@ Index: rustc.git/vendor/pkg-config/tests/test.rs
  fn cross_disabled() {
      let _g = LOCK.lock();
      reset();
-@@ -46,7 +45,6 @@ fn cross_disabled() {
+@@ -46,7 +45,6 @@
      }
  }
  

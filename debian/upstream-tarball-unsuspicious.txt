@@ -38,6 +38,7 @@ src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustc_codegen_ssa/README.md
 src/librustdoc/html/highlight/fixtures/sample.html
+src/tools/rustfmt/*.md
 vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -94,6 +95,7 @@ src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-js-std/tester.js
+src/tools/rustdoc-gui/tester.js
 vendor/errno-dragonfly/src/errno.c
 vendor/raw-cpuid/src/cpuid.c
 vendor/salsa/book/mermaid-init.js
@@ -121,6 +123,7 @@ library/stdarch/crates/core_arch/foo.wasm
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
+src/tools/clippy/.remarkrc
 vendor/clap/.mention-bot
 vendor/cloudabi/cloudabi.rs
 vendor/elasticlunr-rs/src/lang/*.rs
@@ -150,6 +153,7 @@ src/doc/book/tools/docx-to-md.xsl
 src/doc/rustc/src/images/*.png
 src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
+src/doc/rustc-dev-guide/src/img/*.png
 src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
 src/librustdoc/html/static/*.svg
 src/librustdoc/html/static/rust-logo.png
@@ -207,6 +211,11 @@ src/test/rustdoc-json/*.expected
 src/test/ui/macros/not-utf8.bin
 src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
+src/tools/clippy/tests/ui-toml/*/*.stderr
+src/tools/clippy/tests/ui/wildcard_enum_match_arm.fixed
+src/tools/rustfmt/tests/writemode/target/*.json
+src/tools/rustfmt/tests/writemode/target/*.xml
+src/tools/rustfmt/tests/source/*.rs
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
@@ -220,7 +229,7 @@ vendor/goblin/etc/*.rs
 vendor/goblin/tests/bins/elf/gnu_hash/helloworld.c
 vendor/goblin/tests/bins/elf/gnu_hash/*.so
 vendor/gsgdt/tests/*.json
-vendor/idna/tests/IdnaTest.txt
+vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
 vendor/idna-0*/tests/IdnaTest.txt
 vendor/idna-0*/tests/punycode_tests.json
@@ -257,6 +266,7 @@ vendor/sha2/tests/data/*.blb
 vendor/sha2/tests/data/*.bin
 vendor/snap/data/*
 vendor/tar/tests/archives/*.tar
+vendor/term/tests/data/*
 vendor/term-0*/tests/data/*
 vendor/toml/tests/*/*.toml
 vendor/toml/tests/*/*.json
@@ -266,6 +276,7 @@ vendor/url-1*/tests/*.json
 vendor/xml5ever/data/bench/strong.xml
 vendor/yaml-rust/tests/specexamples.rs.inc
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
+
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
@@ -281,6 +292,7 @@ vendor/unicode-segmentation/src/tables.rs
 
 # Compromise, ideally we'd package these in their own package
 src/librustdoc/html/static/*.woff
+src/librustdoc/html/static/*.woff2
 
 # Compromise, ideally we'd autogenerate these
 vendor/bstr/src/unicode/fsm/*.dfa

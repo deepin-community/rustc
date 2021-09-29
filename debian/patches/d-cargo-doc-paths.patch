@@ -1,0 +1,118 @@
+Description: Fix links to cargo-doc
+ We package cargo docs in a slightly different location; also tweak linkchecker
+ to not fail these links.
+
+--- a/src/tools/linkchecker/main.rs
++++ b/src/tools/linkchecker/main.rs
+@@ -19,6 +19,7 @@
+ use std::collections::hash_map::Entry;
+ use std::collections::{HashMap, HashSet};
+ use std::env;
++use std::ffi::OsStr;
+ use std::fs;
+ use std::path::{Component, Path, PathBuf};
+ use std::rc::Rc;
+@@ -331,7 +332,15 @@
+             print!("{}:{}: broken link - ", path.display(), i + 1);
+             println!("{}", path.display());
+         } else {
+-            let pretty_path = path.strip_prefix(root).unwrap_or(&path);
++            let pretty_path = match path.strip_prefix(root) {
++                Ok(suf) => suf,
++                Err(_) => if path.components().any(|x| x == Component::Normal(OsStr::new("cargo-doc"))) {
++                    // link to cargo-doc, ok for our Debian build
++                    return;
++                } else {
++                    &path
++                }
++            };
+             if !is_exception(file, pretty_path.to_str().unwrap()) {
+                 *errors = true;
+                 print!("{}:{}: broken link - ", pretty_file.display(), i + 1);
+--- a/src/doc/index.md
++++ b/src/doc/index.md
+@@ -87,7 +87,7 @@
+ 
+ ## The Cargo Book
+ 
+-[The Cargo Book](cargo/index.html) is a guide to Cargo, Rust's build tool and dependency manager.
++[The Cargo Book](../../cargo-doc/doc/index.html) is a guide to Cargo, Rust's build tool and dependency manager.
+ 
+ ## The Rustdoc Book
+ 
+--- a/src/doc/reference/src/conditional-compilation.md
++++ b/src/doc/reference/src/conditional-compilation.md
+@@ -332,6 +332,6 @@
+ [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
+ [attribute]: attributes.md
+ [attributes]: attributes.md
+-[cargo-feature]: ../cargo/reference/features.html
++[cargo-feature]: ../../cargo-doc/doc/reference/features.html
+ [crate type]: linkage.md
+ [static C runtime]: linkage.md#static-and-dynamic-c-runtimes
+--- a/src/doc/reference/src/introduction.md
++++ b/src/doc/reference/src/introduction.md
+@@ -133,8 +133,8 @@
+ [the Rust Reference repository]: https://github.com/rust-lang/reference/
+ [Unstable Book]: https://doc.rust-lang.org/nightly/unstable-book/
+ [_Expression_]: expressions.md
+-[cargo book]: ../cargo/index.html
+-[cargo reference]: ../cargo/reference/index.html
++[cargo book]: ../../cargo-doc/doc/index.html
++[cargo reference]: ../../cargo-doc/doc/reference/index.html
+ [expressions chapter]: expressions.html
+ [file an issue]: https://github.com/rust-lang/reference/issues
+ [lifetime of temporaries]: expressions.html#temporaries
+--- a/src/doc/reference/src/linkage.md
++++ b/src/doc/reference/src/linkage.md
+@@ -200,7 +200,7 @@
+ }
+ ```
+ 
+-[cargo]: ../cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
++[cargo]: ../../cargo-doc/doc/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+ 
+ To use this feature locally, you typically will use the `RUSTFLAGS` environment
+ variable to specify flags to the compiler through Cargo. For example to compile
+--- a/src/doc/reference/src/procedural-macros.md
++++ b/src/doc/reference/src/procedural-macros.md
+@@ -272,7 +272,7 @@
+ ```
+ 
+ [Attribute macros]: #attribute-macros
+-[Cargo's build scripts]: ../cargo/reference/build-scripts.html
++[Cargo's build scripts]: ../../cargo-doc/doc/reference/build-scripts.html
+ [Derive macros]: #derive-macros
+ [Function-like macros]: #function-like-procedural-macros
+ [`TokenStream`]: ../proc_macro/struct.TokenStream.html
+--- a/src/doc/rustc/src/tests/index.md
++++ b/src/doc/rustc/src/tests/index.md
+@@ -266,7 +266,7 @@
+ [`--test` option]: ../command-line-arguments.md#option-test
+ [`-Z panic-abort-tests`]: https://github.com/rust-lang/rust/issues/67650
+ [`available_concurrency`]: ../../std/thread/fn.available_concurrency.html
+-[`cargo test`]: ../../cargo/commands/cargo-test.html
++[`cargo test`]: ../../../cargo-doc/doc/commands/cargo-test.html
+ [`libtest`]: ../../test/index.html
+ [`main` function]: ../../reference/crates-and-source-files.html#main-functions
+ [`Result`]: ../../std/result/index.html
+@@ -275,7 +275,7 @@
+ [attribute-should_panic]: ../../reference/attributes/testing.html#the-should_panic-attribute
+ [attribute-test]: ../../reference/attributes/testing.html#the-test-attribute
+ [bench-docs]: ../../unstable-book/library-features/test.html
+-[Cargo]: ../../cargo/index.html
++[Cargo]: ../../../cargo-doc/doc/index.html
+ [crate type]: ../../reference/linkage.html
+ [custom_test_frameworks documentation]: ../../unstable-book/language-features/custom-test-frameworks.html
+ [nightly channel]: ../../book/appendix-07-nightly-rust.html
+--- a/src/doc/rustc/src/what-is-rustc.md
++++ b/src/doc/rustc/src/what-is-rustc.md
+@@ -5,7 +5,7 @@
+ produce binary code, either as a library or executable.
+ 
+ Most Rust programmers don't invoke `rustc` directly, but instead do it through
+-[Cargo](../cargo/index.html). It's all in service of `rustc` though! If you
++[Cargo](../../cargo-doc/doc/index.html). It's all in service of `rustc` though! If you
+ want to see how Cargo calls `rustc`, you can
+ 
+ ```bash

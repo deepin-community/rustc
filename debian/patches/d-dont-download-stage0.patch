@@ -39,12 +39,12 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          delete_if_present(temp_path, verbose)
  
  
-@@ -459,7 +460,7 @@
- 
-         url = "{}/dist/{}".format(self._download_url, date)
+@@ -513,7 +514,7 @@
+         else:
+             url = "{}/dist/{}".format(self._download_url, key)
          tarball = os.path.join(rustc_cache, filename)
 -        if not os.path.exists(tarball):
 +        if True:
-             get("{}/{}".format(url, filename), tarball, verbose=self.verbose)
+             do_verify = not download_rustc
+             get("{}/{}".format(url, filename), tarball, verbose=self.verbose, do_verify=do_verify)
          unpack(tarball, tarball_suffix, self.bin_root(), match=pattern, verbose=self.verbose)
- 

@@ -18,8 +18,6 @@ features.
  src/tools/compiletest/src/util.rs                     |  9 +++++++++
  9 files changed, 33 insertions(+), 6 deletions(-)
 
-diff --git a/src/test/ui/asm/bad-options.rs b/src/test/ui/asm/bad-options.rs
-index 755fc2ca238aa..a60478f62154f 100644
 --- a/src/test/ui/asm/bad-options.rs
 +++ b/src/test/ui/asm/bad-options.rs
 @@ -1,4 +1,4 @@
@@ -28,8 +26,6 @@ index 755fc2ca238aa..a60478f62154f 100644
  
  #![feature(asm)]
  
-diff --git a/src/test/ui/asm/naked-invalid-attr.rs b/src/test/ui/asm/naked-invalid-attr.rs
-index cdb6c17454b73..2576d1124c85c 100644
 --- a/src/test/ui/asm/naked-invalid-attr.rs
 +++ b/src/test/ui/asm/naked-invalid-attr.rs
 @@ -1,6 +1,6 @@
@@ -40,8 +36,6 @@ index cdb6c17454b73..2576d1124c85c 100644
  #![feature(asm)]
  #![feature(naked_functions)]
  #![naked] //~ ERROR should be applied to a function definition
-diff --git a/src/test/ui/feature-gates/feature-gate-naked_functions.rs b/src/test/ui/feature-gates/feature-gate-naked_functions.rs
-index 06bddc422cf80..71ca5b9373a68 100644
 --- a/src/test/ui/feature-gates/feature-gate-naked_functions.rs
 +++ b/src/test/ui/feature-gates/feature-gate-naked_functions.rs
 @@ -1,3 +1,4 @@
@@ -49,8 +43,6 @@ index 06bddc422cf80..71ca5b9373a68 100644
  #![feature(asm)]
  
  #[naked]
-diff --git a/src/test/ui/feature-gates/feature-gate-naked_functions.stderr b/src/test/ui/feature-gates/feature-gate-naked_functions.stderr
-index d95561d20133e..653d7b738da1a 100644
 --- a/src/test/ui/feature-gates/feature-gate-naked_functions.stderr
 +++ b/src/test/ui/feature-gates/feature-gate-naked_functions.stderr
 @@ -1,5 +1,5 @@
@@ -60,7 +52,7 @@ index d95561d20133e..653d7b738da1a 100644
     |
  LL | #[naked]
     | ^^^^^^^^
-@@ -8,7 +8,7 @@ LL | #[naked]
+@@ -8,7 +8,7 @@
     = help: add `#![feature(naked_functions)]` to the crate attributes to enable
  
  error[E0658]: the `#[naked]` attribute is an experimental feature
@@ -69,8 +61,6 @@ index d95561d20133e..653d7b738da1a 100644
     |
  LL | #[naked]
     | ^^^^^^^^
-diff --git a/src/test/ui/rfc-2091-track-caller/error-with-naked.rs b/src/test/ui/rfc-2091-track-caller/error-with-naked.rs
-index 70ec0e3033c6f..9464ffe872282 100644
 --- a/src/test/ui/rfc-2091-track-caller/error-with-naked.rs
 +++ b/src/test/ui/rfc-2091-track-caller/error-with-naked.rs
 @@ -1,3 +1,4 @@
@@ -78,8 +68,6 @@ index 70ec0e3033c6f..9464ffe872282 100644
  #![feature(asm, naked_functions)]
  
  #[track_caller] //~ ERROR cannot use `#[track_caller]` with `#[naked]`
-diff --git a/src/test/ui/rfc-2091-track-caller/error-with-naked.stderr b/src/test/ui/rfc-2091-track-caller/error-with-naked.stderr
-index 1b49148d629b2..5f17d6b2b5173 100644
 --- a/src/test/ui/rfc-2091-track-caller/error-with-naked.stderr
 +++ b/src/test/ui/rfc-2091-track-caller/error-with-naked.stderr
 @@ -1,11 +1,11 @@
@@ -96,11 +84,9 @@ index 1b49148d629b2..5f17d6b2b5173 100644
     |
  LL |     #[track_caller]
     |     ^^^^^^^^^^^^^^^
-diff --git a/src/tools/compiletest/src/header.rs b/src/tools/compiletest/src/header.rs
-index 531a23d76a27b..363105a9f09c0 100644
 --- a/src/tools/compiletest/src/header.rs
 +++ b/src/tools/compiletest/src/header.rs
-@@ -44,6 +44,7 @@ impl EarlyProps {
+@@ -44,6 +44,7 @@
          let mut props = EarlyProps::default();
          let rustc_has_profiler_support = env::var_os("RUSTC_PROFILER_SUPPORT").is_some();
          let rustc_has_sanitizer_support = env::var_os("RUSTC_SANITIZER_SUPPORT").is_some();
@@ -108,7 +94,7 @@ index 531a23d76a27b..363105a9f09c0 100644
          let has_asan = util::ASAN_SUPPORTED_TARGETS.contains(&&*config.target);
          let has_lsan = util::LSAN_SUPPORTED_TARGETS.contains(&&*config.target);
          let has_msan = util::MSAN_SUPPORTED_TARGETS.contains(&&*config.target);
-@@ -76,6 +77,10 @@ impl EarlyProps {
+@@ -76,6 +77,10 @@
                      props.ignore = true;
                  }
  
@@ -119,15 +105,12 @@ index 531a23d76a27b..363105a9f09c0 100644
                  if !rustc_has_profiler_support && config.parse_needs_profiler_support(ln) {
                      props.ignore = true;
                  }
-diff --git a/src/tools/compiletest/src/header/tests.rs b/src/tools/compiletest/src/header/tests.rs
-index ec99fde0df9c2..c41b43cdd0b53 100644
 --- a/src/tools/compiletest/src/header/tests.rs
 +++ b/src/tools/compiletest/src/header/tests.rs
-@@ -223,6 +223,17 @@ fn sanitizers() {
-     assert!(parse_rs(&config, "// needs-sanitizer-thread").ignore);
+@@ -224,6 +224,17 @@
  }
  
-+#[test]
+ #[test]
 +fn asm_support() {
 +    let mut config = config();
 +
@@ -138,14 +121,13 @@ index ec99fde0df9c2..c41b43cdd0b53 100644
 +    assert!(!parse_rs(&config, "// needs-asm-support").ignore);
 +}
 +
- #[test]
++#[test]
  fn test_extract_version_range() {
      use super::{extract_llvm_version, extract_version_range};
-diff --git a/src/tools/compiletest/src/util.rs b/src/tools/compiletest/src/util.rs
-index b302953708c18..7dbd70948b84d 100644
+ 
 --- a/src/tools/compiletest/src/util.rs
 +++ b/src/tools/compiletest/src/util.rs
-@@ -128,6 +128,15 @@ const BIG_ENDIAN: &[&str] = &[
+@@ -128,6 +128,15 @@
      "sparcv9",
  ];
  

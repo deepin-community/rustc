@@ -5,11 +5,9 @@ Date:   Sun Apr 11 13:47:58 2021 +0100
 
     bootstrap: check local_rebuild before adding --cfg=bootstrap, closes #84057
 
-diff --git a/src/bootstrap/compile.rs b/src/bootstrap/compile.rs
-index 8244c7710ab..f6f07a10842 100644
 --- a/src/bootstrap/compile.rs
 +++ b/src/bootstrap/compile.rs
-@@ -462,11 +462,14 @@ fn run(self, builder: &Builder<'_>) -> Vec<(PathBuf, DependencyType)> {
+@@ -460,11 +460,14 @@
              let dst_file = &dst_dir.join(file.to_string() + ".o");
              if !up_to_date(src_file, dst_file) {
                  let mut cmd = Command::new(&builder.initial_rustc);
