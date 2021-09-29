@@ -1,9 +1,9 @@
-rustc (1.52.1+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.52.1+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
   * Reorganise dependencies, move optional rustc deps to rust-all.
 
- -- Ximin Luo <infinity0@debian.org>  Wed, 29 Sep 2021 20:04:05 +0100
+ -- Ximin Luo <infinity0@debian.org>  Wed, 29 Sep 2021 20:05:55 +0100
 
 rustc (1.52.1+dfsg1-1~exp3) experimental; urgency=medium
 
