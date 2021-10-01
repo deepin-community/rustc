@@ -135,8 +135,11 @@ $ sudo mk-build-deps -irt 'aptitude -R'
 $ uscan --verbose                       # or debian/rules source_orig-beta, for beta
 $ ver=UPDATE-ME                         # whatever it is, probably X.YY.Z or X.YY.Z~beta.N
 
+$ debian/refresh-early-patches.sh $ver
+# This will require an understanding of how git-rebase and git-mergetool works
+# We recommend either kdiff3 or p4merge (proprietary) as the git-mergetool.
+
 $ tar xf ../rustc-${ver/\~/-}-src.tar.xz && ( cd rustc-${ver/*~*/beta}-src/ && pwd && ../debian/prune-unused-deps ) && rm -rf rustc-${ver/*~*/beta}-src/
-# ^ If this fails, you probably need to refresh the patches used by debian/prune-unused-deps
 $ git diff
 # Review the diff. If it removes too much stuff, it could mean that rustc
 # pulled in new unnecessary dependencies in this newer version. See if you can
