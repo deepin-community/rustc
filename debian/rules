@@ -36,7 +36,10 @@ LD_LIBRARY_PATH := $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):$(LLVM_LIBRARY_PAT
 export LD_LIBRARY_PATH
 endif
 
-RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+NJOBS := -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+endif
+RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py $(NJOBS)
 RUSTBUILD_FLAGS = --stage 2 --config debian/config.toml -vvv --on-fail env
 RUSTBUILD_TEST = $(RUSTBUILD) test --no-fail-fast
 # To run a specific test, run something like:
