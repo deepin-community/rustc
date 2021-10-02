@@ -24,6 +24,7 @@ src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/edition-guide/src/rust-next/cargo-vendor.md
 src/doc/embedded-book/src/*/*.md
+src/doc/reference/src/expressions/closure-expr.md
 src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/std/arc.md
 src/doc/rust-by-example/src/trait/dyn.md
