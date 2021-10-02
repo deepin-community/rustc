@@ -28,6 +28,7 @@ d-0003-mdbook-strip-embedded-libs.patch
 # Other patches needed by the full Debian build
 d-0004-cc-psm-rebuild-wasm32.patch
 d-0005-clippy-feature-sync.patch
+d-0006-no-jemalloc.patch
 #d-use-system-compiler-rt.patch
 d-cargo-doc-paths.patch
 d-custom-debuginfo-path.patch
@@ -42,7 +43,6 @@ d-dont-download-stage0.patch
 d-read-beta-version-from-file.patch
 d-ignore-avx-44056.patch
 d-i686-baseline.patch
-d-no-jemalloc.patch
 d-use-local-css.patch
 
 # Porter fixes under discussion, not suitable for upstreaming

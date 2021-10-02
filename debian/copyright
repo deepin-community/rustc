@@ -5,9 +5,6 @@ Files-Excluded:
  *.min.js
  src/llvm-emscripten
  src/llvm-project
- vendor/jemalloc-sys
- vendor/libmimalloc-sys
- vendor/mimalloc
  vendor/mdbook/src/theme/fonts
  vendor/mdbook/src/theme/FontAwesome
  vendor/mdbook/src/theme/highlight.js
