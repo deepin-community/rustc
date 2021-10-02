@@ -4,35 +4,32 @@ Subject: d-0003-mdbook-strip-embedded-libs
 
 Comment: Use https://github.com/infinity0/mdBook/tree/debian to help you rebase the patch on top of a newer version. . Make sure the paths here match the ones in debian/rust-doc.links
 ---
- src/tools/linkchecker/main.rs                      |  9 +++
+ src/tools/linkchecker/main.rs                      |  6 ++
  vendor/mdbook/src/book/init.rs                     |  6 --
  .../src/renderer/html_handlebars/hbs_renderer.rs   | 80 ++-----------------
  .../mdbook/src/renderer/html_handlebars/search.rs  |  2 -
  vendor/mdbook/src/theme/index.hbs                  | 93 +---------------------
  vendor/mdbook/src/theme/mod.rs                     | 27 -------
  vendor/mdbook/src/theme/searcher/mod.rs            |  2 -
- 7 files changed, 18 insertions(+), 201 deletions(-)
+ 7 files changed, 15 insertions(+), 201 deletions(-)
 
 diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
-index c677d04..4b55d50 100644
+index 47960c3..bff0c54 100644
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
-@@ -319,6 +319,15 @@ fn check(cache: &mut Cache, root: &Path, file: &Path, errors: &mut bool) -> Opti
-                     println!("`#{}` pointing to `{}`", fragment, pretty_path.display());
-                 };
-             }
-+        } else if fs::symlink_metadata(&path).is_ok() {
-+            let target = fs::read_link(&path).unwrap();
-+            if target.starts_with("/usr/share") {
-+                // broken symlink to /usr/share, ok for our Debian build
-+                return;
-+            }
-+            *errors = true;
-+            print!("{}:{}: broken link - ", path.display(), i + 1);
-+            println!("{}", path.display());
-         } else {
-             let pretty_path = path.strip_prefix(root).unwrap_or(&path);
-             if !is_exception(file, pretty_path.to_str().unwrap()) {
+@@ -244,6 +244,12 @@ impl Checker {
+             let (target_pretty_path, target_entry) = self.load_file(&path, report);
+             let (target_source, target_ids) = match target_entry {
+                 FileEntry::Missing => {
++                    if let Ok(target) = fs::read_link(&path) {
++                        if target.starts_with("/usr/share") {
++                            // broken symlink to /usr/share, ok for our Debian build
++                            return;
++                        }
++                    }
+                     if is_exception(file, &target_pretty_path) {
+                         report.links_ignored_exception += 1;
+                     } else {
 diff --git a/vendor/mdbook/src/book/init.rs b/vendor/mdbook/src/book/init.rs
 index 264c113..2b0ff3a 100644
 --- a/vendor/mdbook/src/book/init.rs

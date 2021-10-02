@@ -69,10 +69,10 @@ index 327afe3..393586f 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 4111420..5891d6b 100644
+index 7c7f162..e0c41d6 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -912,10 +912,6 @@ class RustBuild(object):
+@@ -916,10 +916,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -84,10 +84,10 @@ index 4111420..5891d6b 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index cff1ec8..1a352d5 100644
+index bc499fd..8be379b 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -449,7 +449,6 @@ impl<'a> Builder<'a> {
+@@ -452,7 +452,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -95,7 +95,7 @@ index cff1ec8..1a352d5 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -473,7 +472,6 @@ impl<'a> Builder<'a> {
+@@ -476,7 +475,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -103,7 +103,7 @@ index cff1ec8..1a352d5 100644
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1450,10 +1448,7 @@ impl<'a> Builder<'a> {
+@@ -1472,10 +1470,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -116,7 +116,7 @@ index cff1ec8..1a352d5 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index a32b92e..52e209a 100644
+index d2fabf9..69c5df3 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -60,7 +60,6 @@ macro_rules! book {
@@ -128,10 +128,10 @@ index a32b92e..52e209a 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book";
      Nomicon, "src/doc/nomicon", "nomicon";
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 965d116..a25d42a 100644
+index fe4666e..00742ea 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1740,14 +1740,7 @@ impl Step for RustcGuide {
+@@ -1765,14 +1765,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -148,12 +148,12 @@ index 965d116..a25d42a 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index cade44a..accf9dc 100644
+index b003b15..f1b5739 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -40,11 +40,6 @@ regex = "1.4"
- quote = "1"
- syn = { version = "1", features = ["full"] }
+@@ -41,11 +41,6 @@ syn = { version = "1", features = ["full"] }
+ # This is used by the `collect-metadata` alias.
+ filetime = "0.2"
  
 -# A noop dependency that changes in the Rust repository, it's a bit of a hack.
 -# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
@@ -164,13 +164,13 @@ index cade44a..accf9dc 100644
  rustc_tools_util = { version = "0.2.0", path = "rustc_tools_util" }
  
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 24b3b79..fbb31e2 100644
+index 3a04fb2..9161ea0 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -43,10 +43,10 @@ regex = "1.0"
  term = "0.6"
  diff = "0.1"
- log = "0.4"
+ log = "0.4.14"
 -env_logger = "0.6"
 +env_logger = "0.7"
  getopts = "0.2"
@@ -204,17 +204,17 @@ index 9062a29..1705648 100644
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index b604b39..6455a6a 100644
+index 06cec19..620af47 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -372,8 +372,8 @@ fn check_crate_duplicate(metadata: &Metadata, bad: &mut bool) {
-         // These two crates take quite a long time to build, so don't allow two versions of them
-         // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
-         // under control.
--        "cargo",
--        "rustc-ap-rustc_ast",
-+        //"cargo",
-+        //"rustc-ap-rustc_ast",
-     ];
+@@ -269,8 +269,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+     // These two crates take quite a long time to build, so don't allow two versions of them
+     // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
+     // under control.
+-    "cargo",
+-    "rustc-ap-rustc_ast",
++    //"cargo",
++    //"rustc-ap-rustc_ast",
+ ];
  
-     for &name in FORBIDDEN_TO_HAVE_DUPLICATES {
+ /// Dependency checks.
