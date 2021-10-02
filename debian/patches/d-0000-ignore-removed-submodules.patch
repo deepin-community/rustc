@@ -1,10 +1,24 @@
-Description: Ignore submodules that we're not building, or that are unused like
- mdbook-linkcheck that pull in a ton of dependencies that are unneeded.
-Author: Ximin Luo <infinity0@debian.org>
-Forwarded: not-needed
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:07:59 +0100
+Subject: d-0000-ignore-removed-submodules
+
+---
+ Cargo.toml                              | 27 ---------------------------
+ src/bootstrap/bootstrap.py              |  4 ----
+ src/bootstrap/builder.rs                |  7 +------
+ src/bootstrap/doc.rs                    |  1 -
+ src/bootstrap/test.rs                   |  9 +--------
+ src/tools/clippy/Cargo.toml             |  5 -----
+ src/tools/rustfmt/Cargo.toml            |  9 ++-------
+ src/tools/rustfmt/src/cargo-fmt/main.rs |  2 +-
+ src/tools/tidy/src/deps.rs              |  4 ++--
+ 9 files changed, 7 insertions(+), 61 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 327afe3..393586f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -16,23 +16,12 @@
+@@ -17,23 +17,12 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -28,7 +42,7 @@ Forwarded: not-needed
  ]
  
  exclude = [
-@@ -81,24 +70,8 @@
+@@ -84,25 +73,9 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -39,13 +53,14 @@ Forwarded: not-needed
 -# vendored copy.
 -[patch."https://github.com/rust-lang/cargo"]
 -cargo = { path = "src/tools/cargo" }
--
+ cargo-util = { path = "src/tools/cargo/crates/cargo-util" }
+ 
 -[patch."https://github.com/rust-lang/rustfmt"]
 -# Similar to Cargo above we want the RLS to use a vendored version of `rustfmt`
 -# that we're shipping as well (to ensure that the rustfmt in RLS and the
 -# `rustfmt` executable are the same exact version).
 -rustfmt-nightly = { path = "src/tools/rustfmt" }
- 
+-
  [patch.crates-io]
 -# See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
 -# here
@@ -53,9 +68,11 @@ Forwarded: not-needed
  
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
+diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
+index 4111420..5891d6b 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -893,10 +893,6 @@
+@@ -912,10 +912,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -66,9 +83,11 @@ Forwarded: not-needed
          run(args, env=env, verbose=self.verbose)
  
      def build_triple(self):
+diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
+index cff1ec8..1a352d5 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -447,7 +447,6 @@
+@@ -449,7 +449,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -76,7 +95,7 @@ Forwarded: not-needed
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -470,7 +469,6 @@
+@@ -473,7 +472,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -84,7 +103,7 @@ Forwarded: not-needed
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1456,10 +1454,7 @@
+@@ -1450,10 +1448,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -96,9 +115,11 @@ Forwarded: not-needed
              cargo.arg("--frozen");
          }
  
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index a32b92e..52e209a 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -60,7 +60,6 @@
+@@ -60,7 +60,6 @@ macro_rules! book {
  // NOTE: When adding a book here, make sure to ALSO build the book by
  // adding a build step in `src/bootstrap/builder.rs`!
  book!(
@@ -106,9 +127,11 @@ Forwarded: not-needed
      EditionGuide, "src/doc/edition-guide", "edition-guide";
      EmbeddedBook, "src/doc/embedded-book", "embedded-book";
      Nomicon, "src/doc/nomicon", "nomicon";
+diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
+index 965d116..a25d42a 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1642,14 +1642,7 @@
+@@ -1740,14 +1740,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -124,22 +147,27 @@ Forwarded: not-needed
      }
  }
  
---- a/src/tools/tidy/src/deps.rs
-+++ b/src/tools/tidy/src/deps.rs
-@@ -374,8 +374,8 @@
-         // These two crates take quite a long time to build, so don't allow two versions of them
-         // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
-         // under control.
--        "cargo",
--        "rustc-ap-rustc_ast",
-+        //"cargo",
-+        //"rustc-ap-rustc_ast",
-     ];
+diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
+index cade44a..accf9dc 100644
+--- a/src/tools/clippy/Cargo.toml
++++ b/src/tools/clippy/Cargo.toml
+@@ -40,11 +40,6 @@ regex = "1.4"
+ quote = "1"
+ syn = { version = "1", features = ["full"] }
  
-     for &name in FORBIDDEN_TO_HAVE_DUPLICATES {
+-# A noop dependency that changes in the Rust repository, it's a bit of a hack.
+-# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
+-# for more information.
+-rustc-workspace-hack = "1.0.0"
+-
+ [build-dependencies]
+ rustc_tools_util = { version = "0.2.0", path = "rustc_tools_util" }
+ 
+diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
+index 24b3b79..fbb31e2 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -43,10 +43,10 @@
+@@ -43,10 +43,10 @@ regex = "1.0"
  term = "0.6"
  diff = "0.1"
  log = "0.4"
@@ -152,7 +180,7 @@ Forwarded: not-needed
  bytecount = "0.6"
  unicode-width = "0.1.5"
  unicode_categories = "0.1.1"
-@@ -59,11 +59,6 @@
+@@ -59,9 +59,4 @@ lazy_static = "1.0.0"
  anyhow = "1.0"
  thiserror = "1.0"
  
@@ -161,12 +189,12 @@ Forwarded: not-needed
 -# for more information.
 -rustc-workspace-hack = "1.0.0"
 -
- [dependencies.rustc_ast]
- package = "rustc-ap-rustc_ast"
- version = "705.0.0"
+ # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
+diff --git a/src/tools/rustfmt/src/cargo-fmt/main.rs b/src/tools/rustfmt/src/cargo-fmt/main.rs
+index 9062a29..1705648 100644
 --- a/src/tools/rustfmt/src/cargo-fmt/main.rs
 +++ b/src/tools/rustfmt/src/cargo-fmt/main.rs
-@@ -529,7 +529,7 @@
+@@ -527,7 +527,7 @@ fn get_cargo_metadata(
      if let Some(manifest_path) = manifest_path {
          cmd.manifest_path(manifest_path);
      }
@@ -175,17 +203,18 @@ Forwarded: not-needed
  
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
---- a/src/tools/clippy/Cargo.toml
-+++ b/src/tools/clippy/Cargo.toml
-@@ -38,11 +38,6 @@
- derive-new = "0.5"
- regex = "1.4"
+diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
+index b604b39..6455a6a 100644
+--- a/src/tools/tidy/src/deps.rs
++++ b/src/tools/tidy/src/deps.rs
+@@ -372,8 +372,8 @@ fn check_crate_duplicate(metadata: &Metadata, bad: &mut bool) {
+         // These two crates take quite a long time to build, so don't allow two versions of them
+         // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
+         // under control.
+-        "cargo",
+-        "rustc-ap-rustc_ast",
++        //"cargo",
++        //"rustc-ap-rustc_ast",
+     ];
  
--# A noop dependency that changes in the Rust repository, it's a bit of a hack.
--# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
--# for more information.
--rustc-workspace-hack = "1.0.0"
--
- [build-dependencies]
- rustc_tools_util = { version = "0.2.0", path = "rustc_tools_util" }
- 
+     for &name in FORBIDDEN_TO_HAVE_DUPLICATES {

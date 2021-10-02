@@ -1,29 +1,18 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:08:00 +0100
+Subject: d-0005-clippy-feature-sync
+
 enable features needed by rustfmt to make build system happy and speedup build.
 this is what rustc_workspace_hack does in the upstream build.
+---
+ src/tools/rustfmt/Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- a/src/tools/clippy/clippy_lints/Cargo.toml
-+++ b/src/tools/clippy/clippy_lints/Cargo.toml
-@@ -20,7 +20,7 @@
- quine-mc_cluskey = "0.2.2"
- regex-syntax = "0.6"
- serde = { version = "1.0", features = ["derive"] }
--smallvec = { version = "1", features = ["union"] }
-+smallvec = { version = "1", features = ["may_dangle", "union"] }
- toml = "0.5.3"
- unicode-normalization = "0.1"
- semver = "0.11"
-@@ -29,7 +29,7 @@
- # see <https://github.com/rust-lang/rust/pull/63587#issuecomment-522343864>
- url = { version = "2.1.0", features = ["serde"] }
- quote = "1"
--syn = { version = "1", features = ["full"] }
-+syn = { version = "1", features = ["full", "visit-mut", "extra-traits", "visit"] }
- 
- [features]
- deny-warnings = []
+diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
+index fbb31e2..cf5f882 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -37,7 +37,7 @@
+@@ -37,7 +37,7 @@ generic-simd = ["bytecount/generic-simd"]
  itertools = "0.8"
  toml = "0.5"
  serde = { version = "1.0", features = ["derive"] }

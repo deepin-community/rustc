@@ -1,6 +1,17 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:08:00 +0100
+Subject: d-0004-cc-psm-rebuild-wasm32
+
+---
+ vendor/cc/src/lib.rs | 2 +-
+ vendor/psm/build.rs  | 7 ++-----
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
+index 5051b29..b13dcc1 100644
 --- a/vendor/cc/src/lib.rs
 +++ b/vendor/cc/src/lib.rs
-@@ -2069,7 +2069,7 @@
+@@ -2069,7 +2069,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {
@@ -9,9 +20,11 @@
                  } else if target.contains("vxworks") {
                      if self.cpp {
                          "wr-c++".to_string()
+diff --git a/vendor/psm/build.rs b/vendor/psm/build.rs
+index 91f5915..6626e3a 100644
 --- a/vendor/psm/build.rs
 +++ b/vendor/psm/build.rs
-@@ -27,7 +27,7 @@
+@@ -27,7 +27,7 @@ fn find_assembly(arch: &str, endian: &str, os: &str, env: &str) -> Option<(&'sta
          ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
          ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
          ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
@@ -20,7 +33,7 @@
          _ => None,
      }
  }
-@@ -61,11 +61,8 @@
+@@ -61,11 +61,8 @@ fn main() {
          cfg.define(&*format!("CFG_TARGET_ENV_{}", env), None);
      }
  
