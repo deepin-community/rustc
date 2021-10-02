@@ -14,6 +14,7 @@ vendor/regex/tests/unicode.rs
 vendor/regex/tests/suffix_reverse.rs
 
 # False-positive, "verylongtext" but OK
+README.md
 CONTRIBUTING.md
 compiler/rustc_codegen_cranelift/docs/dwarf.md
 library/std/sys/cloudabi/abi/cloudabi.rs
@@ -23,6 +24,7 @@ library/stdarch/CONTRIBUTING.md
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/edition-guide/src/rust-next/cargo-vendor.md
+src/doc/edition-guide/src/rust-2018/index.md
 src/doc/embedded-book/src/*/*.md
 src/doc/reference/src/expressions/closure-expr.md
 src/doc/rust-by-example/src/flow_control/if_let.md
@@ -89,6 +91,7 @@ src/grammar/parser-lalr-main.c
 src/librustdoc/html/static/*.js
 src/librustdoc/html/static/.eslintrc.js
 src/test/auxiliary/rust_test_helpers.c
+src/test/run-make/*/*.c
 src/test/run-make/wasm-*/*.js
 src/test/run-make-fulldeps/*.c
 src/test/run-make-fulldeps/*/*.c
@@ -226,6 +229,7 @@ vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
 vendor/gimli/fixtures/self/*
+vendor/gimli-0*/fixtures/self/*
 vendor/goblin/etc/*.rs
 vendor/goblin/tests/bins/elf/gnu_hash/helloworld.c
 vendor/goblin/tests/bins/elf/gnu_hash/*.so
@@ -258,6 +262,8 @@ vendor/regex/tests/crates_regex.rs
 vendor/regex/tests/fowler.rs
 vendor/regex-0*/src/testdata/basic.dat
 vendor/regex-0*/tests/fowler.rs
+vendor/regex-1*/src/testdata/basic.dat
+vendor/regex-1*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
 vendor/sha-1-0*/tests/data/*.blb
 vendor/sha-1-0*/tests/data/*.bin
