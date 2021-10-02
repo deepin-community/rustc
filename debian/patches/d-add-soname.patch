@@ -20,7 +20,7 @@ Forwarded: no
 
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1758,6 +1758,13 @@
+@@ -1755,6 +1755,13 @@
      // OBJECT-FILES-NO, AUDIT-ORDER
      add_rpath_args(cmd, sess, codegen_results, out_filename);
  
@@ -32,5 +32,5 @@ Forwarded: no
 +    }
 +
      // OBJECT-FILES-MAYBE, CUSTOMIZATION-POINT
-     add_user_defined_link_args(cmd, sess, codegen_results);
+     add_user_defined_link_args(cmd, sess);
  

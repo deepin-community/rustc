@@ -5,9 +5,9 @@ Last-Update: 2020-03-23
 
 --- a/compiler/rustc_codegen_llvm/src/llvm_util.rs
 +++ b/compiler/rustc_codegen_llvm/src/llvm_util.rs
-@@ -98,6 +98,12 @@
-         // during inlining. Unfortunately these may block other optimizations.
-         add("-preserve-alignment-assumptions-during-inlining=false", false);
+@@ -113,6 +113,12 @@
+         // Use non-zero `import-instr-limit` multiplier for cold callsites.
+         add("-import-cold-multiplier=0.1", false);
  
 +        if sess.target.arch == "mips"
 +            || sess.target.arch == "mips64"
