@@ -5,16 +5,16 @@ u-85807.patch
 0001-Revert-Auto-merge-of-79547.patch
 u-84752.patch
 u-reproducible-build.patch
-u-make-tests-work-without-rpath.patch
-u-tests-ignore-arm.patch
 u-ignore-endian-big.patch
-u-build-cargo-only-if-requested.patch
 u-fix-cross-compile-tools.patch
-#u-allow-system-compiler-rt.patch
 
 # not forwarded, or forwarded but unlikely to be merged
+u-ignore-endian-big-diff.patch
 u-rustc-llvm-cross-flags.patch
 u-reproducible-dl-stage0.patch
+u-make-tests-work-without-rpath.patch
+u-build-cargo-only-if-requested.patch
+#u-allow-system-compiler-rt.patch
 
 # Debian-specific patches, not suitable for upstream
 # Patches needed by debian/prune-unused-deps
