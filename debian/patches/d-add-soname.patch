@@ -20,17 +20,17 @@ Forwarded: no
 
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1755,6 +1755,13 @@
-     // OBJECT-FILES-NO, AUDIT-ORDER
-     add_rpath_args(cmd, sess, codegen_results, out_filename);
+@@ -2020,6 +2020,13 @@
+     }
  
+     add_rpath_args(cmd, sess, codegen_results, out_filename);
++
 +    if (crate_type == config::CrateType::Dylib || crate_type == config::CrateType::Cdylib)
 +       && sess.target.linker_is_gnu {
 +        let filename = String::from(out_filename.file_name().unwrap().to_str().unwrap());
 +        let soname = [String::from("-Wl,-soname=") + &filename];
 +        cmd.args(&soname);
 +    }
-+
-     // OBJECT-FILES-MAYBE, CUSTOMIZATION-POINT
-     add_user_defined_link_args(cmd, sess);
+ }
  
+ /// # Native library linking

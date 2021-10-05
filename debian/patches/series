@@ -2,18 +2,16 @@
 
 # pending, or forwarded
 u-85807.patch
+# next one can be dropped after upgrading to LLVM 13
 0001-Revert-Auto-merge-of-79547.patch
-u-84752.patch
 u-reproducible-build.patch
 u-ignore-endian-big.patch
-u-fix-cross-compile-tools.patch
+u-ignore-endian-big-diff.patch
 
 # not forwarded, or forwarded but unlikely to be merged
-u-ignore-endian-big-diff.patch
 u-rustc-llvm-cross-flags.patch
 u-reproducible-dl-stage0.patch
 u-make-tests-work-without-rpath.patch
-u-build-cargo-only-if-requested.patch
 #u-allow-system-compiler-rt.patch
 
 # Debian-specific patches, not suitable for upstream
