@@ -7,7 +7,6 @@ u-84752.patch
 u-reproducible-build.patch
 u-make-tests-work-without-rpath.patch
 u-tests-ignore-arm.patch
-u-mips-fixes.diff
 u-ignore-endian-big.patch
 u-build-cargo-only-if-requested.patch
 u-fix-cross-compile-tools.patch
