@@ -1,10 +1,10 @@
-rustc (1.53.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.53.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
   * Update mips patches, disable a test as our workaround makes it invalid.
   * Temporarily ignore some tests that fail on big-endian.
 
- -- Ximin Luo <infinity0@debian.org>  Tue, 05 Oct 2021 22:37:51 +0100
+ -- Ximin Luo <infinity0@debian.org>  Tue, 05 Oct 2021 23:19:31 +0100
 
 rustc (1.53.0+dfsg1-1~exp1) experimental; urgency=medium
 
