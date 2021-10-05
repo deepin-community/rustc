@@ -48,16 +48,17 @@ Files-Excluded:
  vendor/anymap
  vendor/ar
  vendor/array_tool
+ vendor/arrayvec-0.7.0
  vendor/autocfg-1.0.0
  vendor/backtrace
  vendor/bitmaps
- vendor/byteorder-1.3.4
  vendor/bytes
  vendor/bytesize
  vendor/camino
  vendor/cargo_metadata-0.8.2
  vendor/cargo_metadata
  vendor/cargo-platform
+ vendor/cc-1.0.68
  vendor/chalk-derive
  vendor/chalk-ir
  vendor/chalk-recursive
@@ -94,6 +95,7 @@ Files-Excluded:
  vendor/enum-iterator-derive
  vendor/env_logger-0.6.2
  vendor/env_logger-0.8.1
+ vendor/env_logger-0.8.4
  vendor/env_logger
  vendor/expect-test-1.0.1
  vendor/flate2-1.0.16
@@ -105,8 +107,6 @@ Files-Excluded:
  vendor/fs_extra
  vendor/fst-0.4.5
  vendor/fst
- vendor/fuchsia-zircon
- vendor/fuchsia-zircon-sys
  vendor/futures-0.1.29
  vendor/futures
  vendor/futures-channel
@@ -122,6 +122,8 @@ Files-Excluded:
  vendor/gimli
  vendor/git2
  vendor/git2-curl
+ vendor/hashbrown-0.11.0
+ vendor/hashbrown-0.9.1
  vendor/heck-0.3.1
  vendor/hermit-abi-0.1.17
  vendor/hex-0.3.2
@@ -130,12 +132,11 @@ Files-Excluded:
  vendor/idna-0.1.5
  vendor/idna-0.2.0
  vendor/im-rc
- vendor/indexmap-1.6.0
  vendor/indexmap-1.6.1
  vendor/inotify
  vendor/inotify-sys
  vendor/instant-0.1.6
- vendor/iovec
+ vendor/itertools-0.10.0
  vendor/itertools
  vendor/itoa-0.4.6
  vendor/jod-thread
@@ -148,10 +149,9 @@ Files-Excluded:
  vendor/jsonrpc-ipc-server
  vendor/jsonrpc-pubsub
  vendor/jsonrpc-server-utils
- vendor/kernel32-sys
  vendor/lazycell
- vendor/libc-0.2.86
  vendor/libc-0.2.93
+ vendor/libc-0.2.97
  vendor/libgit2-sys
  vendor/libloading-0.6.7
  vendor/libloading
@@ -166,21 +166,15 @@ Files-Excluded:
  vendor/lsp-types-0.60.0
  vendor/lsp-types
  vendor/mach
- vendor/memmap2-0.2.1
+ vendor/memchr-2.4.0
+ vendor/memmap2
  vendor/mimalloc
  vendor/miniz_oxide-0.4.0
- vendor/mio-0.6.22
  vendor/mio
- vendor/mio-named-pipes
- vendor/mio-uds
- vendor/miow-0.2.2
- vendor/miow-0.3.6
- vendor/net2
  vendor/notify
  vendor/ntapi
- vendor/num-integer-0.1.43
- vendor/num-traits-0.2.12
- vendor/object-0.24.0
+ vendor/object-0.25.3
+ vendor/once_cell-1.7.2
  vendor/oorandom
  vendor/openssl
  vendor/openssl-probe
@@ -192,7 +186,6 @@ Files-Excluded:
  vendor/paste-impl
  vendor/percent-encoding-1.0.1
  vendor/perf-event
- vendor/pin-project-lite-0.1.11
  vendor/pin-project-lite-0.2.4
  vendor/pin-utils
  vendor/pretty_env_logger
@@ -209,7 +202,6 @@ Files-Excluded:
  vendor/redox_syscall-0.2.5
  vendor/regalloc
  vendor/regex
- vendor/regex-syntax-0.6.22
  vendor/region
  vendor/rls-vfs
  vendor/rowan
@@ -222,7 +214,7 @@ Files-Excluded:
  vendor/rustc-ap-rustc_fs_util
  vendor/rustc-ap-rustc_graphviz
  vendor/rustc-ap-rustc_index
- vendor/rustc-ap-rustc_lexer-721.0.0
+ vendor/rustc-ap-rustc_lexer-722.0.0
  vendor/rustc-ap-rustc_lexer
  vendor/rustc-ap-rustc_lint_defs
  vendor/rustc-ap-rustc_macros
@@ -240,6 +232,7 @@ Files-Excluded:
  vendor/security-framework-sys
  vendor/semver-0.9.0
  vendor/semver
+ vendor/semver-parser-0.7.0
  vendor/serde-1.0.125
  vendor/serde_derive-1.0.125
  vendor/serde_ignored
@@ -252,12 +245,10 @@ Files-Excluded:
  vendor/slab
  vendor/smol_str
  vendor/snap-1.0.1
- vendor/socket2-0.3.19
  vendor/socket2
  vendor/strip-ansi-escapes
  vendor/syn-1.0.65
  vendor/target-lexicon
- vendor/termcolor-1.1.0
  vendor/text-size
  vendor/thread_local-1.0.1
  vendor/threadpool
@@ -266,7 +257,7 @@ Files-Excluded:
  vendor/tikv-jemalloc-sys
  vendor/tinyvec-0.3.4
  vendor/tokio
- vendor/tokio-macros
+ vendor/tokio-stream
  vendor/tokio-util
  vendor/tower-service
  vendor/tracing-0.1.25
@@ -284,10 +275,7 @@ Files-Excluded:
  vendor/vergen
  vendor/vte
  vendor/walkdir-2.3.1
- vendor/winapi-0.2.8
- vendor/winapi-build
  vendor/write-json
- vendor/ws2_32-sys
  vendor/xflags
  vendor/xflags-macros
  vendor/xshell
