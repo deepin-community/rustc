@@ -7,15 +7,15 @@ Subject: d-0000-ignore-removed-submodules
  src/bootstrap/bootstrap.py              |  4 ----
  src/bootstrap/builder.rs                |  7 +------
  src/bootstrap/doc.rs                    |  1 -
- src/bootstrap/test.rs                   |  9 +--------
+ src/bootstrap/test.rs                   | 12 +-----------
  src/tools/clippy/Cargo.toml             |  5 -----
  src/tools/rustfmt/Cargo.toml            |  9 ++-------
  src/tools/rustfmt/src/cargo-fmt/main.rs |  2 +-
  src/tools/tidy/src/deps.rs              |  4 ++--
- 9 files changed, 7 insertions(+), 61 deletions(-)
+ 9 files changed, 7 insertions(+), 64 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 327afe3..393586f 100644
+index dedfe45..bb14622 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -17,23 +17,12 @@ members = [
@@ -39,10 +39,10 @@ index 327afe3..393586f 100644
    "src/tools/unicode-table-generator",
 -  "src/tools/expand-yaml-anchors",
 -  "src/tools/jsondocck",
+   "src/tools/html-checker",
  ]
  
- exclude = [
-@@ -84,25 +73,9 @@ gimli.debug = 0
+@@ -86,25 +75,9 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -69,10 +69,10 @@ index 327afe3..393586f 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 7c7f162..e0c41d6 100644
+index d2cf929..cad31ec 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -916,10 +916,6 @@ class RustBuild(object):
+@@ -929,10 +929,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -84,10 +84,10 @@ index 7c7f162..e0c41d6 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index bc499fd..8be379b 100644
+index 56ecc6e..b6cc501 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -452,7 +452,6 @@ impl<'a> Builder<'a> {
+@@ -472,7 +472,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -95,7 +95,7 @@ index bc499fd..8be379b 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -476,7 +475,6 @@ impl<'a> Builder<'a> {
+@@ -496,7 +495,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -103,7 +103,7 @@ index bc499fd..8be379b 100644
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1472,10 +1470,7 @@ impl<'a> Builder<'a> {
+@@ -1492,10 +1490,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -116,26 +116,29 @@ index bc499fd..8be379b 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index d2fabf9..69c5df3 100644
+index 9ec5d4d..d97d69f 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -60,7 +60,6 @@ macro_rules! book {
- // NOTE: When adding a book here, make sure to ALSO build the book by
- // adding a build step in `src/bootstrap/builder.rs`!
+@@ -76,7 +76,6 @@ macro_rules! book {
+ // FIXME: Make checking for a submodule automatic somehow (maybe by having a list of all submodules
+ // and checking against it?).
  book!(
--    CargoBook, "src/tools/cargo/src/doc", "cargo";
-     EditionGuide, "src/doc/edition-guide", "edition-guide";
-     EmbeddedBook, "src/doc/embedded-book", "embedded-book";
-     Nomicon, "src/doc/nomicon", "nomicon";
+-    CargoBook, "src/tools/cargo/src/doc", "cargo", submodule = "src/tools/cargo";
+     EditionGuide, "src/doc/edition-guide", "edition-guide", submodule;
+     EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
+     Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index fe4666e..00742ea 100644
+index 31f18d8..db0f6e9 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1765,14 +1765,7 @@ impl Step for RustcGuide {
+@@ -1842,17 +1842,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
--        let src = builder.src.join("src/doc/rustc-dev-guide");
+-        let relative_path = Path::new("src").join("doc").join("rustc-dev-guide");
+-        builder.update_submodule(&relative_path);
+-
+-        let src = builder.src.join(relative_path);
 -        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
 -        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)) {
 -            ToolState::TestPass
@@ -148,7 +151,7 @@ index fe4666e..00742ea 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index b003b15..f1b5739 100644
+index 9b5d9b2..c133ba7 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -41,11 +41,6 @@ syn = { version = "1", features = ["full"] }
@@ -176,7 +179,7 @@ index 3a04fb2..9161ea0 100644
  getopts = "0.2"
  derive-new = "0.5"
 -cargo_metadata = "0.8"
-+cargo_metadata = "0.11"
++cargo_metadata = "0.12"
  bytecount = "0.6"
  unicode-width = "0.1.5"
  unicode_categories = "0.1.1"
@@ -204,10 +207,10 @@ index 9062a29..1705648 100644
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index 06cec19..620af47 100644
+index 32660ae..283da9c 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -269,8 +269,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -264,8 +264,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.
