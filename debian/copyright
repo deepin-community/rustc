@@ -386,10 +386,11 @@ Files:
  vendor/libc/*
  vendor/log/*
  vendor/regex/*
+ vendor/regex-1*/*
  vendor/regex-syntax/*
  vendor/rustc-hash/*
  vendor/time/*
-Copyright: 2010-2020 The Rust Project Developers
+Copyright: 2010-2021 The Rust Project Developers
 License: MIT or Apache-2.0
 Comment:
  This is a collection of external crates embedded here to bootstrap cargo.
@@ -484,11 +485,14 @@ Copyright: 2010-2020 The Rust Project Developers
 License: MIT  or  Apache-2.0
 Comment: see https://github.com/rust-lang/rust
 
-Files: vendor/addr2line/*
-Copyright: 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
-           2016-2020 Philip Craig <philipjcraig@gmail.com>
-           2016-2020 Jon Gjengset <jon@thesquareplanet.com>
-           2016-2020 Noah Bergbauer <noah.bergbauer@tum.de>
+Files:
+ vendor/addr2line/*
+ vendor/addr2line-0*/*
+Copyright:
+ 2016-2021 Nick Fitzgerald <fitzgen@gmail.com>
+ 2016-2021 Philip Craig <philipjcraig@gmail.com>
+ 2016-2021 Jon Gjengset <jon@thesquareplanet.com>
+ 2016-2021 Noah Bergbauer <noah.bergbauer@tum.de>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/addr2line
 
@@ -913,9 +917,12 @@ Copyright:
 License: MIT
 Comment: see https://github.com/fizyk20/generic-array.git
 
-Files: vendor/gimli/*
-Copyright: 2016-2020 Nick Fitzgerald <fitzgen@gmail.com>
-           2016-2020 Philip Craig <philipjcraig@gmail.com>
+Files:
+ vendor/gimli/*
+ vendor/gimli-0*/*
+Copyright:
+ 2016-2021 Nick Fitzgerald <fitzgen@gmail.com>
+ 2016-2021 Philip Craig <philipjcraig@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/gimli
 
