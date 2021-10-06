@@ -1,3 +1,9 @@
+rustc (1.53.0+dfsg1-4) UNRELEASED; urgency=medium
+
+  * Ignore some hanging test regressions on non-release arches powerpc, ppc64.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 06 Oct 2021 19:23:48 +0100
+
 rustc (1.53.0+dfsg1-3) unstable; urgency=medium
 
   * Disable patch that was backported incorrectly.
