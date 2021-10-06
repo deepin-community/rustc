@@ -1,0 +1,22 @@
+Bug: https://github.com/rust-lang/rust/issues/89607
+
+--- a/library/alloc/tests/arc.rs
++++ b/library/alloc/tests/arc.rs
+@@ -96,6 +96,7 @@
+ 
+ fn assert_trusted_len<I: TrustedLen>(_: &I) {}
+ 
++#[cfg(not(any(target_arch = "powerpc", target_arch = "powerpc64")))]
+ #[test]
+ fn shared_from_iter_normal() {
+     // Exercise the base implementation for non-`TrustedLen` iterators.
+--- a/library/alloc/tests/rc.rs
++++ b/library/alloc/tests/rc.rs
+@@ -92,6 +92,7 @@
+ 
+ fn assert_trusted_len<I: TrustedLen>(_: &I) {}
+ 
++#[cfg(not(any(target_arch = "powerpc", target_arch = "powerpc64")))]
+ #[test]
+ fn shared_from_iter_normal() {
+     // Exercise the base implementation for non-`TrustedLen` iterators.
