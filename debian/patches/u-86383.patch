@@ -1,0 +1,273 @@
+From aa53928ed7b763abd882f2a5efb8f98f53ccc6a9 Mon Sep 17 00:00:00 2001
+From: Alex Vlasov <alex.m.vlasov@gmail.com>
+Date: Sun, 20 Jun 2021 16:09:42 +0200
+Subject: [PATCH] Squashed implementation of the pass
+
+---
+ compiler/rustc_hir/src/lang_items.rs          |   2 +
+ .../src/transform/lower_slice_len.rs          | 100 ++++++++++++++++++
+ compiler/rustc_mir/src/transform/mod.rs       |   2 +
+ compiler/rustc_span/src/symbol.rs             |   2 +
+ library/core/src/slice/mod.rs                 |   1 +
+ library/std/src/thread/local/tests.rs         |   2 +-
+ ...er_slice_len.bound.LowerSliceLenCalls.diff |  63 +++++++++++
+ src/test/mir-opt/lower_slice_len.rs           |  14 +++
+ 8 files changed, 185 insertions(+), 1 deletion(-)
+ create mode 100644 compiler/rustc_mir/src/transform/lower_slice_len.rs
+ create mode 100644 src/test/mir-opt/lower_slice_len.bound.LowerSliceLenCalls.diff
+ create mode 100644 src/test/mir-opt/lower_slice_len.rs
+
+--- a/compiler/rustc_hir/src/lang_items.rs
++++ b/compiler/rustc_hir/src/lang_items.rs
+@@ -310,6 +310,8 @@
+ 
+     Try,                     kw::Try,                  try_trait,                  Target::Trait;
+ 
++    SliceLen,                sym::slice_len_fn,        slice_len_fn,               Target::Method(MethodKind::Inherent);
++
+     // Language items from AST lowering
+     TryFromError,            sym::from_error,          from_error_fn,              Target::Method(MethodKind::Trait { body: false });
+     TryFromOk,               sym::from_ok,             from_ok_fn,                 Target::Method(MethodKind::Trait { body: false });
+--- /dev/null
++++ b/compiler/rustc_mir/src/transform/lower_slice_len.rs
+@@ -0,0 +1,100 @@
++//! This pass lowers calls to core::slice::len to just Len op.
++//! It should run before inlining!
++
++use crate::transform::MirPass;
++use rustc_hir::def_id::DefId;
++use rustc_index::vec::IndexVec;
++use rustc_middle::mir::*;
++use rustc_middle::ty::{self, TyCtxt};
++
++pub struct LowerSliceLenCalls;
++
++impl<'tcx> MirPass<'tcx> for LowerSliceLenCalls {
++    fn run_pass(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
++        lower_slice_len_calls(tcx, body)
++    }
++}
++
++pub fn lower_slice_len_calls<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
++    let language_items = tcx.lang_items();
++    let slice_len_fn_item_def_id = if let Some(slice_len_fn_item) = language_items.slice_len_fn() {
++        slice_len_fn_item
++    } else {
++        // there is no language item to compare to :)
++        return;
++    };
++
++    let (basic_blocks, local_decls) = body.basic_blocks_and_local_decls_mut();
++
++    for block in basic_blocks {
++        // lower `<[_]>::len` calls
++        lower_slice_len_call(tcx, block, &*local_decls, slice_len_fn_item_def_id);
++    }
++}
++
++struct SliceLenPatchInformation<'tcx> {
++    add_statement: Statement<'tcx>,
++    new_terminator_kind: TerminatorKind<'tcx>,
++}
++
++fn lower_slice_len_call<'tcx>(
++    tcx: TyCtxt<'tcx>,
++    block: &mut BasicBlockData<'tcx>,
++    local_decls: &IndexVec<Local, LocalDecl<'tcx>>,
++    slice_len_fn_item_def_id: DefId,
++) {
++    let mut patch_found: Option<SliceLenPatchInformation<'_>> = None;
++
++    let terminator = block.terminator();
++    match &terminator.kind {
++        TerminatorKind::Call {
++            func,
++            args,
++            destination: Some((dest, bb)),
++            cleanup: None,
++            from_hir_call: true,
++            ..
++        } => {
++            // some heuristics for fast rejection
++            if args.len() != 1 {
++                return;
++            }
++            let arg = match args[0].place() {
++                Some(arg) => arg,
++                None => return,
++            };
++            let func_ty = func.ty(local_decls, tcx);
++            match func_ty.kind() {
++                ty::FnDef(fn_def_id, _) if fn_def_id == &slice_len_fn_item_def_id => {
++                    // perform modifications
++                    // from something like `_5 = core::slice::<impl [u8]>::len(move _6) -> bb1`
++                    // into `_5 = Len(*_6)
++                    // goto bb1
++
++                    // make new RValue for Len
++                    let deref_arg = tcx.mk_place_deref(arg);
++                    let r_value = Rvalue::Len(deref_arg);
++                    let len_statement_kind = StatementKind::Assign(Box::new((*dest, r_value)));
++                    let add_statement = Statement {
++                        kind: len_statement_kind,
++                        source_info: terminator.source_info.clone(),
++                    };
++
++                    // modify terminator into simple Goto
++                    let new_terminator_kind = TerminatorKind::Goto { target: bb.clone() };
++
++                    let patch = SliceLenPatchInformation { add_statement, new_terminator_kind };
++
++                    patch_found = Some(patch);
++                }
++                _ => {}
++            }
++        }
++        _ => {}
++    }
++
++    if let Some(SliceLenPatchInformation { add_statement, new_terminator_kind }) = patch_found {
++        block.statements.push(add_statement);
++        block.terminator_mut().kind = new_terminator_kind;
++    }
++}
+--- a/compiler/rustc_mir/src/transform/mod.rs
++++ b/compiler/rustc_mir/src/transform/mod.rs
+@@ -36,6 +36,7 @@
+ pub mod inline;
+ pub mod instcombine;
+ pub mod lower_intrinsics;
++pub mod lower_slice_len;
+ pub mod match_branches;
+ pub mod multiple_return_terminators;
+ pub mod no_landing_pads;
+@@ -480,6 +481,7 @@
+     // to them. We run some optimizations before that, because they may be harder to do on the state
+     // machine than on MIR with async primitives.
+     let optimizations_with_generators: &[&dyn MirPass<'tcx>] = &[
++        &lower_slice_len::LowerSliceLenCalls, // has to be done before inlining, otherwise actual call will be almost always inlined. Also simple, so can just do first
+         &unreachable_prop::UnreachablePropagation,
+         &uninhabited_enum_branching::UninhabitedEnumBranching,
+         &simplify::SimplifyCfg::new("after-uninhabited-enum-branching"),
+--- a/compiler/rustc_span/src/symbol.rs
++++ b/compiler/rustc_span/src/symbol.rs
+@@ -675,6 +675,7 @@
+         lateout,
+         lazy_normalization_consts,
+         le,
++        len,
+         let_chains,
+         lhs,
+         lib,
+@@ -1129,6 +1130,7 @@
+         skip,
+         slice,
+         slice_alloc,
++        slice_len_fn,
+         slice_patterns,
+         slice_u8,
+         slice_u8_alloc,
+--- a/library/core/src/slice/mod.rs
++++ b/library/core/src/slice/mod.rs
+@@ -96,6 +96,7 @@
+     /// assert_eq!(a.len(), 3);
+     /// ```
+     #[doc(alias = "length")]
++    #[cfg_attr(not(bootstrap), lang = "slice_len_fn")]
+     #[stable(feature = "rust1", since = "1.0.0")]
+     #[rustc_const_stable(feature = "const_slice_len", since = "1.39.0")]
+     #[inline]
+--- a/library/std/src/thread/local/tests.rs
++++ b/library/std/src/thread/local/tests.rs
+@@ -297,7 +297,7 @@
+             .unwrap();
+ 
+         loop {
+-            match SYNC_STATE.compare_exchange_weak(
++            match SYNC_STATE.compare_exchange(
+                 THREAD1_WAITING,
+                 MAIN_THREAD_RENDEZVOUS,
+                 Ordering::SeqCst,
+--- /dev/null
++++ b/src/test/mir-opt/lower_slice_len.bound.LowerSliceLenCalls.diff
+@@ -0,0 +1,63 @@
++- // MIR for `bound` before LowerSliceLenCalls
+++ // MIR for `bound` after LowerSliceLenCalls
++  
++  fn bound(_1: usize, _2: &[u8]) -> u8 {
++      debug index => _1;                   // in scope 0 at $DIR/lower_slice_len.rs:4:14: 4:19
++      debug slice => _2;                   // in scope 0 at $DIR/lower_slice_len.rs:4:28: 4:33
++      let mut _0: u8;                      // return place in scope 0 at $DIR/lower_slice_len.rs:4:45: 4:47
++      let mut _3: bool;                    // in scope 0 at $DIR/lower_slice_len.rs:5:8: 5:27
++      let mut _4: usize;                   // in scope 0 at $DIR/lower_slice_len.rs:5:8: 5:13
++      let mut _5: usize;                   // in scope 0 at $DIR/lower_slice_len.rs:5:16: 5:27
++      let mut _6: &[u8];                   // in scope 0 at $DIR/lower_slice_len.rs:5:16: 5:21
++      let _7: usize;                       // in scope 0 at $DIR/lower_slice_len.rs:6:15: 6:20
++      let mut _8: usize;                   // in scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++      let mut _9: bool;                    // in scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++  
++      bb0: {
++          StorageLive(_3);                 // scope 0 at $DIR/lower_slice_len.rs:5:8: 5:27
++          StorageLive(_4);                 // scope 0 at $DIR/lower_slice_len.rs:5:8: 5:13
++          _4 = _1;                         // scope 0 at $DIR/lower_slice_len.rs:5:8: 5:13
++          StorageLive(_5);                 // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:27
++          StorageLive(_6);                 // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:21
++          _6 = &(*_2);                     // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:21
++-         _5 = core::slice::<impl [u8]>::len(move _6) -> bb1; // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:27
++-                                          // mir::Constant
++-                                          // + span: $DIR/lower_slice_len.rs:5:22: 5:25
++-                                          // + literal: Const { ty: for<'r> fn(&'r [u8]) -> usize {core::slice::<impl [u8]>::len}, val: Value(Scalar(<ZST>)) }
+++         _5 = Len((*_6));                 // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:27
+++         goto -> bb1;                     // scope 0 at $DIR/lower_slice_len.rs:5:16: 5:27
++      }
++  
++      bb1: {
++          StorageDead(_6);                 // scope 0 at $DIR/lower_slice_len.rs:5:26: 5:27
++          _3 = Lt(move _4, move _5);       // scope 0 at $DIR/lower_slice_len.rs:5:8: 5:27
++          StorageDead(_5);                 // scope 0 at $DIR/lower_slice_len.rs:5:26: 5:27
++          StorageDead(_4);                 // scope 0 at $DIR/lower_slice_len.rs:5:26: 5:27
++          switchInt(move _3) -> [false: bb3, otherwise: bb2]; // scope 0 at $DIR/lower_slice_len.rs:5:5: 9:6
++      }
++  
++      bb2: {
++          StorageLive(_7);                 // scope 0 at $DIR/lower_slice_len.rs:6:15: 6:20
++          _7 = _1;                         // scope 0 at $DIR/lower_slice_len.rs:6:15: 6:20
++          _8 = Len((*_2));                 // scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++          _9 = Lt(_7, _8);                 // scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++          assert(move _9, "index out of bounds: the length is {} but the index is {}", move _8, _7) -> bb4; // scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++      }
++  
++      bb3: {
++          _0 = const 42_u8;                // scope 0 at $DIR/lower_slice_len.rs:8:9: 8:11
++          goto -> bb5;                     // scope 0 at $DIR/lower_slice_len.rs:5:5: 9:6
++      }
++  
++      bb4: {
++          _0 = (*_2)[_7];                  // scope 0 at $DIR/lower_slice_len.rs:6:9: 6:21
++          StorageDead(_7);                 // scope 0 at $DIR/lower_slice_len.rs:7:5: 7:6
++          goto -> bb5;                     // scope 0 at $DIR/lower_slice_len.rs:5:5: 9:6
++      }
++  
++      bb5: {
++          StorageDead(_3);                 // scope 0 at $DIR/lower_slice_len.rs:9:5: 9:6
++          return;                          // scope 0 at $DIR/lower_slice_len.rs:10:2: 10:2
++      }
++  }
++  
+--- /dev/null
++++ b/src/test/mir-opt/lower_slice_len.rs
+@@ -0,0 +1,14 @@
++// compile-flags: -Z mir-opt-level=3
++
++// EMIT_MIR lower_slice_len.bound.LowerSliceLenCalls.diff
++pub fn bound(index: usize, slice: &[u8]) -> u8 {
++    if index < slice.len() {
++        slice[index]
++    } else {
++        42
++    }
++}
++
++fn main() {
++    let _ = bound(1, &[1, 2, 3]);
++}

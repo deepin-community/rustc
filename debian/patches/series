@@ -1,6 +1,8 @@
 # Patches for upstream
 
 # pending, or forwarded
+u-86383.patch
+u-89591.patch
 u-85807.patch
 # next one can be dropped after upgrading to LLVM 13
 0001-Revert-Auto-merge-of-79547.patch
