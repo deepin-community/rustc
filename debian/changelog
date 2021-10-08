@@ -6,7 +6,7 @@ rustc (1.54.0+dfsg1-1) unstable; urgency=medium
   * Ignore more spurious test failures, and filed upstream.
   * Bump powerpc allowed-failures to 180 at the request of ports maintainers.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 00:23:08 +0100
+ -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 00:24:37 +0100
 
 rustc (1.54.0+dfsg1-1~exp1) experimental; urgency=medium
 
