@@ -920,6 +920,11 @@ Copyright:
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/gimli
 
+Files: vendor/globwalk/*
+Copyright: 2018-2020 Gilad Naaman <gilad@naaman.io>
+License: MIT
+Comment: see https://github.com/gilnaa/globwalk
+
 Files: vendor/goblin/*
 Copyright: 2016-2020 m4b <m4b.github.io@gmail.com>
            2016-2020 seu <seu@panopticon.re>
@@ -1126,6 +1131,12 @@ Files: vendor/memmap/*
 Copyright: 2015-2018 Dan Burkert <dan@danburkert.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/danburkert/memmap-rs
+
+Files: vendor/memmap2-0*/*
+Copyright: 2015-2021 Dan Burkert <dan@danburkert.com>
+           2015-2021 Evgeniy Reizner <razrfalcon@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/RazrFalcon/memmap2-rs
 
 Files: vendor/memmap2/*
 Copyright: 2015-2021 Dan Burkert <dan@danburkert.com>
@@ -1446,9 +1457,12 @@ Copyright: 2015-2018 Marvin Löbel <loebel.marvin@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/Kimundi/rustc-version-rs
 
-Files: vendor/rustfix/*
-Copyright: 2016-2018 Pascal Hertleif <killercup@gmail.com>
-           2016-2018 Oliver Schneider <oli-obk@users.noreply.github.com>
+Files:
+ vendor/rustfix/*
+ vendor/rustfix-0*/*
+Copyright:
+ 2016-2021 Pascal Hertleif <killercup@gmail.com>
+ 2016-2021 Oliver Schneider <oli-obk@users.noreply.github.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/killercup/rustfix
 
@@ -1610,6 +1624,11 @@ Copyright: 2015-2017 Keegan McAllister <mcallister.keegan@gmail.com>
            2015-2017 Chris Morgan <me@chrismorgan.info>
 License: MIT or Apache-2.0
 Comment: see https://github.com/servo/tendril
+
+Files: vendor/tera/*
+Copyright: 2015-2021 Vincent Prouillet <hello@prouilletvincent.com>
+License: MIT
+Comment: see https://github.com/Keats/tera
 
 Files:
  vendor/term/*
