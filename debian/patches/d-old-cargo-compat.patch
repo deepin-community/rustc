@@ -1,0 +1,38 @@
+Description: Backwards-compat for cargo 0.47
+
+  The flag being removed here was added in
+  https://github.com/rust-lang/cargo/pull/9404 released in cargo 0.54
+  
+  This works around a feature introduced in this PR
+  https://github.com/rust-lang/cargo/pull/8640 released in cargo 0.53
+  
+  Therefore it is not needed for Debian's current cargo 0.47.
+  
+  We can drop this patch when updating to cargo 0.54 and later.
+
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -429,7 +429,6 @@
+             cargo
+                 .arg("-p")
+                 .arg(package)
+-                .arg("-Zskip-rustdoc-fingerprint")
+                 .arg("--")
+                 .arg("--markdown-css")
+                 .arg("rust.css")
+@@ -560,7 +559,6 @@
+         cargo.rustdocflag("-Znormalize-docs");
+         cargo.rustdocflag("--show-type-layout");
+         compile::rustc_cargo(builder, &mut cargo, target);
+-        cargo.arg("-Zskip-rustdoc-fingerprint");
+ 
+         // Only include compiler crates, no dependencies of those, such as `libc`.
+         cargo.arg("--no-deps");
+@@ -652,7 +650,6 @@
+             &[],
+         );
+ 
+-        cargo.arg("-Zskip-rustdoc-fingerprint");
+         // Only include compiler crates, no dependencies of those, such as `libc`.
+         cargo.arg("--no-deps");
+         cargo.arg("-p").arg("rustdoc");

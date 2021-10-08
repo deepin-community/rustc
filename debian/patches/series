@@ -42,6 +42,7 @@ d-read-beta-version-from-file.patch
 d-ignore-avx-44056.patch
 d-i686-baseline.patch
 d-use-local-css.patch
+d-old-cargo-compat.patch
 
 # Porter fixes under discussion, not suitable for upstreaming
 # as-is but a proper fix is being discussed
