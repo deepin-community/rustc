@@ -1,6 +1,6 @@
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -819,10 +819,9 @@
+@@ -824,10 +824,9 @@
  
          match which {
              GitRepo::Rustc => {
@@ -13,3 +13,14 @@
          }
      }
  
+--- a/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
++++ b/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
+@@ -7,7 +7,7 @@
+ // true automatically. If paths to std library hasn't been remapped, we use the
+ // above simulate-remapped-rust-src-base option to do it temporarily
+ 
+-// CHECK: !DIFile(filename: "{{/rustc/.*/library/std/src/panic.rs}}"
++// CHECK: !DIFile(filename: "{{/usr/src/rustc-.*/library/std/src/panic.rs}}"
+ fn main() {
+     std::thread::spawn(|| {
+         println!("hello");

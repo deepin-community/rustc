@@ -41,7 +41,9 @@ NJOBS := -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py $(NJOBS)
 RUSTBUILD_FLAGS = --stage 2 --config debian/config.toml -vvv --on-fail env
-RUSTBUILD_TEST = $(RUSTBUILD) test --no-fail-fast
+# rust-tidy depends on lots of modules that we strip out of the build.
+# it also tries to access the network for some reason. so just disable it.
+RUSTBUILD_TEST = $(RUSTBUILD) test --no-fail-fast --exclude src/tools/tidy
 # To run a specific test, run something like:
 #   $ debian/rules override_dh_auto_test-arch \
 #     RUSTBUILD_TEST_FLAGS="src/test/run-make --test-args extern-fn-struct"
