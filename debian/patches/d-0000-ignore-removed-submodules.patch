@@ -18,7 +18,7 @@ diff --git a/Cargo.toml b/Cargo.toml
 index dedfe45..bb14622 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -17,23 +17,12 @@ members = [
+@@ -17,22 +17,12 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -38,10 +38,9 @@ index dedfe45..bb14622 100644
    "src/tools/rustdoc-themes",
    "src/tools/unicode-table-generator",
 -  "src/tools/expand-yaml-anchors",
--  "src/tools/jsondocck",
+   "src/tools/jsondocck",
    "src/tools/html-checker",
  ]
- 
 @@ -86,25 +75,9 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0

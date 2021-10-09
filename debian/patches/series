@@ -47,7 +47,6 @@ d-disable-embedded-fonts.patch
 
 # Porter fixes under discussion, not suitable for upstreaming
 # as-is but a proper fix is being discussed
-d-temp-disable-jsondocck.patch
 d-fix-mips64el-bootstrap.patch
 
 # Work around for some porterboxes, keep this commented
