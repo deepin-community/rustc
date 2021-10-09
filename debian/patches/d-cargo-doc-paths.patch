@@ -4,12 +4,12 @@ Description: Fix links to cargo-doc
 
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
-@@ -250,6 +250,12 @@
+@@ -258,6 +258,12 @@
                              return;
                          }
                      }
 +                    if let Some(path_str) = path.to_str() {
-+                        if path_str.contains("../../cargo-doc") {
++                        if path_str.contains("/cargo-doc/doc/") {
 +                            // link to related cargo-doc, ok for our Debian build
 +                            return;
 +                        }
@@ -104,3 +104,35 @@ Description: Fix links to cargo-doc
  want to see how Cargo calls `rustc`, you can
  
  ```bash
+--- a/src/doc/edition-guide/book.toml
++++ b/src/doc/edition-guide/book.toml
+@@ -53,15 +53,15 @@
+ "/rust-2018/the-compiler/incremental-compilation-for-faster-compiles.html" = "https://blog.rust-lang.org/2018/02/15/Rust-1.24.html#incremental-compilation"
+ "/rust-2018/the-compiler/an-attribute-for-deprecation.html" = "../../../reference/attributes/diagnostics.html#the-deprecated-attribute"
+ "/rust-2018/rustup-for-managing-rust-versions.html" = "https://rust-lang.github.io/rustup/"
+-"/rust-2018/cargo-and-crates-io/index.html" = "../../../cargo/index.html"
+-"/rust-2018/cargo-and-crates-io/cargo-check-for-faster-checking.html" = "../../../cargo/commands/cargo-check.html"
+-"/rust-2018/cargo-and-crates-io/cargo-install-for-easy-installation-of-tools.html" = "../../../cargo/commands/cargo-install.html"
++"/rust-2018/cargo-and-crates-io/index.html" = "../../../../cargo-doc/doc/index.html"
++"/rust-2018/cargo-and-crates-io/cargo-check-for-faster-checking.html" = "../../../../cargo-doc/doc/commands/cargo-check.html"
++"/rust-2018/cargo-and-crates-io/cargo-install-for-easy-installation-of-tools.html" = "../../../../cargo-doc/doc/commands/cargo-install.html"
+ "/rust-2018/cargo-and-crates-io/cargo-new-defaults-to-a-binary-project.html" = "https://blog.rust-lang.org/2018/03/29/Rust-1.25.html#cargo-features"
+-"/rust-2018/cargo-and-crates-io/cargo-rustc-for-passing-arbitrary-flags-to-rustc.html" = "../../../cargo/commands/cargo-rustc.html"
+-"/rust-2018/cargo-and-crates-io/cargo-workspaces-for-multi-package-projects.html" = "../../../cargo/reference/workspaces.html"
+-"/rust-2018/cargo-and-crates-io/multi-file-examples.html" = "../../../cargo/guide/project-layout.html"
+-"/rust-2018/cargo-and-crates-io/replacing-dependencies-with-patch.html" = "../../../cargo/reference/overriding-dependencies.html#the-patch-section"
+-"/rust-2018/cargo-and-crates-io/cargo-can-use-a-local-registry-replacement.html" = "../../../cargo/reference/source-replacement.html"
++"/rust-2018/cargo-and-crates-io/cargo-rustc-for-passing-arbitrary-flags-to-rustc.html" = "../../../../cargo-doc/doc/commands/cargo-rustc.html"
++"/rust-2018/cargo-and-crates-io/cargo-workspaces-for-multi-package-projects.html" = "../../../../cargo-doc/doc/reference/workspaces.html"
++"/rust-2018/cargo-and-crates-io/multi-file-examples.html" = "../../../../cargo-doc/doc/guide/project-layout.html"
++"/rust-2018/cargo-and-crates-io/replacing-dependencies-with-patch.html" = "../../../../cargo-doc/doc/reference/overriding-dependencies.html#the-patch-section"
++"/rust-2018/cargo-and-crates-io/cargo-can-use-a-local-registry-replacement.html" = "../../../../cargo-doc/doc/reference/source-replacement.html"
+ "/rust-2018/cargo-and-crates-io/crates-io-disallows-wildcard-dependencies.html" = "https://blog.rust-lang.org/2016/01/21/Rust-1.6.html#cratesio-disallows-wildcards"
+ "/rust-2018/documentation/index.html" = "../../../index.html"
+ "/rust-2018/documentation/new-editions-of-the-book.html" = "../../../book/index.html"
+@@ -93,4 +93,4 @@
+ "/rust-next/future.html" = "../../std/future/trait.Future.html"
+ "/rust-next/alloc.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#the-alloc-crate-is-stable"
+ "/rust-next/maybe-uninit.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#maybeuninitt-instead-of-memuninitialized"
+-"/rust-next/cargo-vendor.html" = "../../cargo/commands/cargo-vendor.html"
++"/rust-next/cargo-vendor.html" = "../../../cargo-doc/doc/commands/cargo-vendor.html"
