@@ -1,0 +1,32 @@
+Description: Temporarily disable jsondocck
+
+We accidentally excluded jsondocck from d-0000-ignore-removed-submodules.patch
+Rather than repacking the source tarball which takes some time, just disable it
+for now and re-enable it (un-drop it from that patch) next time we repack, i.e.
+TODO / FIXME in version 1.56.
+
+--- a/src/bootstrap/test.rs
++++ b/src/bootstrap/test.rs
+@@ -1212,10 +1212,8 @@
+         }
+ 
+         if mode == "rustdoc-json" {
+-            // Use the beta compiler for jsondocck
+-            let json_compiler = compiler.with_stage(0);
+-            cmd.arg("--jsondocck-path")
+-                .arg(builder.ensure(tool::JsonDocCk { compiler: json_compiler, target }));
++            // temporarily disabled in Debian
++            return;
+         }
+ 
+         if mode == "run-make" && suite.ends_with("fulldeps") {
+--- a/src/bootstrap/tool.rs
++++ b/src/bootstrap/tool.rs
+@@ -375,7 +375,6 @@
+     RustdocTheme, "src/tools/rustdoc-themes", "rustdoc-themes";
+     ExpandYamlAnchors, "src/tools/expand-yaml-anchors", "expand-yaml-anchors";
+     LintDocs, "src/tools/lint-docs", "lint-docs";
+-    JsonDocCk, "src/tools/jsondocck", "jsondocck";
+ );
+ 
+ #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]

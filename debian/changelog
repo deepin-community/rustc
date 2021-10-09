@@ -1,6 +1,6 @@
 rustc (1.54.0+dfsg1-2) UNRELEASED; urgency=medium
 
-  * Fix linkchecker test.
+  * Fix some more build & test failures.
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 02:42:56 +0100
 
