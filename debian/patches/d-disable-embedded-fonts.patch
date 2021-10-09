@@ -1,0 +1,58 @@
+--- a/src/librustdoc/html/render/write_shared.rs
++++ b/src/librustdoc/html/render/write_shared.rs
+@@ -39,8 +39,6 @@
+         "SourceCodePro-Semibold.ttf.woff" => static_files::source_code_pro::SEMIBOLD,
+         "SourceCodePro-It.ttf.woff" => static_files::source_code_pro::ITALIC,
+         "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
+-        "noto-sans-kr-v13-korean-regular.woff" => static_files::noto_sans_kr::REGULAR,
+-        "noto-sans-kr-v13-korean-regular-LICENSE.txt" => static_files::noto_sans_kr::LICENSE,
+         "LICENSE-MIT.txt" => static_files::LICENSE_MIT,
+         "LICENSE-APACHE.txt" => static_files::LICENSE_APACHE,
+         "COPYRIGHT.txt" => static_files::COPYRIGHT,
+--- a/src/librustdoc/html/static/css/rustdoc.css
++++ b/src/librustdoc/html/static/css/rustdoc.css
+@@ -75,14 +75,6 @@
+ 	font-display: swap;
+ }
+ 
+-/* Avoid using legacy CJK serif fonts in Windows like Batang */
+-@font-face {
+-	font-family: 'Noto Sans KR';
+-	src: url("noto-sans-kr-v13-korean-regular.woff") format("woff");
+-	font-display: swap;
+-	unicode-range: U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
+-}
+-
+ * {
+ 	-webkit-box-sizing: border-box;
+ 	-moz-box-sizing: border-box;
+@@ -107,7 +99,7 @@
+ /* General structure and fonts */
+ 
+ body {
+-	font: 16px/1.4 "Source Serif 4", "Noto Sans KR", serif;
++	font: 16px/1.4 "Source Serif 4", serif;
+ 	margin: 0;
+ 	position: relative;
+ 	padding: 10px 15px 20px 15px;
+--- a/src/librustdoc/html/static_files.rs
++++ b/src/librustdoc/html/static_files.rs
+@@ -152,18 +152,6 @@
+     crate static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
+ }
+ 
+-crate mod noto_sans_kr {
+-    /// The file `noto-sans-kr-v13-korean-regular.woff`, the Regular variant of the Noto Sans KR
+-    /// font.
+-    crate static REGULAR: &[u8] =
+-        include_bytes!("static/fonts/noto-sans-kr-v13-korean-regular.woff");
+-
+-    /// The file `noto-sans-kr-v13-korean-regular-LICENSE.txt`, the license text of the Noto Sans KR
+-    /// font.
+-    crate static LICENSE: &[u8] =
+-        include_bytes!("static/fonts/noto-sans-kr-v13-korean-regular-LICENSE.txt");
+-}
+-
+ /// Files related to the sidebar in rustdoc sources.
+ crate mod sidebar {
+     /// File script to handle sidebar.
