@@ -1,8 +1,8 @@
-rustc (1.54.0+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.54.0+dfsg1-2) unstable; urgency=medium
 
   * Fix some more build & test failures.
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 02:42:56 +0100
+ -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 03:12:35 +0100
 
 rustc (1.54.0+dfsg1-1) unstable; urgency=medium
 
