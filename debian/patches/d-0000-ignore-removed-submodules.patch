@@ -3,7 +3,7 @@ Date: Sat, 2 Oct 2021 01:07:59 +0100
 Subject: d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                              | 27 ---------------------------
+ Cargo.toml                              | 26 --------------------------
  src/bootstrap/bootstrap.py              |  4 ----
  src/bootstrap/builder.rs                |  7 +------
  src/bootstrap/doc.rs                    |  1 -
@@ -12,10 +12,10 @@ Subject: d-0000-ignore-removed-submodules
  src/tools/rustfmt/Cargo.toml            |  9 ++-------
  src/tools/rustfmt/src/cargo-fmt/main.rs |  2 +-
  src/tools/tidy/src/deps.rs              |  4 ++--
- 9 files changed, 7 insertions(+), 64 deletions(-)
+ 9 files changed, 7 insertions(+), 63 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index dedfe45..bb14622 100644
+index dedfe45..bb19a78 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -17,22 +17,12 @@ members = [
@@ -41,7 +41,7 @@ index dedfe45..bb14622 100644
    "src/tools/jsondocck",
    "src/tools/html-checker",
  ]
-@@ -86,25 +75,9 @@ gimli.debug = 0
+@@ -86,25 +76,9 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -68,10 +68,10 @@ index dedfe45..bb14622 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index d2cf929..cad31ec 100644
+index e34768b..042c4e4 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -929,10 +929,6 @@ class RustBuild(object):
+@@ -934,10 +934,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(1, self.verbose):
              args.append("--verbose")
@@ -83,10 +83,10 @@ index d2cf929..cad31ec 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 56ecc6e..b6cc501 100644
+index 5911309..1bf9b28 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -472,7 +472,6 @@ impl<'a> Builder<'a> {
+@@ -481,7 +481,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -94,7 +94,7 @@ index 56ecc6e..b6cc501 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
              ),
-@@ -496,7 +495,6 @@ impl<'a> Builder<'a> {
+@@ -505,7 +504,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -102,7 +102,7 @@ index 56ecc6e..b6cc501 100644
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1492,10 +1490,7 @@ impl<'a> Builder<'a> {
+@@ -1509,10 +1507,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -115,7 +115,7 @@ index 56ecc6e..b6cc501 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 9ec5d4d..d97d69f 100644
+index c871411..2e0e73d 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -76,7 +76,6 @@ macro_rules! book {
@@ -127,10 +127,10 @@ index 9ec5d4d..d97d69f 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
      Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 31f18d8..db0f6e9 100644
+index d12e86b..927d56a 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1842,17 +1842,7 @@ impl Step for RustcGuide {
+@@ -1848,17 +1848,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -150,10 +150,10 @@ index 31f18d8..db0f6e9 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index 9b5d9b2..c133ba7 100644
+index 16b6c20..e67910c 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -41,11 +41,6 @@ syn = { version = "1", features = ["full"] }
+@@ -40,11 +40,6 @@ syn = { version = "1", features = ["full"] }
  # This is used by the `collect-metadata` alias.
  filetime = "0.2"
  
@@ -166,10 +166,10 @@ index 9b5d9b2..c133ba7 100644
  rustc_tools_util = { version = "0.2.0", path = "rustc_tools_util" }
  
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 3a04fb2..9161ea0 100644
+index 81e3e26..049b105 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -43,10 +43,10 @@ regex = "1.0"
+@@ -42,10 +42,10 @@ regex = "1.0"
  term = "0.6"
  diff = "0.1"
  log = "0.4.14"
@@ -182,7 +182,7 @@ index 3a04fb2..9161ea0 100644
  bytecount = "0.6"
  unicode-width = "0.1.5"
  unicode_categories = "0.1.1"
-@@ -59,9 +59,4 @@ lazy_static = "1.0.0"
+@@ -58,9 +58,4 @@ lazy_static = "1.0.0"
  anyhow = "1.0"
  thiserror = "1.0"
  
@@ -193,10 +193,10 @@ index 3a04fb2..9161ea0 100644
 -
  # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
 diff --git a/src/tools/rustfmt/src/cargo-fmt/main.rs b/src/tools/rustfmt/src/cargo-fmt/main.rs
-index 9062a29..1705648 100644
+index 90ffad9..f8cf698 100644
 --- a/src/tools/rustfmt/src/cargo-fmt/main.rs
 +++ b/src/tools/rustfmt/src/cargo-fmt/main.rs
-@@ -527,7 +527,7 @@ fn get_cargo_metadata(
+@@ -528,7 +528,7 @@ fn get_cargo_metadata(
      if let Some(manifest_path) = manifest_path {
          cmd.manifest_path(manifest_path);
      }
@@ -206,10 +206,10 @@ index 9062a29..1705648 100644
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index 32660ae..283da9c 100644
+index 5f1267f..738f9f6 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -264,8 +264,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -265,8 +265,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.

@@ -7,10 +7,10 @@ Subject: d-0006-no-jemalloc
  1 file changed, 11 deletions(-)
 
 diff --git a/compiler/rustc/Cargo.toml b/compiler/rustc/Cargo.toml
-index ca6055c..f6ae74a 100644
+index 37f90bf..617ee4b 100644
 --- a/compiler/rustc/Cargo.toml
 +++ b/compiler/rustc/Cargo.toml
-@@ -10,17 +10,6 @@ rustc_driver = { path = "../rustc_driver" }
+@@ -9,17 +9,6 @@ rustc_driver = { path = "../rustc_driver" }
  # Make sure rustc_codegen_ssa ends up in the sysroot, because this
  # crate is intended to be used by codegen backends, which may not be in-tree.
  rustc_codegen_ssa = { path = "../rustc_codegen_ssa" }

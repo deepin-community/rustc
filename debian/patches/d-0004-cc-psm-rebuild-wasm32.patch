@@ -21,10 +21,10 @@ index b62a1da..819506e 100644
                      if self.cpp {
                          "wr-c++".to_string()
 diff --git a/vendor/psm/build.rs b/vendor/psm/build.rs
-index 91f5915..6626e3a 100644
+index 01a13bf..30bd68d 100644
 --- a/vendor/psm/build.rs
 +++ b/vendor/psm/build.rs
-@@ -27,7 +27,7 @@ fn find_assembly(arch: &str, endian: &str, os: &str, env: &str) -> Option<(&'sta
+@@ -50,7 +50,7 @@ fn find_assembly(
          ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
          ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
          ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
@@ -33,7 +33,7 @@ index 91f5915..6626e3a 100644
          _ => None,
      }
  }
-@@ -61,11 +61,8 @@ fn main() {
+@@ -94,11 +94,8 @@ fn main() {
          cfg.define(&*format!("CFG_TARGET_ENV_{}", env), None);
      }
  

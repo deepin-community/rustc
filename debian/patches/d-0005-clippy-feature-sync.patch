@@ -10,10 +10,10 @@ this is what rustc_workspace_hack does in the upstream build.
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index c133ba7..51611fa 100644
+index e67910c..781600f 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -37,7 +37,7 @@ serde = { version = "1.0", features = ["derive"] }
+@@ -36,7 +36,7 @@ serde = { version = "1.0", features = ["derive"] }
  derive-new = "0.5"
  regex = "1.4"
  quote = "1"
@@ -23,10 +23,10 @@ index c133ba7..51611fa 100644
  filetime = "0.2"
  
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 9161ea0..599e034 100644
+index 049b105..cc480a1 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -37,7 +37,7 @@ generic-simd = ["bytecount/generic-simd"]
+@@ -36,7 +36,7 @@ generic-simd = ["bytecount/generic-simd"]
  itertools = "0.8"
  toml = "0.5"
  serde = { version = "1.0", features = ["derive"] }
