@@ -40,7 +40,7 @@ Description: Fix links to cargo-doc
  [static C runtime]: linkage.md#static-and-dynamic-c-runtimes
 --- a/src/doc/reference/src/introduction.md
 +++ b/src/doc/reference/src/introduction.md
-@@ -133,8 +133,8 @@
+@@ -135,8 +135,8 @@
  [the Rust Reference repository]: https://github.com/rust-lang/reference/
  [Unstable Book]: https://doc.rust-lang.org/nightly/unstable-book/
  [_Expression_]: expressions.md
@@ -136,3 +136,60 @@ Description: Fix links to cargo-doc
  "/rust-next/maybe-uninit.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#maybeuninitt-instead-of-memuninitialized"
 -"/rust-next/cargo-vendor.html" = "../../cargo/commands/cargo-vendor.html"
 +"/rust-next/cargo-vendor.html" = "../../../cargo-doc/doc/commands/cargo-vendor.html"
+--- a/src/doc/edition-guide/src/editions/advanced-migrations.md
++++ b/src/doc/edition-guide/src/editions/advanced-migrations.md
+@@ -186,18 +186,18 @@
+ 
+ We're now more idiomatic, and we didn't have to fix our code manually!
+ 
+-[`cargo check`]: ../../cargo/commands/cargo-check.html
+-[`cargo fix`]: ../../cargo/commands/cargo-fix.html
++[`cargo check`]: ../../../cargo-doc/doc/commands/cargo-check.html
++[`cargo fix`]: ../../../cargo-doc/doc/commands/cargo-fix.html
+ [`explicit-outlives-requirements`]:  ../../rustc/lints/listing/allowed-by-default.html#explicit-outlives-requirements
+ [`keyword-idents`]: ../../rustc/lints/listing/allowed-by-default.html#keyword-idents
+ [`rustfix`]: https://github.com/rust-lang/rustfix
+ [`unused-extern-crates`]: ../../rustc/lints/listing/allowed-by-default.html#unused-extern-crates
+-[Cargo features]: ../../cargo/reference/features.html
+-[Cargo package]: ../../cargo/reference/manifest.html#the-package-section
+-[Cargo targets]: ../../cargo/reference/cargo-targets.html
+-[Cargo workspace]: ../../cargo/reference/workspaces.html
++[Cargo features]: ../../../cargo-doc/doc/reference/features.html
++[Cargo package]: ../../../cargo-doc/doc/reference/manifest.html#the-package-section
++[Cargo targets]: ../../../cargo-doc/doc/reference/cargo-targets.html
++[Cargo workspace]: ../../../cargo-doc/doc/reference/workspaces.html
+ [CLI flag]: ../../rustc/lints/levels.html#via-compiler-flag
+-[Code generation]: ../../cargo/reference/build-script-examples.html#code-generation
++[Code generation]: ../../../cargo-doc/doc/reference/build-script-examples.html#code-generation
+ [conditional compilation]: ../../reference/conditional-compilation.html
+ [documentation tests]: ../../rustdoc/documentation-tests.html
+ [JSON messages]: ../../rustc/json.html
+--- a/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
++++ b/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
+@@ -92,7 +92,7 @@
+ 
+ Congrats! Your code is now valid in both Rust 2015 and Rust 2018!
+ 
+-[`cargo fix`]: ../../cargo/commands/cargo-fix.html
+-[`cargo test`]: ../../cargo/commands/cargo-test.html
++[`cargo fix`]: ../../../cargo-doc/doc/commands/cargo-fix.html
++[`cargo test`]: ../../../cargo-doc/doc/commands/cargo-test.html
+ [Advanced migration strategies]: advanced-migrations.md
+ [nightly channel]: ../../book/appendix-07-nightly-rust.html
+--- a/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
++++ b/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
+@@ -16,7 +16,7 @@
+ crates that are depended on in multiple ways.
+ See [the announcement of Rust 1.51][5] for details.
+ 
+-[4]: ../../cargo/reference/resolver.html#feature-resolver-version-2
++[4]: ../../../cargo-doc/doc/reference/resolver.html#feature-resolver-version-2
+ [5]: https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#cargos-new-feature-resolver
+ 
+ ## Migration
+@@ -168,4 +168,4 @@
+ Then, `bar` depends on `bstr` as a build-dependency with the "default" feature
+ We can further see that `bstr`'s  "default" feature enables "unicode" (among other features).
+ 
+-[`cargo tree`]: ../../cargo/commands/cargo-tree.html
++[`cargo tree`]: ../../../cargo-doc/doc/commands/cargo-tree.html
