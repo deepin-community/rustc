@@ -10,7 +10,7 @@ this is what rustc_workspace_hack does in the upstream build.
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index f1b5739..30a01c9 100644
+index c133ba7..51611fa 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -37,7 +37,7 @@ serde = { version = "1.0", features = ["derive"] }

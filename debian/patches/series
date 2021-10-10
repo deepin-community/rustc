@@ -1,13 +1,11 @@
 # Patches for upstream
 
 # pending, or forwarded
-u-86383.patch
 u-89591.patch
 u-85807.patch
 # next one can be dropped after upgrading to LLVM 13
 0001-Revert-Auto-merge-of-79547.patch
 u-reproducible-build.patch
-u-ignore-endian-big.patch
 u-ignore-endian-big-diff.patch
 
 # not forwarded, or forwarded but unlikely to be merged
@@ -44,6 +42,7 @@ d-ignore-avx-44056.patch
 d-i686-baseline.patch
 d-use-local-css.patch
 d-old-cargo-compat.patch
+d-disable-embedded-fonts.patch
 
 # Porter fixes under discussion, not suitable for upstreaming
 # as-is but a proper fix is being discussed

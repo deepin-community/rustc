@@ -1,7 +1,7 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -887,6 +887,8 @@
+@@ -904,6 +904,8 @@
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
          env["RUSTFLAGS"] += " -Cdebuginfo=2"
@@ -12,7 +12,7 @@ Bug: https://github.com/rust-lang/rust/issues/52108
          target_features = []
 --- a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
-@@ -11,7 +11,7 @@
+@@ -12,7 +12,7 @@
              endian: Endian::Big,
              // NOTE(mips64r2) matches C toolchain
              cpu: "mips64r2".to_string(),
@@ -23,8 +23,8 @@ Bug: https://github.com/rust-lang/rust/issues/52108
  
 --- a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
-@@ -9,7 +9,7 @@
-         options: TargetOptions {
+@@ -10,7 +10,7 @@
+             abi: "abi64".to_string(),
              // NOTE(mips64r2) matches C toolchain
              cpu: "mips64r2".to_string(),
 -            features: "+mips64r2".to_string(),

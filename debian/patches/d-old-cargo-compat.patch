@@ -12,7 +12,7 @@ Description: Backwards-compat for cargo 0.47
 
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -429,7 +429,6 @@
+@@ -451,7 +451,6 @@
              cargo
                  .arg("-p")
                  .arg(package)
@@ -20,7 +20,7 @@ Description: Backwards-compat for cargo 0.47
                  .arg("--")
                  .arg("--markdown-css")
                  .arg("rust.css")
-@@ -560,7 +559,6 @@
+@@ -582,7 +581,6 @@
          cargo.rustdocflag("-Znormalize-docs");
          cargo.rustdocflag("--show-type-layout");
          compile::rustc_cargo(builder, &mut cargo, target);
@@ -28,11 +28,11 @@ Description: Backwards-compat for cargo 0.47
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
          cargo.arg("--no-deps");
-@@ -652,7 +650,6 @@
-             &[],
-         );
+@@ -673,7 +671,6 @@
+                     &[],
+                 );
  
--        cargo.arg("-Zskip-rustdoc-fingerprint");
-         // Only include compiler crates, no dependencies of those, such as `libc`.
-         cargo.arg("--no-deps");
-         cargo.arg("-p").arg("rustdoc");
+-                cargo.arg("-Zskip-rustdoc-fingerprint");
+                 // Only include compiler crates, no dependencies of those, such as `libc`.
+                 cargo.arg("--no-deps");
+                 $(

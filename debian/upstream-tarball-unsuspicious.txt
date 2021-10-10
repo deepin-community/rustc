@@ -25,7 +25,10 @@ src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/edition-guide/src/rust-next/cargo-vendor.md
 src/doc/edition-guide/src/rust-2018/index.md
+src/doc/edition-guide/src/rust-2021/disjoint-capture-in-closures.md
+src/doc/edition-guide/src/rust-2021/prelude.md
 src/doc/embedded-book/src/*/*.md
+src/doc/nomicon/src/intro.md
 src/doc/reference/src/expressions/closure-expr.md
 src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/std/arc.md
@@ -88,7 +91,7 @@ src/doc/book/*/ferris.js
 src/doc/book/ferris.js
 src/etc/wasm32-shim.js
 src/grammar/parser-lalr-main.c
-src/librustdoc/html/static/*.js
+src/librustdoc/html/static/js/*.js
 src/librustdoc/html/static/.eslintrc.js
 src/test/auxiliary/rust_test_helpers.c
 src/test/run-make/*/*.c
@@ -159,10 +162,10 @@ src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
 src/doc/rustc-dev-guide/src/img/*.png
 src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
-src/librustdoc/html/static/*.svg
-src/librustdoc/html/static/rust-logo.png
-src/librustdoc/html/static/favicon.ico
-src/librustdoc/html/static/favicon-*.png
+src/librustdoc/html/static/images/*.svg
+src/librustdoc/html/static/images/rust-logo.png
+src/librustdoc/html/static/images/favicon.ico
+src/librustdoc/html/static/images/favicon-*.png
 src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
 vendor/addr2line/memory.png
 vendor/addr2line/time.png
@@ -186,7 +189,9 @@ library/stdarch/ci/gba.json
 library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 library/stdarch/crates/stdarch-verify/x86-intel.xml
 library/stdarch/crates/std_detect/src/detect/test_data/*.auxv
+library/core/tests/num/dec2flt/parse.rs
 src/test/compile-fail/not-utf8.bin
+src/test/debuginfo/type-names.cdb.js
 src/test/mir-opt/*.mir
 src/test/mir-opt/*.diff
 src/test/mir-opt/*.diff.*
@@ -208,6 +213,8 @@ src/test/*/*/*.stderr
 src/test/*/*/*.stdout
 src/test/*/*/*/*.stdout
 src/test/*/*/*/*.stderr
+src/test/*/*/*/*/*.stdout
+src/test/*/*/*/*/*.stderr
 src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/run-make/*-sgx-lvi/enclave/*.c
 src/test/run-make-fulldeps/*/*/*.html
@@ -288,7 +295,7 @@ vendor/yaml-rust-0*/tests/specexamples.rs.inc
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
 src/doc/rustc-dev-guide/src/mir/mir_*.svg
-src/librustdoc/html/static/normalize.css
+src/librustdoc/html/static/css/normalize.css
 vendor/pest_meta/src/grammar.rs
 vendor/regex-syntax/src/unicode_tables/*.rs
 vendor/ucd-parse/src/sentence_break.rs
@@ -298,8 +305,8 @@ vendor/unicode-script/src/tables.rs
 vendor/unicode-segmentation/src/tables.rs
 
 # Compromise, ideally we'd package these in their own package
-src/librustdoc/html/static/*.woff
-src/librustdoc/html/static/*.woff2
+src/librustdoc/html/static/fonts/*.woff
+src/librustdoc/html/static/fonts/*.woff2
 
 # Compromise, ideally we'd autogenerate these
 vendor/bstr/src/unicode/fsm/*.dfa
