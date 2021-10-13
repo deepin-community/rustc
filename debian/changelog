@@ -1,10 +1,10 @@
-rustc (1.55.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.55.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
   * Bump test failures-allowed on s390x to 40.
   * Work around a segfault on ppc64el
 
- -- Ximin Luo <infinity0@debian.org>  Wed, 13 Oct 2021 22:05:50 +0100
+ -- Ximin Luo <infinity0@debian.org>  Wed, 13 Oct 2021 22:06:15 +0100
 
 rustc (1.55.0+dfsg1-1~exp1) experimental; urgency=medium
 
