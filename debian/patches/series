@@ -7,6 +7,7 @@ u-85807.patch
 0001-Revert-Auto-merge-of-79547.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
+u-cc-627.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch

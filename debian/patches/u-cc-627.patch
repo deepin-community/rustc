@@ -1,0 +1,16 @@
+Forwarded: https://github.com/alexcrichton/cc-rs/pull/627
+
+--- a/vendor/cc/src/lib.rs
++++ b/vendor/cc/src/lib.rs
+@@ -1559,6 +1559,11 @@
+                     && target.contains("-linux-")
+                 {
+                     cmd.args.push("-march=armv7-a".into());
++
++                    if target.ends_with("eabihf") {
++                        // lowest common denominator FPU
++                        cmd.args.push("-mfpu=vfpv3-d16".into());
++                    }
+                 }
+ 
+                 // (x86 Android doesn't say "eabi")

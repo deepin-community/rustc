@@ -53,7 +53,7 @@ RUSTBUILD_TEST_FLAGS =
 # https://github.com/rust-lang/rust/issues/89744
 # TODO: remove when we update cargo to 1.55 / 0.56
 # upstream bug still exists and is under investigation, but is hidden by newer cargo
-export CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL=3
+export CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL=0
 
 update-version:
 	oldver=$(shell $(SED_RUSTC_BUILDDEP) | sed -ne 's/.*(<= \(.*\)).*/\1/gp' | $(SED_VERSION_SHORT)); \
