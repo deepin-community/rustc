@@ -48,7 +48,6 @@ Stabilised APIs
 The following previously stable functions are now `const`.
 
 - [`str::from_utf8_unchecked`]
-- [`mem::transmute`]
 
 
 Cargo
@@ -119,7 +118,6 @@ Compatibility Notes
 [`MaybeUninit::assume_init_ref`]: https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html#method.assume_init_ref
 [`MaybeUninit::write`]: https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html#method.write
 [`Seek::rewind`]: https://doc.rust-lang.org/stable/std/io/trait.Seek.html#method.rewind
-[`mem::transmute`]: https://doc.rust-lang.org/stable/std/mem/fn.transmute.html
 [`ops::ControlFlow`]: https://doc.rust-lang.org/stable/std/ops/enum.ControlFlow.html
 [`str::from_utf8_unchecked`]: https://doc.rust-lang.org/stable/std/str/fn.from_utf8_unchecked.html
 [`x86::_bittest`]: https://doc.rust-lang.org/stable/core/arch/x86/fn._bittest.html

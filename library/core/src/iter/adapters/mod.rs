@@ -42,7 +42,7 @@ pub use self::flatten::Flatten;
 #[stable(feature = "iter_copied", since = "1.36.0")]
 pub use self::copied::Copied;
 
-#[unstable(feature = "iter_intersperse", reason = "recently added", issue = "79524")]
+#[stable(feature = "iter_intersperse", since = "1.56.0")]
 pub use self::intersperse::{Intersperse, IntersperseWith};
 
 #[unstable(feature = "iter_map_while", reason = "recently added", issue = "68537")]
@@ -50,6 +50,9 @@ pub use self::map_while::MapWhile;
 
 #[unstable(feature = "trusted_random_access", issue = "none")]
 pub use self::zip::TrustedRandomAccess;
+
+#[unstable(feature = "trusted_random_access", issue = "none")]
+pub use self::zip::TrustedRandomAccessNoCoerce;
 
 #[unstable(feature = "iter_zip", issue = "83574")]
 pub use self::zip::zip;
