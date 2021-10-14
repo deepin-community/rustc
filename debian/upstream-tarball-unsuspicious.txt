@@ -63,6 +63,7 @@ vendor/cranelift-codegen/src/isa/x86/unwind/systemv.rs
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
+vendor/mdbook/CONTRIBUTING.md
 vendor/lazy_static/src/lib.rs
 vendor/oorandom/tarpaulin-report.html
 vendor/pulldown-cmark/tests/suite/footnotes.rs
@@ -85,6 +86,7 @@ vendor/xml5ever/examples/README.md
 # False-positive, audit-vendor-source automatically flags JS/C files
 # The below ones are OK since they're actually part of rust's own source code
 # and are not "embedded libraries".
+library/backtrace/src/android-api.c
 library/backtrace/crates/line-tables-only/src/callback.c
 src/ci/docker/scripts/qemu-bare-bones-addentropy.c
 src/doc/book/*/ferris.js
@@ -104,6 +106,7 @@ src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-js-std/tester.js
 src/tools/rustdoc-gui/tester.js
 vendor/errno-dragonfly/src/errno.c
+vendor/handlebars/src/template.rs
 vendor/raw-cpuid/src/cpuid.c
 vendor/salsa/book/mermaid-init.js
 vendor/stacker/src/arch/windows.c
@@ -127,6 +130,7 @@ vendor/walkdir-*/compare/nftw.c
 library/backtrace/crates/backtrace-sys/src/libbacktrace/libtool.m4
 library/stdarch/.travis.yml
 library/stdarch/crates/core_arch/foo.wasm
+src/ci/docker/host-x86_64/shared/ISRG_Root_X1.crt
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
@@ -272,6 +276,7 @@ vendor/regex-0*/tests/fowler.rs
 vendor/regex-1*/src/testdata/basic.dat
 vendor/regex-1*/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
+vendor/rustc-demangle/src/v0-large-test-symbols/early-recursion-limit
 vendor/sha-1-0*/tests/data/*.blb
 vendor/sha-1-0*/tests/data/*.bin
 vendor/sha-1/tests/data/*.blb
