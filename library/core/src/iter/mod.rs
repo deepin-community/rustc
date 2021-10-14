@@ -336,7 +336,7 @@
 //! This will print the numbers `0` through `4`, each on their own line.
 //!
 //! Bear in mind that methods on infinite iterators, even those for which a
-//! result can be determined mathematically in finite time, may not terminate.
+//! result can be determined mathematically in finite time, might not terminate.
 //! Specifically, methods such as [`min`], which in the general case require
 //! traversing every element in the iterator, are likely not to return
 //! successfully for any infinite iterators.
@@ -407,12 +407,14 @@ pub use self::adapters::SourceIter;
 pub use self::adapters::StepBy;
 #[unstable(feature = "trusted_random_access", issue = "none")]
 pub use self::adapters::TrustedRandomAccess;
+#[unstable(feature = "trusted_random_access", issue = "none")]
+pub use self::adapters::TrustedRandomAccessNoCoerce;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use self::adapters::{
     Chain, Cycle, Enumerate, Filter, FilterMap, FlatMap, Fuse, Inspect, Map, Peekable, Rev, Scan,
     Skip, SkipWhile, Take, TakeWhile, Zip,
 };
-#[unstable(feature = "iter_intersperse", reason = "recently added", issue = "79524")]
+#[stable(feature = "iter_intersperse", since = "1.56.0")]
 pub use self::adapters::{Intersperse, IntersperseWith};
 
 pub(crate) use self::adapters::process_results;
