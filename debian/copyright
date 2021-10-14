@@ -536,6 +536,11 @@ Copyright: 2015-2018 David Roundy <roundyd@physics.oregonstate.edu>
 License: BSD-2-Clause
 Comment: see https://github.com/droundy/arrayref
 
+Files: vendor/array_tool/*
+Copyright: 2015-2018 Daniel P. Clark <6ftdan@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/danielpclark/array_tool
+
 Files:
  vendor/autocfg/*
  vendor/autocfg-0*/*
@@ -1048,6 +1053,11 @@ Files: vendor/jod-thread/*
 Copyright: 2019-2020 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/matklad/jod-thread
+
+Files: vendor/jsonpath_lib/*
+Copyright: 2018-2021 Changseok Han <freestrings@gmail.com>
+License: MIT
+Comment: see https://github.com/freestrings/jsonpath
 
 Files:
  vendor/lazy_static/*
