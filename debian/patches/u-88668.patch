@@ -1,0 +1,82 @@
+From cd75af25e036301d7971f6f302cf6a5593b0a6b5 Mon Sep 17 00:00:00 2001
+From: Harald van Dijk <harald@gigawatt.nl>
+Date: Sun, 5 Sep 2021 16:42:36 +0100
+Subject: [PATCH] Change more x64 size checks to not apply to x32.
+
+Commit 95e096d6 changed a bunch of size checks already, but more have
+been added, so this fixes the new ones the same way: the various size
+checks that are conditional on target_arch = "x86_64" were not intended
+to apply to x86_64-unknown-linux-gnux32, so add
+target_pointer_width = "64" to the conditions.
+---
+ compiler/rustc_middle/src/mir/mod.rs            | 8 ++++----
+ compiler/rustc_parse/src/parser/attr_wrapper.rs | 2 +-
+ src/librustdoc/html/render/context.rs           | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/compiler/rustc_middle/src/mir/mod.rs b/compiler/rustc_middle/src/mir/mod.rs
+index 83f6e79d5fcf6..36afbc6cbf171 100644
+--- a/compiler/rustc_middle/src/mir/mod.rs
++++ b/compiler/rustc_middle/src/mir/mod.rs
+@@ -1708,7 +1708,7 @@ pub struct Place<'tcx> {
+     pub projection: &'tcx List<PlaceElem<'tcx>>,
+ }
+ 
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ static_assert_size!(Place<'_>, 16);
+ 
+ #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+@@ -2034,7 +2034,7 @@ pub enum Operand<'tcx> {
+     Constant(Box<Constant<'tcx>>),
+ }
+ 
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ static_assert_size!(Operand<'_>, 24);
+ 
+ impl<'tcx> Debug for Operand<'tcx> {
+@@ -2172,7 +2172,7 @@ pub enum Rvalue<'tcx> {
+     Aggregate(Box<AggregateKind<'tcx>>, Vec<Operand<'tcx>>),
+ }
+ 
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ static_assert_size!(Rvalue<'_>, 40);
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, TyEncodable, TyDecodable, Hash, HashStable)]
+@@ -2198,7 +2198,7 @@ pub enum AggregateKind<'tcx> {
+     Generator(DefId, SubstsRef<'tcx>, hir::Movability),
+ }
+ 
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ static_assert_size!(AggregateKind<'_>, 48);
+ 
+ #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, TyEncodable, TyDecodable, Hash, HashStable)]
+diff --git a/compiler/rustc_parse/src/parser/attr_wrapper.rs b/compiler/rustc_parse/src/parser/attr_wrapper.rs
+index 9f06bdcc135ba..568682cc3e4e0 100644
+--- a/compiler/rustc_parse/src/parser/attr_wrapper.rs
++++ b/compiler/rustc_parse/src/parser/attr_wrapper.rs
+@@ -34,7 +34,7 @@ pub struct AttrWrapper {
+ 
+ // This struct is passed around very frequently,
+ // so make sure it doesn't accidentally get larger
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ rustc_data_structures::static_assert_size!(AttrWrapper, 16);
+ 
+ impl AttrWrapper {
+diff --git a/src/librustdoc/html/render/context.rs b/src/librustdoc/html/render/context.rs
+index 733bedfdde9b4..34f9c0a8187a6 100644
+--- a/src/librustdoc/html/render/context.rs
++++ b/src/librustdoc/html/render/context.rs
+@@ -69,7 +69,7 @@ crate struct Context<'tcx> {
+ }
+ 
+ // `Context` is cloned a lot, so we don't want the size to grow unexpectedly.
+-#[cfg(target_arch = "x86_64")]
++#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+ rustc_data_structures::static_assert_size!(Context<'_>, 104);
+ 
+ /// Shared mutable state used in [`Context`] and elsewhere.

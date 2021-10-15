@@ -15,11 +15,11 @@ Build-Depends:
  cargo:native (>= 0.40.0)      <!pkg.rustc.dlstage0>,
  rustc:native (>= 1.55.0+dfsg) <!pkg.rustc.dlstage0>,
  rustc:native (<= 1.56.0~beta.4++)    <!pkg.rustc.dlstage0>,
- llvm-12-dev:native,
- llvm-12-tools:native,
+ llvm-13-dev:native,
+ llvm-13-tools:native,
  gcc-mingw-w64-x86-64-posix:native [amd64] <!nowindows>,
  gcc-mingw-w64-i686-posix:native [i386] <!nowindows>,
- libllvm12,
+ libllvm13,
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
  pkg-config,
@@ -40,7 +40,7 @@ Build-Depends:
 Build-Depends-Indep:
  wasi-libc (>= 0.0~git20201130.5879558~~) <!nowasm>,
  wasi-libc (<= 0.0~git20201130.5879558++) <!nowasm>,
- clang-12:native,
+ clang-13:native,
 Build-Conflicts: gdb-minimal <!nocheck>
 Standards-Version: 4.2.1
 Homepage: http://www.rust-lang.org/
@@ -57,10 +57,10 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
 Recommends:
  cargo (>= 0.57.0~~), cargo (<< 0.58.0~~),
 # llvm is needed for llvm-dwp for -C split-debuginfo=packed
- llvm-12,
+ llvm-13,
 Suggests:
 # lld and clang are needed for wasm compilation
- lld-12, clang-12,
+ lld-13, clang-13,
 Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
 Description: Rust systems programming language
@@ -155,7 +155,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 # Embeds wasi-libc so doesn't need to depend on it
 # None of its licenses require source redistrib, so no need for Built-Using
 Recommends:
- lld-12, clang-12,
+ lld-13, clang-13,
 Suggests:
 # nodejs contains wasi-node for running the program
  nodejs (>= 12.16),
@@ -201,7 +201,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-12, ${misc:Depends}, python3-lldb-12
+Depends: lldb-13, ${misc:Depends}, python3-lldb-13
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It

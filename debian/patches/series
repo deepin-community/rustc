@@ -2,8 +2,7 @@
 
 # pending, or forwarded
 u-89591.patch
-# next one can be dropped after upgrading to LLVM 13
-0001-Revert-Auto-merge-of-79547.patch
+u-88668.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-cc-627.patch

@@ -8,14 +8,14 @@ Forwarded: not-needed
 +++ b/src/etc/rust-lldb
 @@ -7,10 +7,10 @@
  host=$(rustc -vV | sed -n -e 's/^host: //p')
- 
+
  # Find out where to look for the pretty printer Python module
 -RUSTC_SYSROOT=$(rustc --print sysroot)
 +RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  RUST_LLDB="$RUSTC_SYSROOT/lib/rustlib/$host/bin/lldb"
- 
+
 -lldb=lldb
-+lldb=lldb-12
++lldb=lldb-13
  if [ -f "$RUST_LLDB" ]; then
      lldb="$RUST_LLDB"
  else
