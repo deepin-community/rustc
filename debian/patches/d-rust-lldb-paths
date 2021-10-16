@@ -11,7 +11,7 @@ Forwarded: not-needed
  
  # Find out where to look for the pretty printer Python module
 -RUSTC_SYSROOT=$(rustc --print sysroot)
-+RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  RUST_LLDB="$RUSTC_SYSROOT/lib/rustlib/$host/bin/lldb"
  
 -lldb=lldb
