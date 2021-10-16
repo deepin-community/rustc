@@ -4,7 +4,7 @@ changelog-seen = 2
 submodules = false
 vendor = true
 locked-deps = false
-verbose = 2
+verbose = VERBOSITY
 
 rustc = "RUST_DESTDIR/usr/bin/rustc"
 cargo = "RUST_DESTDIR/usr/bin/cargo"

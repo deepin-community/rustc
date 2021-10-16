@@ -6,6 +6,7 @@ u-88668.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-cc-627.patch
+u-89950.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch

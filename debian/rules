@@ -40,7 +40,7 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 NJOBS := -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py $(NJOBS)
-RUSTBUILD_FLAGS = --stage 2 --config debian/config.toml -vvv --on-fail env
+RUSTBUILD_FLAGS = --stage 2 --config debian/config.toml --on-fail env
 # rust-tidy depends on lots of modules that we strip out of the build.
 # it also tries to access the network for some reason. so just disable it.
 RUSTBUILD_TEST = $(RUSTBUILD) test --no-fail-fast --exclude src/tools/tidy
@@ -146,6 +146,10 @@ ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
   MAKE_OPTIMISATIONS := false
 endif
 
+VERBOSITY_SUB := $(words $(filter terse,$(DEB_BUILD_OPTIONS)))
+VERBOSITY_ADD := $(words $(filter verbose,$(DEB_BUILD_OPTIONS)))
+VERBOSITY := $(shell expr 2 + $(VERBOSITY_ADD) - $(VERBOSITY_SUB))
+
 # Build products or non-source files in src/, that shouldn't go in rust-src
 SRC_CLEAN = src/bootstrap/bootstrap.pyc \
 	src/etc/__pycache__/
@@ -182,6 +186,7 @@ debian/config.toml: debian/config.toml.in debian/rules
 		-DDEB_HOST_GNU_TYPE="$(DEB_HOST_GNU_TYPE)" \
 		-DDEB_TARGET_GNU_TYPE="$(DEB_TARGET_GNU_TYPE)" \
 		-DMAKE_OPTIMISATIONS="$(MAKE_OPTIMISATIONS)" \
+		-DVERBOSITY="$(VERBOSITY)" \
 		-DLLVM_DESTDIR="$(LLVM_DESTDIR)" \
 		-DLLVM_VERSION="$(LLVM_VERSION)" \
 		-DRUST_DESTDIR="$(RUST_DESTDIR)" \
