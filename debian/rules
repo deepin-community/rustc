@@ -198,6 +198,12 @@ ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
 	sed -i -e 's/^debuginfo-level = .*/debuginfo-level = 0/g' "$@"
 endif
 
+debian/rustc.%: debian/rustc.%.in
+	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
+		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
+		-DDEB_HOST_GNU_TYPE="$(DEB_HOST_GNU_TYPE)" \
+		"$<" > "$@"
+
 debian/rust-src.%: debian/rust-src.%.in
 	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
 		"$<" > "$@"
@@ -238,7 +244,9 @@ endif
 
 override_dh_auto_clean:
 	$(RM) -rf build tmp .cargo debian/cargo_home config.stamp config.mk Makefile
-	$(RM) -rf $(TEST_LOG) debian/config.toml debian/rust-src.install debian/rust-src.links debian/*.stamp
+	$(RM) -rf $(TEST_LOG) debian/config.toml debian/*.stamp
+	$(RM) -rf debian/rust-src.install debian/rust-src.links
+	$(RM) -rf debian/rustc.install debian/rustc.links
 	$(RM) -rf $(SRC_CLEAN) config.toml
 
 debian/dh_auto_build.stamp:
@@ -386,7 +394,7 @@ ifeq (true,$(BUILD_DOCS))
 	find $(DEB_DESTDIR) \( -iname '*.html' -empty -o -name .lock -o -name '*.inc' \) -delete;
 endif
 
-override_dh_install-arch:
+override_dh_install-arch: debian/rustc.install debian/rustc.links
 	dh_install
 	dh_install -p$(LIBSTD_PKG) usr/lib/$(DEB_HOST_MULTIARCH)/
 	dh_install -plibstd-rust-dev usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
