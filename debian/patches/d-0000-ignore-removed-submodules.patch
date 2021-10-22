@@ -15,7 +15,7 @@ Subject: d-0000-ignore-removed-submodules
  9 files changed, 7 insertions(+), 63 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index dedfe45..bb19a78 100644
+index 626f9ae..36d39f9 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -17,22 +17,12 @@ members = [
@@ -40,8 +40,8 @@ index dedfe45..bb19a78 100644
 -  "src/tools/expand-yaml-anchors",
    "src/tools/jsondocck",
    "src/tools/html-checker",
- ]
-@@ -86,25 +76,9 @@ gimli.debug = 0
+   "src/tools/lld-wrapper",
+@@ -87,25 +77,9 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
