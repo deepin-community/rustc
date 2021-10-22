@@ -1,0 +1,15 @@
+--- a/src/bootstrap/builder/tests.rs
++++ b/src/bootstrap/builder/tests.rs
+@@ -277,8 +277,12 @@
+         let a = TargetSelection::from_user("A");
+         let b = TargetSelection::from_user("B");
+         let mut build = Build::new(configure(&["A", "B"], &["A", "B"]));
++        let mut tools = std::collections::HashSet::new();
++        tools.insert("clippy".to_string());
++        tools.insert("rustfmt".to_string());
+         build.config.docs = false;
+         build.config.extended = true;
++        build.config.tools = Some(tools);
+         build.hosts = vec![b];
+         let mut builder = Builder::new(&build);
+         builder.run_step_descriptions(&Builder::get_step_descriptions(Kind::Dist), &[]);
