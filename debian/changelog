@@ -1,11 +1,11 @@
-rustc (1.56.0+dfsg1-1) UNRELEASED; urgency=medium
+rustc (1.56.0+dfsg1-1) unstable; urgency=medium
 
   * New upstream release.
   * Support terse and verbose DEB_BUILD_OPTIONS.
   * Support -Z gcc-ld=lld via symlinks.
   * Fix RUSTC_SYSROOT in rust-gdb and rust-lldb, thanks James McCoy.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 22 Oct 2021 15:39:44 +0100
+ -- Ximin Luo <infinity0@debian.org>  Fri, 22 Oct 2021 18:54:49 +0100
 
 rustc (1.56.0~beta.4+dfsg1-1~exp2) experimental; urgency=medium
 
