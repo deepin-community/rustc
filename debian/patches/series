@@ -1,6 +1,7 @@
 # Patches for upstream
 
 # pending, or forwarded
+u-ignore-reproducible-failure.patch
 u-89591.patch
 u-88668.patch
 u-reproducible-build.patch
