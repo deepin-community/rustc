@@ -1,9 +1,6 @@
 # Long documentation
-rustc source: source-is-missing library/stdarch/crates/stdarch-verify/arm-intrinsics.html line length is * characters (>*)
+rustc source: source-is-missing library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 # Test data
-rustc source: source-is-missing vendor/minifier/tests/files/minified_main.js line length is * characters (>*)
-# Lintian out-of-date
-rustc source: invalid-profile-name-in-build-profiles-field nowasm *
-rustc source: invalid-profile-name-in-source-relation nowasm *
-rustc source: invalid-profile-name-in-build-profiles-field nowindows *
-rustc source: invalid-profile-name-in-source-relation nowindows *
+rustc source: source-is-missing vendor/minifier/tests/files/minified_main.js
+# Lintian is superfluous
+rustc source: superfluous-file-pattern debian/copyright * (Files, line *)
