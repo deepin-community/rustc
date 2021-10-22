@@ -346,6 +346,10 @@ endif
 run_rustbuild:
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) $(X_CMD) $(RUSTBUILD_FLAGS) $(X_FLAGS)
 
+override_dh_prep:
+	dh_prep
+	$(RM) -f debian/dh_auto_install.stamp
+
 debian/dh_auto_install.stamp:
 	DESTDIR=$(DEB_DESTDIR) $(RUSTBUILD) install $(RUSTBUILD_FLAGS)
 
