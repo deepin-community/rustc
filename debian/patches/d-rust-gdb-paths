@@ -11,7 +11,7 @@ Forwarded: not-needed
  
  # Find out where the pretty printer Python module is
 -RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
-+RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
  
  # Run GDB with the additional arguments that load the pretty printers
@@ -22,7 +22,7 @@ Forwarded: not-needed
  
  # Find out where the pretty printer Python module is
 -RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
-+RUSTC_SYSROOT="$(if type "$RUSTC" 2>/dev/null; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
  
  # Set the environment variable `RUST_GDB` to overwrite the call to a
