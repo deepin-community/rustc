@@ -19,10 +19,11 @@ export CARGO_HOME = $(CURDIR)/debian/cargo
 
 # Defines DEB_*_RUST_TYPE triples
 include debian/architecture.mk
+# for dh_install substitution variable
 export DEB_HOST_RUST_TYPE
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+# for dh_install substitution variable
+export RUST_LONG_VERSION
 
 DEB_DESTDIR := $(CURDIR)/debian/tmp
 
@@ -140,6 +141,8 @@ else
     WINDOWS_ARCH := x86_64
   endif
 endif
+# for dh_install substitution variable
+export WINDOWS_ARCH
 
 MAKE_OPTIMISATIONS := true
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
@@ -198,16 +201,6 @@ ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
 	sed -i -e 's/^debuginfo-level = .*/debuginfo-level = 0/g' "$@"
 endif
 
-debian/rustc.%: debian/rustc.%.in
-	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
-		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
-		-DDEB_HOST_GNU_TYPE="$(DEB_HOST_GNU_TYPE)" \
-		"$<" > "$@"
-
-debian/rust-src.%: debian/rust-src.%.in
-	m4  -DRUST_LONG_VERSION="$(RUST_LONG_VERSION)" \
-		"$<" > "$@"
-
 check-no-old-llvm:
 	# fail the build if we have any instances of OLD_LLVM_VERSION in debian, except for debian/changelog
 	! grep --color=always -i '\(clang\|ll\(..\|d\)\)-\?$(subst .,\.,$(OLD_LLVM_VERSION))' --exclude=changelog --exclude=copyright --exclude='*.patch' --exclude-dir='.debhelper' -R debian
@@ -245,8 +238,6 @@ endif
 override_dh_auto_clean:
 	$(RM) -rf build tmp .cargo debian/cargo_home config.stamp config.mk Makefile
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/*.stamp
-	$(RM) -rf debian/rust-src.install debian/rust-src.links
-	$(RM) -rf debian/rustc.install debian/rustc.links
 	$(RM) -rf $(SRC_CLEAN) config.toml
 
 debian/dh_auto_build.stamp:
@@ -394,19 +385,8 @@ ifeq (true,$(BUILD_DOCS))
 	find $(DEB_DESTDIR) \( -iname '*.html' -empty -o -name .lock -o -name '*.inc' \) -delete;
 endif
 
-override_dh_install-arch: debian/rustc.install debian/rustc.links
+override_dh_install-indep:
 	dh_install
-	dh_install -p$(LIBSTD_PKG) usr/lib/$(DEB_HOST_MULTIARCH)/
-	dh_install -plibstd-rust-dev usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
-ifeq (true,$(BUILD_WINDOWS))
-	dh_install -plibstd-rust-dev-windows usr/lib/rustlib/$(WINDOWS_ARCH)-pc-windows-gnu/lib/
-endif
-
-override_dh_install-indep: debian/rust-src.install debian/rust-src.links
-	dh_install
-ifeq (true,$(BUILD_WASM))
-	dh_install -plibstd-rust-dev-wasm32 usr/lib/rustlib/wasm32-*/lib/
-endif
 	$(RM) -rf $(SRC_CLEAN:%=debian/rust-src/usr/src/rustc-$(RUST_LONG_VERSION)/%)
 	# Get rid of lintian warnings
 	find debian/rust-src/usr/src/rustc-$(RUST_LONG_VERSION) \
@@ -427,13 +407,6 @@ override_dh_installchangelogs:
 
 override_dh_installdocs:
 	dh_installdocs -X.tex -X.aux -X.log -X.out -X.toc
-
-override_dh_missing:
-	# if we did an arch-indep build then these artifacts exist but aren't installed
-	# so we remove them now to avoid false-positive in dh_missing --fail-missing
-	rm -rf debian/tmp/usr/lib/rustlib/$(DEB_HOST_RUST_TYPE)/lib/
-	rm -rf debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/
-	dh_missing --fail-missing
 
 override_dh_compress:
 	dh_compress -X.woff

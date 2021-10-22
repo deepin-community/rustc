@@ -49,6 +49,7 @@ if [ "$WASI_COMMIT" != "$WASI_COMMIT_OLD" ]; then
 fi
 
 if [ "$NEW" != "$ORIG" ]; then
+git mv libstd-rust-$ORIG.install libstd-rust-$NEW.install
 git mv libstd-rust-$ORIG.lintian-overrides libstd-rust-$NEW.lintian-overrides
 fi
 sed -i -e "s|libstd-rust-${ORIG_R}|libstd-rust-$NEW|g" libstd-rust-$NEW.lintian-overrides
