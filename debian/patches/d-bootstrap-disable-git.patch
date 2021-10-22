@@ -4,7 +4,7 @@ Forwarded: not-needed
 ---
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -904,7 +904,10 @@
+@@ -915,7 +915,10 @@
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
@@ -16,3 +16,18 @@ Forwarded: not-needed
              // Vendor all Cargo dependencies
              let mut cmd = Command::new(&builder.initial_cargo);
              cmd.arg("vendor")
+--- a/src/bootstrap/channel.rs
++++ b/src/bootstrap/channel.rs
+@@ -30,7 +30,11 @@
+ impl GitInfo {
+     pub fn new(ignore_git: bool, dir: &Path) -> GitInfo {
+         // See if this even begins to look like a git dir
+-        if !dir.join(".git").exists() {
++        //
++        // Debian: force-enabling this block because the debian package is also in a git
++        //         repository, but we don't want to parse gitinfo. This is needed for the
++        //         bootstrap tests to work which running for Debian git.
++        if true && !dir.join(".git").exists() {
+             return GitInfo::Absent;
+         }
+ 
