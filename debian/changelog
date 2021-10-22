@@ -1,8 +1,8 @@
-rustc (1.56.0+dfsg1-2) UNRELEASED; urgency=medium
+rustc (1.56.0+dfsg1-2) unstable; urgency=medium
 
   * Update to debhelper 13.
 
- -- Ximin Luo <infinity0@debian.org>  Fri, 22 Oct 2021 21:39:52 +0100
+ -- Ximin Luo <infinity0@debian.org>  Fri, 22 Oct 2021 23:29:14 +0100
 
 rustc (1.56.0+dfsg1-1) unstable; urgency=medium
 
