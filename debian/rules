@@ -153,6 +153,15 @@ VERBOSITY_SUB := $(words $(filter terse,$(DEB_BUILD_OPTIONS)))
 VERBOSITY_ADD := $(words $(filter verbose,$(DEB_BUILD_OPTIONS)))
 VERBOSITY := $(shell expr 2 + $(VERBOSITY_ADD) - $(VERBOSITY_SUB))
 
+ifeq ($(shell test $(VERBOSITY) -ge 3; echo $$?),0)
+  export DH_VERBOSE=1
+endif
+
+ifeq ($(shell test $(VERBOSITY) -le 0; echo $$?),0)
+  export DH_QUIET=1
+.SILENT:
+endif
+
 # Build products or non-source files in src/, that shouldn't go in rust-src
 SRC_CLEAN = src/bootstrap/bootstrap.pyc \
 	src/etc/__pycache__/
@@ -180,7 +189,7 @@ override_dh_clean:
 debian/config.toml: debian/config.toml.in debian/rules
 	u="$(DEB_VERSION_UPSTREAM)"; \
 	if [ "$$u" != "$${u%~beta.*+dfsg*}" ]; then channel="beta"; \
-	else channel="stable"; fi; echo $$channel; \
+	else channel="stable"; fi; \
 	m4  -DRELEASE_CHANNEL="$$channel" \
 		-DDEB_BUILD_RUST_TYPE="$(DEB_BUILD_RUST_TYPE)" \
 		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
