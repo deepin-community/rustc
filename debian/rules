@@ -205,9 +205,6 @@ debian/dh_auto_configure.stamp: debian/config.toml check-no-old-llvm
 	v="$(DEB_VERSION)"; test "$$v" = "$${v%~exp*}" -o "$(DEB_DISTRIBUTION)" = "experimental" -o "$(DEB_DISTRIBUTION)" = "UNRELEASED"
 	$(PRECONFIGURE_CHECK)
 	if [ -d stage0 ]; then mkdir -p build && ln -sfT ../stage0 build/cache; fi
-	# work around #842634
-	if test $$(grep "127.0.0.1\s*localhost" /etc/hosts | wc -l) -gt 1; then \
-	  debian/ensure-patch -N debian/patches/d-test-host-duplicates.patch; fi
 	# don't care about lock changes
 	rm -f Cargo.lock src/bootstrap/Cargo.lock src/tools/rust-analyzer/Cargo.lock
 	# We patched some crates so have to rm the checksums
