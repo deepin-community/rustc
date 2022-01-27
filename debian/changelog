@@ -1,3 +1,10 @@
+rustc (1.56.0+dfsg1-3) UNRELEASED; urgency=medium
+
+  * d/p/d-bootstrap-rustflags.patch: remove the warnings bit, use the option
+    "deny-warnings = false" in d/config.toml.in instead
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Thu, 27 Jan 2022 10:48:46 +0100
+
 rustc (1.56.0+dfsg1-2) unstable; urgency=medium
 
   * Update to debhelper 13.

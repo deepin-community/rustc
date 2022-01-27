@@ -1,13 +1,10 @@
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -923,6 +923,21 @@
+@@ -923,6 +923,18 @@
              rustflags.arg("-Zsymbol-mangling-version=v0");
          }
  
 +        // Debian-specific stuff here
-+        // don't error on warnings, this sometimes causes builds to fail when
-+        // we re-bootstrap using the same version, that introduced a new warning
-+        rustflags.arg("--cap-lints=warn");
 +        // set linker flags from LDFLAGS
 +        if let Ok(ldflags) = env::var("LDFLAGS") {
 +            for flag in ldflags.split_whitespace() {
