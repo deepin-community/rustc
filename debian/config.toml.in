@@ -67,3 +67,5 @@ remap-debuginfo = true
 
 verbose-tests = true
 backtrace-on-ice = true
+
+deny-warnings = false
