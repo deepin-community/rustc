@@ -12,11 +12,14 @@ src/ci/docker/*/patches/glibc/*/*.patch
 vendor/itertools*/examples/iris.data
 vendor/regex/tests/unicode.rs
 vendor/regex/tests/suffix_reverse.rs
+vendor/term/src/terminfo/parser/names.rs
+vendor/term-0.6.1/src/terminfo/parser/names.rs
 
 # False-positive, "verylongtext" but OK
 README.md
 CONTRIBUTING.md
 compiler/rustc_codegen_cranelift/docs/dwarf.md
+compiler/rustc_codegen_gcc/Readme.md
 library/std/sys/cloudabi/abi/cloudabi.rs
 library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
@@ -34,6 +37,7 @@ src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/std/arc.md
 src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rustc/src/lints/groups.md
+src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabihf.md
 src/doc/rustc/src/targets/known-issues.md
 src/doc/rustc-dev-guide/.travis.yml
 src/doc/rustc-dev-guide/src/*.md
@@ -132,6 +136,7 @@ library/stdarch/.travis.yml
 library/stdarch/crates/core_arch/foo.wasm
 src/ci/docker/host-x86_64/shared/ISRG_Root_X1.crt
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
+src/stage0.json
 src/test/run-make-fulldeps/target-specs/*.json
 src/test/run-make-fulldeps/libtest-json/output.json
 src/tools/clippy/.remarkrc
@@ -190,6 +195,7 @@ vendor/html5ever/examples/capi/tokenize.c
 
 # Test data
 library/stdarch/ci/gba.json
+library/stdarch/crates/intrinsic-test/neon-intrinsics.csv
 library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 library/stdarch/crates/stdarch-verify/x86-intel.xml
 library/stdarch/crates/std_detect/src/detect/test_data/*.auxv
@@ -239,6 +245,7 @@ vendor/dissimilar/benches/*.txt
 vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
+vendor/flate2/tests/corrupt-gz-file.bin
 vendor/gimli/fixtures/self/*
 vendor/gimli-0*/fixtures/self/*
 vendor/goblin/etc/*.rs
@@ -315,3 +322,78 @@ src/librustdoc/html/static/fonts/*.woff2
 
 # Compromise, ideally we'd autogenerate these
 vendor/bstr/src/unicode/fsm/*.dfa
+
+# file brokenness (detected as Algol source code)
+vendor/libm/src/math/atan.rs
+vendor/pest/tests/calculator.rs
+vendor/pest/src/position.rs
+vendor/pest/src/parser_state.rs
+vendor/pest/src/span.rs
+vendor/aho-corasick/src/nfa.rs
+vendor/miniz_oxide/src/deflate/mod.rs
+vendor/miniz_oxide/src/inflate/mod.rs
+vendor/thiserror-impl/src/attr.rs
+vendor/shlex/src/lib.rs
+vendor/semver-0.11.0/src/version_req.rs
+vendor/rustc-rayon/tests/sort-panic-safe.rs
+vendor/xml5ever/src/tokenizer/char_ref/mod.rs
+vendor/pulldown-cmark-0.7.2/tests/lib.rs
+vendor/pulldown-cmark-0.7.2/benches/html_rendering.rs
+vendor/pulldown-cmark-0.7.2/src/linklabel.rs
+vendor/pulldown-cmark-0.7.2/src/simd.rs
+vendor/url/src/parser.rs
+vendor/utf-8/tests/unit.rs
+vendor/rustversion/src/attr.rs
+vendor/env_logger-0.7.1/src/fmt/writer/mod.rs
+vendor/pest_generator/src/generator.rs
+vendor/digest/src/dev.rs
+vendor/proc-macro2/src/parse.rs
+vendor/xz2/src/stream.rs
+vendor/xz2/src/bufread.rs
+vendor/tera/src/utils.rs
+vendor/tera/src/renderer/tests/square_brackets.rs
+vendor/tera/src/renderer/tests/whitespace.rs
+vendor/digest-0.8.1/src/dev.rs
+vendor/structopt/tests/custom-string-parsers.rs
+vendor/structopt/tests/non_literal_attributes.rs
+vendor/pulldown-cmark/tests/lib.rs
+vendor/pulldown-cmark/src/linklabel.rs
+vendor/pulldown-cmark/src/simd.rs
+vendor/pulldown-cmark/benches/html_rendering.rs
+vendor/gimli/src/read/aranges.rs
+vendor/gimli/src/read/rnglists.rs
+vendor/gimli/src/read/unit.rs
+vendor/gimli/src/read/loclists.rs
+vendor/gimli/src/read/line.rs
+vendor/gimli/src/read/lookup.rs
+vendor/regex-automata/src/regex.rs
+vendor/rayon/tests/sort-panic-safe.rs
+vendor/syn/tests/test_meta.rs
+vendor/syn/src/punctuated.rs
+vendor/syn/src/derive.rs
+vendor/syn/src/token.rs
+vendor/syn/src/data.rs
+vendor/syn/src/ty.rs
+vendor/syn/src/stmt.rs
+vendor/syn/src/pat.rs
+vendor/syn/src/custom_punctuation.rs
+vendor/syn/src/path.rs
+vendor/syn/src/attr.rs
+vendor/syn/src/group.rs
+vendor/semver-parser/src/range_set.rs
+vendor/sha2/src/sha512.rs
+vendor/sha2/src/sha256.rs
+vendor/compiler_builtins/libm/src/math/atan.rs
+vendor/snap/src/decompress.rs
+vendor/snap/src/compress.rs
+vendor/flate2/src/mem.rs
+vendor/flate2/src/zio.rs
+compiler/rustc_expand/src/mbe/quoted.rs
+compiler/rustc_macros/src/symbols/tests.rs
+src/librustdoc/html/markdown/tests.rs
+src/tools/clippy/clippy_lints/src/needless_pass_by_value.rs
+src/tools/clippy/clippy_lints/src/pass_by_ref_or_value.rs
+src/tools/rustfmt/src/string.rs
+src/tools/rustfmt/src/formatting.rs
+src/tools/rustfmt/src/syntux/parser.rs
+library/std/src/sys/unix/process/process_unix.rs
