@@ -1,9 +1,14 @@
-rustc (1.56.0+dfsg1-3) UNRELEASED; urgency=medium
+rustc (1.57.0+dfsg1-1~exp1) experimental; urgency=medium
 
+  [ Simon Chopin ]
   * d/p/d-bootstrap-rustflags.patch: remove the warnings bit, use the option
     "deny-warnings = false" in d/config.toml.in instead
 
- -- Simon Chopin <simon.chopin@canonical.com>  Thu, 27 Jan 2022 10:48:46 +0100
+  [ Fabian Grünbichler ]
+  * Fix CVE-2022-21658 - std::fs::remove_dir_all TOCTOU symlink issue
+  * New upstream release.
+
+ -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Thu, 03 Feb 2022 19:14:04 +0100
 
 rustc (1.56.0+dfsg1-2) unstable; urgency=medium
 
