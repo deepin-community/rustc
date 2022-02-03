@@ -225,8 +225,6 @@ debian/dh_auto_configure.stamp: debian/config.toml check-no-old-llvm
 	# work around #842634
 	if test $$(grep "127.0.0.1\s*localhost" /etc/hosts | wc -l) -gt 1; then \
 	  debian/ensure-patch -N debian/patches/d-test-host-duplicates.patch; fi
-	# allow beta builds
-	sed -i -e 's/dev: 1/#dev: 1/g' src/stage0.txt
 	# don't care about lock changes
 	rm -f Cargo.lock
 	# We patched some crates so have to rm the checksums
