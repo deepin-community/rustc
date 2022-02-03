@@ -15,10 +15,10 @@ Subject: d-0000-ignore-removed-submodules
  9 files changed, 7 insertions(+), 63 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 626f9ae..36d39f9 100644
+index 8d6afd2..382e49f 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -17,22 +17,12 @@ members = [
+@@ -17,25 +17,14 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -40,10 +40,13 @@ index 626f9ae..36d39f9 100644
 -  "src/tools/expand-yaml-anchors",
    "src/tools/jsondocck",
    "src/tools/html-checker",
+-  "src/tools/bump-stage0",
    "src/tools/lld-wrapper",
-@@ -87,25 +77,9 @@ gimli.debug = 0
- miniz_oxide.debug = 0
- object.debug = 0
+ ]
+ 
+@@ -98,25 +88,9 @@ debug = 0
+ # Only use debuginfo=1 to further reduce compile times.
+ bootstrap.debug = 1
  
 -# We want the RLS to use the version of Cargo that we've got vendored in this
 -# repository to ensure that the same exact version of Cargo is used by both the
@@ -68,12 +71,12 @@ index 626f9ae..36d39f9 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index e34768b..042c4e4 100644
+index 0170be9..6d43160 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -934,10 +934,6 @@ class RustBuild(object):
+@@ -961,10 +961,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
-         for _ in range(0, self.verbose):
+         for _ in range(1, self.verbose):
              args.append("--verbose")
 -        if self.use_locked_deps:
 -            args.append("--locked")
@@ -83,7 +86,7 @@ index e34768b..042c4e4 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 5911309..1bf9b28 100644
+index 6750f7a..ce10498 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
 @@ -481,7 +481,6 @@ impl<'a> Builder<'a> {
@@ -102,7 +105,7 @@ index 5911309..1bf9b28 100644
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1509,10 +1507,7 @@ impl<'a> Builder<'a> {
+@@ -1503,10 +1501,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -115,7 +118,7 @@ index 5911309..1bf9b28 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index c871411..2e0e73d 100644
+index 6f2470b..3c1f794 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -76,7 +76,6 @@ macro_rules! book {
@@ -127,10 +130,10 @@ index c871411..2e0e73d 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
      Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index d12e86b..927d56a 100644
+index 8594fa4..869d3a9 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1848,17 +1848,7 @@ impl Step for RustcGuide {
+@@ -1846,17 +1846,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -150,23 +153,23 @@ index d12e86b..927d56a 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index 16b6c20..e67910c 100644
+index ba3ed30..c2d77e9 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -40,11 +40,6 @@ syn = { version = "1", features = ["full"] }
+@@ -34,11 +34,6 @@ regex = "1.5"
  # This is used by the `collect-metadata` alias.
  filetime = "0.2"
  
 -# A noop dependency that changes in the Rust repository, it's a bit of a hack.
 -# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
 -# for more information.
--rustc-workspace-hack = "1.0.0"
+-rustc-workspace-hack = "1.0"
 -
- [build-dependencies]
- rustc_tools_util = { version = "0.2.0", path = "rustc_tools_util" }
- 
+ # UI test dependencies
+ clippy_utils = { path = "clippy_utils" }
+ derive-new = "0.5"
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 81e3e26..049b105 100644
+index 7b4667c..39ef766 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -42,10 +42,10 @@ regex = "1.0"
@@ -206,10 +209,10 @@ index 90ffad9..f8cf698 100644
      match cmd.exec() {
          Ok(metadata) => Ok(metadata),
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index 5f1267f..738f9f6 100644
+index c1719a9..81ba94e 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -265,8 +265,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -267,8 +267,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.

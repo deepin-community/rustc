@@ -10,20 +10,20 @@ this is what rustc_workspace_hack does in the upstream build.
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index e67910c..781600f 100644
+index c2d77e9..b9f4d02 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -36,7 +36,7 @@ serde = { version = "1.0", features = ["derive"] }
- derive-new = "0.5"
- regex = "1.4"
- quote = "1"
--syn = { version = "1", features = ["full"] }
-+syn = { version = "1", features = ["full", "visit"] }
- # This is used by the `collect-metadata` alias.
- filetime = "0.2"
+@@ -41,7 +41,7 @@ if_chain = "1.0"
+ itertools = "0.10"
+ quote = "1.0"
+ serde = { version = "1.0", features = ["derive"] }
+-syn = { version = "1.0", features = ["full"] }
++syn = { version = "1.0", features = ["full", "visit"] }
  
+ [build-dependencies]
+ rustc_tools_util = { version = "0.2", path = "rustc_tools_util" }
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 049b105..cc480a1 100644
+index 39ef766..b4f4a7c 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -36,7 +36,7 @@ generic-simd = ["bytecount/generic-simd"]
