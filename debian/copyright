@@ -50,7 +50,9 @@ Files-Excluded:
  vendor/adler-0.2.3
  vendor/always-assert
  vendor/anyhow-1.0.34
+ vendor/anyhow-1.0.42
  vendor/anymap
+ vendor/arbitrary
  vendor/ar
  vendor/arrayvec-0.7.0
  vendor/autocfg-1.0.0
@@ -63,6 +65,7 @@ Files-Excluded:
  vendor/cargo_metadata-0.8.2
  vendor/cargo_metadata
  vendor/cargo-platform
+ vendor/cc-1.0.69
  vendor/chalk-derive
  vendor/chalk-ir
  vendor/chalk-recursive
@@ -90,17 +93,18 @@ Files-Excluded:
  vendor/curl
  vendor/curl-sys
  vendor/dashmap
+ vendor/derive_arbitrary
  vendor/derive_more
  vendor/directories
+ vendor/dissimilar
  vendor/dot
  vendor/drop_bomb
  vendor/either-1.6.0
  vendor/enum-iterator
  vendor/enum-iterator-derive
  vendor/env_logger-0.6.2
- vendor/env_logger-0.8.1
  vendor/env_logger
- vendor/expect-test-1.0.1
+ vendor/expect-test
  vendor/filetime-0.2.14
  vendor/flate2-1.0.16
  vendor/foreign-types
@@ -135,8 +139,6 @@ Files-Excluded:
  vendor/inotify
  vendor/inotify-sys
  vendor/instant-0.1.6
- vendor/itertools-0.10.0
- vendor/itertools
  vendor/itoa-0.4.6
  vendor/jod-thread
  vendor/json
@@ -181,7 +183,10 @@ Files-Excluded:
  vendor/openssl-src
  vendor/openssl-sys
  vendor/ordslice
+ vendor/os_info
  vendor/parity-tokio-ipc
+ vendor/parking_lot-0.11.1
+ vendor/parking_lot_core-0.8.3
  vendor/paste
  vendor/percent-encoding-1.0.1
  vendor/perf-event
@@ -195,11 +200,10 @@ Files-Excluded:
  vendor/pulldown-cmark-to-cmark
  vendor/quote-1.0.7
  vendor/racer
- vendor/rand_xoshiro
+ vendor/rand_xoshiro-0.4.0
  vendor/rayon-1.3.1
  vendor/rayon-core-1.7.1
  vendor/regalloc
- vendor/regex
  vendor/region
  vendor/rls-vfs
  vendor/rowan
@@ -221,7 +225,7 @@ Files-Excluded:
  vendor/rustc-ap-rustc_session
  vendor/rustc-ap-rustc_span
  vendor/rustc-ap-rustc_target
- vendor/rustc-demangle-0.1.20
+ vendor/rustc_version-0.3.3
  vendor/rustc_version
  vendor/salsa
  vendor/salsa-macros
@@ -242,6 +246,7 @@ Files-Excluded:
  vendor/signal-hook-registry
  vendor/sized-chunks
  vendor/slab
+ vendor/smallvec-1.6.1
  vendor/smol_str
  vendor/snap-1.0.1
  vendor/socket2
@@ -261,10 +266,10 @@ Files-Excluded:
  vendor/tokio-stream
  vendor/tokio-util
  vendor/tower-service
- vendor/tracing-0.1.25
- vendor/tracing-attributes-0.1.13
- vendor/tracing-core-0.1.17
+ vendor/tracing-attributes-0.1.16
+ vendor/tracing-core-0.1.20
  vendor/tracing-subscriber-0.2.16
+ vendor/tracing-tree-0.1.9
  vendor/ungrammar
  vendor/unicode-bidi-0.3.4
  vendor/unicode-normalization-0.1.13
