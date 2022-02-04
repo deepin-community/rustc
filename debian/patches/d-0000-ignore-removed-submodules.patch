@@ -44,7 +44,7 @@ index 8d6afd2..382e49f 100644
    "src/tools/lld-wrapper",
  ]
  
-@@ -98,25 +88,9 @@ debug = 0
+@@ -98,25 +87,9 @@ debug = 0
  # Only use debuginfo=1 to further reduce compile times.
  bootstrap.debug = 1
  
@@ -76,7 +76,7 @@ index 0170be9..6d43160 100644
 +++ b/src/bootstrap/bootstrap.py
 @@ -961,10 +961,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
-         for _ in range(1, self.verbose):
+         for _ in range(0, self.verbose):
              args.append("--verbose")
 -        if self.use_locked_deps:
 -            args.append("--locked")

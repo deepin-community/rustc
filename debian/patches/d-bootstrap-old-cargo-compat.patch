@@ -12,7 +12,7 @@ Description: Backwards-compat for cargo 0.47
 
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -451,7 +451,6 @@
+@@ -443,7 +443,6 @@ impl Step for Std {
              cargo
                  .arg("-p")
                  .arg(package)
@@ -20,15 +20,15 @@ Description: Backwards-compat for cargo 0.47
                  .arg("--")
                  .arg("--markdown-css")
                  .arg("rust.css")
-@@ -582,7 +581,6 @@
-         cargo.rustdocflag("-Znormalize-docs");
-         cargo.rustdocflag("--show-type-layout");
+@@ -589,7 +588,6 @@ impl Step for Rustc {
+         cargo.rustdocflag("--generate-link-to-definition");
          compile::rustc_cargo(builder, &mut cargo, target);
+         cargo.arg("-Zunstable-options");
 -        cargo.arg("-Zskip-rustdoc-fingerprint");
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
-         cargo.arg("--no-deps");
-@@ -673,7 +671,6 @@
+         // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
+@@ -722,7 +720,6 @@ macro_rules! tool_doc {
                      &[],
                  );
  

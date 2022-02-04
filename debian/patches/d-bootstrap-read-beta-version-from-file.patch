@@ -1,6 +1,6 @@
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -1031,15 +1031,13 @@
+@@ -1161,15 +1161,13 @@ impl Build {
              return s;
          }
  

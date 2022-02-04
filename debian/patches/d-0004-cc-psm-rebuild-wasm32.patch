@@ -11,7 +11,7 @@ diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
 index 2de2457..916144d 100644
 --- a/vendor/cc/src/lib.rs
 +++ b/vendor/cc/src/lib.rs
-@@ -2173,7 +2173,7 @@ impl Build {
+@@ -2178,7 +2178,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {

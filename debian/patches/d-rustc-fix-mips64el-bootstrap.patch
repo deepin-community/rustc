@@ -1,15 +1,15 @@
 Bug: https://github.com/rust-lang/rust/issues/52108
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -904,6 +904,8 @@
+@@ -936,6 +936,8 @@ class RustBuild(object):
+ 
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
-         env["RUSTFLAGS"] += " -Cdebuginfo=2"
 +        if self.build_triple().startswith('mips'):
 +            env["RUSTFLAGS"] += " -Ctarget-feature=+xgot"
- 
          build_section = "target.{}".format(self.build)
          target_features = []
+         if self.get_toml("crt-static", build_section) == "true":
 --- a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
 @@ -12,7 +12,7 @@

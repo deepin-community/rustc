@@ -13,6 +13,14 @@ diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
 index c2d77e9..b9f4d02 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
+@@ -25,6 +25,7 @@ clippy_lints = { version = "0.1", path = "clippy_lints" }
+ semver = "0.11"
+ rustc_tools_util = { version = "0.2", path = "rustc_tools_util" }
+ tempfile = { version = "3.2", optional = true }
++memchr = { version = "2.4", default_features = false, features = ["use_std"] }
+ 
+ [dev-dependencies]
+ cargo_metadata = "0.12"
 @@ -41,7 +41,7 @@ if_chain = "1.0"
  itertools = "0.10"
  quote = "1.0"

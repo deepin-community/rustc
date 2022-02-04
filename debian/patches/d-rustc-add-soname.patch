@@ -20,7 +20,7 @@ Forwarded: no
 
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -2020,6 +2020,13 @@
+@@ -2019,6 +2019,13 @@ fn add_order_independent_options(
      }
  
      add_rpath_args(cmd, sess, codegen_results, out_filename);

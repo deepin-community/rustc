@@ -1,6 +1,6 @@
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -824,10 +824,9 @@
+@@ -933,10 +933,9 @@ impl Build {
  
          match which {
              GitRepo::Rustc => {

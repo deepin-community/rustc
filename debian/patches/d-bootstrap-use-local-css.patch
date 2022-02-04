@@ -1,6 +1,6 @@
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -383,6 +383,10 @@
+@@ -375,6 +375,10 @@ impl Step for Standalone {
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
                  .arg("https://play.rust-lang.org/")
@@ -11,7 +11,7 @@
                  .arg("-o")
                  .arg(&out)
                  .arg(&path);
-@@ -391,17 +395,6 @@
+@@ -383,17 +387,6 @@ impl Step for Standalone {
                  cmd.arg("--disable-minification");
              }
  

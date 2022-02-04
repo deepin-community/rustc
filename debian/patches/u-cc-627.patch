@@ -2,7 +2,7 @@ Forwarded: https://github.com/alexcrichton/cc-rs/pull/627
 
 --- a/vendor/cc/src/lib.rs
 +++ b/vendor/cc/src/lib.rs
-@@ -1559,6 +1559,11 @@
+@@ -1627,6 +1627,11 @@ impl Build {
                      && target.contains("-linux-")
                  {
                      cmd.args.push("-march=armv7-a".into());
