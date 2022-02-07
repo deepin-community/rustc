@@ -29,6 +29,7 @@ d-0006-no-jemalloc.patch
 ## Patches to the build process, including doc path tweaks
 ## Should not change resulting rustc behaviour
 d-bootstrap-rustflags.patch
+d-remove-arm-privacy-breaches.patch
 d-bootstrap-install-symlinks.patch
 d-bootstrap-disable-git.patch
 d-bootstrap-read-beta-version-from-file.patch
