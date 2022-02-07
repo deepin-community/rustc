@@ -5,7 +5,6 @@ u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-cc-627.patch
-u-89950.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
@@ -53,5 +52,3 @@ d-rustc-windows-ssp.patch
 d-rustc-i686-baseline.patch
 # Experimental patch not yet working
 #d-rustc-prefer-dynamic.patch
-d-rustdoc-disable-embedded-fonts.patch
-u-Fix-CVE-2022-21658-for-UNIX-like.patch
