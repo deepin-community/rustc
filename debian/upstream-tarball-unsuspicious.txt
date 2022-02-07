@@ -20,6 +20,7 @@ README.md
 CONTRIBUTING.md
 compiler/rustc_codegen_cranelift/docs/dwarf.md
 compiler/rustc_codegen_gcc/Readme.md
+library/portable-simd/*.md
 library/std/sys/cloudabi/abi/cloudabi.rs
 library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
@@ -194,6 +195,9 @@ vendor/termion/logo.svg
 vendor/html5ever/examples/capi/tokenize.c
 
 # Test data
+library/portable-simd/crates/core_simd/webdriver.json
+library/portable-simd/crates/core_simd/tests/mask_ops_impl/*.rs
+library/std/src/sys/windows/path/tests.rs
 library/stdarch/ci/gba.json
 library/stdarch/crates/intrinsic-test/neon-intrinsics.csv
 library/stdarch/crates/stdarch-verify/arm-intrinsics.html
@@ -237,6 +241,7 @@ src/tools/clippy/tests/ui/wildcard_enum_match_arm.fixed
 src/tools/rustfmt/tests/writemode/target/*.json
 src/tools/rustfmt/tests/writemode/target/*.xml
 src/tools/rustfmt/tests/source/*.rs
+src/tools/rustfmt/tests/source/*/*.rs
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/cssparser/src/css-parsing-tests/*.json
@@ -334,6 +339,7 @@ vendor/miniz_oxide/src/deflate/mod.rs
 vendor/miniz_oxide/src/inflate/mod.rs
 vendor/thiserror-impl/src/attr.rs
 vendor/shlex/src/lib.rs
+vendor/semver/src/parse.rs
 vendor/semver-0.11.0/src/version_req.rs
 vendor/rustc-rayon/tests/sort-panic-safe.rs
 vendor/xml5ever/src/tokenizer/char_ref/mod.rs
@@ -344,7 +350,7 @@ vendor/pulldown-cmark-0.7.2/src/simd.rs
 vendor/url/src/parser.rs
 vendor/utf-8/tests/unit.rs
 vendor/rustversion/src/attr.rs
-vendor/env_logger-0.7.1/src/fmt/writer/mod.rs
+vendor/env_logger-0.*/src/fmt/writer/mod.rs
 vendor/pest_generator/src/generator.rs
 vendor/digest/src/dev.rs
 vendor/proc-macro2/src/parse.rs
@@ -366,6 +372,12 @@ vendor/gimli/src/read/unit.rs
 vendor/gimli/src/read/loclists.rs
 vendor/gimli/src/read/line.rs
 vendor/gimli/src/read/lookup.rs
+vendor/gimli-0.25.0/src/read/aranges.rs
+vendor/gimli-0.25.0/src/read/rnglists.rs
+vendor/gimli-0.25.0/src/read/unit.rs
+vendor/gimli-0.25.0/src/read/loclists.rs
+vendor/gimli-0.25.0/src/read/line.rs
+vendor/gimli-0.25.0/src/read/lookup.rs
 vendor/regex-automata/src/regex.rs
 vendor/rayon/tests/sort-panic-safe.rs
 vendor/syn/tests/test_meta.rs
