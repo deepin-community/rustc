@@ -426,6 +426,7 @@ Files:
  vendor/rand_pcg/*
  vendor/rand_pcg-0*/*
  vendor/rand_xorshift/*
+ vendor/rand_xoshiro/*
  vendor/rand_xorshift-0*/*
 Copyright: 2010-2019 The Rand Project Developers
            2010-2019 The Rust Project Developers
@@ -1223,6 +1224,11 @@ Copyright:
  2016-2020 Philip Craig <philipjcraig@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/gimli-rs/object
+
+Files: vendor/odht/*
+Copyright: 2021 Michael Woerister <michaelwoerister@posteo>
+License: Apache-2.0 or MIT
+Comment: see https://github.com/rust-lang/odht
 
 Files: vendor/oorandom/*
 Copyright: 2019-2020 Simon Heath <icefox@dreamquest.io>
