@@ -1,0 +1,42 @@
+From 41a86473908e3c8b0f91e4607784533d592421a1 Mon Sep 17 00:00:00 2001
+From: Jubilee Young <workingjubilee@gmail.com>
+Date: Wed, 10 Nov 2021 16:59:21 -0800
+Subject: [PATCH] Scope in Send, Sync for wasi
+
+---
+ src/lib.rs  | 4 ++--
+ src/wasi.rs | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/vendor/libc/src/lib.rs b/vendor/libc/src/lib.rs
+index 19fed28de264..630ee7a0efb7 100644
+--- a/vendor/libc/src/lib.rs
++++ b/vendor/libc/src/lib.rs
+@@ -63,7 +63,7 @@ cfg_if! {
+         use core::clone::Clone;
+         #[doc(hidden)]
+         #[allow(unused_imports)]
+-        use core::marker::Copy;
++        use core::marker::{Copy, Send, Sync};
+         #[doc(hidden)]
+         #[allow(unused_imports)]
+         use core::option::Option;
+@@ -85,7 +85,7 @@ cfg_if! {
+         pub use core::clone::Clone;
+         #[doc(hidden)]
+         #[allow(unused_imports)]
+-        pub use core::marker::Copy;
++        pub use core::marker::{Copy, Send, Sync};
+         #[doc(hidden)]
+         #[allow(unused_imports)]
+         pub use core::option::Option;
+diff --git a/vendor/libc/src/wasi.rs b/vendor/libc/src/wasi.rs
+index f66550b20dfe..ea837328983d 100644
+--- a/vendor/libc/src/wasi.rs
++++ b/vendor/libc/src/wasi.rs
+@@ -1,3 +1,5 @@
++use super::{Send, Sync};
++
+ pub use ffi::c_void;
+ 
+ pub type c_char = i8;

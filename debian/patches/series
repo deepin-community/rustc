@@ -5,6 +5,7 @@ u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-cc-627.patch
+u-fix-libc-wasi-scope.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
