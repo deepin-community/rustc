@@ -339,15 +339,19 @@ Files: library/std/src/sync/mpsc/mpsc_queue.rs
 Copyright: 2010-2011 Dmitry Vyukov
 License: BSD-2-Clause
 
-Files: src/librustdoc/html/static/FiraSans*
+Files: src/librustdoc/html/static/fonts/FiraSans*
 Copyright: 2014, Mozilla Foundation, 2014, Telefonica S.A.
 License: SIL-OPEN-FONT
 
-Files: src/librustdoc/html/static/SourceCodePro*
+Files: src/librustdoc/html/static/fonts/NanumBarun*
+Copyright: 2010 NAVER Corporation
+License: SIL-OPEN-FONT
+
+Files: src/librustdoc/html/static/fonts/SourceCodePro*
 Copyright: 2010, 2012 Adobe Systems Incorporated
 License: SIL-OPEN-FONT
 
-Files: src/librustdoc/html/static/SourceSerifPro*
+Files: src/librustdoc/html/static/fonts/SourceSerifPro*
 Copyright: 2014 Adobe Systems Incorporated
 License: SIL-OPEN-FONT
 
@@ -625,6 +629,14 @@ Comment:
  see https://github.com/BurntSushi/ripgrep/tree/master/termcolor
  see https://github.com/BurntSushi/ripgrep/tree/master/wincolor
 
+Files: vendor/camino/*
+Copyright: 2020-2022 Without Boats <saoirse@without.boats>
+           2020-2022 Ashley Williams <ashley666ashley@gmail.com>
+           2020-2022 Steve Klabnik <steve@steveklabnik.com>
+           2020-2022 Rain <rain@sunshowers.io>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/withoutboats/camino
+
 Files:
  vendor/cargo_metadata/*
  vendor/cargo_metadata-0*/*
@@ -634,6 +646,11 @@ License: MIT
 Comment:
  see https://github.com/oli-obk/log_settings
  see https://github.com/oli-obk/cargo_metadata
+
+Files: vendor/cargo-platform/*
+Copyright: 2019-2022 The Cargo Project Developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/cargo
 
 Files:
  vendor/c2-chacha/*
@@ -859,7 +876,9 @@ Copyright: 2016-2017 Brian Anderson <banderson@mozilla.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/brson/error-chain
 
-Files: vendor/expect-test-1*/*
+Files:
+ vendor/expect-test/*
+ vendor/expect-test-*/*
 Copyright: 2017-2020 rust-analyzer developers
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-analyzer/rust-analyzer
@@ -977,7 +996,9 @@ Copyright: 2017-2020 Brian Anderson <andersrb@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/brson/home
 
-Files: vendor/humantime-*/*
+Files: 
+ vendor/humantime/*
+ vendor/humantime-*/*
 Copyright:
  2016-2018 Paul Colomiets <paul@colomiets.name>
  2016 The humantime Developers
@@ -1010,6 +1031,13 @@ Copyright: 2016-2019 bluss
            2016-2019 Josh Stone <cuviper@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/bluss/indexmap
+
+Files:
+ vendor/indoc/*
+ vendor/unindent/*
+Copyright: 2016-2022 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/indoc
 
 Files: vendor/inotify/*
 Copyright: 2014-2020 Hanno Braun <mail@hannobraun.de>
@@ -1784,6 +1812,11 @@ Files: vendor/unicode_categories/*
 Copyright: 2015-2016 Sean Gillespie <sean@swgillespie.me>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/swgillespie/unicode-categories
+
+Files: vendor/unic-*/*
+Copyright: 2017-2022 The UNIC Project Developers
+License: MIT or Apache-2.0
+Comment: see https://github.com/open-i18n/rust-unic/
 
 Files:
  vendor/unicode-normalization/*
