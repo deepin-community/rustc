@@ -5,23 +5,23 @@ Subject: d-0005-clippy-feature-sync
 enable features needed by rustfmt to make build system happy and speedup build.
 this is what rustc_workspace_hack does in the upstream build.
 ---
- src/tools/clippy/Cargo.toml  | 2 +-
+ src/tools/clippy/Cargo.toml  | 3 ++-
  src/tools/rustfmt/Cargo.toml | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index c2d77e9..b9f4d02 100644
+index 295d1a0..a416fb7 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -25,6 +25,7 @@ clippy_lints = { version = "0.1", path = "clippy_lints" }
- semver = "0.11"
+ semver = "1.0"
  rustc_tools_util = { version = "0.2", path = "rustc_tools_util" }
  tempfile = { version = "3.2", optional = true }
 +memchr = { version = "2.4", default_features = false, features = ["use_std"] }
  
  [dev-dependencies]
- cargo_metadata = "0.12"
-@@ -41,7 +41,7 @@ if_chain = "1.0"
+ cargo_metadata = "0.14"
+@@ -41,7 +42,7 @@ if_chain = "1.0"
  itertools = "0.10"
  quote = "1.0"
  serde = { version = "1.0", features = ["derive"] }
@@ -31,11 +31,11 @@ index c2d77e9..b9f4d02 100644
  [build-dependencies]
  rustc_tools_util = { version = "0.2", path = "rustc_tools_util" }
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 39ef766..b4f4a7c 100644
+index f92b1dc..9e3b2a7 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -36,7 +36,7 @@ generic-simd = ["bytecount/generic-simd"]
- itertools = "0.8"
+ itertools = "0.9"
  toml = "0.5"
  serde = { version = "1.0", features = ["derive"] }
 -serde_json = "1.0"

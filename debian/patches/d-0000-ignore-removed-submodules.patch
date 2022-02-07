@@ -3,19 +3,18 @@ Date: Sat, 2 Oct 2021 01:07:59 +0100
 Subject: d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                              | 26 --------------------------
- src/bootstrap/bootstrap.py              |  4 ----
- src/bootstrap/builder.rs                |  7 +------
- src/bootstrap/doc.rs                    |  1 -
- src/bootstrap/test.rs                   | 12 +-----------
- src/tools/clippy/Cargo.toml             |  5 -----
- src/tools/rustfmt/Cargo.toml            |  9 ++-------
- src/tools/rustfmt/src/cargo-fmt/main.rs |  2 +-
- src/tools/tidy/src/deps.rs              |  4 ++--
- 9 files changed, 7 insertions(+), 63 deletions(-)
+ Cargo.toml                   | 27 ---------------------------
+ src/bootstrap/bootstrap.py   |  4 ----
+ src/bootstrap/builder.rs     |  7 +------
+ src/bootstrap/doc.rs         |  1 -
+ src/bootstrap/test.rs        | 12 +-----------
+ src/tools/clippy/Cargo.toml  |  5 -----
+ src/tools/rustfmt/Cargo.toml |  5 -----
+ src/tools/tidy/src/deps.rs   |  4 ++--
+ 8 files changed, 4 insertions(+), 61 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 8d6afd2..382e49f 100644
+index cae48d7..6ab0782 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -17,25 +17,14 @@ members = [
@@ -44,7 +43,7 @@ index 8d6afd2..382e49f 100644
    "src/tools/lld-wrapper",
  ]
  
-@@ -98,25 +87,9 @@ debug = 0
+@@ -105,25 +94,9 @@ debug = 0
  # Only use debuginfo=1 to further reduce compile times.
  bootstrap.debug = 1
  
@@ -71,10 +70,10 @@ index 8d6afd2..382e49f 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 0170be9..6d43160 100644
+index 22f2e40..89f8ac4 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -961,10 +961,6 @@ class RustBuild(object):
+@@ -982,10 +982,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(0, self.verbose):
              args.append("--verbose")
@@ -86,7 +85,7 @@ index 0170be9..6d43160 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 6750f7a..ce10498 100644
+index 6ba1b1b..edd5bf1 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
 @@ -481,7 +481,6 @@ impl<'a> Builder<'a> {
@@ -94,10 +93,10 @@ index 6750f7a..ce10498 100644
                  doc::RustByExample,
                  doc::RustcBook,
 -                doc::CargoBook,
+                 doc::Clippy,
                  doc::EmbeddedBook,
                  doc::EditionGuide,
-             ),
-@@ -505,7 +504,6 @@ impl<'a> Builder<'a> {
+@@ -506,7 +505,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -105,7 +104,7 @@ index 6750f7a..ce10498 100644
                  dist::BuildManifest,
                  dist::ReproducibleArtifacts,
              ),
-@@ -1503,10 +1501,7 @@ impl<'a> Builder<'a> {
+@@ -1522,10 +1520,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -118,7 +117,7 @@ index 6750f7a..ce10498 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 6f2470b..3c1f794 100644
+index f0f31c4..01d9b84 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -76,7 +76,6 @@ macro_rules! book {
@@ -130,10 +129,10 @@ index 6f2470b..3c1f794 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
      Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 8594fa4..869d3a9 100644
+index cb1b0eb..74af81d 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1846,17 +1846,7 @@ impl Step for RustcGuide {
+@@ -1833,17 +1833,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -153,7 +152,7 @@ index 8594fa4..869d3a9 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index ba3ed30..c2d77e9 100644
+index 602877b..295d1a0 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -34,11 +34,6 @@ regex = "1.5"
@@ -169,22 +168,9 @@ index ba3ed30..c2d77e9 100644
  clippy_utils = { path = "clippy_utils" }
  derive-new = "0.5"
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 7b4667c..39ef766 100644
+index 8d9c4a7..f92b1dc 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
-@@ -42,10 +42,10 @@ regex = "1.0"
- term = "0.6"
- diff = "0.1"
- log = "0.4.14"
--env_logger = "0.6"
-+env_logger = "0.7"
- getopts = "0.2"
- derive-new = "0.5"
--cargo_metadata = "0.8"
-+cargo_metadata = "0.12"
- bytecount = "0.6"
- unicode-width = "0.1.5"
- unicode_categories = "0.1.1"
 @@ -58,9 +58,4 @@ lazy_static = "1.0.0"
  anyhow = "1.0"
  thiserror = "1.0"
@@ -195,24 +181,11 @@ index 7b4667c..39ef766 100644
 -rustc-workspace-hack = "1.0.0"
 -
  # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
-diff --git a/src/tools/rustfmt/src/cargo-fmt/main.rs b/src/tools/rustfmt/src/cargo-fmt/main.rs
-index 90ffad9..f8cf698 100644
---- a/src/tools/rustfmt/src/cargo-fmt/main.rs
-+++ b/src/tools/rustfmt/src/cargo-fmt/main.rs
-@@ -528,7 +528,7 @@ fn get_cargo_metadata(
-     if let Some(manifest_path) = manifest_path {
-         cmd.manifest_path(manifest_path);
-     }
--    cmd.other_options(&[String::from("--offline")]);
-+    cmd.other_options(vec![String::from("--offline")]);
- 
-     match cmd.exec() {
-         Ok(metadata) => Ok(metadata),
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index c1719a9..81ba94e 100644
+index bc33284..8d956db 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -267,8 +267,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -272,8 +272,8 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.
