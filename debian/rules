@@ -41,7 +41,7 @@ ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 ifeq ($(DEB_HOST_ARCH),riscv64)
 NJOBS := -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 else
-NJOBS := -j 2
+NJOBS := -j 4
 endif
 endif
 RUSTBUILD = RUST_BACKTRACE=1 python3 src/bootstrap/bootstrap.py $(NJOBS)
