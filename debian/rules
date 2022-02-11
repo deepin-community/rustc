@@ -1,6 +1,10 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
+# The build regressed back when LTO was systematized in Ubuntu.
+# This should be periodically revisited.
+export DEB_BUILD_MAINT_OPTIONS=optimize=-lto
+
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/vendor.mk
 include /usr/share/dpkg/architecture.mk
