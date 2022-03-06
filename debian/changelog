@@ -6,7 +6,7 @@ rustc (1.57.0+dfsg1-1~exp1) experimental; urgency=medium
 
   [ Fabian Grünbichler ]
   * Fix CVE-2022-21658 - std::fs::remove_dir_all TOCTOU symlink issue
-  * New upstream release.
+  * New upstream release. (Closes: ##1005203)
 
  -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Thu, 03 Feb 2022 19:14:04 +0100
 
