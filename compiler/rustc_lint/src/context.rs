@@ -16,6 +16,7 @@
 
 use self::TargetLint::*;
 
+use crate::hidden_unicode_codepoints::UNICODE_TEXT_FLOW_CHARS;
 use crate::levels::{is_known_lint_tool, LintLevelsBuilder};
 use crate::passes::{EarlyLintPassObject, LateLintPassObject};
 use rustc_ast as ast;
@@ -31,17 +32,16 @@ use rustc_hir::definitions::{DefPathData, DisambiguatedDefPathData};
 use rustc_middle::lint::LintDiagnosticBuilder;
 use rustc_middle::middle::privacy::AccessLevels;
 use rustc_middle::middle::stability;
-use rustc_middle::ty::layout::{LayoutError, TyAndLayout};
+use rustc_middle::ty::layout::{LayoutError, LayoutOfHelpers, TyAndLayout};
 use rustc_middle::ty::print::with_no_trimmed_paths;
 use rustc_middle::ty::{self, print::Printer, subst::GenericArg, Ty, TyCtxt};
 use rustc_serialize::json::Json;
 use rustc_session::lint::{BuiltinLintDiagnostics, ExternDepSpec};
 use rustc_session::lint::{FutureIncompatibleInfo, Level, Lint, LintBuffer, LintId};
 use rustc_session::Session;
-use rustc_session::SessionLintStore;
 use rustc_span::lev_distance::find_best_match_for_name;
-use rustc_span::{symbol::Symbol, MultiSpan, Span, DUMMY_SP};
-use rustc_target::abi::{self, LayoutOf};
+use rustc_span::{symbol::Symbol, BytePos, MultiSpan, Span, DUMMY_SP};
+use rustc_target::abi;
 use tracing::debug;
 
 use std::cell::Cell;
@@ -73,20 +73,6 @@ pub struct LintStore {
 
     /// Map of registered lint groups to what lints they expand to.
     lint_groups: FxHashMap<&'static str, LintGroup>,
-}
-
-impl SessionLintStore for LintStore {
-    fn name_to_lint(&self, lint_name: &str) -> LintId {
-        let lints = self
-            .find_lints(lint_name)
-            .unwrap_or_else(|_| panic!("Failed to find lint with name `{}`", lint_name));
-
-        if let &[lint] = lints.as_slice() {
-            return lint;
-        } else {
-            panic!("Found mutliple lints with name `{}`: {:?}", lint_name, lints);
-        }
-    }
 }
 
 /// The target of the `by_name` map, which accounts for renaming/deprecation.
@@ -612,6 +598,42 @@ pub trait LintContext: Sized {
             // Now, set up surrounding context.
             let sess = self.sess();
             match diagnostic {
+                BuiltinLintDiagnostics::UnicodeTextFlow(span, content) => {
+                    let spans: Vec<_> = content
+                        .char_indices()
+                        .filter_map(|(i, c)| {
+                            UNICODE_TEXT_FLOW_CHARS.contains(&c).then(|| {
+                                let lo = span.lo() + BytePos(2 + i as u32);
+                                (c, span.with_lo(lo).with_hi(lo + BytePos(c.len_utf8() as u32)))
+                            })
+                        })
+                        .collect();
+                    let (an, s) = match spans.len() {
+                        1 => ("an ", ""),
+                        _ => ("", "s"),
+                    };
+                    db.span_label(span, &format!(
+                        "this comment contains {}invisible unicode text flow control codepoint{}",
+                        an,
+                        s,
+                    ));
+                    for (c, span) in &spans {
+                        db.span_label(*span, format!("{:?}", c));
+                    }
+                    db.note(
+                        "these kind of unicode codepoints change the way text flows on \
+                         applications that support them, but can cause confusion because they \
+                         change the order of characters on the screen",
+                    );
+                    if !spans.is_empty() {
+                        db.multipart_suggestion_with_style(
+                            "if their presence wasn't intentional, you can remove them",
+                            spans.into_iter().map(|(_, span)| (span, "".to_string())).collect(),
+                            Applicability::MachineApplicable,
+                            SuggestionStyle::HideCodeAlways,
+                        );
+                    }
+                },
                 BuiltinLintDiagnostics::Normal => (),
                 BuiltinLintDiagnostics::BareTraitObject(span, is_global) => {
                     let (sugg, app) = match sess.source_map().span_to_snippet(span) {
@@ -805,6 +827,7 @@ impl<'a> EarlyContext<'a> {
         sess: &'a Session,
         lint_store: &'a LintStore,
         krate: &'a ast::Crate,
+        crate_attrs: &'a [ast::Attribute],
         buffered: LintBuffer,
         warn_about_weird_lints: bool,
     ) -> EarlyContext<'a> {
@@ -812,7 +835,7 @@ impl<'a> EarlyContext<'a> {
             sess,
             krate,
             lint_store,
-            builder: LintLevelsBuilder::new(sess, warn_about_weird_lints, lint_store, &krate.attrs),
+            builder: LintLevelsBuilder::new(sess, warn_about_weird_lints, lint_store, crate_attrs),
             buffered,
         }
     }
@@ -1080,12 +1103,12 @@ impl<'tcx> ty::layout::HasParamEnv<'tcx> for LateContext<'tcx> {
     }
 }
 
-impl<'tcx> LayoutOf<'tcx> for LateContext<'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = Result<TyAndLayout<'tcx>, LayoutError<'tcx>>;
+impl<'tcx> LayoutOfHelpers<'tcx> for LateContext<'tcx> {
+    type LayoutOfResult = Result<TyAndLayout<'tcx>, LayoutError<'tcx>>;
 
-    fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyAndLayout {
-        self.tcx.layout_of(self.param_env.and(ty))
+    #[inline]
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, _: Span, _: Ty<'tcx>) -> LayoutError<'tcx> {
+        err
     }
 }
 
