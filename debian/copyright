@@ -308,7 +308,7 @@ Files: C*.md
        src/etc/*
        src/lib*
        src/rust*
-       src/stage0.txt
+       src/stage0.json
        src/tools/*
        src/test/*
        src/version
@@ -859,7 +859,7 @@ Copyright: 2016-2017 Brian Anderson <banderson@mozilla.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/brson/error-chain
 
-Files: vendor/expect-test/*
+Files: vendor/expect-test-1*/*
 Copyright: 2017-2020 rust-analyzer developers
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-analyzer/rust-analyzer
