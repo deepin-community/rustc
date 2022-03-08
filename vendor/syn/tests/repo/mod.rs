@@ -1,3 +1,5 @@
+#![allow(clippy::if_then_panic)]
+
 mod progress;
 
 use self::progress::Progress;
@@ -15,13 +17,6 @@ static EXCLUDE: &[&str] = &[
     // TODO: impl ~const T {}
     // https://github.com/dtolnay/syn/issues/1051
     "src/test/ui/rfc-2632-const-trait-impl/syntax.rs",
-
-    // TODO: ~const in where-clause
-    // https://github.com/dtolnay/syn/issues/1051
-    "library/alloc/src/borrow.rs",
-    "src/test/ui/rfc-2632-const-trait-impl/inherent-impl-const-bounds.rs",
-    "src/test/ui/rfc-2632-const-trait-impl/trait-where-clause-run.rs",
-    "src/test/ui/rfc-2632-const-trait-impl/trait-where-clause-self-referential.rs",
 
     // Compile-fail expr parameter in const generic position: f::<1 + 2>()
     "src/test/ui/const-generics/early/closing-args-token.rs",
@@ -68,7 +63,7 @@ pub fn base_dir_filter(entry: &DirEntry) -> bool {
     if path.is_dir() {
         return true; // otherwise walkdir does not visit the files
     }
-    if path.extension().map(|e| e != "rs").unwrap_or(true) {
+    if path.extension().map_or(true, |e| e != "rs") {
         return false;
     }
 
