@@ -65,7 +65,7 @@ index 264c113..2b0ff3a 100644
      }
  
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-index 02b7da4..0140218 100644
+index e8da5b4..a0507fd 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 @@ -3,7 +3,7 @@ use crate::config::{BookConfig, Config, HtmlConfig, Playground, RustEdition};
@@ -85,9 +85,9 @@ index 02b7da4..0140218 100644
  
  use crate::utils::fs::get_404_output_file;
  use handlebars::Handlebars;
-@@ -228,80 +229,13 @@ impl HtmlHandlebars {
+@@ -225,80 +226,13 @@ impl HtmlHandlebars {
          if let Some(contents) = &theme.favicon_svg {
-             write_file(destination, "favicon.svg", &contents)?;
+             write_file(destination, "favicon.svg", contents)?;
          }
 -        write_file(destination, "highlight.css", &theme.highlight_css)?;
          write_file(destination, "tomorrow-night.css", &theme.tomorrow_night_css)?;
@@ -172,7 +172,7 @@ index 02b7da4..0140218 100644
          Ok(())
      }
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/search.rs b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-index e9da219..da9ee97 100644
+index 39b5980..7ea49c5 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
 @@ -34,8 +34,6 @@ pub fn create_files(search_config: &Search, destination: &Path, book: &Book) ->
