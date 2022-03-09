@@ -52,8 +52,6 @@ Files-Excluded:
  vendor/addr2line
  vendor/adler-0.2.3
  vendor/always-assert
- vendor/anyhow-1.0.34
- vendor/anyhow-1.0.42
  vendor/anymap
  vendor/arbitrary
  vendor/ar
@@ -66,10 +64,7 @@ Files-Excluded:
  vendor/bytesize
  vendor/cargo_metadata-0.14.0
  vendor/cc-1.0.69
- vendor/chalk-derive
- vendor/chalk-ir
  vendor/chalk-recursive
- vendor/chalk-solve
  vendor/commoncrypto
  vendor/commoncrypto-sys
  vendor/core-foundation
@@ -96,14 +91,13 @@ Files-Excluded:
  vendor/derive_arbitrary
  vendor/derive_more
  vendor/directories
- vendor/dissimilar
  vendor/dot
  vendor/drop_bomb
  vendor/either-1.6.0
  vendor/enum-iterator
  vendor/enum-iterator-derive
  vendor/env_logger
- vendor/expect-test
+ vendor/expect-test-1.0.1
  vendor/filetime-0.2.14
  vendor/flate2-1.0.16
  vendor/foreign-types
@@ -125,7 +119,6 @@ Files-Excluded:
  vendor/futures-util
  vendor/fwdansi
  vendor/getset
- vendor/gimli
  vendor/git2
  vendor/git2-curl
  vendor/hashbrown-0.11.0
@@ -137,7 +130,7 @@ Files-Excluded:
  vendor/im-rc
  vendor/inotify
  vendor/inotify-sys
- vendor/instant-0.1.6
+ vendor/itertools-0.10.1
  vendor/itoa-0.4.6
  vendor/jod-thread
  vendor/json
@@ -151,17 +144,15 @@ Files-Excluded:
  vendor/kqueue
  vendor/kqueue-sys
  vendor/lazycell
- vendor/libc-0.2.106
- vendor/libc-0.2.98
+ vendor/libc-0.2.108
  vendor/libgit2-sys
  vendor/libloading-0.6.7
- vendor/libloading
+ vendor/libloading-0.7.1
  vendor/libmimalloc-sys
  vendor/libnghttp2-sys
  vendor/libssh2-sys
  vendor/libz-sys
  vendor/linked-hash-map
- vendor/lock_api-0.4.1
  vendor/lsp-codec
  vendor/lsp-server
  vendor/lsp-types-0.60.0
@@ -169,15 +160,14 @@ Files-Excluded:
  vendor/mach
  vendor/matches-0.1.8
  vendor/measureme-9.1.2
- vendor/memchr-2.4.0
  vendor/memmap2
  vendor/mimalloc
  vendor/miniz_oxide-0.4.0
  vendor/mio-0.7.13
  vendor/mio
+ vendor/miow
  vendor/notify
  vendor/ntapi
- vendor/object-0.26.0
  vendor/object
  vendor/once_cell-1.7.2
  vendor/oorandom
@@ -188,8 +178,6 @@ Files-Excluded:
  vendor/ordslice
  vendor/os_info
  vendor/parity-tokio-ipc
- vendor/parking_lot-0.11.1
- vendor/parking_lot_core-0.8.3
  vendor/paste
  vendor/percent-encoding-1.0.1
  vendor/perf-event
@@ -200,6 +188,7 @@ Files-Excluded:
  vendor/proc-macro-crate
  vendor/proc-macro-hack
  vendor/proc-macro-nested
+ vendor/pulldown-cmark-0.8.0
  vendor/pulldown-cmark-to-cmark
  vendor/quote-1.0.7
  vendor/racer
@@ -228,8 +217,8 @@ Files-Excluded:
  vendor/rustc-ap-rustc_session
  vendor/rustc-ap-rustc_span
  vendor/rustc-ap-rustc_target
- vendor/rustc_version-0.3.3
  vendor/rustc_version
+ vendor/ryu-1.0.5
  vendor/salsa
  vendor/salsa-macros
  vendor/schannel
@@ -246,13 +235,11 @@ Files-Excluded:
  vendor/signal-hook-registry
  vendor/sized-chunks
  vendor/slab
- vendor/smallvec-1.6.1
  vendor/smol_str
  vendor/snap-1.0.1
  vendor/socket2
  vendor/strip-ansi-escapes
  vendor/syn-1.0.80
- vendor/synstructure-0.12.4
  vendor/target-lexicon
  vendor/text-size
  vendor/thread_local-1.0.1
@@ -266,10 +253,7 @@ Files-Excluded:
  vendor/tokio-stream
  vendor/tokio-util
  vendor/tower-service
- vendor/tracing-0.1.28
- vendor/tracing-attributes-0.1.17
- vendor/tracing-subscriber-0.2.16
- vendor/tracing-tree-0.1.9
+ vendor/typed-arena
  vendor/ungrammar
  vendor/unicode-bidi-0.3.4
  vendor/unicode-normalization-0.1.13
@@ -280,6 +264,12 @@ Files-Excluded:
  vendor/vergen
  vendor/vte
  vendor/walkdir-2.3.1
+ vendor/windows_aarch64_msvc
+ vendor/windows_i686_gnu
+ vendor/windows_i686_msvc
+ vendor/windows-sys
+ vendor/windows_x86_64_gnu
+ vendor/windows_x86_64_msvc
  vendor/write-json
  vendor/xflags
  vendor/xflags-macros
