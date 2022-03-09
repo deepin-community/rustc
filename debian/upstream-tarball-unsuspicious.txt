@@ -18,6 +18,7 @@ vendor/term-0.6.1/src/terminfo/parser/names.rs
 # False-positive, "verylongtext" but OK
 README.md
 CONTRIBUTING.md
+RELEASES.md
 compiler/rustc_codegen_cranelift/docs/dwarf.md
 compiler/rustc_codegen_gcc/Readme.md
 library/portable-simd/*.md
@@ -25,6 +26,7 @@ library/std/sys/cloudabi/abi/cloudabi.rs
 library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
 library/stdarch/CONTRIBUTING.md
+library/stdarch/crates/core_arch/src/aarch64/neon/generated.rs
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
 src/doc/book/*/tools/docx-to-md.xsl
 src/doc/edition-guide/src/rust-next/cargo-vendor.md
@@ -34,9 +36,11 @@ src/doc/edition-guide/src/rust-2021/prelude.md
 src/doc/embedded-book/src/*/*.md
 src/doc/nomicon/src/intro.md
 src/doc/reference/src/expressions/closure-expr.md
+src/doc/reference/src/inline-assembly.md
 src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/std/arc.md
 src/doc/rust-by-example/src/trait/dyn.md
+src/doc/rust-by-example/src/unsafe/asm.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabihf.md
 src/doc/rustc/src/targets/known-issues.md
@@ -203,6 +207,7 @@ library/stdarch/crates/intrinsic-test/neon-intrinsics.csv
 library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 library/stdarch/crates/stdarch-verify/x86-intel.xml
 library/stdarch/crates/std_detect/src/detect/test_data/*.auxv
+library/core/benches/str.rs
 library/core/tests/num/dec2flt/parse.rs
 src/test/compile-fail/not-utf8.bin
 src/test/debuginfo/type-names.cdb.js
@@ -270,6 +275,8 @@ vendor/libz-sys/src/smoke.c
 vendor/md-5/tests/data/*.blb
 vendor/md-5/tests/data/*.bin
 vendor/mdbook/src/theme/searcher/searcher.js
+vendor/mdbook/test_book/src/individual/paragraph.md
+vendor/mdbook/test_book/src/individual/table.md
 vendor/mdbook/tests/searchindex_fixture.json
 vendor/memchr/src/tests/*.json
 vendor/minifier/tests/files/test.json
