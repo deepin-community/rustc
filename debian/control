@@ -60,11 +60,11 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
  libstd-rust-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
 Recommends:
- cargo (>= 0.65.0~~), cargo (<< 0.66.0~~),
 # llvm is needed for llvm-dwp for -C split-debuginfo=packed
  llvm-14,
 Suggests:
 # lld and clang are needed for wasm compilation
+ cargo (>= 0.65.0~~), cargo (<< 0.66.0~~),
  lld-14, clang-14,
 Replaces: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
 Breaks: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
