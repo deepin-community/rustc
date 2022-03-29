@@ -6,6 +6,7 @@ u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-cc-627.patch
 u-fix-libc-wasi-scope.patch
+u-ui-tests-panic-ignore-env.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
@@ -53,4 +54,3 @@ d-rustc-windows-ssp.patch
 d-rustc-i686-baseline.patch
 # Experimental patch not yet working
 #d-rustc-prefer-dynamic.patch
-u-ui-tests-panic-ignore-env.patch
