@@ -5,6 +5,16 @@ pub type regoff_t = ::c_int;
 pub type __rlimit_resource_t = ::c_uint;
 pub type __priority_which_t = ::c_uint;
 
+cfg_if! {
+    if #[cfg(doc)] {
+        // Used in `linux::arch` to define ioctl constants.
+        pub(crate) type Ioctl = ::c_int;
+    } else {
+        #[doc(hidden)]
+        pub type Ioctl = ::c_int;
+    }
+}
+
 s! {
     pub struct statvfs {  // Different than GNU!
         pub f_bsize: ::c_ulong,
@@ -328,21 +338,6 @@ pub const TIOCGSERIAL: ::c_int = 0x541E;
 pub const TIOCGSOFTCAR: ::c_int = 0x5419;
 pub const TIOCINQ: ::c_int = FIONREAD;
 pub const TIOCLINUX: ::c_int = 0x541C;
-pub const TIOCMBIC: ::c_int = 0x5417;
-pub const TIOCMGET: ::c_int = 0x5415;
-pub const TIOCMBIS: ::c_int = 0x5416;
-pub const TIOCMSET: ::c_int = 0x5418;
-pub const TIOCM_CAR: ::c_int = 0x040;
-pub const TIOCM_CD: ::c_int = TIOCM_CAR;
-pub const TIOCM_CTS: ::c_int = 0x020;
-pub const TIOCM_DSR: ::c_int = 0x100;
-pub const TIOCM_DTR: ::c_int = 0x002;
-pub const TIOCM_LE: ::c_int = 0x001;
-pub const TIOCM_RI: ::c_int = TIOCM_RNG;
-pub const TIOCM_RNG: ::c_int = 0x080;
-pub const TIOCM_RTS: ::c_int = 0x004;
-pub const TIOCM_SR: ::c_int = 0x010;
-pub const TIOCM_ST: ::c_int = 0x008;
 pub const TIOCNXCL: ::c_int = 0x540D;
 pub const TIOCOUTQ: ::c_int = 0x5411;
 pub const TIOCSCTTY: ::c_int = 0x540E;
