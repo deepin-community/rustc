@@ -1,0 +1,98 @@
+From 5665e647618ae1c66a6622b81d4de9bcd0672f1a Mon Sep 17 00:00:00 2001
+From: Aaron Hill <aa1ronham@gmail.com>
+Date: Fri, 17 Dec 2021 14:05:48 -0500
+Subject: [PATCH] Set `RUST_BACKTRACE=0` when running location-detail tests
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This ensures that the output does not depend on environment variables
+set in the shell.
+
+[Fabian Grünbichler]
+picked from https://github.com/rust-lang/rust/pull/92047
+---
+ src/test/ui/panics/location-detail-panic-no-column.rs         | 1 +
+ src/test/ui/panics/location-detail-panic-no-column.run.stderr | 2 +-
+ src/test/ui/panics/location-detail-panic-no-file.rs           | 1 +
+ src/test/ui/panics/location-detail-panic-no-file.run.stderr   | 2 +-
+ src/test/ui/panics/location-detail-panic-no-line.rs           | 1 +
+ src/test/ui/panics/location-detail-unwrap-no-file.rs          | 1 +
+ src/test/ui/panics/location-detail-unwrap-no-file.run.stderr  | 2 +-
+ 7 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/test/ui/panics/location-detail-panic-no-column.rs b/src/test/ui/panics/location-detail-panic-no-column.rs
+index 673e638ca0d..7cf1bb09c92 100644
+--- a/src/test/ui/panics/location-detail-panic-no-column.rs
++++ b/src/test/ui/panics/location-detail-panic-no-column.rs
+@@ -1,6 +1,7 @@
+ // run-fail
+ // check-run-results
+ // compile-flags: -Zlocation-detail=line,file
++// exec-env:RUST_BACKTRACE=0
+ 
+ fn main() {
+     panic!("column-redacted");
+diff --git a/src/test/ui/panics/location-detail-panic-no-column.run.stderr b/src/test/ui/panics/location-detail-panic-no-column.run.stderr
+index 9f35623fba3..46c9b8448d7 100644
+--- a/src/test/ui/panics/location-detail-panic-no-column.run.stderr
++++ b/src/test/ui/panics/location-detail-panic-no-column.run.stderr
+@@ -1,2 +1,2 @@
+-thread 'main' panicked at 'column-redacted', $DIR/location-detail-panic-no-column.rs:6:0
++thread 'main' panicked at 'column-redacted', $DIR/location-detail-panic-no-column.rs:7:0
+ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+diff --git a/src/test/ui/panics/location-detail-panic-no-file.rs b/src/test/ui/panics/location-detail-panic-no-file.rs
+index 0e5d52cfd15..9bcbf01d1c6 100644
+--- a/src/test/ui/panics/location-detail-panic-no-file.rs
++++ b/src/test/ui/panics/location-detail-panic-no-file.rs
+@@ -1,6 +1,7 @@
+ // run-fail
+ // check-run-results
+ // compile-flags: -Zlocation-detail=line,column
++// exec-env:RUST_BACKTRACE=0
+ 
+ fn main() {
+     panic!("file-redacted");
+diff --git a/src/test/ui/panics/location-detail-panic-no-file.run.stderr b/src/test/ui/panics/location-detail-panic-no-file.run.stderr
+index 1e07e3a07af..811f93bf308 100644
+--- a/src/test/ui/panics/location-detail-panic-no-file.run.stderr
++++ b/src/test/ui/panics/location-detail-panic-no-file.run.stderr
+@@ -1,2 +1,2 @@
+-thread 'main' panicked at 'file-redacted', <redacted>:6:5
++thread 'main' panicked at 'file-redacted', <redacted>:7:5
+ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+diff --git a/src/test/ui/panics/location-detail-panic-no-line.rs b/src/test/ui/panics/location-detail-panic-no-line.rs
+index 57f6d0ebcb9..25df092e1fb 100644
+--- a/src/test/ui/panics/location-detail-panic-no-line.rs
++++ b/src/test/ui/panics/location-detail-panic-no-line.rs
+@@ -1,6 +1,7 @@
+ // run-fail
+ // check-run-results
+ // compile-flags: -Zlocation-detail=file,column
++// exec-env:RUST_BACKTRACE=0
+ 
+ fn main() {
+     panic!("line-redacted");
+diff --git a/src/test/ui/panics/location-detail-unwrap-no-file.rs b/src/test/ui/panics/location-detail-unwrap-no-file.rs
+index d7f96f058e0..16cf8a17ff1 100644
+--- a/src/test/ui/panics/location-detail-unwrap-no-file.rs
++++ b/src/test/ui/panics/location-detail-unwrap-no-file.rs
+@@ -1,6 +1,7 @@
+ // run-fail
+ // check-run-results
+ // compile-flags: -Zlocation-detail=line,column
++// exec-env:RUST_BACKTRACE=0
+ 
+ fn main() {
+     let opt: Option<u32> = None;
+diff --git a/src/test/ui/panics/location-detail-unwrap-no-file.run.stderr b/src/test/ui/panics/location-detail-unwrap-no-file.run.stderr
+index f8f84b5c49a..7d8e1d93038 100644
+--- a/src/test/ui/panics/location-detail-unwrap-no-file.run.stderr
++++ b/src/test/ui/panics/location-detail-unwrap-no-file.run.stderr
+@@ -1,2 +1,2 @@
+-thread 'main' panicked at 'called `Option::unwrap()` on a `None` value', <redacted>:7:9
++thread 'main' panicked at 'called `Option::unwrap()` on a `None` value', <redacted>:8:9
+ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+-- 
+2.30.2
+
