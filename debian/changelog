@@ -1,9 +1,9 @@
-rustc (1.59.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.59.0+dfsg1-1~exp1) experimental; urgency=medium
 
   [ Fabian Grünbichler ]
   * New upstream release
 
- -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Wed, 09 Mar 2022 11:52:47 +0100
+ -- Ximin Luo <infinity0@debian.org>  Tue, 29 Mar 2022 14:32:01 +0100
 
 rustc (1.58.1+dfsg1-1) unstable; urgency=medium
 
