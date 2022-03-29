@@ -53,3 +53,4 @@ d-rustc-windows-ssp.patch
 d-rustc-i686-baseline.patch
 # Experimental patch not yet working
 #d-rustc-prefer-dynamic.patch
+u-ui-tests-panic-ignore-env.patch
