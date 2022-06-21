@@ -286,6 +286,11 @@ ifneq (,$(filter $(DEB_BUILD_ARCH), powerpc powerpcspe riscv64 sparc64 x32))
   FAILURES_ALLOWED = 180
 endif
 FAILED_TESTS = grep "FAILED\|^command did not execute successfully" $(TEST_LOG) | grep -v '^test result: FAILED' | grep -v 'FAILED (allowed)'
+# ignore debuginfo failures on armhf due to regression in GDB 11.2
+# https://sourceware.org/bugzilla/show_bug.cgi?id=29272
+ifneq (,$(filter $(DEB_BUILD_ARCH), armhf))
+  FAILED_TESTS += | grep -v '^test \[debuginfo-gdb\] debuginfo/'
+endif
 override_dh_auto_test-arch:
 	# ensure that rustc_llvm is actually dynamically linked to libLLVM
 	set -e; find build/*/stage2/lib/rustlib/* -name '*rustc_llvm*.so' | \
