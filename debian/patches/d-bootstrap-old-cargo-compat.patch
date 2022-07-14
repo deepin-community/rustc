@@ -1,4 +1,6 @@
-Description: Backwards-compat for cargo 0.47
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Backwards-compat for cargo 0.47
 
   The flag being removed here was added in
   https://github.com/rust-lang/cargo/pull/9404 released in cargo 0.54
@@ -9,7 +11,12 @@ Description: Backwards-compat for cargo 0.47
   Therefore it is not needed for Debian's current cargo 0.47.
   
   We can drop this patch when updating to cargo 0.54 and later.
+---
+ src/bootstrap/doc.rs | 3 ---
+ 1 file changed, 3 deletions(-)
 
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index 722dba9..84997ac 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -443,7 +443,6 @@ impl Step for Std {
@@ -20,7 +27,7 @@ Description: Backwards-compat for cargo 0.47
                  .arg("--")
                  .arg("--markdown-css")
                  .arg("rust.css")
-@@ -589,7 +588,6 @@ impl Step for Rustc {
+@@ -584,7 +583,6 @@ impl Step for Rustc {
          cargo.rustdocflag("--generate-link-to-definition");
          compile::rustc_cargo(builder, &mut cargo, target);
          cargo.arg("-Zunstable-options");
@@ -28,7 +35,7 @@ Description: Backwards-compat for cargo 0.47
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
          // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
-@@ -722,7 +720,6 @@ macro_rules! tool_doc {
+@@ -713,7 +711,6 @@ macro_rules! tool_doc {
                      &[],
                  );
  

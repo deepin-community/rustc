@@ -1,6 +1,17 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: d-bootstrap-read-beta-version-from-file
+
+===================================================================
+---
+ src/bootstrap/lib.rs | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
+index 3130dcc..74046e1 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -1161,15 +1161,13 @@ impl Build {
+@@ -1164,15 +1164,13 @@ impl Build {
              return s;
          }
  

@@ -1,7 +1,16 @@
-Index: rust/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: d-remove-arm-privacy-breaches
+
 ===================================================================
---- rust.orig/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
-+++ rust/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+---
+ .../crates/stdarch-verify/arm-intrinsics.html      | 134 ---------------------
+ 1 file changed, 134 deletions(-)
+
+diff --git a/library/stdarch/crates/stdarch-verify/arm-intrinsics.html b/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+index ac246c6..f945431 100644
+--- a/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
++++ b/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 @@ -20,17 +20,12 @@
  <meta name="keywords" content="">
  <meta content="Copyright &#169; 1995-2018 Arm Limited (or its affiliates). All rights reserved." name="copyright">
@@ -85,7 +94,7 @@ Index: rust/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
      
      <div class="c-feedback-message-container u-no-print"><style>
  /* Docs top margin fix */
-@@ -245,7 +190,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'
+@@ -245,7 +190,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                              <span class="navigation-dropdown-label">
                                  <a href="/">
                                      <span>
@@ -93,7 +102,7 @@ Index: rust/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
                                      </span>
                                      <i class="fa fa-caret-down"></i>
                                  </a>
-@@ -437,7 +381,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'
+@@ -437,7 +381,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
  
  </div>
  
@@ -101,7 +110,7 @@ Index: rust/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
  
                          </li>
                      </ul>
-@@ -93318,82 +93261,5 @@ names are the property of their respecti
+@@ -93318,82 +93261,5 @@ names are the property of their respective holders. <a href="http://www.arm.com/
          
      </div>
  

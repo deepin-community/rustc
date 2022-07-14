@@ -70,7 +70,7 @@ index cae48d7..6ab0782 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 6c1128b..985f279 100644
+index 812f616..e17af37 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
 @@ -1036,10 +1036,6 @@ class RustBuild(object):

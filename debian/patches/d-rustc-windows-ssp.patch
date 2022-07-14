@@ -1,5 +1,14 @@
-Bug: https://github.com/rust-lang/rust/issues/68973
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-rustc-windows-ssp
 
+Bug: https://github.com/rust-lang/rust/issues/68973
+---
+ compiler/rustc_target/src/spec/windows_gnu_base.rs | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/compiler/rustc_target/src/spec/windows_gnu_base.rs b/compiler/rustc_target/src/spec/windows_gnu_base.rs
+index 35a5289..861f590 100644
 --- a/compiler/rustc_target/src/spec/windows_gnu_base.rs
 +++ b/compiler/rustc_target/src/spec/windows_gnu_base.rs
 @@ -36,6 +36,8 @@ pub fn opts() -> TargetOptions {
