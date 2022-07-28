@@ -4,11 +4,7 @@
 # you are blindly adding files here just to get the build to work, you are
 # probably Doing It Wrong. Ask in #debian-rust or the mailing list for pointers.
 
-# False-positive, very small so suspicious-source thinks "octet-stream"
-src/test/run-pass/raw-str.rs
-
 # False-positive, file(1) misidentifies mime type
-src/ci/docker/*/patches/glibc/*/*.patch
 vendor/itertools*/examples/iris.data
 vendor/regex/tests/unicode.rs
 vendor/regex/tests/suffix_reverse.rs
@@ -21,15 +17,12 @@ CONTRIBUTING.md
 RELEASES.md
 compiler/rustc_codegen_cranelift/docs/dwarf.md
 compiler/rustc_codegen_gcc/Readme.md
+library/core/src/ffi/c_*.md
 library/portable-simd/*.md
-library/std/sys/cloudabi/abi/cloudabi.rs
-library/std/src/os/raw/*.md
 library/std/src/sys/sgx/abi/entry.S
 library/stdarch/CONTRIBUTING.md
 library/stdarch/crates/core_arch/src/aarch64/neon/generated.rs
 src/doc/book/first-edition/src/the-stack-and-the-heap.md
-src/doc/book/*/tools/docx-to-md.xsl
-src/doc/edition-guide/src/rust-next/cargo-vendor.md
 src/doc/edition-guide/src/rust-2018/index.md
 src/doc/edition-guide/src/rust-2021/disjoint-capture-in-closures.md
 src/doc/edition-guide/src/rust-2021/prelude.md
@@ -41,21 +34,19 @@ src/doc/rust-by-example/src/flow_control/if_let.md
 src/doc/rust-by-example/src/std/arc.md
 src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rust-by-example/src/unsafe/asm.md
+src/doc/rustc/src/instrument-coverage.md
 src/doc/rustc/src/lints/groups.md
 src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabihf.md
 src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabi.md
 src/doc/rustc/src/targets/known-issues.md
-src/doc/rustc-dev-guide/.travis.yml
 src/doc/rustc-dev-guide/src/*.md
 src/doc/rustc-dev-guide/src/*/*.md
 src/doc/rustdoc/src/*.md
 src/doc/*/CODE_OF_CONDUCT.md
 src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
-src/librustc_codegen_ssa/README.md
 src/librustdoc/html/highlight/fixtures/sample.html
 src/tools/rustfmt/*.md
-vendor/*/.travis.yml
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
 vendor/*/CODE_OF_CONDUCT.md
@@ -67,32 +58,24 @@ vendor/*/*/LICENSE
 vendor/*/*/*/LICENSE
 vendor/ahash/FAQ.md
 vendor/ammonia/src/lib.rs
-vendor/base64/RELEASE-NOTES.md
-vendor/clap/SPONSORS.md
-vendor/clap/.github/CONTRIBUTING.md
 vendor/clap-2.34.0/SPONSORS.md
-vendor/cranelift-codegen/src/isa/x86/unwind/systemv.rs
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
 vendor/mdbook/CONTRIBUTING.md
 vendor/lazy_static/src/lib.rs
-vendor/oorandom/tarpaulin-report.html
 vendor/pulldown-cmark/tests/suite/footnotes.rs
-vendor/pulldown-cmark/third_party/xi-editor/crdt.md
-vendor/pulldown-cmark/specs/footnotes.txt
-vendor/pulldown-cmark-*/tests/suite/footnotes.rs
-vendor/pulldown-cmark-*/third_party/xi-editor/crdt.md
-vendor/pulldown-cmark-*/specs/footnotes.txt
 vendor/rustc-demangle/src/legacy.rs
-vendor/socket2/diff.patch
 vendor/stable_deref_trait/src/lib.rs
 vendor/tinyvec/LICENSE-*.md
 vendor/tracing-subscriber/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
 vendor/unicode-normalization/src/stream_safe.rs
-vendor/winapi-*/src/winnt.rs
 vendor/winapi/src/lib.rs
+vendor/windows-sys/src/Windows/Win32/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
 vendor/xml5ever/examples/README.md
 
 # False-positive, audit-vendor-source automatically flags JS/C files
@@ -104,65 +87,39 @@ src/ci/docker/scripts/qemu-bare-bones-addentropy.c
 src/doc/book/*/ferris.js
 src/doc/book/ferris.js
 src/etc/wasm32-shim.js
-src/grammar/parser-lalr-main.c
 src/librustdoc/html/static/js/*.js
 src/librustdoc/html/static/.eslintrc.js
 src/test/auxiliary/rust_test_helpers.c
 src/test/run-make/*/*.c
 src/test/run-make/wasm-*/*.js
-src/test/run-make-fulldeps/*.c
 src/test/run-make-fulldeps/*/*.c
 src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
-src/tools/rustdoc-js-std/tester.js
 src/tools/rustdoc-gui/tester.js
-vendor/errno-dragonfly/src/errno.c
 vendor/handlebars/src/template.rs
-vendor/raw-cpuid/src/cpuid.c
-vendor/salsa/book/mermaid-init.js
 vendor/stacker/src/arch/windows.c
 
 # Embedded libraries, justified in README.source
-library/backtrace/crates/backtrace-sys/src/libbacktrace/configure
-library/backtrace/crates/backtrace-sys/src/libbacktrace/config/libtool.m4
-library/backtrace/crates/backtrace-sys/src/libbacktrace/*.c
-library/backtrace/crates/backtrace-sys/src/android-api.c
-vendor/compiler_builtins/compiler-rt/lib/BlocksRuntime/*.c
-vendor/compiler_builtins/compiler-rt/lib/builtins/*.c
-vendor/compiler_builtins/compiler-rt/lib/builtins/*/*.c
-vendor/compiler_builtins/compiler-rt/utils/generate_*.awk
 vendor/dlmalloc/src/dlmalloc.c
 vendor/mdbook/src/theme/book.js
 vendor/mdbook/src/theme/searcher/searcher.js
 vendor/walkdir/compare/nftw.c
-vendor/walkdir-*/compare/nftw.c
+vendor/windows_*_gnu/lib/libwindows.a
+vendor/windows_*_msvc/lib/windows.lib
 
 # False-positive, misc
-library/backtrace/crates/backtrace-sys/src/libbacktrace/libtool.m4
-library/stdarch/.travis.yml
-library/stdarch/crates/core_arch/foo.wasm
-src/ci/docker/host-x86_64/shared/ISRG_Root_X1.crt
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
 src/stage0.json
 src/test/run-make-fulldeps/target-specs/*.json
-src/test/run-make-fulldeps/libtest-json/output.json
 src/tools/clippy/.remarkrc
-vendor/clap/.mention-bot
-vendor/cloudabi/cloudabi.rs
 vendor/elasticlunr-rs/src/lang/*.rs
-vendor/inotify-sys/inotify-sys.sublime-project
-vendor/markup5ever/data/entities.json
-vendor/num/ci/deploy.enc
-vendor/term-0*/scripts/id_rsa.enc
 
 # False-positive, hand-editable small image
 src/etc/installer/gfx/
 src/doc/embedded-book/src/assets/*.png
 src/doc/embedded-book/src/assets/*.svg
 src/doc/embedded-book/src/assets/f3.jpg
-src/doc/embedded-book/src/assets/nrf52-memory-map.png
-src/doc/embedded-book/src/assets/nrf52-spi-frequency-register.png
 src/doc/embedded-book/src/assets/verify.jpeg
 src/doc/nomicon/src/img/safeandunsafe.svg
 src/doc/book/second-edition/src/img/*.png
@@ -180,23 +137,11 @@ src/doc/rustc-dev-guide/src/queries/example-0.png
 src/doc/rustc-dev-guide/src/img/*.png
 src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
 src/librustdoc/html/static/images/*.svg
-src/librustdoc/html/static/images/rust-logo.png
-src/librustdoc/html/static/images/favicon.ico
 src/librustdoc/html/static/images/favicon-*.png
 src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
-vendor/addr2line/memory.png
-vendor/addr2line/time.png
-vendor/base64/icon_CLion.svg
-vendor/difference/assets/*.png
-vendor/fortanix-sgx-abi/images/enclave-execution-lifecycle.png
-vendor/heck/no_step_on_snek.png
 vendor/mdbook/src/theme/favicon.svg
 vendor/mdbook/src/theme/favicon.png
-vendor/num/doc/favicon.ico
-vendor/num/doc/rust-logo-128x128-blk-v2.png
-vendor/pest/pest-logo.svg
 vendor/pretty_assertions/examples/*.png
-vendor/termion/logo.svg
 
 # Example code
 vendor/html5ever/examples/capi/tokenize.c
@@ -206,24 +151,16 @@ library/portable-simd/crates/core_simd/webdriver.json
 library/portable-simd/crates/core_simd/tests/mask_ops_impl/*.rs
 library/std/src/sys/windows/path/tests.rs
 library/stdarch/ci/gba.json
-library/stdarch/crates/intrinsic-test/neon-intrinsics.csv
 library/stdarch/crates/stdarch-verify/arm-intrinsics.html
 library/stdarch/crates/stdarch-verify/x86-intel.xml
 library/stdarch/crates/std_detect/src/detect/test_data/*.auxv
 library/core/benches/str.rs
 library/core/tests/num/dec2flt/parse.rs
-src/test/compile-fail/not-utf8.bin
 src/test/debuginfo/type-names.cdb.js
 src/test/mir-opt/*.mir
 src/test/mir-opt/*.diff
-src/test/mir-opt/*.diff.*
 src/test/mir-opt/*/*.mir
 src/test/mir-opt/*/*.diff
-src/test/mir-opt/*/*.diff.*
-src/test/mir-opt/*/*/*.mir
-src/test/mir-opt/*/*/*.diff
-src/test/mir-opt/*/*/*/*.mir
-src/test/mir-opt/*/*/*/*.diff
 src/test/*/*.rs
 src/test/*/issues/*.rs
 src/test/*/*/issue-*.rs
@@ -235,14 +172,10 @@ src/test/*/*/*.stderr
 src/test/*/*/*.stdout
 src/test/*/*/*/*.stdout
 src/test/*/*/*/*.stderr
-src/test/*/*/*/*/*.stdout
 src/test/*/*/*/*/*.stderr
 src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/run-make/*-sgx-lvi/enclave/*.c
-src/test/run-make-fulldeps/*/*/*.html
-src/test/rustdoc-json/*.expected
 src/test/ui/macros/not-utf8.bin
-src/test/ui/terminal-width/non-whitespace-trimming*.rs
 src/tools/*/tests/*/*.stderr
 src/tools/clippy/tests/ui-toml/*/*.stderr
 src/tools/clippy/tests/ui/wildcard_enum_match_arm.fixed
@@ -253,8 +186,6 @@ src/tools/rustfmt/tests/source/*/*.rs
 src/tools/rustfmt/tests/target/issue-5088/very_long_comment_wrap_comments_false.rs
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
-vendor/cssparser/src/big-data-url.css
-vendor/cssparser/src/css-parsing-tests/*.json
 vendor/dissimilar/benches/*.txt
 vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
@@ -262,23 +193,12 @@ vendor/flate2/tests/*.gz
 vendor/flate2/tests/corrupt-gz-file.bin
 vendor/gimli-0*/fixtures/self/*
 vendor/gimli/fixtures/self/*
-vendor/goblin/etc/*.rs
-vendor/goblin/tests/bins/elf/gnu_hash/*.so
-vendor/goblin/tests/bins/elf/gnu_hash/helloworld.c
 vendor/gsgdt/tests/*.json
 vendor/html5ever/data/bench/*.html
-vendor/html5ever/html5lib-tests/*/*.dat
-vendor/html5ever/html5lib-tests/*/*.test
-vendor/idna-0*/tests/IdnaTest.txt
-vendor/idna-0*/tests/punycode_tests.json
 vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
-vendor/itertools/examples/iris.data
 vendor/libloading/tests/*.dll
-vendor/libz-sys/src/smoke.c
-vendor/md-5/tests/data/*.bin
 vendor/md-5/tests/data/*.blb
-vendor/mdbook/src/theme/searcher/searcher.js
 vendor/mdbook/test_book/src/individual/paragraph.md
 vendor/mdbook/test_book/src/individual/table.md
 vendor/mdbook/tests/searchindex_fixture.json
@@ -288,13 +208,7 @@ vendor/minifier/tests/files/minified_main.js
 vendor/minifier/tests/files/test.json
 vendor/minimal-lexical/tests/parse_tests.rs
 vendor/minimal-lexical/tests/slow_tests.rs
-vendor/pest/benches/data.json
 vendor/petgraph/tests/res/*.txt
-vendor/pretty_assertions/src/format_changeset.rs
-vendor/regex-0*/src/testdata/basic.dat
-vendor/regex-0*/tests/fowler.rs
-vendor/regex-1*/src/testdata/basic.dat
-vendor/regex-1*/tests/fowler.rs
 vendor/regex-automata/data/fowler-tests/basic.dat
 vendor/regex-automata/data/tests/fowler/basic.dat
 vendor/regex/src/testdata/basic.dat
@@ -305,21 +219,13 @@ vendor/rustc-demangle/src/v0-large-test-symbols/early-recursion-limit
 vendor/serde_json/tests/lexical/parse.rs
 vendor/sha-1-0*/tests/data/*.bin
 vendor/sha-1-0*/tests/data/*.blb
-vendor/sha-1/tests/data/*.bin
 vendor/sha-1/tests/data/*.blb
-vendor/sha2/tests/data/*.bin
 vendor/sha2/tests/data/*.blb
-vendor/snap/data/*
-vendor/tar/tests/archives/*.tar
 vendor/term-0*/tests/data/*
 vendor/term/tests/data/*
-vendor/toml/tests/*/*.toml
-vendor/toml/tests/*/*.json
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
-vendor/url-1*/tests/*.json
 vendor/xml5ever/data/bench/strong.xml
-vendor/yaml-rust/tests/specexamples.rs.inc
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
 
 
@@ -382,13 +288,8 @@ vendor/miniz_oxide/src/inflate/mod.rs
 vendor/thiserror-impl/src/attr.rs
 vendor/shlex/src/lib.rs
 vendor/semver/src/parse.rs
-vendor/semver-0.11.0/src/version_req.rs
 vendor/rustc-rayon/tests/sort-panic-safe.rs
 vendor/xml5ever/src/tokenizer/char_ref/mod.rs
-vendor/pulldown-cmark-0.7.2/tests/lib.rs
-vendor/pulldown-cmark-0.7.2/benches/html_rendering.rs
-vendor/pulldown-cmark-0.7.2/src/linklabel.rs
-vendor/pulldown-cmark-0.7.2/src/simd.rs
 vendor/url/src/parser.rs
 vendor/utf-8/tests/unit.rs
 vendor/rustversion/src/attr.rs
@@ -398,15 +299,11 @@ vendor/digest/src/dev.rs
 vendor/proc-macro2/src/parse.rs
 vendor/xz2/src/stream.rs
 vendor/xz2/src/bufread.rs
-vendor/tera/src/utils.rs
-vendor/tera/src/renderer/tests/square_brackets.rs
-vendor/tera/src/renderer/tests/whitespace.rs
 vendor/digest-0.8.1/src/dev.rs
 vendor/structopt/tests/custom-string-parsers.rs
 vendor/structopt/tests/non_literal_attributes.rs
 vendor/pulldown-cmark/tests/lib.rs
 vendor/pulldown-cmark/src/linklabel.rs
-vendor/pulldown-cmark/src/simd.rs
 vendor/pulldown-cmark/benches/html_rendering.rs
 vendor/gimli/src/read/aranges.rs
 vendor/gimli/src/read/rnglists.rs
@@ -434,7 +331,6 @@ vendor/syn/src/custom_punctuation.rs
 vendor/syn/src/path.rs
 vendor/syn/src/attr.rs
 vendor/syn/src/group.rs
-vendor/semver-parser/src/range_set.rs
 vendor/sha2/src/sha512.rs
 vendor/sha2/src/sha256.rs
 vendor/compiler_builtins/libm/src/math/atan.rs
@@ -449,5 +345,4 @@ src/tools/clippy/clippy_lints/src/needless_pass_by_value.rs
 src/tools/clippy/clippy_lints/src/pass_by_ref_or_value.rs
 src/tools/rustfmt/src/string.rs
 src/tools/rustfmt/src/formatting.rs
-src/tools/rustfmt/src/syntux/parser.rs
 library/std/src/sys/unix/process/process_unix.rs
