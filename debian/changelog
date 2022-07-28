@@ -1,8 +1,10 @@
-rustc (1.61.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.61.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
 
- -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Thu, 28 Jul 2022 14:17:51 +0200
+  * Switch to LLVM-14 (Closes: #1017656)
+
+ -- Fabian Gruenbichler <f.gruenbichler@proxmox.com>  Wed, 07 Sep 2022 17:33:04 +0200
 
 rustc (1.60.0+dfsg1-1) unstable; urgency=medium
 
