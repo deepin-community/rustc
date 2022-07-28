@@ -11,7 +11,7 @@ diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
 index 3130dcc..74046e1 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -1164,15 +1164,13 @@ impl Build {
+@@ -1230,15 +1230,13 @@ impl Build {
              return s;
          }
  

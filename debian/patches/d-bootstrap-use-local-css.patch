@@ -11,7 +11,7 @@ diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
 index a780474..722dba9 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -375,6 +375,10 @@ impl Step for Standalone {
+@@ -373,6 +373,10 @@ impl Step for Standalone {
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
                  .arg("https://play.rust-lang.org/")
@@ -22,7 +22,7 @@ index a780474..722dba9 100644
                  .arg("-o")
                  .arg(&out)
                  .arg(&path);
-@@ -383,17 +387,6 @@ impl Step for Standalone {
+@@ -381,17 +385,6 @@ impl Step for Standalone {
                  cmd.arg("--disable-minification");
              }
  

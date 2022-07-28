@@ -28,7 +28,7 @@ diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codege
 index 58e0667..bd08a83 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -1991,6 +1991,13 @@ fn add_order_independent_options(
+@@ -2015,6 +2015,13 @@ fn add_order_independent_options(
      }
  
      add_rpath_args(cmd, sess, codegen_results, out_filename);
@@ -41,4 +41,4 @@ index 58e0667..bd08a83 100644
 +    }
  }
  
- /// # Native library linking
+ // A dylib may reexport symbols from the linked rlib or native static library.

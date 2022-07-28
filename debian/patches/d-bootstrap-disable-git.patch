@@ -14,7 +14,7 @@ diff --git a/src/bootstrap/channel.rs b/src/bootstrap/channel.rs
 index 6478578..774d71d 100644
 --- a/src/bootstrap/channel.rs
 +++ b/src/bootstrap/channel.rs
-@@ -30,7 +30,11 @@ pub struct Info {
+@@ -29,7 +29,11 @@ pub struct Info {
  impl GitInfo {
      pub fn new(ignore_git: bool, dir: &Path) -> GitInfo {
          // See if this even begins to look like a git dir
@@ -31,7 +31,7 @@ diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
 index f5ae810..9b3785b 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -895,7 +895,10 @@ impl Step for PlainSourceTarball {
+@@ -890,7 +890,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.

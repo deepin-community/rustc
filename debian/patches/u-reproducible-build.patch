@@ -11,7 +11,7 @@ diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
 index 3b6808d..4d5137c 100644
 --- a/compiler/rustc_llvm/build.rs
 +++ b/compiler/rustc_llvm/build.rs
-@@ -122,6 +122,11 @@ fn main() {
+@@ -183,6 +183,11 @@ fn main() {
      let mut cfg = cc::Build::new();
      cfg.warnings(false);
      for flag in cxxflags.split_whitespace() {

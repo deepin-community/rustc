@@ -19,24 +19,24 @@ index 161a27a..6d2bb7b 100644
 @@ -12,7 +12,7 @@ pub fn target() -> Target {
              endian: Endian::Big,
              // NOTE(mips64r2) matches C toolchain
-             cpu: "mips64r2".to_string(),
--            features: "+mips64r2".to_string(),
-+            features: "+mips64r2,+xgot".to_string(),
+             cpu: "mips64r2".into(),
+-            features: "+mips64r2".into(),
++            features: "+mips64r2,+xgot".into(),
              max_atomic_width: Some(64),
-             mcount: "_mcount".to_string(),
+             mcount: "_mcount".into(),
  
 diff --git a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 index 2f58560..ed9fda5 100644
 --- a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 @@ -10,7 +10,7 @@ pub fn target() -> Target {
-             abi: "abi64".to_string(),
+             abi: "abi64".into(),
              // NOTE(mips64r2) matches C toolchain
-             cpu: "mips64r2".to_string(),
--            features: "+mips64r2".to_string(),
-+            features: "+mips64r2,+xgot".to_string(),
+             cpu: "mips64r2".into(),
+-            features: "+mips64r2".into(),
++            features: "+mips64r2,+xgot".into(),
              max_atomic_width: Some(64),
-             mcount: "_mcount".to_string(),
+             mcount: "_mcount".into(),
  
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
 index e17af37..7c06278 100644

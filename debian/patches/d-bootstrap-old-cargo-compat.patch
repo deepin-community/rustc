@@ -19,7 +19,7 @@ diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
 index 722dba9..84997ac 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -443,7 +443,6 @@ impl Step for Std {
+@@ -447,7 +447,6 @@ impl Step for Std {
              cargo
                  .arg("-p")
                  .arg(package)
@@ -27,7 +27,7 @@ index 722dba9..84997ac 100644
                  .arg("--")
                  .arg("--markdown-css")
                  .arg("rust.css")
-@@ -584,7 +583,6 @@ impl Step for Rustc {
+@@ -588,7 +587,6 @@ impl Step for Rustc {
          cargo.rustdocflag("--generate-link-to-definition");
          compile::rustc_cargo(builder, &mut cargo, target);
          cargo.arg("-Zunstable-options");
@@ -35,7 +35,7 @@ index 722dba9..84997ac 100644
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
          // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
-@@ -713,7 +711,6 @@ macro_rules! tool_doc {
+@@ -717,7 +715,6 @@ macro_rules! tool_doc {
                      &[],
                  );
  

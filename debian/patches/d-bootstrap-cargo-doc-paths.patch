@@ -140,7 +140,7 @@ diff --git a/src/doc/reference/src/conditional-compilation.md b/src/doc/referenc
 index 8085cbf..f283b6d 100644
 --- a/src/doc/reference/src/conditional-compilation.md
 +++ b/src/doc/reference/src/conditional-compilation.md
-@@ -335,6 +335,6 @@ println!("I'm running on a {} machine!", machine_kind);
+@@ -351,6 +351,6 @@ println!("I'm running on a {} machine!", machine_kind);
  [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
  [attribute]: attributes.md
  [attributes]: attributes.md
@@ -228,7 +228,7 @@ diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
 index 59c308a..3359e57 100644
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
-@@ -275,6 +275,12 @@ impl Checker {
+@@ -285,6 +285,12 @@ impl Checker {
                              return;
                          }
                      }
