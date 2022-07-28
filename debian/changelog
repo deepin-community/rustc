@@ -1,3 +1,9 @@
+rustc (1.61.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Thu, 28 Jul 2022 14:17:51 +0200
+
 rustc (1.60.0+dfsg1-1) unstable; urgency=medium
 
   * Ignore more test failures on mips64el for lack of inline assembly support.
