@@ -7,10 +7,10 @@ Subject: d-0006-no-jemalloc
  1 file changed, 6 deletions(-)
 
 diff --git a/compiler/rustc/Cargo.toml b/compiler/rustc/Cargo.toml
-index 696c003..9ec9c8c 100644
+index b642e89..222b02a 100644
 --- a/compiler/rustc/Cargo.toml
 +++ b/compiler/rustc/Cargo.toml
-@@ -10,12 +10,6 @@ rustc_driver = { path = "../rustc_driver" }
+@@ -10,13 +10,7 @@ rustc_driver = { path = "../rustc_driver" }
  # crate is intended to be used by codegen backends, which may not be in-tree.
  rustc_codegen_ssa = { path = "../rustc_codegen_ssa" }
  
@@ -23,3 +23,4 @@ index 696c003..9ec9c8c 100644
 -jemalloc = ['tikv-jemalloc-sys']
  llvm = ['rustc_driver/llvm']
  max_level_info = ['rustc_driver/max_level_info']
+ rustc_use_parallel_compiler = ['rustc_driver/rustc_use_parallel_compiler']

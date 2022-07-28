@@ -4,17 +4,17 @@ Subject: d-0003-mdbook-strip-embedded-libs
 
 Comment: Use https://github.com/infinity0/mdBook/tree/debian to help you rebase the patch on top of a newer version. . Make sure the paths here match the ones in debian/rust-doc.links
 ---
- src/tools/linkchecker/main.rs                      | 16 +++-
+ src/tools/linkchecker/main.rs                      | 28 ++++++-
  vendor/mdbook/src/book/init.rs                     |  6 --
  .../src/renderer/html_handlebars/hbs_renderer.rs   | 80 ++-----------------
  .../mdbook/src/renderer/html_handlebars/search.rs  |  2 -
  vendor/mdbook/src/theme/index.hbs                  | 93 +---------------------
  vendor/mdbook/src/theme/mod.rs                     | 27 -------
  vendor/mdbook/src/theme/searcher/mod.rs            |  2 -
- 7 files changed, 24 insertions(+), 202 deletions(-)
+ 7 files changed, 35 insertions(+), 203 deletions(-)
 
 diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
-index 46daaf4..59c308a 100644
+index c9b1649..a22dc5f 100644
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
 @@ -183,7 +183,17 @@ impl Checker {

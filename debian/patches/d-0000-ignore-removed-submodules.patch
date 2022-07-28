@@ -14,10 +14,10 @@ Subject: d-0000-ignore-removed-submodules
  8 files changed, 3 insertions(+), 60 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index cae48d7..6ab0782 100644
+index 4e78399..8f1054b 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -17,25 +17,14 @@ members = [
+@@ -18,25 +18,14 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -43,7 +43,7 @@ index cae48d7..6ab0782 100644
    "src/tools/lld-wrapper",
  ]
  
-@@ -105,25 +94,9 @@ debug = 0
+@@ -106,25 +95,9 @@ debug = 0
  # Only use debuginfo=1 to further reduce compile times.
  bootstrap.debug = 1
  
@@ -70,7 +70,7 @@ index cae48d7..6ab0782 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 812f616..e17af37 100644
+index 71b8f3c..580c442 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
 @@ -1036,10 +1036,6 @@ class RustBuild(object):
@@ -85,10 +85,10 @@ index 812f616..e17af37 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 0d387ff..7e6ca02 100644
+index e816f9b..4cf9219 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -573,7 +573,6 @@ impl<'a> Builder<'a> {
+@@ -568,7 +568,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -96,15 +96,15 @@ index 0d387ff..7e6ca02 100644
                  doc::Clippy,
                  doc::EmbeddedBook,
                  doc::EditionGuide,
-@@ -597,7 +596,6 @@ impl<'a> Builder<'a> {
+@@ -592,7 +591,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
 -                dist::Extended,
                  // It seems that PlainSourceTarball somehow changes how some of the tools
-                 // perceive their dependencies (see #93033) which would invaliate fingerprints
+                 // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -1624,10 +1622,7 @@ impl<'a> Builder<'a> {
+@@ -1651,10 +1649,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -117,10 +117,10 @@ index 0d387ff..7e6ca02 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 23b5ddc..a780474 100644
+index 5f16716..6cee2b6 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -76,7 +76,6 @@ macro_rules! book {
+@@ -74,7 +74,6 @@ macro_rules! book {
  // FIXME: Make checking for a submodule automatic somehow (maybe by having a list of all submodules
  // and checking against it?).
  book!(
@@ -129,10 +129,10 @@ index 23b5ddc..a780474 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
      Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 19d98df..052b09a 100644
+index 339b7a8..4adc1a7 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1845,17 +1845,7 @@ impl Step for RustcGuide {
+@@ -1867,17 +1867,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -152,7 +152,7 @@ index 19d98df..052b09a 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index e445889..fbe037e 100644
+index 123af238..e9caaac 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -34,11 +34,6 @@ regex = "1.5"
@@ -168,7 +168,7 @@ index e445889..fbe037e 100644
  clippy_utils = { path = "clippy_utils" }
  derive-new = "0.5"
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 8d9c4a7..f92b1dc 100644
+index 7647146..22fef44 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -58,9 +58,4 @@ lazy_static = "1.0.0"
@@ -182,10 +182,10 @@ index 8d9c4a7..f92b1dc 100644
 -
  # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index 52429fe..e2cf72b 100644
+index ab4be43..d35f277 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -272,7 +272,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -273,7 +273,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.

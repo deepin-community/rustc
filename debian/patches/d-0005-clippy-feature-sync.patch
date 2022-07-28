@@ -10,7 +10,7 @@ this is what rustc_workspace_hack does in the upstream build.
  2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index fbe037e..f123552 100644
+index e9caaac..d2be4ad 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -25,6 +25,7 @@ clippy_lints = { version = "0.1", path = "clippy_lints" }
@@ -22,7 +22,7 @@ index fbe037e..f123552 100644
  [dev-dependencies]
  cargo_metadata = "0.14"
 @@ -41,7 +42,7 @@ if_chain = "1.0"
- itertools = "0.10"
+ itertools = "0.10.1"
  quote = "1.0"
  serde = { version = "1.0", features = ["derive"] }
 -syn = { version = "1.0", features = ["full"] }
@@ -31,11 +31,11 @@ index fbe037e..f123552 100644
  parking_lot = "0.11.2"
  tokio = { version = "1", features = ["io-util"] }
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index f92b1dc..9e3b2a7 100644
+index 22fef44..1dba61d 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -36,7 +36,7 @@ generic-simd = ["bytecount/generic-simd"]
- itertools = "0.9"
+ itertools = "0.10.1"
  toml = "0.5"
  serde = { version = "1.0", features = ["derive"] }
 -serde_json = "1.0"

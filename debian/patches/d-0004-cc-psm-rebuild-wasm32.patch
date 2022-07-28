@@ -8,10 +8,10 @@ Subject: d-0004-cc-psm-rebuild-wasm32
  2 files changed, 3 insertions(+), 6 deletions(-)
 
 diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
-index a268fbe..b13944c 100644
+index e3a2b98..9312931 100644
 --- a/vendor/cc/src/lib.rs
 +++ b/vendor/cc/src/lib.rs
-@@ -2193,7 +2193,7 @@ impl Build {
+@@ -2238,7 +2238,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {
