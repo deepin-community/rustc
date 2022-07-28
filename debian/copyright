@@ -279,7 +279,6 @@ Files: C*.md
        library/*
        src/README.md
        src/bootstrap/*
-       src/build_helper/*
        src/ci/*
        src/doc/*
        src/etc/*
@@ -565,10 +564,10 @@ License: MIT or Apache-2.0
 Comment: see https://github.com/cryptocorrosion/cryptocorrosion
 
 Files:
- vendor/chalk-derive/*
+ vendor/chalk-derive-0.80.0/*
  vendor/chalk-engine/*
- vendor/chalk-ir/*
- vendor/chalk-solve/*
+ vendor/chalk-ir-0.80.0/*
+ vendor/chalk-solve-0.80.0/*
 Copyright:
  2015-2022 Rust Compiler Team
  2015-2022 Chalk developers
@@ -653,7 +652,6 @@ Files:
  vendor/either/*
  vendor/fixedbitset/*
  vendor/itertools/*
- vendor/itertools-0*/*
  vendor/maplit/*
  vendor/scopeguard/*
 Copyright: 2014-2020 bluss
@@ -751,7 +749,9 @@ Copyright: 2017-2018 Without Boats <woboats@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/withoutboats/heck
 
-Files: vendor/hermit-abi/*
+Files:
+ vendor/hermit-abi/*
+ vendor/hermit-abi-0.1.19/*
 Copyright: 2019-2019 Stefan Lankes
 License: MIT or Apache-2.0
 Comment: see https://github.com/hermitcore/hermit-abi
@@ -936,7 +936,9 @@ Files:
  vendor/hashbrown-0.11.2/*
  vendor/lock_api/*
  vendor/thread_local/*
+ vendor/parking_lot/*
  vendor/parking_lot-0.11.2/*
+ vendor/parking_lot_core/*
  vendor/parking_lot_core-0.8.5/*
 Copyright: 2016-2019 Amanieu d'Antras <amanieu@gmail.com>
 License: MIT or Apache-2.0
@@ -1477,6 +1479,17 @@ Files: vendor/wasi-0.9.0+wasi-snapshot-preview1/*
 Copyright: 2019-2022 The Cranelift Project Developers
 License: Apache-2.0-with-LLVM-exception OR Apache-2.0 OR MIT
 Comment: see https://github.com/bytecodealliance/wasi
+
+Files:
+ vendor/windows_aarch64_msvc/*
+ vendor/windows_i686_gnu/*
+ vendor/windows_i686_msvc/*
+ vendor/windows-sys/*
+ vendor/windows_x86_64_gnu/*
+ vendor/windows_x86_64_msvc/*
+Copyright: 2019-2022 Microsoft Corporation
+License: MIT OR Apache-2.0
+Comment: see https://github.com/microsoft/windows-rs
 
 Files: debian/*
 Copyright: 2013-2018 Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
