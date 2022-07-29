@@ -46,6 +46,7 @@ src/doc/*/CODE_OF_CONDUCT.md
 src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustdoc/html/highlight/fixtures/sample.html
+src/librustdoc/html/static/scrape-examples-help.md
 src/tools/rustfmt/*.md
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
@@ -63,6 +64,7 @@ vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/maplit/README.rst
 vendor/mdbook/CONTRIBUTING.md
+vendor/miniz_oxide/Readme.md
 vendor/lazy_static/src/lib.rs
 vendor/pulldown-cmark/tests/suite/footnotes.rs
 vendor/rustc-demangle/src/legacy.rs
@@ -76,7 +78,6 @@ vendor/windows-sys/src/Windows/Win32/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
-vendor/xml5ever/examples/README.md
 
 # False-positive, audit-vendor-source automatically flags JS/C files
 # The below ones are OK since they're actually part of rust's own source code
@@ -135,7 +136,6 @@ src/doc/rustc/src/images/*.png
 src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
 src/doc/rustc-dev-guide/src/img/*.png
-src/doc/unstable-book/src/compiler-flags/img/llvm-cov-show-01.png
 src/librustdoc/html/static/images/*.svg
 src/librustdoc/html/static/images/favicon-*.png
 src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
@@ -178,6 +178,7 @@ src/test/run-make/*-sgx-lvi/enclave/*.c
 src/test/ui/macros/not-utf8.bin
 src/tools/*/tests/*/*.stderr
 src/tools/clippy/tests/ui-toml/*/*.stderr
+src/tools/clippy/tests/ui-toml/large_include_file/too_big.txt
 src/tools/clippy/tests/ui/wildcard_enum_match_arm.fixed
 src/tools/rustfmt/tests/writemode/target/*.json
 src/tools/rustfmt/tests/writemode/target/*.xml
@@ -191,6 +192,7 @@ vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
 vendor/flate2/tests/corrupt-gz-file.bin
+vendor/fluent-syntax/benches/parser.rs
 vendor/gimli-0*/fixtures/self/*
 vendor/gimli/fixtures/self/*
 vendor/gsgdt/tests/*.json
@@ -225,7 +227,6 @@ vendor/term-0*/tests/data/*
 vendor/term/tests/data/*
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
-vendor/xml5ever/data/bench/strong.xml
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
 
 
@@ -243,7 +244,6 @@ vendor/unicode-segmentation/src/tables.rs
 vendor/wasi/src/lib_generated.rs
 
 # Compromise, ideally we'd package these in their own package
-src/librustdoc/html/static/fonts/*.woff
 src/librustdoc/html/static/fonts/*.woff2
 
 # Compromise, ideally we'd autogenerate these
@@ -254,6 +254,7 @@ vendor/bstr/src/unicode/fsm/*.dfa
 vendor/digest/src/core_api/wrapper.rs
 vendor/digest/src/core_api/rt_variable.rs
 vendor/ahash/src/hash_quality_test.rs
+vendor/clap/src/derive.rs
 vendor/futures-macro/src/select.rs
 vendor/nom/src/error.rs
 vendor/nom/src/internal.rs
@@ -285,11 +286,12 @@ vendor/pest/src/span.rs
 vendor/aho-corasick/src/nfa.rs
 vendor/miniz_oxide/src/deflate/mod.rs
 vendor/miniz_oxide/src/inflate/mod.rs
+vendor/miniz_oxide-0.4.0/src/deflate/mod.rs
+vendor/miniz_oxide-0.4.0/src/inflate/mod.rs
 vendor/thiserror-impl/src/attr.rs
 vendor/shlex/src/lib.rs
 vendor/semver/src/parse.rs
 vendor/rustc-rayon/tests/sort-panic-safe.rs
-vendor/xml5ever/src/tokenizer/char_ref/mod.rs
 vendor/url/src/parser.rs
 vendor/utf-8/tests/unit.rs
 vendor/rustversion/src/attr.rs
