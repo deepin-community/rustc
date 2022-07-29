@@ -3,7 +3,7 @@ Date: Sat, 2 Oct 2021 01:07:59 +0100
 Subject: d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                   | 27 ---------------------------
+ Cargo.toml                   | 31 -------------------------------
  src/bootstrap/bootstrap.py   |  4 ----
  src/bootstrap/builder.rs     |  7 +------
  src/bootstrap/doc.rs         |  1 -
@@ -11,13 +11,13 @@ Subject: d-0000-ignore-removed-submodules
  src/tools/clippy/Cargo.toml  |  5 -----
  src/tools/rustfmt/Cargo.toml |  5 -----
  src/tools/tidy/src/deps.rs   |  2 +-
- 8 files changed, 3 insertions(+), 60 deletions(-)
+ 8 files changed, 3 insertions(+), 64 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 4e78399..8f1054b 100644
+index a823894..4a87674 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -18,25 +18,14 @@ members = [
+@@ -18,27 +18,14 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -31,6 +31,8 @@ index 4e78399..8f1054b 100644
 -  "src/tools/cargo/crates/credential/cargo-credential-wincred",
    "src/tools/rustdoc",
 -  "src/tools/rls",
+-  "src/tools/rls/racer/metadata",
+-  "src/tools/rls/racer/interner",
    "src/tools/rustfmt",
 -  "src/tools/miri",
 -  "src/tools/miri/cargo-miri",
@@ -43,7 +45,7 @@ index 4e78399..8f1054b 100644
    "src/tools/lld-wrapper",
  ]
  
-@@ -106,25 +95,9 @@ debug = 0
+@@ -108,25 +95,7 @@ debug = 0
  # Only use debuginfo=1 to further reduce compile times.
  bootstrap.debug = 1
  
@@ -54,8 +56,8 @@ index 4e78399..8f1054b 100644
 -# vendored copy.
 -[patch."https://github.com/rust-lang/cargo"]
 -cargo = { path = "src/tools/cargo" }
- cargo-util = { path = "src/tools/cargo/crates/cargo-util" }
- 
+-cargo-util = { path = "src/tools/cargo/crates/cargo-util" }
+-
 -[patch."https://github.com/rust-lang/rustfmt"]
 -# Similar to Cargo above we want the RLS to use a vendored version of `rustfmt`
 -# that we're shipping as well (to ensure that the rustfmt in RLS and the
@@ -70,10 +72,10 @@ index 4e78399..8f1054b 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 71b8f3c..580c442 100644
+index ab4338e..90601b1 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -1036,10 +1036,6 @@ class RustBuild(object):
+@@ -892,10 +892,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(0, self.verbose):
              args.append("--verbose")
@@ -85,10 +87,10 @@ index 71b8f3c..580c442 100644
  
      def build_triple(self):
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index e816f9b..4cf9219 100644
+index 894d74f..23ea2fe 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -568,7 +568,6 @@ impl<'a> Builder<'a> {
+@@ -616,7 +616,6 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -96,7 +98,7 @@ index e816f9b..4cf9219 100644
                  doc::Clippy,
                  doc::EmbeddedBook,
                  doc::EditionGuide,
-@@ -592,7 +591,6 @@ impl<'a> Builder<'a> {
+@@ -639,7 +638,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -104,7 +106,7 @@ index e816f9b..4cf9219 100644
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -1651,10 +1649,7 @@ impl<'a> Builder<'a> {
+@@ -1722,10 +1720,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -117,10 +119,10 @@ index e816f9b..4cf9219 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 5f16716..6cee2b6 100644
+index fcef784..f8ba05c 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -74,7 +74,6 @@ macro_rules! book {
+@@ -73,7 +73,6 @@ macro_rules! book {
  // FIXME: Make checking for a submodule automatic somehow (maybe by having a list of all submodules
  // and checking against it?).
  book!(
@@ -129,10 +131,10 @@ index 5f16716..6cee2b6 100644
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
      Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 339b7a8..4adc1a7 100644
+index bc85156..dd5d2d7 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1867,17 +1867,7 @@ impl Step for RustcGuide {
+@@ -1853,17 +1853,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -152,10 +154,10 @@ index 339b7a8..4adc1a7 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index 123af238..e9caaac 100644
+index dd6518d..b3540ba 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -34,11 +34,6 @@ regex = "1.5"
+@@ -33,11 +33,6 @@ regex = "1.5"
  # This is used by the `collect-metadata` alias.
  filetime = "0.2"
  
@@ -182,10 +184,10 @@ index 7647146..22fef44 100644
 -
  # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index ab4be43..d35f277 100644
+index 4bf9325..3fa2214 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -273,7 +273,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -293,7 +293,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.

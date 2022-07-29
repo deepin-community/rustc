@@ -7,10 +7,10 @@ Subject: d-0001-disable-miniz
  1 file changed, 4 deletions(-)
 
 diff --git a/vendor/flate2/Cargo.toml b/vendor/flate2/Cargo.toml
-index 28649e8..1545c01 100644
+index 616f6ee..a593593 100644
 --- a/vendor/flate2/Cargo.toml
 +++ b/vendor/flate2/Cargo.toml
-@@ -44,10 +44,6 @@ version = "1.1.0"
+@@ -40,10 +40,6 @@ version = "1.1.0"
  optional = true
  default-features = false
  
@@ -19,5 +19,5 @@ index 28649e8..1545c01 100644
 -optional = true
 -
  [dependencies.miniz_oxide]
- version = "0.4.0"
+ version = "0.5.0"
  optional = true

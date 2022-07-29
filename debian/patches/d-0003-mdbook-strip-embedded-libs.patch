@@ -84,7 +84,7 @@ index 264c113..2b0ff3a 100644
      }
  
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-index e8da5b4..a0507fd 100644
+index 3d2d1af..6017a6a 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 @@ -3,7 +3,7 @@ use crate::config::{BookConfig, Config, HtmlConfig, Playground, RustEdition};
@@ -104,7 +104,7 @@ index e8da5b4..a0507fd 100644
  
  use crate::utils::fs::get_404_output_file;
  use handlebars::Handlebars;
-@@ -225,80 +226,13 @@ impl HtmlHandlebars {
+@@ -232,80 +233,13 @@ impl HtmlHandlebars {
          if let Some(contents) = &theme.favicon_svg {
              write_file(destination, "favicon.svg", contents)?;
          }
@@ -191,7 +191,7 @@ index e8da5b4..a0507fd 100644
          Ok(())
      }
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/search.rs b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-index 39b5980..7ea49c5 100644
+index 5dd063d..3a983b5 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
 @@ -34,8 +34,6 @@ pub fn create_files(search_config: &Search, destination: &Path, book: &Book) ->
@@ -204,7 +204,7 @@ index 39b5980..7ea49c5 100644
      }
  
 diff --git a/vendor/mdbook/src/theme/index.hbs b/vendor/mdbook/src/theme/index.hbs
-index 966eedb..d28ec04 100644
+index 18d984a..4a0e2d1 100644
 --- a/vendor/mdbook/src/theme/index.hbs
 +++ b/vendor/mdbook/src/theme/index.hbs
 @@ -34,10 +34,7 @@
@@ -275,7 +275,7 @@ index 966eedb..d28ec04 100644
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              <div class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -236,52 +193,6 @@
+@@ -238,52 +195,6 @@
          </script>
          {{/if}}
  
