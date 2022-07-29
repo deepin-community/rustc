@@ -25,10 +25,10 @@ using a GNU linker).
  1 file changed, 7 insertions(+)
 
 diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
-index 58e0667..bd08a83 100644
+index 04ec1e7..67296ca 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -2015,6 +2015,13 @@ fn add_order_independent_options(
+@@ -2123,6 +2123,13 @@ fn add_order_independent_options(
      }
  
      add_rpath_args(cmd, sess, codegen_results, out_filename);
@@ -41,4 +41,4 @@ index 58e0667..bd08a83 100644
 +    }
  }
  
- // A dylib may reexport symbols from the linked rlib or native static library.
+ // Write the debugger visualizer files for each crate to the temp directory and gather the file paths.

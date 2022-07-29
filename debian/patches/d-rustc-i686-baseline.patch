@@ -8,7 +8,7 @@ Subject: d-rustc-i686-baseline
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs b/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-index 165505e..6e00675 100644
+index 0998c61..c995b4f 100644
 --- a/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 +++ b/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 @@ -2,7 +2,7 @@ use crate::spec::{LinkerFlavor, StackProbeType, Target};

@@ -8,19 +8,20 @@ Subject: d-bootstrap-no-assume-tools
  1 file changed, 4 insertions(+)
 
 diff --git a/src/bootstrap/builder/tests.rs b/src/bootstrap/builder/tests.rs
-index bc71034..154adb5 100644
+index 4ab502e..5ce7fc8 100644
 --- a/src/bootstrap/builder/tests.rs
 +++ b/src/bootstrap/builder/tests.rs
-@@ -277,8 +277,12 @@ mod dist {
+@@ -309,9 +309,13 @@ mod dist {
+     fn dist_only_cross_host() {
          let a = TargetSelection::from_user("A");
          let b = TargetSelection::from_user("B");
-         let mut build = Build::new(configure(&["A", "B"], &["A", "B"]));
 +        let mut tools = std::collections::HashSet::new();
 +        tools.insert("clippy".to_string());
 +        tools.insert("rustfmt".to_string());
-         build.config.docs = false;
-         build.config.extended = true;
-+        build.config.tools = Some(tools);
-         build.hosts = vec![b];
-         let mut builder = Builder::new(&build);
-         builder.run_step_descriptions(&Builder::get_step_descriptions(Kind::Dist), &[]);
+         let mut config = configure(&["A", "B"], &["A", "B"]);
+         config.docs = false;
+         config.extended = true;
++        config.tools = Some(tools);
+         config.hosts = vec![b];
+         let mut cache = run_build(&[], config);
+ 

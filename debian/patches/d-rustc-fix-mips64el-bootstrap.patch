@@ -13,7 +13,7 @@ Bug: https://github.com/rust-lang/rust/issues/52108
  4 files changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
-index 161a27a..6d2bb7b 100644
+index fc5dbd1..b9df004 100644
 --- a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
 @@ -12,7 +12,7 @@ pub fn target() -> Target {
@@ -26,7 +26,7 @@ index 161a27a..6d2bb7b 100644
              mcount: "_mcount".into(),
  
 diff --git a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
-index 2f58560..ed9fda5 100644
+index e0d5f6f..57ad8c4 100644
 --- a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 +++ b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
 @@ -10,7 +10,7 @@ pub fn target() -> Target {
@@ -39,10 +39,10 @@ index 2f58560..ed9fda5 100644
              mcount: "_mcount".into(),
  
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index e17af37..7c06278 100644
+index 92d29d6..23c0764 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -1011,6 +1011,8 @@ class RustBuild(object):
+@@ -867,6 +867,8 @@ class RustBuild(object):
  
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")

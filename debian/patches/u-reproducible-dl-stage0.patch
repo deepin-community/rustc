@@ -8,11 +8,11 @@ Subject: u-reproducible-dl-stage0
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 6c1128b..812f616 100644
+index ab4338e..0227735 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -124,7 +124,7 @@ def _download(path, url, probably_big, verbose, exception, help_on_error=None):
-         run(["curl", option,
+@@ -129,7 +129,7 @@ def _download(path, url, probably_big, verbose, exception, help_on_error=None):
+              "-L", # Follow redirect.
               "-y", "30", "-Y", "10",    # timeout if speed is < 10 bytes/sec for > 30 seconds
               "--connect-timeout", "30",  # timeout if cannot connect within 30 seconds
 -             "--retry", "3", "-Sf", "-o", path, url],

@@ -11,7 +11,7 @@ Forwarded: not-needed
  2 files changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/src/bootstrap/channel.rs b/src/bootstrap/channel.rs
-index 6478578..774d71d 100644
+index 1932a00..7974630 100644
 --- a/src/bootstrap/channel.rs
 +++ b/src/bootstrap/channel.rs
 @@ -29,7 +29,11 @@ pub struct Info {
@@ -28,10 +28,10 @@ index 6478578..774d71d 100644
          }
  
 diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
-index f5ae810..9b3785b 100644
+index 6181a61..5fe3600 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -890,7 +890,10 @@ impl Step for PlainSourceTarball {
+@@ -881,7 +881,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.

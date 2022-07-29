@@ -16,10 +16,10 @@ Subject: Backwards-compat for cargo 0.47
  1 file changed, 3 deletions(-)
 
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index 722dba9..84997ac 100644
+index fb5395d..72eac7c 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -447,7 +447,6 @@ impl Step for Std {
+@@ -445,7 +445,6 @@ impl Step for Std {
              cargo
                  .arg("-p")
                  .arg(package)
@@ -27,7 +27,7 @@ index 722dba9..84997ac 100644
                  .arg("--")
                  .arg("--markdown-css")
                  .arg("rust.css")
-@@ -588,7 +587,6 @@ impl Step for Rustc {
+@@ -587,7 +586,6 @@ impl Step for Rustc {
          cargo.rustdocflag("--generate-link-to-definition");
          compile::rustc_cargo(builder, &mut cargo, target);
          cargo.arg("-Zunstable-options");
@@ -35,7 +35,7 @@ index 722dba9..84997ac 100644
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
          // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
-@@ -717,7 +715,6 @@ macro_rules! tool_doc {
+@@ -703,7 +701,6 @@ macro_rules! tool_doc {
                      &[],
                  );
  

@@ -8,7 +8,7 @@ Bug: https://github.com/rust-lang/rust/issues/68973
  1 file changed, 2 insertions(+)
 
 diff --git a/compiler/rustc_target/src/spec/windows_gnu_base.rs b/compiler/rustc_target/src/spec/windows_gnu_base.rs
-index 35a5289..861f590 100644
+index d11f1f7..137f8eb 100644
 --- a/compiler/rustc_target/src/spec/windows_gnu_base.rs
 +++ b/compiler/rustc_target/src/spec/windows_gnu_base.rs
 @@ -36,6 +36,8 @@ pub fn opts() -> TargetOptions {

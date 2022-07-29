@@ -15,7 +15,7 @@ Bug: https://github.com/rust-lang/rust/issues/89577
  6 files changed, 6 insertions(+)
 
 diff --git a/src/test/ui/consts/const-eval/ub-enum.rs b/src/test/ui/consts/const-eval/ub-enum.rs
-index e408d8e..e5d7af4 100644
+index 8628868..13d22ac 100644
 --- a/src/test/ui/consts/const-eval/ub-enum.rs
 +++ b/src/test/ui/consts/const-eval/ub-enum.rs
 @@ -1,3 +1,4 @@
@@ -42,7 +42,7 @@ index 259707b..145c7df 100644
  #![feature(rustc_attrs)]
  #![allow(const_err, invalid_value)] // make sure we cannot allow away the errors tested here
 diff --git a/src/test/ui/consts/const-eval/ub-ref-ptr.rs b/src/test/ui/consts/const-eval/ub-ref-ptr.rs
-index 8857ae4..a3ffa8c 100644
+index 1887cb2..14b15f6 100644
 --- a/src/test/ui/consts/const-eval/ub-ref-ptr.rs
 +++ b/src/test/ui/consts/const-eval/ub-ref-ptr.rs
 @@ -1,3 +1,4 @@
@@ -60,7 +60,7 @@ index 33fbd14..022192f 100644
  #![allow(const_err)] // make sure we cannot allow away the errors tested here
  
 diff --git a/src/test/ui/consts/const-eval/ub-wide-ptr.rs b/src/test/ui/consts/const-eval/ub-wide-ptr.rs
-index 0fb9f79..6a82226 100644
+index ea48a09..4d9cbe1 100644
 --- a/src/test/ui/consts/const-eval/ub-wide-ptr.rs
 +++ b/src/test/ui/consts/const-eval/ub-wide-ptr.rs
 @@ -1,3 +1,4 @@

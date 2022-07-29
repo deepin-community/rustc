@@ -8,10 +8,10 @@ Subject: d-bootstrap-rustflags
  1 file changed, 12 insertions(+)
 
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 7e6ca02..f6a299d 100644
+index 23ea2fe..b2b1c54 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -1120,6 +1120,18 @@ impl<'a> Builder<'a> {
+@@ -1186,6 +1186,18 @@ impl<'a> Builder<'a> {
              }
          }
  

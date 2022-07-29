@@ -4,49 +4,48 @@ Subject: d-rustdoc-disable-embedded-fonts
 
 ===================================================================
 ---
- src/librustdoc/html/render/write_shared.rs |  3 ---
+ src/librustdoc/html/render/write_shared.rs |  2 --
  src/librustdoc/html/static/css/rustdoc.css |  8 --------
- src/librustdoc/html/static_files.rs        | 31 ------------------------------
- 3 files changed, 42 deletions(-)
+ src/librustdoc/html/static_files.rs        | 23 -----------------------
+ 3 files changed, 33 deletions(-)
 
 diff --git a/src/librustdoc/html/render/write_shared.rs b/src/librustdoc/html/render/write_shared.rs
-index 3fa16c6..fa31185 100644
+index 68f2a54..86f7487 100644
 --- a/src/librustdoc/html/render/write_shared.rs
 +++ b/src/librustdoc/html/render/write_shared.rs
-@@ -40,9 +40,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
-         "SourceCodePro-Semibold.ttf.woff" => static_files::source_code_pro::SEMIBOLD,
-         "SourceCodePro-It.ttf.woff" => static_files::source_code_pro::ITALIC,
+@@ -32,8 +32,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
+         "SourceCodePro-Semibold.ttf.woff2" => static_files::source_code_pro::SEMIBOLD,
+         "SourceCodePro-It.ttf.woff2" => static_files::source_code_pro::ITALIC,
          "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
--        "NanumBarunGothic.ttf.woff2" => static_files::nanum_barun_gothic::REGULAR2,
--        "NanumBarunGothic.ttf.woff" => static_files::nanum_barun_gothic::REGULAR,
+-        "NanumBarunGothic.ttf.woff2" => static_files::nanum_barun_gothic::REGULAR,
 -        "NanumBarunGothic-LICENSE.txt" => static_files::nanum_barun_gothic::LICENSE,
          "LICENSE-MIT.txt" => static_files::LICENSE_MIT,
          "LICENSE-APACHE.txt" => static_files::LICENSE_APACHE,
          "COPYRIGHT.txt" => static_files::COPYRIGHT,
 diff --git a/src/librustdoc/html/static/css/rustdoc.css b/src/librustdoc/html/static/css/rustdoc.css
-index f1e0a89..5b19bf4 100644
+index 0f4d842..9aec0d6 100644
 --- a/src/librustdoc/html/static/css/rustdoc.css
 +++ b/src/librustdoc/html/static/css/rustdoc.css
-@@ -75,14 +75,6 @@
+@@ -67,14 +67,6 @@
  	font-display: swap;
  }
  
 -/* Avoid using legacy CJK serif fonts in Windows like Batang. */
 -@font-face {
 -	font-family: 'NanumBarunGothic';
--	src: url("NanumBarunGothic.ttf.woff2") format("woff2"),
--		url("NanumBarunGothic.ttf.woff") format("woff");
+-	src: url("NanumBarunGothic.ttf.woff2") format("woff2");
 -	font-display: swap;
 -	unicode-range: U+AC00-D7AF, U+1100-11FF, U+3130-318F, U+A960-A97F, U+D7B0-D7FF;
 -}
- 
+-
  * {
  	-webkit-box-sizing: border-box;
+ 	-moz-box-sizing: border-box;
 diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
-index cd369a9..af32b13 100644
+index bec5c08..1f6ccf2 100644
 --- a/src/librustdoc/html/static_files.rs
 +++ b/src/librustdoc/html/static_files.rs
-@@ -161,37 +161,6 @@ crate mod source_code_pro {
+@@ -138,29 +138,6 @@ crate mod source_code_pro {
      crate static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
  }
  
@@ -63,19 +62,11 @@ index cd369a9..af32b13 100644
 -/// ```sh
 -/// pyftsubset NanumBarunGothic.ttf \
 -/// --unicodes=U+AC00-D7AF,U+1100-11FF,U+3130-318F,U+A960-A97F,U+D7B0-D7FF \
--/// --output-file=NanumBarunGothic.ttf.woff --flavor=woff
--/// ```
--/// ```sh
--/// pyftsubset NanumBarunGothic.ttf \
--/// --unicodes=U+AC00-D7AF,U+1100-11FF,U+3130-318F,U+A960-A97F,U+D7B0-D7FF \
 -/// --output-file=NanumBarunGothic.ttf.woff2 --flavor=woff2
 -/// ```
 -crate mod nanum_barun_gothic {
--    /// The file `NanumBarunGothic.ttf.woff`, the Regular variant of the Nanum Barun Gothic font.
--    crate static REGULAR: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff");
--
 -    /// The file `NanumBarunGothic.ttf.woff2`, the Regular variant of the Nanum Barun Gothic font.
--    crate static REGULAR2: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff2");
+-    crate static REGULAR: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff2");
 -
 -    /// The file `NanumBarunGothic-LICENSE.txt`, the license text of the Nanum Barun Gothic font.
 -    crate static LICENSE: &[u8] = include_bytes!("static/fonts/NanumBarunGothic-LICENSE.txt");

@@ -57,4 +57,3 @@ d-rustc-i686-baseline.patch
 d-rustdoc-disable-embedded-fonts.patch
 ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
-d-fix-1.61-rebuild.patch

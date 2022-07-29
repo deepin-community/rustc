@@ -72,7 +72,7 @@ index a823894..4a87674 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index ab4338e..90601b1 100644
+index 0227735..92d29d6 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
 @@ -892,10 +892,6 @@ class RustBuild(object):
@@ -86,6 +86,24 @@ index ab4338e..90601b1 100644
          run(args, env=env, verbose=self.verbose)
  
      def build_triple(self):
+@@ -954,17 +954,6 @@ class RustBuild(object):
+     def update_submodules(self):
+         """Update submodules"""
+         has_git = os.path.exists(os.path.join(self.rust_root, ".git"))
+-        # This just arbitrarily checks for cargo, but any workspace member in
+-        # a submodule would work.
+-        has_submodules = os.path.exists(os.path.join(self.rust_root, "src/tools/cargo/Cargo.toml"))
+-        if not has_git and not has_submodules:
+-            print("This is not a git repository, and the requisite git submodules were not found.")
+-            print("If you downloaded the source from https://github.com/rust-lang/rust/releases,")
+-            print("those sources will not work. Instead, consider downloading from the source")
+-            print("releases linked at")
+-            print("https://forge.rust-lang.org/infra/other-installation-methods.html#source-code")
+-            print("or clone the repository at https://github.com/rust-lang/rust/.")
+-            raise SystemExit(1)
+         if not has_git or self.get_toml('submodules') == "false":
+             return
+ 
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
 index 894d74f..23ea2fe 100644
 --- a/src/bootstrap/builder.rs

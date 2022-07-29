@@ -9,10 +9,10 @@ Subject: d-bootstrap-custom-debuginfo-path
  2 files changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
-index 74046e1..658c601 100644
+index ddc92ba..259b56e 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -997,10 +997,9 @@ impl Build {
+@@ -1003,10 +1003,9 @@ impl Build {
  
          match which {
              GitRepo::Rustc => {
