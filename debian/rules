@@ -164,6 +164,7 @@ endif
 
 # Build products or non-source files in src/, that shouldn't go in rust-src
 SRC_CLEAN = src/bootstrap/bootstrap.pyc \
+	src/bootstrap/__pycache__ \
 	src/etc/__pycache__/
 
 # Try to work around #933045
