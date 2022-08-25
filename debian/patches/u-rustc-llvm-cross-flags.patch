@@ -1,3 +1,14 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: u-rustc-llvm-cross-flags
+
+===================================================================
+---
+ compiler/rustc_llvm/build.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+index 4d5137c..fb82e2a 100644
 --- a/compiler/rustc_llvm/build.rs
 +++ b/compiler/rustc_llvm/build.rs
 @@ -237,7 +237,7 @@ fn main() {

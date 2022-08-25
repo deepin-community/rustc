@@ -1,3 +1,22 @@
+rustc (1.60.0+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream release.
+
+ -- Fabian Gruenbichler <f.gruenbichler@proxmox.com>  Thu, 14 Jul 2022 13:08:16 +0200
+
+rustc (1.59.0+dfsg1-2) unstable; urgency=medium
+
+  * Backport a patch for riscv64.
+  * Ignore some test failures on armhf due to regression in GDB 11.2.
+
+ -- Ximin Luo <infinity0@debian.org>  Tue, 21 Jun 2022 11:06:16 +0100
+
+rustc (1.59.0+dfsg1-1) unstable; urgency=medium
+
+  * Upload to unstable.
+
+ -- Ximin Luo <infinity0@debian.org>  Wed, 11 May 2022 14:11:46 +0100
+
 rustc (1.59.0+dfsg1-1~exp1) experimental; urgency=medium
 
   [ Fabian Grünbichler ]

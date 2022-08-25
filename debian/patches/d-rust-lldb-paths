@@ -1,13 +1,19 @@
-Description: Hardcode LLDB python module directory
- Debian package installs python modules into a fixed directory, so
- just hardcode path in wrapper script.
-Author: Angus Lees <gus@debian.org>
+From: Angus Lees <gus@debian.org>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Hardcode LLDB python module directory
+
 Forwarded: not-needed
 
-Index: rust/src/etc/rust-lldb
-===================================================================
---- rust.orig/src/etc/rust-lldb
-+++ rust/src/etc/rust-lldb
+Debian package installs python modules into a fixed directory, so
+just hardcode path in wrapper script.
+---
+ src/etc/rust-lldb | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/etc/rust-lldb b/src/etc/rust-lldb
+index bce72f1..793f593 100755
+--- a/src/etc/rust-lldb
++++ b/src/etc/rust-lldb
 @@ -7,10 +7,10 @@ set -e
  host=$(rustc -vV | sed -n -e 's/^host: //p')
  

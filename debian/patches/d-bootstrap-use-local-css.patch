@@ -1,3 +1,14 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-use-local-css
+
+===================================================================
+---
+ src/bootstrap/doc.rs | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index a780474..722dba9 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -375,6 +375,10 @@ impl Step for Standalone {
