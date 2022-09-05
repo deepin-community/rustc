@@ -1,11 +1,19 @@
-Description: Install symlinks as-is, don't dereference them
- Our patch to mdbook installs symlinks to systems versions of font-awesome,
- highlight, etc. Upstream mdbook otherwise doesn't use symlinks, so this
- doesn't affect anything else that's already generated.
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: Install symlinks as-is, don't dereference them
 
+Our patch to mdbook installs symlinks to systems versions of font-awesome,
+highlight, etc. Upstream mdbook otherwise doesn't use symlinks, so this
+doesn't affect anything else that's already generated.
+---
+ src/tools/rust-installer/install-template.sh | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/tools/rust-installer/install-template.sh b/src/tools/rust-installer/install-template.sh
+index e68be89..a19997b 100644
 --- a/src/tools/rust-installer/install-template.sh
 +++ b/src/tools/rust-installer/install-template.sh
-@@ -625,7 +625,10 @@
+@@ -625,7 +625,10 @@ install_components() {
  
  		    maybe_backup_path "$_file_install_path"
  
@@ -17,7 +25,7 @@ Description: Install symlinks as-is, don't dereference them
  		    then
  			run cp "$_src_dir/$_component/$_file" "$_file_install_path"
  			run chmod 755 "$_file_install_path"
-@@ -647,7 +650,7 @@
+@@ -647,7 +650,7 @@ install_components() {
  
  		    maybe_backup_path "$_file_install_path"
  

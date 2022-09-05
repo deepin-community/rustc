@@ -206,7 +206,8 @@ debian/config.toml: debian/config.toml.in debian/rules
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \
 	  then sed -i -e '/^rustc = /d' -e '/^cargo = /d' "$@"; fi
 # Work around low-memory (32-bit) architectures: https://github.com/rust-lang/rust/issues/45854
-ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel mips mipsel powerpc powerpcspe))
+# i386 and x32 fail to mmap rustc_driver when building rustdoc in >1.60
+ifneq (,$(filter $(DEB_BUILD_ARCH), armhf armel i386 mips mipsel powerpc powerpcspe x32))
 	sed -i -e 's/^debuginfo-level = .*/debuginfo-level = 0/g' "$@"
 endif
 
@@ -273,8 +274,11 @@ TEST_LOG = debian/rustc-tests.log
 # This is advertised as "5 tests failed" in README.Debian because our counting
 # method is imprecise and in practise we count some failures twice.
 FAILURES_ALLOWED = 8
-ifneq (,$(filter $(DEB_BUILD_ARCH), armhf mips64el))
+ifneq (,$(filter $(DEB_BUILD_ARCH), armhf))
   FAILURES_ALLOWED = 12
+endif
+ifneq (,$(filter $(DEB_BUILD_ARCH), mips64el))
+  FAILURES_ALLOWED = 15
 endif
 ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel ppc64))
   FAILURES_ALLOWED = 24
@@ -411,6 +415,7 @@ override_dh_install-indep:
 		-o -name 'LICENCE' \
 		-o -name 'license' \
 		-o -name 'COPYING*' \
+		-o -name '.eslintrc.js' \
 		\) -delete
 	# Remove files that autoload remote resources, caught by lintian
 	$(RM) -rf debian/rust-src/usr/src/rustc-*/vendor/cssparser/docs/*.html

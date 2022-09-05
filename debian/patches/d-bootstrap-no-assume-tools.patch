@@ -1,6 +1,17 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-no-assume-tools
+
+===================================================================
+---
+ src/bootstrap/builder/tests.rs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/bootstrap/builder/tests.rs b/src/bootstrap/builder/tests.rs
+index bc71034..154adb5 100644
 --- a/src/bootstrap/builder/tests.rs
 +++ b/src/bootstrap/builder/tests.rs
-@@ -277,8 +277,12 @@
+@@ -277,8 +277,12 @@ mod dist {
          let a = TargetSelection::from_user("A");
          let b = TargetSelection::from_user("B");
          let mut build = Build::new(configure(&["A", "B"], &["A", "B"]));

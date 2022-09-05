@@ -1,6 +1,19 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-rustdoc-disable-embedded-fonts
+
+===================================================================
+---
+ src/librustdoc/html/render/write_shared.rs |  3 ---
+ src/librustdoc/html/static/css/rustdoc.css |  8 --------
+ src/librustdoc/html/static_files.rs        | 31 ------------------------------
+ 3 files changed, 42 deletions(-)
+
+diff --git a/src/librustdoc/html/render/write_shared.rs b/src/librustdoc/html/render/write_shared.rs
+index 3fa16c6..fa31185 100644
 --- a/src/librustdoc/html/render/write_shared.rs
 +++ b/src/librustdoc/html/render/write_shared.rs
-@@ -39,9 +39,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap
+@@ -40,9 +40,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
          "SourceCodePro-Semibold.ttf.woff" => static_files::source_code_pro::SEMIBOLD,
          "SourceCodePro-It.ttf.woff" => static_files::source_code_pro::ITALIC,
          "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
@@ -10,6 +23,8 @@
          "LICENSE-MIT.txt" => static_files::LICENSE_MIT,
          "LICENSE-APACHE.txt" => static_files::LICENSE_APACHE,
          "COPYRIGHT.txt" => static_files::COPYRIGHT,
+diff --git a/src/librustdoc/html/static/css/rustdoc.css b/src/librustdoc/html/static/css/rustdoc.css
+index f1e0a89..5b19bf4 100644
 --- a/src/librustdoc/html/static/css/rustdoc.css
 +++ b/src/librustdoc/html/static/css/rustdoc.css
 @@ -75,14 +75,6 @@
@@ -27,9 +42,11 @@
  
  * {
  	-webkit-box-sizing: border-box;
+diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
+index cd369a9..af32b13 100644
 --- a/src/librustdoc/html/static_files.rs
 +++ b/src/librustdoc/html/static_files.rs
-@@ -160,37 +160,6 @@ crate mod source_code_pro {
+@@ -161,37 +161,6 @@ crate mod source_code_pro {
      crate static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
  }
  

@@ -1,7 +1,14 @@
-Description: Don't split dwarf debug for a fully-reproducible build
-Author: Ximin Luo <infinity0@debian.org>
-Bug: https://github.com/rust-lang/rust/issues/34902
+From: Ximin Luo <infinity0@debian.org>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: Don't split dwarf debug for a fully-reproducible build
 
+Bug: https://github.com/rust-lang/rust/issues/34902
+---
+ compiler/rustc_llvm/build.rs | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+index 3b6808d..4d5137c 100644
 --- a/compiler/rustc_llvm/build.rs
 +++ b/compiler/rustc_llvm/build.rs
 @@ -122,6 +122,11 @@ fn main() {

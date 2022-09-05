@@ -1,6 +1,18 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-custom-debuginfo-path
+
+===================================================================
+---
+ src/bootstrap/lib.rs                                        | 5 ++---
+ src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
+index 74046e1..658c601 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -933,10 +933,9 @@ impl Build {
+@@ -931,10 +931,9 @@ impl Build {
  
          match which {
              GitRepo::Rustc => {
@@ -13,6 +25,8 @@
          }
      }
  
+diff --git a/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs b/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
+index b66abc6..f6efe1e 100644
 --- a/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
 +++ b/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
 @@ -7,7 +7,7 @@
