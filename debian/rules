@@ -274,8 +274,11 @@ TEST_LOG = debian/rustc-tests.log
 # This is advertised as "5 tests failed" in README.Debian because our counting
 # method is imprecise and in practise we count some failures twice.
 FAILURES_ALLOWED = 8
-ifneq (,$(filter $(DEB_BUILD_ARCH), armhf mips64el))
+ifneq (,$(filter $(DEB_BUILD_ARCH), armhf))
   FAILURES_ALLOWED = 12
+endif
+ifneq (,$(filter $(DEB_BUILD_ARCH), mips64el))
+  FAILURES_ALLOWED = 15
 endif
 ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel ppc64))
   FAILURES_ALLOWED = 24
