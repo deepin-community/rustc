@@ -52,8 +52,7 @@ fn visit_implementation_of_drop(tcx: TyCtxt<'_>, impl_did: LocalDefId) {
         return;
     }
 
-    let impl_hir_id = tcx.hir().local_def_id_to_hir_id(impl_did);
-    let sp = match tcx.hir().expect_item(impl_hir_id).kind {
+    let sp = match tcx.hir().expect_item(impl_did).kind {
         ItemKind::Impl(ref impl_) => impl_.self_ty.span,
         _ => bug!("expected Drop impl item"),
     };
@@ -78,7 +77,7 @@ fn visit_implementation_of_copy(tcx: TyCtxt<'_>, impl_did: LocalDefId) {
     match can_type_implement_copy(tcx, param_env, self_type) {
         Ok(()) => {}
         Err(CopyImplementationError::InfrigingFields(fields)) => {
-            let item = tcx.hir().expect_item(impl_hir_id);
+            let item = tcx.hir().expect_item(impl_did);
             let span = if let ItemKind::Impl(hir::Impl { of_trait: Some(ref tr), .. }) = item.kind {
                 tr.path.span
             } else {
@@ -97,7 +96,7 @@ fn visit_implementation_of_copy(tcx: TyCtxt<'_>, impl_did: LocalDefId) {
             err.emit()
         }
         Err(CopyImplementationError::NotAnAdt) => {
-            let item = tcx.hir().expect_item(impl_hir_id);
+            let item = tcx.hir().expect_item(impl_did);
             let span =
                 if let ItemKind::Impl(ref impl_) = item.kind { impl_.self_ty.span } else { span };
 
@@ -109,7 +108,7 @@ fn visit_implementation_of_copy(tcx: TyCtxt<'_>, impl_did: LocalDefId) {
     }
 }
 
-fn visit_implementation_of_coerce_unsized(tcx: TyCtxt<'tcx>, impl_did: LocalDefId) {
+fn visit_implementation_of_coerce_unsized<'tcx>(tcx: TyCtxt<'tcx>, impl_did: LocalDefId) {
     debug!("visit_implementation_of_coerce_unsized: impl_did={:?}", impl_did);
 
     // Just compute this for the side-effects, in particular reporting
@@ -119,7 +118,7 @@ fn visit_implementation_of_coerce_unsized(tcx: TyCtxt<'tcx>, impl_did: LocalDefI
     tcx.at(span).coerce_unsized_info(impl_did);
 }
 
-fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDefId) {
+fn visit_implementation_of_dispatch_from_dyn<'tcx>(tcx: TyCtxt<'tcx>, impl_did: LocalDefId) {
     debug!("visit_implementation_of_dispatch_from_dyn: impl_did={:?}", impl_did);
 
     let impl_hir_id = tcx.hir().local_def_id_to_hir_id(impl_did);
@@ -148,7 +147,7 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
         use ty::TyKind::*;
         match (source.kind(), target.kind()) {
             (&Ref(r_a, _, mutbl_a), Ref(r_b, _, mutbl_b))
-                if infcx.at(&cause, param_env).eq(r_a, r_b).is_ok() && mutbl_a == *mutbl_b => {}
+                if infcx.at(&cause, param_env).eq(r_a, *r_b).is_ok() && mutbl_a == *mutbl_b => {}
             (&RawPtr(tm_a), &RawPtr(tm_b)) if tm_a.mutbl == tm_b.mutbl => (),
             (&Adt(def_a, substs_a), &Adt(def_b, substs_b))
                 if def_a.is_struct() && def_b.is_struct() =>
@@ -180,14 +179,14 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
 
                 let coerced_fields = fields
                     .iter()
-                    .filter_map(|field| {
+                    .filter(|field| {
                         let ty_a = field.ty(tcx, substs_a);
                         let ty_b = field.ty(tcx, substs_b);
 
                         if let Ok(layout) = tcx.layout_of(param_env.and(ty_a)) {
                             if layout.is_zst() && layout.align.abi.bytes() == 1 {
                                 // ignore ZST fields with alignment of 1 byte
-                                return None;
+                                return false;
                             }
                         }
 
@@ -200,15 +199,15 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
                                 )
                                 .note(&format!(
                                     "extra field `{}` of type `{}` is not allowed",
-                                    field.ident, ty_a,
+                                    field.name, ty_a,
                                 ))
                                 .emit();
 
-                                return None;
+                                return false;
                             }
                         }
 
-                        Some(field)
+                        return true;
                     })
                     .collect::<Vec<_>>();
 
@@ -236,7 +235,7 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
                             .map(|field| {
                                 format!(
                                     "`{}` (`{}` to `{}`)",
-                                    field.ident,
+                                    field.name,
                                     field.ty(tcx, substs_a),
                                     field.ty(tcx, substs_b),
                                 )
@@ -263,7 +262,8 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
                     }
 
                     // Check that all transitive obligations are satisfied.
-                    if let Err(errors) = fulfill_cx.select_all_or_error(&infcx) {
+                    let errors = fulfill_cx.select_all_or_error(&infcx);
+                    if !errors.is_empty() {
                         infcx.report_fulfillment_errors(&errors, None, false);
                     }
 
@@ -287,12 +287,12 @@ fn visit_implementation_of_dispatch_from_dyn(tcx: TyCtxt<'_>, impl_did: LocalDef
     })
 }
 
-pub fn coerce_unsized_info(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedInfo {
+pub fn coerce_unsized_info<'tcx>(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedInfo {
     debug!("compute_coerce_unsized_info(impl_did={:?})", impl_did);
 
     // this provider should only get invoked for local def-ids
-    let impl_hir_id = tcx.hir().local_def_id_to_hir_id(impl_did.expect_local());
-    let span = tcx.hir().span(impl_hir_id);
+    let impl_did = impl_did.expect_local();
+    let span = tcx.def_span(impl_did);
 
     let coerce_unsized_trait = tcx.require_lang_item(LangItem::CoerceUnsized, Some(span));
 
@@ -314,6 +314,7 @@ pub fn coerce_unsized_info(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedI
     debug!("visit_implementation_of_coerce_unsized: {:?} -> {:?} (free)", source, target);
 
     tcx.infer_ctxt().enter(|infcx| {
+        let impl_hir_id = tcx.hir().local_def_id_to_hir_id(impl_did);
         let cause = ObligationCause::misc(span, impl_hir_id);
         let check_mutbl = |mt_a: ty::TypeAndMut<'tcx>,
                            mt_b: ty::TypeAndMut<'tcx>,
@@ -451,13 +452,13 @@ pub fn coerce_unsized_info(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedI
                     .emit();
                     return err_info;
                 } else if diff_fields.len() > 1 {
-                    let item = tcx.hir().expect_item(impl_hir_id);
+                    let item = tcx.hir().expect_item(impl_did);
                     let span = if let ItemKind::Impl(hir::Impl { of_trait: Some(ref t), .. }) =
                         item.kind
                     {
                         t.path.span
                     } else {
-                        tcx.hir().span(impl_hir_id)
+                        tcx.def_span(impl_did)
                     };
 
                     struct_span_err!(
@@ -478,7 +479,7 @@ pub fn coerce_unsized_info(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedI
                         diff_fields
                             .iter()
                             .map(|&(i, a, b)| {
-                                format!("`{}` (`{}` to `{}`)", fields[i].ident, a, b)
+                                format!("`{}` (`{}` to `{}`)", fields[i].name, a, b)
                             })
                             .collect::<Vec<_>>()
                             .join(", ")
@@ -522,13 +523,18 @@ pub fn coerce_unsized_info(tcx: TyCtxt<'tcx>, impl_did: DefId) -> CoerceUnsizedI
         fulfill_cx.register_predicate_obligation(&infcx, predicate);
 
         // Check that all transitive obligations are satisfied.
-        if let Err(errors) = fulfill_cx.select_all_or_error(&infcx) {
+        let errors = fulfill_cx.select_all_or_error(&infcx);
+        if !errors.is_empty() {
             infcx.report_fulfillment_errors(&errors, None, false);
         }
 
         // Finally, resolve all regions.
         let outlives_env = OutlivesEnvironment::new(param_env);
-        infcx.resolve_regions_and_report_errors(impl_did, &outlives_env, RegionckMode::default());
+        infcx.resolve_regions_and_report_errors(
+            impl_did.to_def_id(),
+            &outlives_env,
+            RegionckMode::default(),
+        );
 
         CoerceUnsizedInfo { custom_kind: kind }
     })

@@ -35,6 +35,7 @@ declare_clippy_lint! {
     /// let input: &str = get_input();
     /// let num: u16 = input.parse()?;
     /// ```
+    #[clippy::version = "1.52.0"]
     pub FROM_STR_RADIX_10,
     style,
     "from_str_radix with radix 10"
@@ -42,7 +43,7 @@ declare_clippy_lint! {
 
 declare_lint_pass!(FromStrRadix10 => [FROM_STR_RADIX_10]);
 
-impl LateLintPass<'tcx> for FromStrRadix10 {
+impl<'tcx> LateLintPass<'tcx> for FromStrRadix10 {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, exp: &Expr<'tcx>) {
         if_chain! {
             if let ExprKind::Call(maybe_path, arguments) = &exp.kind;
@@ -98,5 +99,5 @@ impl LateLintPass<'tcx> for FromStrRadix10 {
 
 /// Checks if a Ty is `String` or `&str`
 fn is_ty_stringish(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
-    is_type_diagnostic_item(cx, ty, sym::string_type) || is_type_diagnostic_item(cx, ty, sym::str)
+    is_type_diagnostic_item(cx, ty, sym::String) || is_type_diagnostic_item(cx, ty, sym::str)
 }

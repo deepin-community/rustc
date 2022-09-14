@@ -457,8 +457,14 @@ impl fmt::Debug for Command {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct ExitCode(u8);
+
+impl fmt::Debug for ExitCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("unix_exit_status").field(&self.0).finish()
+    }
+}
 
 impl ExitCode {
     pub const SUCCESS: ExitCode = ExitCode(EXIT_SUCCESS as _);
@@ -467,6 +473,12 @@ impl ExitCode {
     #[inline]
     pub fn as_i32(&self) -> i32 {
         self.0 as i32
+    }
+}
+
+impl From<u8> for ExitCode {
+    fn from(code: u8) -> Self {
+        Self(code)
     }
 }
 

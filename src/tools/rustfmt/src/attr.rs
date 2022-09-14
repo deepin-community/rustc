@@ -13,6 +13,7 @@ use crate::lists::{definitive_tactic, itemize_list, write_list, ListFormatting, 
 use crate::overflow;
 use crate::rewrite::{Rewrite, RewriteContext};
 use crate::shape::Shape;
+use crate::source_map::SpanUtils;
 use crate::types::{rewrite_path, PathContext};
 use crate::utils::{count_newlines, mk_sp};
 
@@ -116,7 +117,9 @@ fn format_derive(
                 |span| span.lo(),
                 |span| span.hi(),
                 |span| Some(context.snippet(*span).to_owned()),
-                attr.span.lo(),
+                // We update derive attribute spans to start after the opening '('
+                // This helps us focus parsing to just what's inside #[derive(...)]
+                context.snippet_provider.span_after(attr.span, "("),
                 attr.span.hi(),
                 false,
             );
@@ -334,7 +337,7 @@ impl Rewrite for ast::Attribute {
         } else {
             let should_skip = self
                 .ident()
-                .map(|s| context.skip_context.skip_attribute(&s.name.as_str()))
+                .map(|s| context.skip_context.skip_attribute(s.name.as_str()))
                 .unwrap_or(false);
             let prefix = attr_prefix(self);
 
@@ -353,7 +356,7 @@ impl Rewrite for ast::Attribute {
 
                         let literal_str = literal.as_str();
                         let doc_comment_formatter =
-                            DocCommentFormatter::new(&*literal_str, comment_style);
+                            DocCommentFormatter::new(literal_str, comment_style);
                         let doc_comment = format!("{}", doc_comment_formatter);
                         return rewrite_doc_comment(
                             &doc_comment,
@@ -448,7 +451,7 @@ impl Rewrite for [ast::Attribute] {
                         if next.is_doc_comment() {
                             let snippet = context.snippet(missing_span);
                             let (_, mlb) = has_newlines_before_after_comment(snippet);
-                            result.push_str(&mlb);
+                            result.push_str(mlb);
                         }
                     }
                     result.push('\n');
@@ -481,7 +484,7 @@ impl Rewrite for [ast::Attribute] {
                     if next.is_doc_comment() {
                         let snippet = context.snippet(missing_span);
                         let (_, mlb) = has_newlines_before_after_comment(snippet);
-                        result.push_str(&mlb);
+                        result.push_str(mlb);
                     }
                 }
                 result.push('\n');

@@ -17,6 +17,7 @@ use crate::config::{EmitType, RenderOptions};
 use crate::docfs::PathError;
 use crate::error::Error;
 use crate::html::{layout, static_files};
+use crate::{try_err, try_none};
 
 static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
     map! {
@@ -39,8 +40,9 @@ static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
         "SourceCodePro-Semibold.ttf.woff" => static_files::source_code_pro::SEMIBOLD,
         "SourceCodePro-It.ttf.woff" => static_files::source_code_pro::ITALIC,
         "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
-        "noto-sans-kr-v13-korean-regular.woff" => static_files::noto_sans_kr::REGULAR,
-        "noto-sans-kr-v13-korean-regular-LICENSE.txt" => static_files::noto_sans_kr::LICENSE,
+        "NanumBarunGothic.ttf.woff2" => static_files::nanum_barun_gothic::REGULAR2,
+        "NanumBarunGothic.ttf.woff" => static_files::nanum_barun_gothic::REGULAR,
+        "NanumBarunGothic-LICENSE.txt" => static_files::nanum_barun_gothic::LICENSE,
         "LICENSE-MIT.txt" => static_files::LICENSE_MIT,
         "LICENSE-APACHE.txt" => static_files::LICENSE_APACHE,
         "COPYRIGHT.txt" => static_files::COPYRIGHT,
@@ -105,10 +107,10 @@ impl Context<'_> {
         self.dst.join(&filename)
     }
 
-    fn write_shared<C: AsRef<[u8]>>(
+    fn write_shared(
         &self,
         resource: SharedResource<'_>,
-        contents: C,
+        contents: impl 'static + Send + AsRef<[u8]>,
         emit: &[EmitType],
     ) -> Result<(), Error> {
         if resource.should_emit(emit) {
@@ -121,25 +123,23 @@ impl Context<'_> {
     fn write_minify(
         &self,
         resource: SharedResource<'_>,
-        contents: &str,
+        contents: impl 'static + Send + AsRef<str> + AsRef<[u8]>,
         minify: bool,
         emit: &[EmitType],
     ) -> Result<(), Error> {
-        let tmp;
-        let contents = if minify {
-            tmp = if resource.extension() == Some(&OsStr::new("css")) {
+        if minify {
+            let contents = contents.as_ref();
+            let contents = if resource.extension() == Some(OsStr::new("css")) {
                 minifier::css::minify(contents).map_err(|e| {
                     Error::new(format!("failed to minify CSS file: {}", e), resource.path(self))
                 })?
             } else {
                 minifier::js::minify(contents)
             };
-            tmp.as_bytes()
+            self.write_shared(resource, contents, emit)
         } else {
-            contents.as_bytes()
-        };
-
-        self.write_shared(resource, contents, emit)
+            self.write_shared(resource, contents, emit)
+        }
     }
 }
 
@@ -155,15 +155,21 @@ pub(super) fn write_shared(
     let lock_file = cx.dst.join(".lock");
     let _lock = try_err!(flock::Lock::new(&lock_file, true, true, true), &lock_file);
 
-    // The weird `: &_` is to work around a borrowck bug: https://github.com/rust-lang/rust/issues/41078#issuecomment-293646723
-    let write_minify = |p, c: &_| {
+    // Minified resources are usually toolchain resources. If they're not, they should use `cx.write_minify` directly.
+    fn write_minify(
+        basename: &'static str,
+        contents: impl 'static + Send + AsRef<str> + AsRef<[u8]>,
+        cx: &Context<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         cx.write_minify(
-            SharedResource::ToolchainSpecific { basename: p },
-            c,
+            SharedResource::ToolchainSpecific { basename },
+            contents,
             options.enable_minification,
             &options.emit,
         )
-    };
+    }
+
     // Toolchain resources should never be dynamic.
     let write_toolchain = |p: &'static _, c: &'static _| {
         cx.write_shared(SharedResource::ToolchainSpecific { basename: p }, c, &options.emit)
@@ -175,62 +181,54 @@ pub(super) fn write_shared(
         cx.write_shared(SharedResource::InvocationSpecific { basename: p }, content, &options.emit)
     };
 
-    fn add_background_image_to_css(
-        cx: &Context<'_>,
-        css: &mut String,
-        rule: &str,
-        file: &'static str,
-    ) {
-        css.push_str(&format!(
-            "{} {{ background-image: url({}); }}",
-            rule,
-            SharedResource::ToolchainSpecific { basename: file }
+    // Given "foo.svg", return e.g. "url(\"foo1.58.0.svg\")"
+    fn ver_url(cx: &Context<'_>, basename: &'static str) -> String {
+        format!(
+            "url(\"{}\")",
+            SharedResource::ToolchainSpecific { basename }
                 .path(cx)
                 .file_name()
                 .unwrap()
                 .to_str()
                 .unwrap()
-        ))
+        )
     }
 
-    // Add all the static files. These may already exist, but we just
-    // overwrite them anyway to make sure that they're fresh and up-to-date.
-    let mut rustdoc_css = static_files::RUSTDOC_CSS.to_owned();
-    add_background_image_to_css(
+    // We use the AUTOREPLACE mechanism to inject into our static JS and CSS certain
+    // values that are only known at doc build time. Since this mechanism is somewhat
+    // surprising when reading the code, please limit it to rustdoc.css.
+    write_minify(
+        "rustdoc.css",
+        static_files::RUSTDOC_CSS
+            .replace(
+                "/* AUTOREPLACE: */url(\"toggle-minus.svg\")",
+                &ver_url(cx, "toggle-minus.svg"),
+            )
+            .replace("/* AUTOREPLACE: */url(\"toggle-plus.svg\")", &ver_url(cx, "toggle-plus.svg"))
+            .replace("/* AUTOREPLACE: */url(\"down-arrow.svg\")", &ver_url(cx, "down-arrow.svg")),
         cx,
-        &mut rustdoc_css,
-        "details.undocumented[open] > summary::before, \
-         details.rustdoc-toggle[open] > summary::before, \
-         details.rustdoc-toggle[open] > summary.hideme::before",
-        "toggle-minus.svg",
-    );
-    add_background_image_to_css(
-        cx,
-        &mut rustdoc_css,
-        "details.undocumented > summary::before, details.rustdoc-toggle > summary::before",
-        "toggle-plus.svg",
-    );
-    write_minify("rustdoc.css", &rustdoc_css)?;
+        options,
+    )?;
 
     // Add all the static files. These may already exist, but we just
     // overwrite them anyway to make sure that they're fresh and up-to-date.
-    write_minify("settings.css", static_files::SETTINGS_CSS)?;
-    write_minify("noscript.css", static_files::NOSCRIPT_CSS)?;
+    write_minify("settings.css", static_files::SETTINGS_CSS, cx, options)?;
+    write_minify("noscript.css", static_files::NOSCRIPT_CSS, cx, options)?;
 
     // To avoid "light.css" to be overwritten, we'll first run over the received themes and only
     // then we'll run over the "official" styles.
     let mut themes: FxHashSet<String> = FxHashSet::default();
 
     for entry in &cx.shared.style_files {
-        let theme = try_none!(try_none!(entry.path.file_stem(), &entry.path).to_str(), &entry.path);
+        let theme = entry.basename()?;
         let extension =
             try_none!(try_none!(entry.path.extension(), &entry.path).to_str(), &entry.path);
 
         // Handle the official themes
-        match theme {
-            "light" => write_minify("light.css", static_files::themes::LIGHT)?,
-            "dark" => write_minify("dark.css", static_files::themes::DARK)?,
-            "ayu" => write_minify("ayu.css", static_files::themes::AYU)?,
+        match theme.as_str() {
+            "light" => write_minify("light.css", static_files::themes::LIGHT, cx, options)?,
+            "dark" => write_minify("dark.css", static_files::themes::DARK, cx, options)?,
+            "ayu" => write_minify("ayu.css", static_files::themes::AYU, cx, options)?,
             _ => {
                 // Handle added third-party themes
                 let filename = format!("{}.{}", theme, extension);
@@ -242,7 +240,7 @@ pub(super) fn write_shared(
     }
 
     if (*cx.shared).layout.logo.is_empty() {
-        write_toolchain("rust-logo.png", static_files::RUST_LOGO)?;
+        write_toolchain("rust-logo.svg", static_files::RUST_LOGO_SVG)?;
     }
     if (*cx.shared).layout.favicon.is_empty() {
         write_toolchain("favicon.svg", static_files::RUST_FAVICON_SVG)?;
@@ -259,31 +257,22 @@ pub(super) fn write_shared(
     let mut themes: Vec<&String> = themes.iter().collect();
     themes.sort();
 
-    // FIXME: this should probably not be a toolchain file since it depends on `--theme`.
-    // But it seems a shame to copy it over and over when it's almost always the same.
-    // Maybe we can change the representation to move this out of main.js?
-    write_minify(
-        "main.js",
-        &static_files::MAIN_JS.replace(
-            "/* INSERT THEMES HERE */",
-            &format!(" = {}", serde_json::to_string(&themes).unwrap()),
-        ),
-    )?;
-    write_minify("search.js", static_files::SEARCH_JS)?;
-    write_minify("settings.js", static_files::SETTINGS_JS)?;
+    write_minify("main.js", static_files::MAIN_JS, cx, options)?;
+    write_minify("search.js", static_files::SEARCH_JS, cx, options)?;
+    write_minify("settings.js", static_files::SETTINGS_JS, cx, options)?;
 
     if cx.include_sources {
-        write_minify("source-script.js", static_files::sidebar::SOURCE_SCRIPT)?;
+        write_minify("source-script.js", static_files::sidebar::SOURCE_SCRIPT, cx, options)?;
     }
 
-    {
-        write_minify(
-            "storage.js",
-            &format!(
-                "var resourcesSuffix = \"{}\";{}",
-                cx.shared.resource_suffix,
-                static_files::STORAGE_JS
-            ),
+    write_minify("storage.js", static_files::STORAGE_JS, cx, options)?;
+
+    if cx.shared.layout.scrape_examples_extension {
+        cx.write_minify(
+            SharedResource::InvocationSpecific { basename: "scrape-examples.js" },
+            static_files::SCRAPE_EXAMPLES_JS,
+            options.enable_minification,
+            &options.emit,
         )?;
     }
 
@@ -292,12 +281,12 @@ pub(super) fn write_shared(
         // This varies based on the invocation, so it can't go through the write_minify wrapper.
         cx.write_minify(
             SharedResource::InvocationSpecific { basename: "theme.css" },
-            &buffer,
+            buffer,
             options.enable_minification,
             &options.emit,
         )?;
     }
-    write_minify("normalize.css", static_files::NORMALIZE_CSS)?;
+    write_minify("normalize.css", static_files::NORMALIZE_CSS, cx, options)?;
     for (name, contents) in &*FILES_UNVERSIONED {
         cx.write_shared(SharedResource::Unversioned { name }, contents, &options.emit)?;
     }
@@ -429,10 +418,10 @@ pub(super) fn write_shared(
         let dst = cx.dst.join(&format!("source-files{}.js", cx.shared.resource_suffix));
         let make_sources = || {
             let (mut all_sources, _krates) =
-                try_err!(collect(&dst, &krate.name.as_str(), "sourcesIndex"), &dst);
+                try_err!(collect(&dst, krate.name(cx.tcx()).as_str(), "sourcesIndex"), &dst);
             all_sources.push(format!(
                 "sourcesIndex[\"{}\"] = {};",
-                &krate.name,
+                &krate.name(cx.tcx()),
                 hierarchy.to_json_string()
             ));
             all_sources.sort();
@@ -447,9 +436,10 @@ pub(super) fn write_shared(
 
     // Update the search index and crate list.
     let dst = cx.dst.join(&format!("search-index{}.js", cx.shared.resource_suffix));
-    let (mut all_indexes, mut krates) = try_err!(collect_json(&dst, &krate.name.as_str()), &dst);
+    let (mut all_indexes, mut krates) =
+        try_err!(collect_json(&dst, krate.name(cx.tcx()).as_str()), &dst);
     all_indexes.push(search_index);
-    krates.push(krate.name.to_string());
+    krates.push(krate.name(cx.tcx()).to_string());
     krates.sort();
 
     // Sort the indexes by crate so the file will be generated identically even
@@ -504,15 +494,8 @@ pub(super) fn write_shared(
                     })
                     .collect::<String>()
             );
-            let v = layout::render(
-                &cx.shared.templates,
-                &cx.shared.layout,
-                &page,
-                "",
-                content,
-                &cx.shared.style_files,
-            );
-            cx.shared.fs.write(&dst, v.as_bytes())?;
+            let v = layout::render(&cx.shared.layout, &page, "", content, &cx.shared.style_files);
+            cx.shared.fs.write(dst, v)?;
         }
     }
 
@@ -557,7 +540,7 @@ pub(super) fn write_shared(
                 } else {
                     Some(Implementor {
                         text: imp.inner_impl().print(false, cx).to_string(),
-                        synthetic: imp.inner_impl().synthetic,
+                        synthetic: imp.inner_impl().kind.is_auto(),
                         types: collect_paths_for_type(imp.inner_impl().for_.clone(), cache),
                     })
                 }
@@ -573,19 +556,19 @@ pub(super) fn write_shared(
 
         let implementors = format!(
             r#"implementors["{}"] = {};"#,
-            krate.name,
+            krate.name(cx.tcx()),
             serde_json::to_string(&implementors).unwrap()
         );
 
         let mut mydst = dst.clone();
         for part in &remote_path[..remote_path.len() - 1] {
-            mydst.push(part);
+            mydst.push(part.to_string());
         }
         cx.shared.ensure_dir(&mydst)?;
         mydst.push(&format!("{}.{}.js", remote_item_type, remote_path[remote_path.len() - 1]));
 
         let (mut all_implementors, _) =
-            try_err!(collect(&mydst, &krate.name.as_str(), "implementors"), &mydst);
+            try_err!(collect(&mydst, krate.name(cx.tcx()).as_str(), "implementors"), &mydst);
         all_implementors.push(implementors);
         // Sort the implementors by crate so the file will be generated
         // identically even with rustdoc running in parallel.
@@ -603,7 +586,7 @@ pub(super) fn write_shared(
              }",
         );
         v.push_str("})()");
-        cx.shared.fs.write(&mydst, &v)?;
+        cx.shared.fs.write(mydst, v)?;
     }
     Ok(())
 }

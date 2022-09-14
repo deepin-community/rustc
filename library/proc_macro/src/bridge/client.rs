@@ -78,7 +78,7 @@ macro_rules! define_handles {
                 }
             }
 
-            impl<S: server::Types> Decode<'_, 's, HandleStore<server::MarkedTypes<S>>>
+            impl<'s, S: server::Types> Decode<'_, 's, HandleStore<server::MarkedTypes<S>>>
                 for &'s Marked<S::$oty, $oty>
             {
                 fn decode(r: &mut Reader<'_>, s: &'s HandleStore<server::MarkedTypes<S>>) -> Self {
@@ -92,7 +92,7 @@ macro_rules! define_handles {
                 }
             }
 
-            impl<S: server::Types> DecodeMut<'_, 's, HandleStore<server::MarkedTypes<S>>>
+            impl<'s, S: server::Types> DecodeMut<'_, 's, HandleStore<server::MarkedTypes<S>>>
                 for &'s mut Marked<S::$oty, $oty>
             {
                 fn decode(
@@ -310,8 +310,7 @@ impl Bridge<'_> {
         // NB. the server can't do this because it may use a different libstd.
         static HIDE_PANICS_DURING_EXPANSION: Once = Once::new();
         HIDE_PANICS_DURING_EXPANSION.call_once(|| {
-            let prev = panic::take_hook();
-            panic::set_hook(Box::new(move |info| {
+            panic::update_hook(move |prev, info| {
                 let show = BridgeState::with(|state| match state {
                     BridgeState::NotConnected => true,
                     BridgeState::Connected(_) | BridgeState::InUse => force_show_panics,
@@ -319,7 +318,7 @@ impl Bridge<'_> {
                 if show {
                     prev(info)
                 }
-            }));
+            });
         });
 
         BRIDGE_STATE.with(|state| state.set(BridgeState::Connected(self), f))

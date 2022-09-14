@@ -4,7 +4,7 @@ You might want to build documentation of the various components
 available like the standard library. There’s two ways to go about this.
 You can run rustdoc directly on the file to make sure the HTML is
 correct, which is fast. Alternatively, you can build the documentation
-as part of the build process through x.py. Both are viable methods
+as part of the build process through `x.py`. Both are viable methods
 since documentation is more about the content.
 
 ## Document everything
@@ -50,6 +50,6 @@ documentation for internal compiler items will also be built.
 
 ### Compiler Documentation
 
-The documentation for the rust components are found at [rustc doc].
+The documentation for the Rust components are found at [rustc doc].
 
 [rustc doc]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/

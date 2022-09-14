@@ -7,7 +7,7 @@ use rustc_errors::Applicability;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{
     AsyncGeneratorKind, Block, Body, Expr, ExprKind, FnDecl, FnRetTy, GeneratorKind, GenericArg, GenericBound, HirId,
-    IsAsync, ItemKind, LifetimeName, TraitRef, Ty, TyKind, TypeBindingKind,
+    IsAsync, ItemKind, LifetimeName, Term, TraitRef, Ty, TyKind, TypeBindingKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
@@ -30,6 +30,7 @@ declare_clippy_lint! {
     /// ```rust
     /// async fn foo() -> i32 { 42 }
     /// ```
+    #[clippy::version = "1.45.0"]
     pub MANUAL_ASYNC_FN,
     style,
     "manual implementations of `async` functions can be simplified using the dedicated syntax"
@@ -49,7 +50,7 @@ impl<'tcx> LateLintPass<'tcx> for ManualAsyncFn {
     ) {
         if_chain! {
             if let Some(header) = kind.header();
-            if let IsAsync::NotAsync = header.asyncness;
+            if header.asyncness == IsAsync::NotAsync;
             // Check that this function returns `impl Future`
             if let FnRetTy::Return(ret_ty) = decl.output;
             if let Some((trait_ref, output_lifetimes)) = future_trait_ref(cx, ret_ty);
@@ -139,7 +140,7 @@ fn future_output_ty<'tcx>(trait_ref: &'tcx TraitRef<'tcx>) -> Option<&'tcx Ty<'t
         if args.bindings.len() == 1;
         let binding = &args.bindings[0];
         if binding.ident.name == sym::Output;
-        if let TypeBindingKind::Equality{ty: output} = binding.kind;
+        if let TypeBindingKind::Equality{term: Term::Ty(output)} = binding.kind;
         then {
             return Some(output)
         }
@@ -178,7 +179,7 @@ fn desugared_async_block<'tcx>(cx: &LateContext<'tcx>, block: &'tcx Block<'tcx>)
         if args.len() == 1;
         if let Expr{kind: ExprKind::Closure(_, _, body_id, ..), ..} = args[0];
         let closure_body = cx.tcx.hir().body(body_id);
-        if let Some(GeneratorKind::Async(AsyncGeneratorKind::Block)) = closure_body.generator_kind;
+        if closure_body.generator_kind == Some(GeneratorKind::Async(AsyncGeneratorKind::Block));
         then {
             return Some(closure_body);
         }

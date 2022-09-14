@@ -41,6 +41,7 @@ declare_clippy_lint! {
     /// ```rust
     /// async fn is_send(bytes: std::sync::Arc<[u8]>) {}
     /// ```
+    #[clippy::version = "1.44.0"]
     pub FUTURE_NOT_SEND,
     nursery,
     "public Futures must be Send"
@@ -67,23 +68,23 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
             let mut is_future = false;
             for &(p, _span) in preds {
                 let p = p.subst(cx.tcx, subst);
-                if let Some(trait_ref) = p.to_opt_poly_trait_ref() {
-                    if Some(trait_ref.value.def_id()) == cx.tcx.lang_items().future_trait() {
+                if let Some(trait_pred) = p.to_opt_poly_trait_pred() {
+                    if Some(trait_pred.skip_binder().trait_ref.def_id) == cx.tcx.lang_items().future_trait() {
                         is_future = true;
                         break;
                     }
                 }
             }
             if is_future {
-                let send_trait = cx.tcx.get_diagnostic_item(sym::send_trait).unwrap();
+                let send_trait = cx.tcx.get_diagnostic_item(sym::Send).unwrap();
                 let span = decl.output.span();
-                let send_result = cx.tcx.infer_ctxt().enter(|infcx| {
+                let send_errors = cx.tcx.infer_ctxt().enter(|infcx| {
                     let cause = traits::ObligationCause::misc(span, hir_id);
                     let mut fulfillment_cx = traits::FulfillmentContext::new();
                     fulfillment_cx.register_bound(&infcx, cx.param_env, ret_ty, send_trait, cause);
                     fulfillment_cx.select_all_or_error(&infcx)
                 });
-                if let Err(send_errors) = send_result {
+                if !send_errors.is_empty() {
                     span_lint_and_then(
                         cx,
                         FUTURE_NOT_SEND,

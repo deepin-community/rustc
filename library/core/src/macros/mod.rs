@@ -31,6 +31,7 @@ macro_rules! panic {
 /// ```
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "assert_eq_macro")]
 #[allow_internal_unstable(core_panic)]
 macro_rules! assert_eq {
     ($left:expr, $right:expr $(,)?) => ({
@@ -80,6 +81,7 @@ macro_rules! assert_eq {
 /// ```
 #[macro_export]
 #[stable(feature = "assert_ne", since = "1.13.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "assert_ne_macro")]
 #[allow_internal_unstable(core_panic)]
 macro_rules! assert_ne {
     ($left:expr, $right:expr $(,)?) => ({
@@ -236,6 +238,7 @@ macro_rules! debug_assert {
 /// ```
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "debug_assert_eq_macro")]
 macro_rules! debug_assert_eq {
     ($($arg:tt)*) => (if $crate::cfg!(debug_assertions) { $crate::assert_eq!($($arg)*); })
 }
@@ -261,6 +264,7 @@ macro_rules! debug_assert_eq {
 /// ```
 #[macro_export]
 #[stable(feature = "assert_ne", since = "1.13.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "debug_assert_ne_macro")]
 macro_rules! debug_assert_ne {
     ($($arg:tt)*) => (if $crate::cfg!(debug_assertions) { $crate::assert_ne!($($arg)*); })
 }
@@ -320,6 +324,7 @@ pub macro debug_assert_matches($($arg:tt)*) {
 /// ```
 #[macro_export]
 #[stable(feature = "matches_macro", since = "1.42.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "matches_macro")]
 macro_rules! matches {
     ($expression:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
         match $expression {
@@ -475,6 +480,7 @@ macro_rules! r#try {
 /// ```
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "write_macro")]
 macro_rules! write {
     ($dst:expr, $($arg:tt)*) => ($dst.write_fmt($crate::format_args!($($arg)*)))
 }
@@ -525,6 +531,7 @@ macro_rules! write {
 /// ```
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "writeln_macro")]
 #[allow_internal_unstable(format_args_nl)]
 macro_rules! writeln {
     ($dst:expr $(,)?) => (
@@ -554,7 +561,10 @@ macro_rules! writeln {
 ///
 /// # Panics
 ///
-/// This will always [`panic!`].
+/// This will always [`panic!`] because `unreachable!` is just a shorthand for `panic!` with a
+/// fixed, specific message.
+///
+/// Like `panic!`, this macro has a second form for displaying custom values.
 ///
 /// # Examples
 ///
@@ -581,14 +591,32 @@ macro_rules! writeln {
 ///         if 3*i < i { panic!("u32 overflow"); }
 ///         if x < 3*i { return i-1; }
 ///     }
-///     unreachable!();
+///     unreachable!("The loop should always return");
 /// }
 /// ```
+#[cfg(not(bootstrap))]
+#[macro_export]
+#[rustc_builtin_macro(unreachable)]
+#[allow_internal_unstable(edition_panic)]
+#[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "unreachable_macro")]
+macro_rules! unreachable {
+    // Expands to either `$crate::panic::unreachable_2015` or `$crate::panic::unreachable_2021`
+    // depending on the edition of the caller.
+    ($($arg:tt)*) => {
+        /* compiler built-in */
+    };
+}
+
+/// unreachable!() macro
+#[cfg(bootstrap)]
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "unreachable_macro")]
+#[allow_internal_unstable(core_panic)]
 macro_rules! unreachable {
     () => ({
-        $crate::panic!("internal error: entered unreachable code")
+        $crate::panicking::panic("internal error: entered unreachable code")
     });
     ($msg:expr $(,)?) => ({
         $crate::unreachable!("{}", $msg)
@@ -671,8 +699,10 @@ macro_rules! unreachable {
 /// ```
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "unimplemented_macro")]
+#[allow_internal_unstable(core_panic)]
 macro_rules! unimplemented {
-    () => ($crate::panic!("not implemented"));
+    () => ($crate::panicking::panic("not implemented"));
     ($($arg:tt)+) => ($crate::panic!("not implemented: {}", $crate::format_args!($($arg)+)));
 }
 
@@ -732,8 +762,10 @@ macro_rules! unimplemented {
 /// ```
 #[macro_export]
 #[stable(feature = "todo_macro", since = "1.40.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "todo_macro")]
+#[allow_internal_unstable(core_panic)]
 macro_rules! todo {
-    () => ($crate::panic!("not yet implemented"));
+    () => ($crate::panicking::panic("not yet implemented"));
     ($($arg:tt)+) => ($crate::panic!("not yet implemented: {}", $crate::format_args!($($arg)+)));
 }
 
@@ -780,6 +812,7 @@ pub(crate) mod builtin {
     #[stable(feature = "compile_error_macro", since = "1.20.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "compile_error_macro")]
     macro_rules! compile_error {
         ($msg:expr $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -829,6 +862,7 @@ pub(crate) mod builtin {
     /// assert_eq!(s, format!("hello {}", "world"));
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "format_args_macro")]
     #[allow_internal_unsafe]
     #[allow_internal_unstable(fmt_internals)]
     #[rustc_builtin_macro]
@@ -838,12 +872,11 @@ pub(crate) mod builtin {
         ($fmt:expr, $($args:tt)*) => {{ /* compiler built-in */ }};
     }
 
-    /// Same as `format_args`, but can be used in some const contexts.
+    /// Same as [`format_args`], but can be used in some const contexts.
     ///
     /// This macro is used by the panic macros for the `const_panic` feature.
     ///
     /// This macro will be removed once `format_args` is allowed in const contexts.
-    #[cfg(not(bootstrap))]
     #[unstable(feature = "const_format_args", issue = "none")]
     #[allow_internal_unstable(fmt_internals, const_fmt_arguments_new)]
     #[rustc_builtin_macro]
@@ -853,17 +886,7 @@ pub(crate) mod builtin {
         ($fmt:expr, $($args:tt)*) => {{ /* compiler built-in */ }};
     }
 
-    /// Same as `format_args`, but can be used in some const contexts.
-    #[cfg(bootstrap)]
-    #[unstable(feature = "const_format_args", issue = "none")]
-    #[macro_export]
-    macro_rules! const_format_args {
-        ($($t:tt)*) => {
-            $crate::format_args!($($t)*)
-        }
-    }
-
-    /// Same as `format_args`, but adds a newline in the end.
+    /// Same as [`format_args`], but adds a newline in the end.
     #[unstable(
         feature = "format_args_nl",
         issue = "none",
@@ -871,7 +894,6 @@ pub(crate) mod builtin {
                   language use and is subject to change"
     )]
     #[allow_internal_unstable(fmt_internals)]
-    #[doc(hidden)]
     #[rustc_builtin_macro]
     #[macro_export]
     macro_rules! format_args_nl {
@@ -911,6 +933,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "env_macro")]
     macro_rules! env {
         ($name:expr $(,)?) => {{ /* compiler built-in */ }};
         ($name:expr, $error_msg:expr $(,)?) => {{ /* compiler built-in */ }};
@@ -936,6 +959,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "option_env_macro")]
     macro_rules! option_env {
         ($name:expr $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -975,6 +999,33 @@ pub(crate) mod builtin {
         ($($e:ident),+ $(,)?) => {{ /* compiler built-in */ }};
     }
 
+    /// Concatenates literals into a byte slice.
+    ///
+    /// This macro takes any number of comma-separated literals, and concatenates them all into
+    /// one, yielding an expression of type `&[u8, _]`, which represents all of the literals
+    /// concatenated left-to-right. The literals passed can be any combination of:
+    ///
+    /// - byte literals (`b'r'`)
+    /// - byte strings (`b"Rust"`)
+    /// - arrays of bytes/numbers (`[b'A', 66, b'C']`)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(concat_bytes)]
+    ///
+    /// # fn main() {
+    /// let s: &[u8; 6] = concat_bytes!(b'A', b"BC", [68, b'E', 70]);
+    /// assert_eq!(s, b"ABCDEF");
+    /// # }
+    /// ```
+    #[unstable(feature = "concat_bytes", issue = "87555")]
+    #[rustc_builtin_macro]
+    #[macro_export]
+    macro_rules! concat_bytes {
+        ($($e:literal),+ $(,)?) => {{ /* compiler built-in */ }};
+    }
+
     /// Concatenates literals into a static string slice.
     ///
     /// This macro takes any number of comma-separated literals, yielding an
@@ -993,6 +1044,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "concat_macro")]
     macro_rules! concat {
         ($($e:expr),* $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -1018,6 +1070,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "line_macro")]
     macro_rules! line {
         () => {
             /* compiler built-in */
@@ -1042,9 +1095,22 @@ pub(crate) mod builtin {
     /// let current_col = column!();
     /// println!("defined on column: {}", current_col);
     /// ```
+    ///
+    /// `column!` counts Unicode code points, not bytes or graphemes. As a result, the first two
+    /// invocations return the same value, but the third does not.
+    ///
+    /// ```
+    /// let a = ("foobar", column!()).1;
+    /// let b = ("人之初性本善", column!()).1;
+    /// let c = ("f̅o̅o̅b̅a̅r̅", column!()).1; // Uses combining overline (U+0305)
+    ///
+    /// assert_eq!(a, b);
+    /// assert_ne!(b, c);
+    /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "column_macro")]
     macro_rules! column {
         () => {
             /* compiler built-in */
@@ -1070,6 +1136,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "file_macro")]
     macro_rules! file {
         () => {
             /* compiler built-in */
@@ -1094,6 +1161,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "stringify_macro")]
     macro_rules! stringify {
         ($($t:tt)*) => {
             /* compiler built-in */
@@ -1135,6 +1203,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "include_str_macro")]
     macro_rules! include_str {
         ($file:expr $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -1174,6 +1243,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "include_bytes_macro")]
     macro_rules! include_bytes {
         ($file:expr $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -1198,6 +1268,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "module_path_macro")]
     macro_rules! module_path {
         () => {
             /* compiler built-in */
@@ -1231,6 +1302,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "cfg_macro")]
     macro_rules! cfg {
         ($($cfg:tt)*) => {
             /* compiler built-in */
@@ -1281,6 +1353,7 @@ pub(crate) mod builtin {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     #[macro_export]
+    #[cfg_attr(not(test), rustc_diagnostic_item = "include_macro")]
     macro_rules! include {
         ($file:expr $(,)?) => {{ /* compiler built-in */ }};
     }
@@ -1339,32 +1412,6 @@ pub(crate) mod builtin {
         ($cond:expr, $($arg:tt)+) => {{ /* compiler built-in */ }};
     }
 
-    /// LLVM-style inline assembly.
-    ///
-    /// Read the [unstable book] for the usage.
-    ///
-    /// [unstable book]: ../unstable-book/library-features/llvm-asm.html
-    #[unstable(
-        feature = "llvm_asm",
-        issue = "70173",
-        reason = "prefer using the new asm! syntax instead"
-    )]
-    #[rustc_deprecated(
-        since = "1.56",
-        reason = "will be removed from the compiler, use asm! instead"
-    )]
-    #[rustc_builtin_macro]
-    #[macro_export]
-    macro_rules! llvm_asm {
-        ("assembly template"
-                        : $("output"(operand),)*
-                        : $("input"(operand),)*
-                        : $("clobbers",)*
-                        : $("options",)*) => {
-            /* compiler built-in */
-        };
-    }
-
     /// Prints passed tokens into the standard output.
     #[unstable(
         feature = "log_syntax",
@@ -1393,6 +1440,10 @@ pub(crate) mod builtin {
     }
 
     /// Attribute macro used to apply derive macros.
+    ///
+    /// See [the reference] for more info.
+    ///
+    /// [the reference]: ../../../reference/attributes/derive.html
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_builtin_macro]
     pub macro derive($item:item) {
@@ -1400,6 +1451,10 @@ pub(crate) mod builtin {
     }
 
     /// Attribute macro applied to a function to turn it into a unit test.
+    ///
+    /// See [the reference] for more info.
+    ///
+    /// [the reference]: ../../../reference/attributes/testing.html#the-test-attribute
     #[stable(feature = "rust1", since = "1.0.0")]
     #[allow_internal_unstable(test, rustc_attrs)]
     #[rustc_builtin_macro]
@@ -1434,7 +1489,7 @@ pub(crate) mod builtin {
 
     /// Attribute macro applied to a static to register it as a global allocator.
     ///
-    /// See also [`std::alloc::GlobalAlloc`](../std/alloc/trait.GlobalAlloc.html).
+    /// See also [`std::alloc::GlobalAlloc`](../../../std/alloc/trait.GlobalAlloc.html).
     #[stable(feature = "global_allocator", since = "1.28.0")]
     #[allow_internal_unstable(rustc_attrs)]
     #[rustc_builtin_macro]
@@ -1472,6 +1527,7 @@ pub(crate) mod builtin {
         since = "1.52.0",
         reason = "rustc-serialize is deprecated and no longer supported"
     )]
+    #[doc(hidden)] // While technically stable, using it is unstable, and deprecated. Hide it.
     pub macro RustcDecodable($item:item) {
         /* compiler built-in */
     }
@@ -1484,6 +1540,7 @@ pub(crate) mod builtin {
         since = "1.52.0",
         reason = "rustc-serialize is deprecated and no longer supported"
     )]
+    #[doc(hidden)] // While technically stable, using it is unstable, and deprecated. Hide it.
     pub macro RustcEncodable($item:item) {
         /* compiler built-in */
     }

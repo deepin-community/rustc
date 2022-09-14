@@ -1,5 +1,6 @@
 use crate::astconv::AstConv;
 use crate::check::coercion::CoerceMany;
+use crate::check::gather_locals::Declaration;
 use crate::check::method::MethodCallee;
 use crate::check::Expectation::*;
 use crate::check::TupleArgumentsFlag::*;
@@ -9,6 +10,7 @@ use crate::check::{
 };
 
 use rustc_ast as ast;
+use rustc_data_structures::sync::Lrc;
 use rustc_errors::{Applicability, DiagnosticBuilder, DiagnosticId};
 use rustc_hir as hir;
 use rustc_hir::def::{CtorOf, DefKind, Res};
@@ -25,6 +27,11 @@ use rustc_trait_selection::traits::{self, ObligationCauseCode, StatementAsExpres
 use crate::structured_errors::StructuredDiagnostic;
 use std::iter;
 use std::slice;
+
+struct FnArgsAsTuple<'hir> {
+    first: &'hir hir::Expr<'hir>,
+    last: &'hir hir::Expr<'hir>,
+}
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     pub(in super::super) fn check_casts(&self) {
@@ -53,14 +60,14 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
             let err_inputs = match tuple_arguments {
                 DontTupleArguments => err_inputs,
-                TupleArguments => vec![self.tcx.intern_tup(&err_inputs[..])],
+                TupleArguments => vec![self.tcx.intern_tup(&err_inputs)],
             };
 
             self.check_argument_types(
                 sp,
                 expr,
-                &err_inputs[..],
-                &[],
+                &err_inputs,
+                vec![],
                 args_no_rcvr,
                 false,
                 tuple_arguments,
@@ -71,7 +78,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         let method = method.unwrap();
         // HACK(eddyb) ignore self in the definition (see above).
-        let expected_arg_tys = self.expected_inputs_for_expected_output(
+        let expected_input_tys = self.expected_inputs_for_expected_output(
             sp,
             expected,
             method.sig.output(),
@@ -81,7 +88,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             sp,
             expr,
             &method.sig.inputs()[1..],
-            &expected_arg_tys[..],
+            expected_input_tys,
             args_no_rcvr,
             method.sig.c_variadic,
             tuple_arguments,
@@ -94,34 +101,240 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     /// method calls and overloaded operators.
     pub(in super::super) fn check_argument_types(
         &self,
-        sp: Span,
-        expr: &'tcx hir::Expr<'tcx>,
-        fn_inputs: &[Ty<'tcx>],
-        expected_arg_tys: &[Ty<'tcx>],
-        args: &'tcx [hir::Expr<'tcx>],
+        // Span enclosing the call site
+        call_span: Span,
+        // Expression of the call site
+        call_expr: &'tcx hir::Expr<'tcx>,
+        // Types (as defined in the *signature* of the target function)
+        formal_input_tys: &[Ty<'tcx>],
+        // More specific expected types, after unifying with caller output types
+        expected_input_tys: Vec<Ty<'tcx>>,
+        // The expressions for each provided argument
+        provided_args: &'tcx [hir::Expr<'tcx>],
+        // Whether the function is variadic, for example when imported from C
         c_variadic: bool,
+        // Whether the arguments have been bundled in a tuple (ex: closures)
         tuple_arguments: TupleArgumentsFlag,
-        def_id: Option<DefId>,
+        // The DefId for the function being called, for better error messages
+        fn_def_id: Option<DefId>,
     ) {
         let tcx = self.tcx;
         // Grab the argument types, supplying fresh type variables
         // if the wrong number of arguments were supplied
-        let supplied_arg_count = if tuple_arguments == DontTupleArguments { args.len() } else { 1 };
+        let supplied_arg_count =
+            if tuple_arguments == DontTupleArguments { provided_args.len() } else { 1 };
 
         // All the input types from the fn signature must outlive the call
         // so as to validate implied bounds.
-        for (&fn_input_ty, arg_expr) in iter::zip(fn_inputs, args) {
+        for (&fn_input_ty, arg_expr) in iter::zip(formal_input_tys, provided_args) {
             self.register_wf_obligation(fn_input_ty.into(), arg_expr.span, traits::MiscObligation);
         }
 
-        let expected_arg_count = fn_inputs.len();
+        let expected_arg_count = formal_input_tys.len();
 
-        let param_count_error = |expected_count: usize,
-                                 arg_count: usize,
-                                 error_code: &str,
-                                 c_variadic: bool,
-                                 sugg_unit: bool| {
-            let (span, start_span, args, ctor_of) = match &expr.kind {
+        // expected_count, arg_count, error_code, sugg_unit, sugg_tuple_wrap_args
+        let mut arg_count_error: Option<(usize, usize, &str, bool, Option<FnArgsAsTuple<'_>>)> =
+            None;
+
+        // If the arguments should be wrapped in a tuple (ex: closures), unwrap them here
+        let (formal_input_tys, expected_input_tys) = if tuple_arguments == TupleArguments {
+            let tuple_type = self.structurally_resolved_type(call_span, formal_input_tys[0]);
+            match tuple_type.kind() {
+                // We expected a tuple and got a tuple
+                ty::Tuple(arg_types) => {
+                    // Argument length differs
+                    if arg_types.len() != provided_args.len() {
+                        arg_count_error =
+                            Some((arg_types.len(), provided_args.len(), "E0057", false, None));
+                    }
+                    let expected_input_tys = match expected_input_tys.get(0) {
+                        Some(&ty) => match ty.kind() {
+                            ty::Tuple(ref tys) => tys.iter().map(|k| k.expect_ty()).collect(),
+                            _ => vec![],
+                        },
+                        None => vec![],
+                    };
+                    (arg_types.iter().map(|k| k.expect_ty()).collect(), expected_input_tys)
+                }
+                _ => {
+                    // Otherwise, there's a mismatch, so clear out what we're expecting, and set
+                    // our input typs to err_args so we don't blow up the error messages
+                    struct_span_err!(
+                        tcx.sess,
+                        call_span,
+                        E0059,
+                        "cannot use call notation; the first type parameter \
+                         for the function trait is neither a tuple nor unit"
+                    )
+                    .emit();
+                    (self.err_args(provided_args.len()), vec![])
+                }
+            }
+        } else if expected_arg_count == supplied_arg_count {
+            (formal_input_tys.to_vec(), expected_input_tys)
+        } else if c_variadic {
+            if supplied_arg_count >= expected_arg_count {
+                (formal_input_tys.to_vec(), expected_input_tys)
+            } else {
+                arg_count_error =
+                    Some((expected_arg_count, supplied_arg_count, "E0060", false, None));
+                (self.err_args(supplied_arg_count), vec![])
+            }
+        } else {
+            // is the missing argument of type `()`?
+            let sugg_unit = if expected_input_tys.len() == 1 && supplied_arg_count == 0 {
+                self.resolve_vars_if_possible(expected_input_tys[0]).is_unit()
+            } else if formal_input_tys.len() == 1 && supplied_arg_count == 0 {
+                self.resolve_vars_if_possible(formal_input_tys[0]).is_unit()
+            } else {
+                false
+            };
+
+            // are we passing elements of a tuple without the tuple parentheses?
+            let expected_input_tys = if expected_input_tys.is_empty() {
+                // In most cases we can use expected_input_tys, but some callers won't have the type
+                // information, in which case we fall back to the types from the input expressions.
+                formal_input_tys
+            } else {
+                &*expected_input_tys
+            };
+
+            let sugg_tuple_wrap_args = self.suggested_tuple_wrap(expected_input_tys, provided_args);
+
+            arg_count_error = Some((
+                expected_arg_count,
+                supplied_arg_count,
+                "E0061",
+                sugg_unit,
+                sugg_tuple_wrap_args,
+            ));
+            (self.err_args(supplied_arg_count), vec![])
+        };
+
+        debug!(
+            "check_argument_types: formal_input_tys={:?}",
+            formal_input_tys.iter().map(|t| self.ty_to_string(*t)).collect::<Vec<String>>()
+        );
+
+        // If there is no expectation, expect formal_input_tys.
+        let expected_input_tys = if !expected_input_tys.is_empty() {
+            expected_input_tys
+        } else {
+            formal_input_tys.clone()
+        };
+
+        assert_eq!(expected_input_tys.len(), formal_input_tys.len());
+
+        let provided_arg_count: usize = provided_args.len();
+
+        // Keep track of the fully coerced argument types
+        let mut final_arg_types: Vec<Option<(Ty<'_>, Ty<'_>)>> = vec![None; provided_arg_count];
+
+        // We introduce a helper function to demand that a given argument satisfy a given input
+        // This is more complicated than just checking type equality, as arguments could be coerced
+        // This version writes those types back so further type checking uses the narrowed types
+        let demand_compatible = |idx, final_arg_types: &mut Vec<Option<(Ty<'tcx>, Ty<'tcx>)>>| {
+            let formal_input_ty: Ty<'tcx> = formal_input_tys[idx];
+            let expected_input_ty: Ty<'tcx> = expected_input_tys[idx];
+            let provided_arg = &provided_args[idx];
+
+            debug!("checking argument {}: {:?} = {:?}", idx, provided_arg, formal_input_ty);
+
+            // The special-cased logic below has three functions:
+            // 1. Provide as good of an expected type as possible.
+            let expectation = Expectation::rvalue_hint(self, expected_input_ty);
+
+            let checked_ty = self.check_expr_with_expectation(provided_arg, expectation);
+
+            // 2. Coerce to the most detailed type that could be coerced
+            //    to, which is `expected_ty` if `rvalue_hint` returns an
+            //    `ExpectHasType(expected_ty)`, or the `formal_ty` otherwise.
+            let coerced_ty = expectation.only_has_type(self).unwrap_or(formal_input_ty);
+
+            // Keep track of these for below
+            final_arg_types[idx] = Some((checked_ty, coerced_ty));
+
+            // Cause selection errors caused by resolving a single argument to point at the
+            // argument and not the call. This is otherwise redundant with the `demand_coerce`
+            // call immediately after, but it lets us customize the span pointed to in the
+            // fulfillment error to be more accurate.
+            let coerced_ty =
+                self.resolve_vars_with_obligations_and_mutate_fulfillment(coerced_ty, |errors| {
+                    self.point_at_type_arg_instead_of_call_if_possible(errors, call_expr);
+                    self.point_at_arg_instead_of_call_if_possible(
+                        errors,
+                        &final_arg_types,
+                        call_expr,
+                        call_span,
+                        provided_args,
+                    );
+                });
+
+            final_arg_types[idx] = Some((checked_ty, coerced_ty));
+
+            // We're processing function arguments so we definitely want to use
+            // two-phase borrows.
+            self.demand_coerce(&provided_arg, checked_ty, coerced_ty, None, AllowTwoPhase::Yes);
+
+            // 3. Relate the expected type and the formal one,
+            //    if the expected type was used for the coercion.
+            self.demand_suptype(provided_arg.span, formal_input_ty, coerced_ty);
+        };
+
+        // Check the arguments.
+        // We do this in a pretty awful way: first we type-check any arguments
+        // that are not closures, then we type-check the closures. This is so
+        // that we have more information about the types of arguments when we
+        // type-check the functions. This isn't really the right way to do this.
+        for check_closures in [false, true] {
+            // More awful hacks: before we check argument types, try to do
+            // an "opportunistic" trait resolution of any trait bounds on
+            // the call. This helps coercions.
+            if check_closures {
+                self.select_obligations_where_possible(false, |errors| {
+                    self.point_at_type_arg_instead_of_call_if_possible(errors, call_expr);
+                    self.point_at_arg_instead_of_call_if_possible(
+                        errors,
+                        &final_arg_types,
+                        call_expr,
+                        call_span,
+                        &provided_args,
+                    );
+                })
+            }
+
+            let minimum_input_count = formal_input_tys.len();
+            for (idx, arg) in provided_args.iter().enumerate() {
+                // Warn only for the first loop (the "no closures" one).
+                // Closure arguments themselves can't be diverging, but
+                // a previous argument can, e.g., `foo(panic!(), || {})`.
+                if !check_closures {
+                    self.warn_if_unreachable(arg.hir_id, arg.span, "expression");
+                }
+
+                // For C-variadic functions, we don't have a declared type for all of
+                // the arguments hence we only do our usual type checking with
+                // the arguments who's types we do know. However, we *can* check
+                // for unreachable expressions (see above).
+                // FIXME: unreachable warning current isn't emitted
+                if idx >= minimum_input_count {
+                    continue;
+                }
+
+                let is_closure = matches!(arg.kind, ExprKind::Closure(..));
+                if is_closure != check_closures {
+                    continue;
+                }
+
+                demand_compatible(idx, &mut final_arg_types);
+            }
+        }
+
+        // If there was an error in parameter count, emit that here
+        if let Some((expected_count, arg_count, err_code, sugg_unit, sugg_tuple_wrap_args)) =
+            arg_count_error
+        {
+            let (span, start_span, args, ctor_of) = match &call_expr.kind {
                 hir::ExprKind::Call(
                     hir::Expr {
                         span,
@@ -137,8 +350,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 hir::ExprKind::Call(hir::Expr { span, .. }, args) => {
                     (*span, *span, &args[..], None)
                 }
-                hir::ExprKind::MethodCall(path_segment, span, args, _) => (
-                    *span,
+                hir::ExprKind::MethodCall(path_segment, args, _) => (
+                    path_segment.ident.span,
                     // `sp` doesn't point at the whole `foo.bar()`, only at `bar`.
                     path_segment
                         .args
@@ -150,18 +363,18 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                                 .source_map()
                                 .next_point(tcx.sess.source_map().next_point(arg.span()))
                         })
-                        .unwrap_or(*span),
+                        .unwrap_or(path_segment.ident.span),
                     &args[1..], // Skip the receiver.
                     None,       // methods are never ctors
                 ),
-                k => span_bug!(sp, "checking argument types on a non-call: `{:?}`", k),
+                k => span_bug!(call_span, "checking argument types on a non-call: `{:?}`", k),
             };
-            let arg_spans = if args.is_empty() {
+            let arg_spans = if provided_args.is_empty() {
                 // foo()
                 // ^^^-- supplied 0 arguments
                 // |
                 // expected 2 arguments
-                vec![tcx.sess.source_map().next_point(start_span).with_hi(sp.hi())]
+                vec![tcx.sess.source_map().next_point(start_span).with_hi(call_span.hi())]
             } else {
                 // foo(1, 2, 3)
                 // ^^^ -  -  - supplied 3 arguments
@@ -169,22 +382,22 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 // expected 2 arguments
                 args.iter().map(|arg| arg.span).collect::<Vec<Span>>()
             };
-
+            let call_name = match ctor_of {
+                Some(CtorOf::Struct) => "struct",
+                Some(CtorOf::Variant) => "enum variant",
+                None => "function",
+            };
             let mut err = tcx.sess.struct_span_err_with_code(
                 span,
                 &format!(
                     "this {} takes {}{} but {} {} supplied",
-                    match ctor_of {
-                        Some(CtorOf::Struct) => "struct",
-                        Some(CtorOf::Variant) => "enum variant",
-                        None => "function",
-                    },
+                    call_name,
                     if c_variadic { "at least " } else { "" },
                     potentially_plural_count(expected_count, "argument"),
                     potentially_plural_count(arg_count, "argument"),
                     if arg_count == 1 { "was" } else { "were" }
                 ),
-                DiagnosticId::Error(error_code.to_owned()),
+                DiagnosticId::Error(err_code.to_owned()),
             );
             let label = format!("supplied {}", potentially_plural_count(arg_count, "argument"));
             for (i, span) in arg_spans.into_iter().enumerate() {
@@ -193,8 +406,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     if arg_count == 0 || i + 1 == arg_count { &label } else { "" },
                 );
             }
-
-            if let Some(def_id) = def_id {
+            if let Some(def_id) = fn_def_id {
                 if let Some(def_span) = tcx.def_ident_span(def_id) {
                     let mut spans: MultiSpan = def_span.into();
 
@@ -214,15 +426,23 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     err.span_note(spans, &format!("{} defined here", def_kind.descr(def_id)));
                 }
             }
-
             if sugg_unit {
-                let sugg_span = tcx.sess.source_map().end_point(expr.span);
+                let sugg_span = tcx.sess.source_map().end_point(call_expr.span);
                 // remove closing `)` from the span
                 let sugg_span = sugg_span.shrink_to_lo();
                 err.span_suggestion(
                     sugg_span,
                     "expected the unit value `()`; create it with empty parentheses",
                     String::from("()"),
+                    Applicability::MachineApplicable,
+                );
+            } else if let Some(FnArgsAsTuple { first, last }) = sugg_tuple_wrap_args {
+                err.multipart_suggestion(
+                    "use parentheses to construct a tuple",
+                    vec![
+                        (first.span.shrink_to_lo(), '('.to_string()),
+                        (last.span.shrink_to_hi(), ')'.to_string()),
+                    ],
                     Applicability::MachineApplicable,
                 );
             } else {
@@ -236,146 +456,6 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 );
             }
             err.emit();
-        };
-
-        let mut expected_arg_tys = expected_arg_tys.to_vec();
-
-        let formal_tys = if tuple_arguments == TupleArguments {
-            let tuple_type = self.structurally_resolved_type(sp, fn_inputs[0]);
-            match tuple_type.kind() {
-                ty::Tuple(arg_types) if arg_types.len() != args.len() => {
-                    param_count_error(arg_types.len(), args.len(), "E0057", false, false);
-                    expected_arg_tys = vec![];
-                    self.err_args(args.len())
-                }
-                ty::Tuple(arg_types) => {
-                    expected_arg_tys = match expected_arg_tys.get(0) {
-                        Some(&ty) => match ty.kind() {
-                            ty::Tuple(ref tys) => tys.iter().map(|k| k.expect_ty()).collect(),
-                            _ => vec![],
-                        },
-                        None => vec![],
-                    };
-                    arg_types.iter().map(|k| k.expect_ty()).collect()
-                }
-                _ => {
-                    struct_span_err!(
-                        tcx.sess,
-                        sp,
-                        E0059,
-                        "cannot use call notation; the first type parameter \
-                         for the function trait is neither a tuple nor unit"
-                    )
-                    .emit();
-                    expected_arg_tys = vec![];
-                    self.err_args(args.len())
-                }
-            }
-        } else if expected_arg_count == supplied_arg_count {
-            fn_inputs.to_vec()
-        } else if c_variadic {
-            if supplied_arg_count >= expected_arg_count {
-                fn_inputs.to_vec()
-            } else {
-                param_count_error(expected_arg_count, supplied_arg_count, "E0060", true, false);
-                expected_arg_tys = vec![];
-                self.err_args(supplied_arg_count)
-            }
-        } else {
-            // is the missing argument of type `()`?
-            let sugg_unit = if expected_arg_tys.len() == 1 && supplied_arg_count == 0 {
-                self.resolve_vars_if_possible(expected_arg_tys[0]).is_unit()
-            } else if fn_inputs.len() == 1 && supplied_arg_count == 0 {
-                self.resolve_vars_if_possible(fn_inputs[0]).is_unit()
-            } else {
-                false
-            };
-            param_count_error(expected_arg_count, supplied_arg_count, "E0061", false, sugg_unit);
-
-            expected_arg_tys = vec![];
-            self.err_args(supplied_arg_count)
-        };
-
-        debug!(
-            "check_argument_types: formal_tys={:?}",
-            formal_tys.iter().map(|t| self.ty_to_string(*t)).collect::<Vec<String>>()
-        );
-
-        // If there is no expectation, expect formal_tys.
-        let expected_arg_tys =
-            if !expected_arg_tys.is_empty() { expected_arg_tys } else { formal_tys.clone() };
-
-        let mut final_arg_types: Vec<(usize, Ty<'_>, Ty<'_>)> = vec![];
-
-        // Check the arguments.
-        // We do this in a pretty awful way: first we type-check any arguments
-        // that are not closures, then we type-check the closures. This is so
-        // that we have more information about the types of arguments when we
-        // type-check the functions. This isn't really the right way to do this.
-        for check_closures in [false, true] {
-            debug!("check_closures={}", check_closures);
-
-            // More awful hacks: before we check argument types, try to do
-            // an "opportunistic" trait resolution of any trait bounds on
-            // the call. This helps coercions.
-            if check_closures {
-                self.select_obligations_where_possible(false, |errors| {
-                    self.point_at_type_arg_instead_of_call_if_possible(errors, expr);
-                    self.point_at_arg_instead_of_call_if_possible(
-                        errors,
-                        &final_arg_types[..],
-                        sp,
-                        &args,
-                    );
-                })
-            }
-
-            // For C-variadic functions, we don't have a declared type for all of
-            // the arguments hence we only do our usual type checking with
-            // the arguments who's types we do know.
-            let t = if c_variadic {
-                expected_arg_count
-            } else if tuple_arguments == TupleArguments {
-                args.len()
-            } else {
-                supplied_arg_count
-            };
-            for (i, arg) in args.iter().take(t).enumerate() {
-                // Warn only for the first loop (the "no closures" one).
-                // Closure arguments themselves can't be diverging, but
-                // a previous argument can, e.g., `foo(panic!(), || {})`.
-                if !check_closures {
-                    self.warn_if_unreachable(arg.hir_id, arg.span, "expression");
-                }
-
-                let is_closure = matches!(arg.kind, ExprKind::Closure(..));
-
-                if is_closure != check_closures {
-                    continue;
-                }
-
-                debug!("checking the argument");
-                let formal_ty = formal_tys[i];
-
-                // The special-cased logic below has three functions:
-                // 1. Provide as good of an expected type as possible.
-                let expected = Expectation::rvalue_hint(self, expected_arg_tys[i]);
-
-                let checked_ty = self.check_expr_with_expectation(&arg, expected);
-
-                // 2. Coerce to the most detailed type that could be coerced
-                //    to, which is `expected_ty` if `rvalue_hint` returns an
-                //    `ExpectHasType(expected_ty)`, or the `formal_ty` otherwise.
-                let coerce_ty = expected.only_has_type(self).unwrap_or(formal_ty);
-                // We're processing function arguments so we definitely want to use
-                // two-phase borrows.
-                self.demand_coerce(&arg, checked_ty, coerce_ty, None, AllowTwoPhase::Yes);
-                final_arg_types.push((i, checked_ty, coerce_ty));
-
-                // 3. Relate the expected type and the formal one,
-                //    if the expected type was used for the coercion.
-                self.demand_suptype(arg.span, formal_ty, coerce_ty);
-            }
         }
 
         // We also need to make sure we at least write the ty of the other
@@ -387,7 +467,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 MissingCastForVariadicArg { sess, span, ty, cast_ty }.diagnostic().emit()
             }
 
-            for arg in args.iter().skip(expected_arg_count) {
+            for arg in provided_args.iter().skip(expected_arg_count) {
                 let arg_ty = self.check_expr(&arg);
 
                 // There are a few types which get autopromoted when passed via varargs
@@ -411,6 +491,35 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     _ => {}
                 }
             }
+        }
+    }
+
+    fn suggested_tuple_wrap(
+        &self,
+        expected_input_tys: &[Ty<'tcx>],
+        provided_args: &'tcx [hir::Expr<'tcx>],
+    ) -> Option<FnArgsAsTuple<'_>> {
+        let [expected_arg_type] = &expected_input_tys[..] else { return None };
+
+        let ty::Tuple(expected_elems) = self.resolve_vars_if_possible(*expected_arg_type).kind()
+            else { return None };
+
+        let expected_types: Vec<_> = expected_elems.iter().map(|k| k.expect_ty()).collect();
+        let supplied_types: Vec<_> = provided_args.iter().map(|arg| self.check_expr(arg)).collect();
+
+        let all_match = iter::zip(expected_types, supplied_types)
+            .all(|(expected, supplied)| self.can_eq(self.param_env, expected, supplied).is_ok());
+
+        if all_match {
+            match provided_args {
+                [] => None,
+                [_] => unreachable!(
+                    "shouldn't reach here - need count mismatch between 1-tuple and 1-argument"
+                ),
+                [first, .., last] => Some(FnArgsAsTuple { first, last }),
+            }
+        } else {
+            None
         }
     }
 
@@ -473,7 +582,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 _ => bug!("unexpected type: {:?}", ty),
             },
             Res::Def(DefKind::Struct | DefKind::Union | DefKind::TyAlias | DefKind::AssocTy, _)
-            | Res::SelfTy(..) => match ty.kind() {
+            | Res::SelfTy { .. } => match ty.kind() {
                 ty::Adt(adt, substs) if !adt.is_enum() => {
                     Some((adt.non_enum_variant(), adt.did, substs))
                 }
@@ -487,38 +596,46 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             self.write_user_type_annotation_from_substs(hir_id, did, substs, None);
 
             // Check bounds on type arguments used in the path.
-            let (bounds, _) = self.instantiate_bounds(path_span, did, substs);
-            let cause =
-                traits::ObligationCause::new(path_span, self.body_id, traits::ItemObligation(did));
-            self.add_obligations_for_parameters(cause, bounds);
+            self.add_required_obligations(path_span, did, substs);
 
             Some((variant, ty))
         } else {
-            struct_span_err!(
-                self.tcx.sess,
-                path_span,
-                E0071,
-                "expected struct, variant or union type, found {}",
-                ty.sort_string(self.tcx)
-            )
-            .span_label(path_span, "not a struct")
-            .emit();
+            match ty.kind() {
+                ty::Error(_) => {
+                    // E0071 might be caused by a spelling error, which will have
+                    // already caused an error message and probably a suggestion
+                    // elsewhere. Refrain from emitting more unhelpful errors here
+                    // (issue #88844).
+                }
+                _ => {
+                    struct_span_err!(
+                        self.tcx.sess,
+                        path_span,
+                        E0071,
+                        "expected struct, variant or union type, found {}",
+                        ty.sort_string(self.tcx)
+                    )
+                    .span_label(path_span, "not a struct")
+                    .emit();
+                }
+            }
             None
         }
     }
 
     pub fn check_decl_initializer(
         &self,
-        local: &'tcx hir::Local<'tcx>,
+        hir_id: hir::HirId,
+        pat: &'tcx hir::Pat<'tcx>,
         init: &'tcx hir::Expr<'tcx>,
     ) -> Ty<'tcx> {
         // FIXME(tschottdorf): `contains_explicit_ref_binding()` must be removed
         // for #42640 (default match binding modes).
         //
         // See #44848.
-        let ref_bindings = local.pat.contains_explicit_ref_binding();
+        let ref_bindings = pat.contains_explicit_ref_binding();
 
-        let local_ty = self.local_ty(init.span, local.hir_id).revealed_ty;
+        let local_ty = self.local_ty(init.span, hir_id).revealed_ty;
         if let Some(m) = ref_bindings {
             // Somewhat subtle: if we have a `ref` binding in the pattern,
             // we want to avoid introducing coercions for the RHS. This is
@@ -536,29 +653,33 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         }
     }
 
-    /// Type check a `let` statement.
-    pub fn check_decl_local(&self, local: &'tcx hir::Local<'tcx>) {
+    pub(in super::super) fn check_decl(&self, decl: Declaration<'tcx>) {
         // Determine and write the type which we'll check the pattern against.
-        let ty = self.local_ty(local.span, local.hir_id).decl_ty;
-        self.write_ty(local.hir_id, ty);
+        let decl_ty = self.local_ty(decl.span, decl.hir_id).decl_ty;
+        self.write_ty(decl.hir_id, decl_ty);
 
         // Type check the initializer.
-        if let Some(ref init) = local.init {
-            let init_ty = self.check_decl_initializer(local, &init);
-            self.overwrite_local_ty_if_err(local, ty, init_ty);
+        if let Some(ref init) = decl.init {
+            let init_ty = self.check_decl_initializer(decl.hir_id, decl.pat, &init);
+            self.overwrite_local_ty_if_err(decl.hir_id, decl.pat, decl_ty, init_ty);
         }
 
         // Does the expected pattern type originate from an expression and what is the span?
-        let (origin_expr, ty_span) = match (local.ty, local.init) {
+        let (origin_expr, ty_span) = match (decl.ty, decl.init) {
             (Some(ty), _) => (false, Some(ty.span)), // Bias towards the explicit user type.
             (_, Some(init)) => (true, Some(init.span)), // No explicit type; so use the scrutinee.
             _ => (false, None), // We have `let $pat;`, so the expected type is unconstrained.
         };
 
         // Type check the pattern. Override if necessary to avoid knock-on errors.
-        self.check_pat_top(&local.pat, ty, ty_span, origin_expr);
-        let pat_ty = self.node_ty(local.pat.hir_id);
-        self.overwrite_local_ty_if_err(local, ty, pat_ty);
+        self.check_pat_top(&decl.pat, decl_ty, ty_span, origin_expr);
+        let pat_ty = self.node_ty(decl.pat.hir_id);
+        self.overwrite_local_ty_if_err(decl.hir_id, decl.pat, decl_ty, pat_ty);
+    }
+
+    /// Type check a `let` statement.
+    pub fn check_decl_local(&self, local: &'tcx hir::Local<'tcx>) {
+        self.check_decl(local.into());
     }
 
     pub fn check_stmt(&self, stmt: &'tcx hir::Stmt<'tcx>, is_last: bool) {
@@ -708,6 +829,24 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                         &mut |err| {
                             if let Some(expected_ty) = expected.only_has_type(self) {
                                 self.consider_hint_about_removing_semicolon(blk, expected_ty, err);
+                                if expected_ty == self.tcx.types.bool {
+                                    // If this is caused by a missing `let` in a `while let`,
+                                    // silence this redundant error, as we already emit E0070.
+                                    let parent = self.tcx.hir().get_parent_node(blk.hir_id);
+                                    let parent = self.tcx.hir().get_parent_node(parent);
+                                    let parent = self.tcx.hir().get_parent_node(parent);
+                                    let parent = self.tcx.hir().get_parent_node(parent);
+                                    let parent = self.tcx.hir().get_parent_node(parent);
+                                    match self.tcx.hir().find(parent) {
+                                        Some(hir::Node::Expr(hir::Expr {
+                                            kind: hir::ExprKind::Loop(_, _, hir::LoopSource::While, _),
+                                            ..
+                                        })) => {
+                                            err.delay_as_bug();
+                                        }
+                                        _ => {}
+                                    }
+                                }
                             }
                             if let Some(fn_span) = fn_span {
                                 err.span_label(
@@ -778,7 +917,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     }
 
     fn parent_item_span(&self, id: hir::HirId) -> Option<Span> {
-        let node = self.tcx.hir().get(self.tcx.hir().get_parent_item(id));
+        let node = self.tcx.hir().get_by_def_id(self.tcx.hir().get_parent_item(id));
         match node {
             Node::Item(&hir::Item { kind: hir::ItemKind::Fn(_, _, body_id), .. })
             | Node::ImplItem(&hir::ImplItem { kind: hir::ImplItemKind::Fn(_, body_id), .. }) => {
@@ -794,7 +933,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
     /// Given a function block's `HirId`, returns its `FnDecl` if it exists, or `None` otherwise.
     fn get_parent_fn_decl(&self, blk_id: hir::HirId) -> Option<(&'tcx hir::FnDecl<'tcx>, Ident)> {
-        let parent = self.tcx.hir().get(self.tcx.hir().get_parent_item(blk_id));
+        let parent = self.tcx.hir().get_by_def_id(self.tcx.hir().get_parent_item(blk_id));
         self.get_node_fn_decl(parent).map(|(fn_decl, ident, _)| (fn_decl, ident))
     }
 
@@ -844,17 +983,18 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
     fn overwrite_local_ty_if_err(
         &self,
-        local: &'tcx hir::Local<'tcx>,
+        hir_id: hir::HirId,
+        pat: &'tcx hir::Pat<'tcx>,
         decl_ty: Ty<'tcx>,
         ty: Ty<'tcx>,
     ) {
         if ty.references_error() {
             // Override the types everywhere with `err()` to avoid knock on errors.
-            self.write_ty(local.hir_id, ty);
-            self.write_ty(local.pat.hir_id, ty);
+            self.write_ty(hir_id, ty);
+            self.write_ty(pat.hir_id, ty);
             let local_ty = LocalTy { decl_ty, revealed_ty: ty };
-            self.locals.borrow_mut().insert(local.hir_id, local_ty);
-            self.locals.borrow_mut().insert(local.pat.hir_id, local_ty);
+            self.locals.borrow_mut().insert(hir_id, local_ty);
+            self.locals.borrow_mut().insert(pat.hir_id, local_ty);
         }
     }
 
@@ -891,8 +1031,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
                 (result.map_or(Res::Err, |(kind, def_id)| Res::Def(kind, def_id)), ty)
             }
-            QPath::LangItem(lang_item, span) => {
-                self.resolve_lang_item_path(lang_item, span, hir_id)
+            QPath::LangItem(lang_item, span, id) => {
+                self.resolve_lang_item_path(lang_item, span, hir_id, id)
             }
         }
     }
@@ -906,7 +1046,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     fn point_at_arg_instead_of_call_if_possible(
         &self,
         errors: &mut Vec<traits::FulfillmentError<'tcx>>,
-        final_arg_types: &[(usize, Ty<'tcx>, Ty<'tcx>)],
+        final_arg_types: &[Option<(Ty<'tcx>, Ty<'tcx>)>],
+        expr: &'tcx hir::Expr<'tcx>,
         call_sp: Span,
         args: &'tcx [hir::Expr<'tcx>],
     ) {
@@ -924,39 +1065,83 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 continue;
             }
 
-            if let ty::PredicateKind::Trait(predicate) =
-                error.obligation.predicate.kind().skip_binder()
-            {
-                // Collect the argument position for all arguments that could have caused this
-                // `FulfillmentError`.
-                let mut referenced_in = final_arg_types
-                    .iter()
-                    .map(|&(i, checked_ty, _)| (i, checked_ty))
-                    .chain(final_arg_types.iter().map(|&(i, _, coerced_ty)| (i, coerced_ty)))
-                    .flat_map(|(i, ty)| {
-                        let ty = self.resolve_vars_if_possible(ty);
-                        // We walk the argument type because the argument's type could have
-                        // been `Option<T>`, but the `FulfillmentError` references `T`.
-                        if ty.walk(self.tcx).any(|arg| arg == predicate.self_ty().into()) {
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<usize>>();
+            // Peel derived obligation, because it's the type that originally
+            // started this inference chain that matters, not the one we wound
+            // up with at the end.
+            fn unpeel_to_top(
+                mut code: Lrc<ObligationCauseCode<'_>>,
+            ) -> Lrc<ObligationCauseCode<'_>> {
+                let mut result_code = code.clone();
+                loop {
+                    let parent = match &*code {
+                        ObligationCauseCode::BuiltinDerivedObligation(c)
+                        | ObligationCauseCode::ImplDerivedObligation(c)
+                        | ObligationCauseCode::DerivedObligation(c) => c.parent_code.clone(),
+                        _ => break,
+                    };
+                    result_code = std::mem::replace(&mut code, parent);
+                }
+                result_code
+            }
+            let self_: ty::subst::GenericArg<'_> = match &*unpeel_to_top(error.obligation.cause.clone_code()) {
+                ObligationCauseCode::BuiltinDerivedObligation(code) |
+                ObligationCauseCode::ImplDerivedObligation(code) |
+                ObligationCauseCode::DerivedObligation(code) => {
+                    code.parent_trait_pred.self_ty().skip_binder().into()
+                }
+                _ if let ty::PredicateKind::Trait(predicate) =
+                    error.obligation.predicate.kind().skip_binder() => {
+                        predicate.self_ty().into()
+                    }
+                _ =>  continue,
+            };
+            let self_ = self.resolve_vars_if_possible(self_);
 
-                // Both checked and coerced types could have matched, thus we need to remove
-                // duplicates.
+            // Collect the argument position for all arguments that could have caused this
+            // `FulfillmentError`.
+            let mut referenced_in = final_arg_types
+                .iter()
+                .enumerate()
+                .filter_map(|(i, arg)| match arg {
+                    Some((checked_ty, coerce_ty)) => Some([(i, *checked_ty), (i, *coerce_ty)]),
+                    _ => None,
+                })
+                .flatten()
+                .flat_map(|(i, ty)| {
+                    let ty = self.resolve_vars_if_possible(ty);
+                    // We walk the argument type because the argument's type could have
+                    // been `Option<T>`, but the `FulfillmentError` references `T`.
+                    if ty.walk().any(|arg| arg == self_) { Some(i) } else { None }
+                })
+                .collect::<Vec<usize>>();
 
-                // We sort primitive type usize here and can use unstable sort
-                referenced_in.sort_unstable();
-                referenced_in.dedup();
+            // Both checked and coerced types could have matched, thus we need to remove
+            // duplicates.
 
-                if let (Some(ref_in), None) = (referenced_in.pop(), referenced_in.pop()) {
-                    // We make sure that only *one* argument matches the obligation failure
-                    // and we assign the obligation's span to its expression's.
-                    error.obligation.cause.make_mut().span = args[ref_in].span;
-                    error.points_at_arg_span = true;
+            // We sort primitive type usize here and can use unstable sort
+            referenced_in.sort_unstable();
+            referenced_in.dedup();
+
+            if let (Some(ref_in), None) = (referenced_in.pop(), referenced_in.pop()) {
+                // Do not point at the inside of a macro.
+                // That would often result in poor error messages.
+                if args[ref_in].span.from_expansion() {
+                    return;
+                }
+                // We make sure that only *one* argument matches the obligation failure
+                // and we assign the obligation's span to its expression's.
+                error.obligation.cause.span = args[ref_in].span;
+                let parent_code = error.obligation.cause.clone_code();
+                *error.obligation.cause.make_mut_code() =
+                    ObligationCauseCode::FunctionArgumentObligation {
+                        arg_hir_id: args[ref_in].hir_id,
+                        call_hir_id: expr.hir_id,
+                        parent_code,
+                    };
+            } else if error.obligation.cause.span == call_sp {
+                // Make function calls point at the callee, not the whole thing.
+                if let hir::ExprKind::Call(callee, _) = expr.kind {
+                    error.obligation.cause.span = callee.span;
                 }
             }
         }
@@ -972,34 +1157,32 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         call_expr: &'tcx hir::Expr<'tcx>,
     ) {
         if let hir::ExprKind::Call(path, _) = &call_expr.kind {
-            if let hir::ExprKind::Path(qpath) = &path.kind {
-                if let hir::QPath::Resolved(_, path) = &qpath {
-                    for error in errors {
-                        if let ty::PredicateKind::Trait(predicate) =
-                            error.obligation.predicate.kind().skip_binder()
+            if let hir::ExprKind::Path(hir::QPath::Resolved(_, path)) = &path.kind {
+                for error in errors {
+                    if let ty::PredicateKind::Trait(predicate) =
+                        error.obligation.predicate.kind().skip_binder()
+                    {
+                        // If any of the type arguments in this path segment caused the
+                        // `FulfillmentError`, point at its span (#61860).
+                        for arg in path
+                            .segments
+                            .iter()
+                            .filter_map(|seg| seg.args.as_ref())
+                            .flat_map(|a| a.args.iter())
                         {
-                            // If any of the type arguments in this path segment caused the
-                            // `FulfillmentError`, point at its span (#61860).
-                            for arg in path
-                                .segments
-                                .iter()
-                                .filter_map(|seg| seg.args.as_ref())
-                                .flat_map(|a| a.args.iter())
-                            {
-                                if let hir::GenericArg::Type(hir_ty) = &arg {
-                                    if let hir::TyKind::Path(hir::QPath::TypeRelative(..)) =
-                                        &hir_ty.kind
-                                    {
-                                        // Avoid ICE with associated types. As this is best
-                                        // effort only, it's ok to ignore the case. It
-                                        // would trigger in `is_send::<T::AssocType>();`
-                                        // from `typeck-default-trait-impl-assoc-type.rs`.
-                                    } else {
-                                        let ty = <dyn AstConv<'_>>::ast_ty_to_ty(self, hir_ty);
-                                        let ty = self.resolve_vars_if_possible(ty);
-                                        if ty == predicate.self_ty() {
-                                            error.obligation.cause.make_mut().span = hir_ty.span;
-                                        }
+                            if let hir::GenericArg::Type(hir_ty) = &arg {
+                                if let hir::TyKind::Path(hir::QPath::TypeRelative(..)) =
+                                    &hir_ty.kind
+                                {
+                                    // Avoid ICE with associated types. As this is best
+                                    // effort only, it's ok to ignore the case. It
+                                    // would trigger in `is_send::<T::AssocType>();`
+                                    // from `typeck-default-trait-impl-assoc-type.rs`.
+                                } else {
+                                    let ty = <dyn AstConv<'_>>::ast_ty_to_ty(self, hir_ty);
+                                    let ty = self.resolve_vars_if_possible(ty);
+                                    if ty == predicate.self_ty() {
+                                        error.obligation.cause.span = hir_ty.span;
                                     }
                                 }
                             }

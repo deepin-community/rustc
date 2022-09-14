@@ -1,12 +1,14 @@
+use rustc_arena::TypedArena;
 use rustc_data_structures::fx::{FxHashSet, FxIndexMap};
+use rustc_data_structures::memmap::Mmap;
 use rustc_data_structures::temp_dir::MaybeTempDir;
 use rustc_errors::{ErrorReported, Handler};
 use rustc_fs_util::fix_windows_verbatim_for_gcc;
 use rustc_hir::def_id::CrateNum;
-use rustc_middle::middle::cstore::DllImport;
 use rustc_middle::middle::dependency_format::Linkage;
 use rustc_session::config::{self, CFGuard, CrateType, DebugInfo, LdImpl, Strip};
-use rustc_session::config::{OutputFilenames, OutputType, PrintRequest};
+use rustc_session::config::{OutputFilenames, OutputType, PrintRequest, SplitDwarfKind};
+use rustc_session::cstore::DllImport;
 use rustc_session::output::{check_file_is_writeable, invalid_output_for_target, out_filename};
 use rustc_session::search_paths::PathKind;
 use rustc_session::utils::NativeLibKind;
@@ -14,14 +16,14 @@ use rustc_session::utils::NativeLibKind;
 /// need out of the shared crate context before we get rid of it.
 use rustc_session::{filesearch, Session};
 use rustc_span::symbol::Symbol;
-use rustc_target::abi::Endian;
 use rustc_target::spec::crt_objects::{CrtObjects, CrtObjectsFallback};
 use rustc_target::spec::{LinkOutputKind, LinkerFlavor, LldFlavor, SplitDebuginfo};
 use rustc_target::spec::{PanicStrategy, RelocModel, RelroLevel, SanitizerSet, Target};
 
-use super::archive::ArchiveBuilder;
+use super::archive::{find_library, ArchiveBuilder};
 use super::command::Command;
 use super::linker::{self, Linker};
+use super::metadata::create_rmeta_file;
 use super::rpath::{self, RPathConfig};
 use crate::{
     looks_like_rust_object_file, CodegenResults, CompiledModule, CrateInfo, NativeLib,
@@ -29,13 +31,14 @@ use crate::{
 };
 
 use cc::windows_registry;
-use object::elf;
-use object::write::Object;
-use object::{Architecture, BinaryFormat, Endianness, FileFlags, SectionFlags, SectionKind};
 use regex::Regex;
 use tempfile::Builder as TempFileBuilder;
 
+use std::borrow::Borrow;
 use std::ffi::OsString;
+use std::fs::{File, OpenOptions};
+use std::io::{BufWriter, Write};
+use std::lazy::OnceCell;
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Output, Stdio};
 use std::{ascii, char, env, fmt, fs, io, mem, str};
@@ -90,7 +93,7 @@ pub fn link_binary<'a, B: ArchiveBuilder<'a>>(
                 sess,
                 crate_type,
                 outputs,
-                &codegen_results.crate_info.local_crate_name.as_str(),
+                codegen_results.crate_info.local_crate_name.as_str(),
             );
             match crate_type {
                 CrateType::Rlib => {
@@ -120,34 +123,63 @@ pub fn link_binary<'a, B: ArchiveBuilder<'a>>(
             if sess.opts.json_artifact_notifications {
                 sess.parse_sess.span_diagnostic.emit_artifact_notification(&out_filename, "link");
             }
+
+            if sess.prof.enabled() {
+                if let Some(artifact_name) = out_filename.file_name() {
+                    // Record size for self-profiling
+                    let file_size = std::fs::metadata(&out_filename).map(|m| m.len()).unwrap_or(0);
+
+                    sess.prof.artifact_size(
+                        "linked_artifact",
+                        artifact_name.to_string_lossy(),
+                        file_size,
+                    );
+                }
+            }
         }
     }
 
-    // Remove the temporary object file and metadata if we aren't saving temps
+    // Remove the temporary object file and metadata if we aren't saving temps.
     sess.time("link_binary_remove_temps", || {
-        if !sess.opts.cg.save_temps {
-            let remove_temps_from_module = |module: &CompiledModule| {
-                if let Some(ref obj) = module.object {
-                    ensure_removed(sess.diagnostic(), obj);
-                }
+        // If the user requests that temporaries are saved, don't delete any.
+        if sess.opts.cg.save_temps {
+            return;
+        }
 
+        let remove_temps_from_module = |module: &CompiledModule| {
+            if let Some(ref obj) = module.object {
+                ensure_removed(sess.diagnostic(), obj);
+            }
+        };
+
+        // Otherwise, always remove the metadata and allocator module temporaries.
+        if let Some(ref metadata_module) = codegen_results.metadata_module {
+            remove_temps_from_module(metadata_module);
+        }
+
+        if let Some(ref allocator_module) = codegen_results.allocator_module {
+            remove_temps_from_module(allocator_module);
+        }
+
+        // If no requested outputs require linking, then the object temporaries should
+        // be kept.
+        if !sess.opts.output_types.should_link() {
+            return;
+        }
+
+        // Potentially keep objects for their debuginfo.
+        let (preserve_objects, preserve_dwarf_objects) = preserve_objects_for_their_debuginfo(sess);
+        debug!(?preserve_objects, ?preserve_dwarf_objects);
+
+        for module in &codegen_results.modules {
+            if !preserve_objects {
+                remove_temps_from_module(module);
+            }
+
+            if !preserve_dwarf_objects {
                 if let Some(ref obj) = module.dwarf_object {
                     ensure_removed(sess.diagnostic(), obj);
                 }
-            };
-
-            if sess.opts.output_types.should_link() && !preserve_objects_for_their_debuginfo(sess) {
-                for module in &codegen_results.modules {
-                    remove_temps_from_module(module);
-                }
-            }
-
-            if let Some(ref metadata_module) = codegen_results.metadata_module {
-                remove_temps_from_module(metadata_module);
-            }
-
-            if let Some(ref allocator_module) = codegen_results.allocator_module {
-                remove_temps_from_module(allocator_module);
             }
         }
     });
@@ -173,9 +205,8 @@ pub fn each_linked_rlib(
             _ => {}
         }
     }
-    let fmts = match fmts {
-        Some(f) => f,
-        None => return Err("could not find formats for rlibs".to_string()),
+    let Some(fmts) = fmts else {
+        return Err("could not find formats for rlibs".to_string());
     };
     for &cnum in crates {
         match fmts.get(cnum.as_usize() - 1) {
@@ -185,17 +216,18 @@ pub fn each_linked_rlib(
         }
         let name = &info.crate_name[&cnum];
         let used_crate_source = &info.used_crate_source[&cnum];
-        let path = if let Some((path, _)) = &used_crate_source.rlib {
-            path
-        } else if used_crate_source.rmeta.is_some() {
-            return Err(format!(
-                "could not find rlib for: `{}`, found rmeta (metadata) file",
-                name
-            ));
+        if let Some((path, _)) = &used_crate_source.rlib {
+            f(cnum, &path);
         } else {
-            return Err(format!("could not find rlib for: `{}`", name));
-        };
-        f(cnum, &path);
+            if used_crate_source.rmeta.is_some() {
+                return Err(format!(
+                    "could not find rlib for: `{}`, found rmeta (metadata) file",
+                    name
+                ));
+            } else {
+                return Err(format!("could not find rlib for: `{}`", name));
+            }
+        }
     }
     Ok(())
 }
@@ -230,10 +262,19 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
     tmpdir: &MaybeTempDir,
 ) -> Result<B, ErrorReported> {
     info!("preparing rlib to {:?}", out_filename);
+
+    let lib_search_paths = archive_search_paths(sess);
+
     let mut ab = <B as ArchiveBuilder>::new(sess, out_filename, None);
 
-    for obj in codegen_results.modules.iter().filter_map(|m| m.object.as_ref()) {
-        ab.add_file(obj);
+    for m in &codegen_results.modules {
+        if let Some(obj) = m.object.as_ref() {
+            ab.add_file(obj);
+        }
+
+        if let Some(dwarf_obj) = m.dwarf_object.as_ref() {
+            ab.add_file(dwarf_obj);
+        }
     }
 
     // Note that in this loop we are ignoring the value of `lib.cfg`. That is,
@@ -254,6 +295,19 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
     // metadata of the rlib we're generating somehow.
     for lib in codegen_results.crate_info.used_libraries.iter() {
         match lib.kind {
+            NativeLibKind::Static { bundle: None | Some(true), whole_archive: Some(true) }
+                if flavor == RlibFlavor::Normal =>
+            {
+                // Don't allow mixing +bundle with +whole_archive since an rlib may contain
+                // multiple native libs, some of which are +whole-archive and some of which are
+                // -whole-archive and it isn't clear how we can currently handle such a
+                // situation correctly.
+                // See https://github.com/rust-lang/rust/issues/88085#issuecomment-901050897
+                sess.err(
+                    "the linking modifiers `+bundle` and `+whole-archive` are not compatible \
+                        with each other when generating rlibs",
+                );
+            }
             NativeLibKind::Static { bundle: None | Some(true), .. } => {}
             NativeLibKind::Static { bundle: Some(false), .. }
             | NativeLibKind::Dylib { .. }
@@ -262,7 +316,15 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
             | NativeLibKind::Unspecified => continue,
         }
         if let Some(name) = lib.name {
-            ab.add_native_library(name, lib.verbatim.unwrap_or(false));
+            let location =
+                find_library(name, lib.verbatim.unwrap_or(false), &lib_search_paths, sess);
+            ab.add_archive(&location, |_| false).unwrap_or_else(|e| {
+                sess.fatal(&format!(
+                    "failed to add native library {}: {}",
+                    location.to_string_lossy(),
+                    e
+                ));
+            });
         }
     }
 
@@ -271,10 +333,6 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
     {
         ab.inject_dll_import_lib(&raw_dylib_name, &raw_dylib_imports, tmpdir);
     }
-
-    // After adding all files to the archive, we need to update the
-    // symbol table of the archive.
-    ab.update_symbols();
 
     // Note that it is important that we add all of our non-object "magical
     // files" *after* all of the object files in the archive. The reason for
@@ -302,15 +360,8 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
             // metadata in rlib files is wrapped in a "dummy" object file for
             // the target platform so the rlib can be processed entirely by
             // normal linkers for the platform.
-            let metadata = create_metadata_file(sess, &codegen_results.metadata.raw_data);
+            let metadata = create_rmeta_file(sess, codegen_results.metadata.raw_data());
             ab.add_file(&emit_metadata(sess, &metadata, tmpdir));
-
-            // After adding all files to the archive, we need to update the
-            // symbol table of the archive. This currently dies on macOS (see
-            // #11162), and isn't necessary there anyway
-            if !sess.target.is_like_osx {
-                ab.update_symbols();
-            }
         }
 
         RlibFlavor::StaticlibBase => {
@@ -320,137 +371,8 @@ fn link_rlib<'a, B: ArchiveBuilder<'a>>(
             }
         }
     }
+
     return Ok(ab);
-
-    // For rlibs we "pack" rustc metadata into a dummy object file. When rustc
-    // creates a dylib crate type it will pass `--whole-archive` (or the
-    // platform equivalent) to include all object files from an rlib into the
-    // final dylib itself. This causes linkers to iterate and try to include all
-    // files located in an archive, so if metadata is stored in an archive then
-    // it needs to be of a form that the linker will be able to process.
-    //
-    // Note, though, that we don't actually want this metadata to show up in any
-    // final output of the compiler. Instead this is purely for rustc's own
-    // metadata tracking purposes.
-    //
-    // With the above in mind, each "flavor" of object format gets special
-    // handling here depending on the target:
-    //
-    // * MachO - macos-like targets will insert the metadata into a section that
-    //   is sort of fake dwarf debug info. Inspecting the source of the macos
-    //   linker this causes these sections to be skipped automatically because
-    //   it's not in an allowlist of otherwise well known dwarf section names to
-    //   go into the final artifact.
-    //
-    // * WebAssembly - we actually don't have any container format for this
-    //   target. WebAssembly doesn't support the `dylib` crate type anyway so
-    //   there's no need for us to support this at this time. Consequently the
-    //   metadata bytes are simply stored as-is into an rlib.
-    //
-    // * COFF - Windows-like targets create an object with a section that has
-    //   the `IMAGE_SCN_LNK_REMOVE` flag set which ensures that if the linker
-    //   ever sees the section it doesn't process it and it's removed.
-    //
-    // * ELF - All other targets are similar to Windows in that there's a
-    //   `SHF_EXCLUDE` flag we can set on sections in an object file to get
-    //   automatically removed from the final output.
-    //
-    // Note that this metdata format is kept in sync with
-    // `rustc_codegen_ssa/src/back/metadata.rs`.
-    fn create_metadata_file(sess: &Session, metadata: &[u8]) -> Vec<u8> {
-        let endianness = match sess.target.options.endian {
-            Endian::Little => Endianness::Little,
-            Endian::Big => Endianness::Big,
-        };
-        let architecture = match &sess.target.arch[..] {
-            "arm" => Architecture::Arm,
-            "aarch64" => Architecture::Aarch64,
-            "x86" => Architecture::I386,
-            "s390x" => Architecture::S390x,
-            "mips" => Architecture::Mips,
-            "mips64" => Architecture::Mips64,
-            "x86_64" => {
-                if sess.target.pointer_width == 32 {
-                    Architecture::X86_64_X32
-                } else {
-                    Architecture::X86_64
-                }
-            }
-            "powerpc" => Architecture::PowerPc,
-            "powerpc64" => Architecture::PowerPc64,
-            "riscv32" => Architecture::Riscv32,
-            "riscv64" => Architecture::Riscv64,
-            "sparc64" => Architecture::Sparc64,
-
-            // This is used to handle all "other" targets. This includes targets
-            // in two categories:
-            //
-            // * Some targets don't have support in the `object` crate just yet
-            //   to write an object file. These targets are likely to get filled
-            //   out over time.
-            //
-            // * Targets like WebAssembly don't support dylibs, so the purpose
-            //   of putting metadata in object files, to support linking rlibs
-            //   into dylibs, is moot.
-            //
-            // In both of these cases it means that linking into dylibs will
-            // not be supported by rustc. This doesn't matter for targets like
-            // WebAssembly and for targets not supported by the `object` crate
-            // yet it means that work will need to be done in the `object` crate
-            // to add a case above.
-            _ => return metadata.to_vec(),
-        };
-
-        if sess.target.is_like_osx {
-            let mut file = Object::new(BinaryFormat::MachO, architecture, endianness);
-
-            let section =
-                file.add_section(b"__DWARF".to_vec(), b".rmeta".to_vec(), SectionKind::Debug);
-            file.append_section_data(section, metadata, 1);
-            file.write().unwrap()
-        } else if sess.target.is_like_windows {
-            const IMAGE_SCN_LNK_REMOVE: u32 = 0;
-            let mut file = Object::new(BinaryFormat::Coff, architecture, endianness);
-
-            let section = file.add_section(Vec::new(), b".rmeta".to_vec(), SectionKind::Debug);
-            file.section_mut(section).flags =
-                SectionFlags::Coff { characteristics: IMAGE_SCN_LNK_REMOVE };
-            file.append_section_data(section, metadata, 1);
-            file.write().unwrap()
-        } else {
-            const SHF_EXCLUDE: u64 = 0x80000000;
-            let mut file = Object::new(BinaryFormat::Elf, architecture, endianness);
-
-            match &sess.target.arch[..] {
-                // copied from `mipsel-linux-gnu-gcc foo.c -c` and
-                // inspecting the resulting `e_flags` field.
-                "mips" => {
-                    let e_flags = elf::EF_MIPS_ARCH_32R2 | elf::EF_MIPS_CPIC | elf::EF_MIPS_PIC;
-                    file.flags = FileFlags::Elf { e_flags };
-                }
-                // copied from `mips64el-linux-gnuabi64-gcc foo.c -c`
-                "mips64" => {
-                    let e_flags = elf::EF_MIPS_ARCH_64R2 | elf::EF_MIPS_CPIC | elf::EF_MIPS_PIC;
-                    file.flags = FileFlags::Elf { e_flags };
-                }
-
-                // copied from `riscv64-linux-gnu-gcc foo.c -c`, note though
-                // that the `+d` target feature represents whether the double
-                // float abi is enabled.
-                "riscv64" if sess.target.options.features.contains("+d") => {
-                    let e_flags = elf::EF_RISCV_RVC | elf::EF_RISCV_FLOAT_ABI_DOUBLE;
-                    file.flags = FileFlags::Elf { e_flags };
-                }
-
-                _ => {}
-            }
-
-            let section = file.add_section(Vec::new(), b".rmeta".to_vec(), SectionKind::Debug);
-            file.section_mut(section).flags = SectionFlags::Elf { sh_flags: SHF_EXCLUDE };
-            file.append_section_data(section, metadata, 1);
-            file.write().unwrap()
-        }
-    }
 }
 
 /// Extract all symbols defined in raw-dylib libraries, collated by library name.
@@ -541,13 +463,35 @@ fn link_staticlib<'a, B: ArchiveBuilder<'a>>(
             matches!(lib.kind, NativeLibKind::Static { bundle: None | Some(true), .. })
                 && !relevant_lib(sess, lib)
         });
-        ab.add_rlib(
-            path,
-            &name.as_str(),
-            are_upstream_rust_objects_already_included(sess)
-                && !ignored_for_lto(sess, &codegen_results.crate_info, cnum),
-            skip_object_files,
-        )
+
+        let lto = are_upstream_rust_objects_already_included(sess)
+            && !ignored_for_lto(sess, &codegen_results.crate_info, cnum);
+
+        // Ignoring obj file starting with the crate name
+        // as simple comparison is not enough - there
+        // might be also an extra name suffix
+        let obj_start = name.as_str().to_owned();
+
+        ab.add_archive(path, move |fname: &str| {
+            // Ignore metadata files, no matter the name.
+            if fname == METADATA_FILENAME {
+                return true;
+            }
+
+            // Don't include Rust objects if LTO is enabled
+            if lto && looks_like_rust_object_file(fname) {
+                return true;
+            }
+
+            // Otherwise if this is *not* a rust object and we're skipping
+            // objects then skip this file
+            if skip_object_files && (!fname.starts_with(&obj_start) || !fname.ends_with(".o")) {
+                return true;
+            }
+
+            // ok, don't skip this
+            false
+        })
         .unwrap();
 
         all_native_libs.extend(codegen_results.crate_info.native_libraries[&cnum].iter().cloned());
@@ -556,7 +500,6 @@ fn link_staticlib<'a, B: ArchiveBuilder<'a>>(
         sess.fatal(&e);
     }
 
-    ab.update_symbols();
     ab.build();
 
     if !all_native_libs.is_empty() {
@@ -576,57 +519,108 @@ fn escape_stdout_stderr_string(s: &[u8]) -> String {
     })
 }
 
-const LLVM_DWP_EXECUTABLE: &'static str = "rust-llvm-dwp";
-
-/// Invoke `llvm-dwp` (shipped alongside rustc) to link `dwo` files from Split DWARF into a `dwp`
-/// file.
-fn link_dwarf_object<'a>(sess: &'a Session, executable_out_filename: &Path) {
-    info!("preparing dwp to {}.dwp", executable_out_filename.to_str().unwrap());
-
+/// Use `thorin` (rust implementation of a dwarf packaging utility) to link DWARF objects into a
+/// DWARF package.
+fn link_dwarf_object<'a>(
+    sess: &'a Session,
+    cg_results: &CodegenResults,
+    executable_out_filename: &Path,
+) {
     let dwp_out_filename = executable_out_filename.with_extension("dwp");
-    let mut cmd = Command::new(LLVM_DWP_EXECUTABLE);
-    cmd.arg("-e");
-    cmd.arg(executable_out_filename);
-    cmd.arg("-o");
-    cmd.arg(&dwp_out_filename);
+    debug!(?dwp_out_filename, ?executable_out_filename);
 
-    let mut new_path = sess.host_filesearch(PathKind::All).get_tools_search_paths(false);
-    if let Some(path) = env::var_os("PATH") {
-        new_path.extend(env::split_paths(&path));
+    #[derive(Default)]
+    struct ThorinSession<Relocations> {
+        arena_data: TypedArena<Vec<u8>>,
+        arena_mmap: TypedArena<Mmap>,
+        arena_relocations: TypedArena<Relocations>,
     }
-    let new_path = env::join_paths(new_path).unwrap();
-    cmd.env("PATH", new_path);
 
-    info!("{:?}", &cmd);
-    match sess.time("run_dwp", || cmd.output()) {
-        Ok(prog) if !prog.status.success() => {
-            sess.struct_err(&format!(
-                "linking dwarf objects with `{}` failed: {}",
-                LLVM_DWP_EXECUTABLE, prog.status
-            ))
-            .note(&format!("{:?}", &cmd))
-            .note(&escape_stdout_stderr_string(&prog.stdout))
-            .note(&escape_stdout_stderr_string(&prog.stderr))
-            .emit();
-            info!("linker stderr:\n{}", escape_stdout_stderr_string(&prog.stderr));
-            info!("linker stdout:\n{}", escape_stdout_stderr_string(&prog.stdout));
+    impl<Relocations> ThorinSession<Relocations> {
+        fn alloc_mmap<'arena>(&'arena self, data: Mmap) -> &'arena Mmap {
+            (*self.arena_mmap.alloc(data)).borrow()
         }
-        Ok(_) => {}
-        Err(e) => {
-            let dwp_not_found = e.kind() == io::ErrorKind::NotFound;
-            let mut err = if dwp_not_found {
-                sess.struct_err(&format!("linker `{}` not found", LLVM_DWP_EXECUTABLE))
-            } else {
-                sess.struct_err(&format!("could not exec the linker `{}`", LLVM_DWP_EXECUTABLE))
-            };
+    }
 
-            err.note(&e.to_string());
+    impl<Relocations> thorin::Session<Relocations> for ThorinSession<Relocations> {
+        fn alloc_data<'arena>(&'arena self, data: Vec<u8>) -> &'arena [u8] {
+            (*self.arena_data.alloc(data)).borrow()
+        }
 
-            if !dwp_not_found {
-                err.note(&format!("{:?}", &cmd));
+        fn alloc_relocation<'arena>(&'arena self, data: Relocations) -> &'arena Relocations {
+            (*self.arena_relocations.alloc(data)).borrow()
+        }
+
+        fn read_input<'arena>(&'arena self, path: &Path) -> std::io::Result<&'arena [u8]> {
+            let file = File::open(&path)?;
+            let mmap = (unsafe { Mmap::map(file) })?;
+            Ok(self.alloc_mmap(mmap))
+        }
+    }
+
+    match sess.time("run_thorin", || -> Result<(), thorin::Error> {
+        let thorin_sess = ThorinSession::default();
+        let mut package = thorin::DwarfPackage::new(&thorin_sess);
+
+        // Input objs contain .o/.dwo files from the current crate.
+        match sess.opts.debugging_opts.split_dwarf_kind {
+            SplitDwarfKind::Single => {
+                for input_obj in cg_results.modules.iter().filter_map(|m| m.object.as_ref()) {
+                    package.add_input_object(input_obj)?;
+                }
             }
+            SplitDwarfKind::Split => {
+                for input_obj in cg_results.modules.iter().filter_map(|m| m.dwarf_object.as_ref()) {
+                    package.add_input_object(input_obj)?;
+                }
+            }
+        }
 
-            err.emit();
+        // Input rlibs contain .o/.dwo files from dependencies.
+        let input_rlibs = cg_results
+            .crate_info
+            .used_crate_source
+            .values()
+            .filter_map(|csource| csource.rlib.as_ref())
+            .map(|(path, _)| path);
+        for input_rlib in input_rlibs {
+            debug!(?input_rlib);
+            package.add_input_object(input_rlib)?;
+        }
+
+        // Failing to read the referenced objects is expected for dependencies where the path in the
+        // executable will have been cleaned by Cargo, but the referenced objects will be contained
+        // within rlibs provided as inputs.
+        //
+        // If paths have been remapped, then .o/.dwo files from the current crate also won't be
+        // found, but are provided explicitly above.
+        //
+        // Adding an executable is primarily done to make `thorin` check that all the referenced
+        // dwarf objects are found in the end.
+        package.add_executable(
+            &executable_out_filename,
+            thorin::MissingReferencedObjectBehaviour::Skip,
+        )?;
+
+        let output = package.finish()?.write()?;
+        let mut output_stream = BufWriter::new(
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(dwp_out_filename)?,
+        );
+        output_stream.write_all(&output)?;
+        output_stream.flush()?;
+
+        Ok(())
+    }) {
+        Ok(()) => {}
+        Err(e) => {
+            sess.struct_err("linking dwarf objects with thorin failed")
+                .note(&format!("{:?}", e))
+                .emit();
         }
     }
 }
@@ -663,7 +657,7 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
         cmd.env_remove(k);
     }
 
-    if sess.opts.debugging_opts.print_link_args {
+    if sess.opts.prints.contains(&PrintRequest::LinkArgs) {
         println!("{:?}", &cmd);
     }
 
@@ -796,19 +790,18 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
         let msg_bus = "clang: error: unable to execute command: Bus error: 10";
         if out.contains(msg_segv) || out.contains(msg_bus) {
             warn!(
+                ?cmd, %out,
                 "looks like the linker segfaulted when we tried to call it, \
-                 automatically retrying again. cmd = {:?}, out = {}.",
-                cmd, out,
+                 automatically retrying again",
             );
             continue;
         }
 
         if is_illegal_instruction(&output.status) {
             warn!(
+                ?cmd, %out, status = %output.status,
                 "looks like the linker hit an illegal instruction when we \
-                 tried to call it, automatically retrying again. cmd = {:?}, ]\
-                 out = {}, status = {}.",
-                cmd, out, output.status,
+                 tried to call it, automatically retrying again.",
             );
             continue;
         }
@@ -929,7 +922,7 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
                      but `link.exe` was not found",
                 );
                 sess.note_without_error(
-                    "please ensure that VS 2013, VS 2015, VS 2017 or VS 2019 \
+                    "please ensure that VS 2013, VS 2015, VS 2017, VS 2019 or VS 2022 \
                      was installed with the Visual C++ option",
                 );
             }
@@ -973,18 +966,38 @@ fn link_natively<'a, B: ArchiveBuilder<'a>>(
         SplitDebuginfo::Packed if sess.target.is_like_msvc => {}
 
         // ... and otherwise we're processing a `*.dwp` packed dwarf file.
-        SplitDebuginfo::Packed => link_dwarf_object(sess, &out_filename),
+        //
+        // We cannot rely on the .o paths in the exectuable because they may have been
+        // remapped by --remap-path-prefix and therefore invalid, so we need to provide
+        // the .o/.dwo paths explicitly.
+        SplitDebuginfo::Packed => link_dwarf_object(sess, codegen_results, out_filename),
     }
 
+    let strip = strip_value(sess);
+
     if sess.target.is_like_osx {
-        if let Some(option) = osx_strip_opt(sess.opts.debugging_opts.strip) {
-            strip_symbols_in_osx(sess, &out_filename, option);
+        match strip {
+            Strip::Debuginfo => strip_symbols_in_osx(sess, &out_filename, Some("-S")),
+            Strip::Symbols => strip_symbols_in_osx(sess, &out_filename, None),
+            Strip::None => {}
         }
     }
 }
 
-fn strip_symbols_in_osx<'a>(sess: &'a Session, out_filename: &Path, option: &str) {
-    let prog = Command::new("strip").arg(option).arg(out_filename).output();
+// Temporarily support both -Z strip and -C strip
+fn strip_value(sess: &Session) -> Strip {
+    match (sess.opts.debugging_opts.strip, sess.opts.cg.strip) {
+        (s, Strip::None) => s,
+        (_, s) => s,
+    }
+}
+
+fn strip_symbols_in_osx<'a>(sess: &'a Session, out_filename: &Path, option: Option<&str>) {
+    let mut cmd = Command::new("strip");
+    if let Some(option) = option {
+        cmd.arg(option);
+    }
+    let prog = cmd.arg(out_filename).output();
     match prog {
         Ok(prog) => {
             if !prog.status.success() {
@@ -999,14 +1012,6 @@ fn strip_symbols_in_osx<'a>(sess: &'a Session, out_filename: &Path, option: &str
             }
         }
         Err(e) => sess.fatal(&format!("unable to run `strip`: {}", e)),
-    }
-}
-
-fn osx_strip_opt<'a>(strip: Strip) -> Option<&'a str> {
-    match strip {
-        Strip::Debuginfo => Some("-S"),
-        Strip::Symbols => Some("-x"),
-        Strip::None => None,
     }
 }
 
@@ -1052,10 +1057,10 @@ fn add_sanitizer_libraries(sess: &Session, crate_type: CrateType, linker: &mut d
 }
 
 fn link_sanitizer_runtime(sess: &Session, linker: &mut dyn Linker, name: &str) {
-    fn find_sanitizer_runtime(sess: &Session, filename: &String) -> PathBuf {
+    fn find_sanitizer_runtime(sess: &Session, filename: &str) -> PathBuf {
         let session_tlib =
             filesearch::make_target_lib_path(&sess.sysroot, sess.opts.target_triple.triple());
-        let path = session_tlib.join(&filename);
+        let path = session_tlib.join(filename);
         if path.exists() {
             return session_tlib;
         } else {
@@ -1144,6 +1149,7 @@ pub fn linker_and_flavor(sess: &Session) -> (PathBuf, LinkerFlavor) {
                     LinkerFlavor::Lld(_) => "lld",
                     LinkerFlavor::PtxLinker => "rust-ptx-linker",
                     LinkerFlavor::BpfLinker => "bpf-linker",
+                    LinkerFlavor::L4Bender => "l4-bender",
                 }),
                 flavor,
             )),
@@ -1196,32 +1202,43 @@ pub fn linker_and_flavor(sess: &Session) -> (PathBuf, LinkerFlavor) {
     bug!("Not enough information provided to determine how to invoke the linker");
 }
 
-/// Returns a boolean indicating whether we should preserve the object files on
-/// the filesystem for their debug information. This is often useful with
-/// split-dwarf like schemes.
-fn preserve_objects_for_their_debuginfo(sess: &Session) -> bool {
+/// Returns a pair of boolean indicating whether we should preserve the object and
+/// dwarf object files on the filesystem for their debug information. This is often
+/// useful with split-dwarf like schemes.
+fn preserve_objects_for_their_debuginfo(sess: &Session) -> (bool, bool) {
     // If the objects don't have debuginfo there's nothing to preserve.
     if sess.opts.debuginfo == config::DebugInfo::None {
-        return false;
+        return (false, false);
     }
 
     // If we're only producing artifacts that are archives, no need to preserve
     // the objects as they're losslessly contained inside the archives.
-    let output_linked =
-        sess.crate_types().iter().any(|&x| x != CrateType::Rlib && x != CrateType::Staticlib);
-    if !output_linked {
-        return false;
+    if sess.crate_types().iter().all(|&x| x.is_archive()) {
+        return (false, false);
     }
 
-    // "unpacked" split debuginfo means that we leave object files as the
-    // debuginfo is found in the original object files themselves
-    sess.split_debuginfo() == SplitDebuginfo::Unpacked
+    match (sess.split_debuginfo(), sess.opts.debugging_opts.split_dwarf_kind) {
+        // If there is no split debuginfo then do not preserve objects.
+        (SplitDebuginfo::Off, _) => (false, false),
+        // If there is packed split debuginfo, then the debuginfo in the objects
+        // has been packaged and the objects can be deleted.
+        (SplitDebuginfo::Packed, _) => (false, false),
+        // If there is unpacked split debuginfo and the current target can not use
+        // split dwarf, then keep objects.
+        (SplitDebuginfo::Unpacked, _) if !sess.target_can_use_split_dwarf() => (true, false),
+        // If there is unpacked split debuginfo and the target can use split dwarf, then
+        // keep the object containing that debuginfo (whether that is an object file or
+        // dwarf object file depends on the split dwarf kind).
+        (SplitDebuginfo::Unpacked, SplitDwarfKind::Single) => (true, false),
+        (SplitDebuginfo::Unpacked, SplitDwarfKind::Split) => (false, true),
+    }
 }
 
-pub fn archive_search_paths(sess: &Session) -> Vec<PathBuf> {
+fn archive_search_paths(sess: &Session) -> Vec<PathBuf> {
     sess.target_filesearch(PathKind::Native).search_path_dirs()
 }
 
+#[derive(PartialEq)]
 enum RlibFlavor {
     Normal,
     StaticlibBase,
@@ -1442,9 +1459,13 @@ fn exec_linker(
 fn link_output_kind(sess: &Session, crate_type: CrateType) -> LinkOutputKind {
     let kind = match (crate_type, sess.crt_static(Some(crate_type)), sess.relocation_model()) {
         (CrateType::Executable, _, _) if sess.is_wasi_reactor() => LinkOutputKind::WasiReactorExe,
-        (CrateType::Executable, false, RelocModel::Pic) => LinkOutputKind::DynamicPicExe,
+        (CrateType::Executable, false, RelocModel::Pic | RelocModel::Pie) => {
+            LinkOutputKind::DynamicPicExe
+        }
         (CrateType::Executable, false, _) => LinkOutputKind::DynamicNoPicExe,
-        (CrateType::Executable, true, RelocModel::Pic) => LinkOutputKind::StaticPicExe,
+        (CrateType::Executable, true, RelocModel::Pic | RelocModel::Pie) => {
+            LinkOutputKind::StaticPicExe
+        }
         (CrateType::Executable, true, _) => LinkOutputKind::StaticNoPicExe,
         (_, true, _) => LinkOutputKind::StaticDylib,
         (_, false, _) => LinkOutputKind::DynamicDylib,
@@ -1953,7 +1974,7 @@ fn add_order_independent_options(
     cmd.optimize();
 
     // Pass debuginfo and strip flags down to the linker.
-    cmd.debuginfo(sess.opts.debugging_opts.strip);
+    cmd.debuginfo(strip_value(sess));
 
     // We want to prevent the compiler from accidentally leaking in any system libraries,
     // so by default we tell linkers not to link to any default libraries.
@@ -2001,7 +2022,7 @@ fn add_local_native_libraries(
     let relevant_libs =
         codegen_results.crate_info.used_libraries.iter().filter(|l| relevant_lib(sess, l));
 
-    let search_path = archive_search_paths(sess);
+    let search_path = OnceCell::new();
     let mut last = (NativeLibKind::Unspecified, None);
     for lib in relevant_libs {
         let name = match lib.name {
@@ -2023,7 +2044,11 @@ fn add_local_native_libraries(
             }
             NativeLibKind::Static { bundle: None | Some(true), .. }
             | NativeLibKind::Static { whole_archive: Some(true), .. } => {
-                cmd.link_whole_staticlib(name, verbatim, &search_path);
+                cmd.link_whole_staticlib(
+                    name,
+                    verbatim,
+                    &search_path.get_or_init(|| archive_search_paths(sess)),
+                );
             }
             NativeLibKind::Static { .. } => cmd.link_staticlib(name, verbatim),
             NativeLibKind::RawDylib => {
@@ -2116,6 +2141,7 @@ fn add_upstream_rust_crates<'a, B: ArchiveBuilder<'a>>(
     }
 
     let mut compiler_builtins = None;
+    let search_path = OnceCell::new();
 
     for &cnum in deps.iter() {
         if group_start == Some(cnum) {
@@ -2149,16 +2175,35 @@ fn add_upstream_rust_crates<'a, B: ArchiveBuilder<'a>>(
                 // external build system already has the native dependencies defined, and it
                 // will provide them to the linker itself.
                 if sess.opts.debugging_opts.link_native_libraries {
-                    // Skip if this library is the same as the last.
                     let mut last = None;
                     for lib in &codegen_results.crate_info.native_libraries[&cnum] {
-                        if lib.name.is_some()
-                            && relevant_lib(sess, lib)
-                            && matches!(lib.kind, NativeLibKind::Static { bundle: Some(false), .. })
-                            && last != lib.name
-                        {
-                            cmd.link_staticlib(lib.name.unwrap(), lib.verbatim.unwrap_or(false));
-                            last = lib.name;
+                        if !relevant_lib(sess, lib) {
+                            // Skip libraries if they are disabled by `#[link(cfg=...)]`
+                            continue;
+                        }
+
+                        // Skip if this library is the same as the last.
+                        if last == lib.name {
+                            continue;
+                        }
+
+                        if let Some(static_lib_name) = lib.name {
+                            if let NativeLibKind::Static { bundle: Some(false), whole_archive } =
+                                lib.kind
+                            {
+                                let verbatim = lib.verbatim.unwrap_or(false);
+                                if whole_archive == Some(true) {
+                                    cmd.link_whole_staticlib(
+                                        static_lib_name,
+                                        verbatim,
+                                        search_path.get_or_init(|| archive_search_paths(sess)),
+                                    );
+                                } else {
+                                    cmd.link_staticlib(static_lib_name, verbatim);
+                                }
+
+                                last = lib.name;
+                            }
                         }
                     }
                 }
@@ -2255,7 +2300,6 @@ fn add_upstream_rust_crates<'a, B: ArchiveBuilder<'a>>(
 
         sess.prof.generic_activity_with_arg("link_altering_rlib", name).run(|| {
             let mut archive = <B as ArchiveBuilder>::new(sess, &dst, Some(cratepath));
-            archive.update_symbols();
 
             let mut any_objects = false;
             for f in archive.src_files() {
@@ -2264,8 +2308,8 @@ fn add_upstream_rust_crates<'a, B: ArchiveBuilder<'a>>(
                     continue;
                 }
 
-                let canonical = f.replace("-", "_");
-                let canonical_name = name.replace("-", "_");
+                let canonical = f.replace('-', "_");
+                let canonical_name = name.replace('-', "_");
 
                 let is_rust_object =
                     canonical.starts_with(&canonical_name) && looks_like_rust_object_file(&f);
@@ -2483,8 +2527,7 @@ fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
             match ld_impl {
                 LdImpl::Lld => {
                     if sess.target.lld_flavor == LldFlavor::Ld64 {
-                        let tools_path =
-                            sess.host_filesearch(PathKind::All).get_tools_search_paths(false);
+                        let tools_path = sess.get_tools_search_paths(false);
                         let ld64_exe = tools_path
                             .into_iter()
                             .map(|p| p.join("gcc-ld"))
@@ -2499,8 +2542,7 @@ fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
                             arg
                         });
                     } else {
-                        let tools_path =
-                            sess.host_filesearch(PathKind::All).get_tools_search_paths(false);
+                        let tools_path = sess.get_tools_search_paths(false);
                         let lld_path = tools_path
                             .into_iter()
                             .map(|p| p.join("gcc-ld"))

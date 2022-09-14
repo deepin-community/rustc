@@ -9,6 +9,7 @@ use rustc_hir as hir;
 use rustc_hir::intravisit as hir_visit;
 use rustc_hir::HirId;
 use rustc_middle::hir::map::Map;
+use rustc_middle::ty::TyCtxt;
 use rustc_middle::util::common::to_readable_str;
 use rustc_span::Span;
 
@@ -25,18 +26,19 @@ struct NodeData {
 }
 
 struct StatCollector<'k> {
-    krate: Option<&'k hir::Crate<'k>>,
+    krate: Option<Map<'k>>,
     data: FxHashMap<&'static str, NodeData>,
     seen: FxHashSet<Id>,
 }
 
-pub fn print_hir_stats(krate: &hir::Crate<'_>) {
+pub fn print_hir_stats(tcx: TyCtxt<'_>) {
     let mut collector = StatCollector {
-        krate: Some(krate),
+        krate: Some(tcx.hir()),
         data: FxHashMap::default(),
         seen: FxHashSet::default(),
     };
-    hir_visit::walk_crate(&mut collector, krate);
+    tcx.hir().walk_toplevel_module(&mut collector);
+    tcx.hir().walk_attributes(&mut collector);
     collector.print("HIR STATS");
 }
 
@@ -91,12 +93,6 @@ impl<'v> hir_visit::Visitor<'v> for StatCollector<'v> {
     fn visit_param(&mut self, param: &'v hir::Param<'v>) {
         self.record("Param", Id::Node(param.hir_id), param);
         hir_visit::walk_param(self, param)
-    }
-
-    type Map = Map<'v>;
-
-    fn nested_visit_map(&mut self) -> hir_visit::NestedVisitorMap<Self::Map> {
-        panic!("visit_nested_xxx must be manually implemented in this visitor")
     }
 
     fn visit_nested_item(&mut self, id: hir::ItemId) {
@@ -336,9 +332,9 @@ impl<'v> ast_visit::Visitor<'v> for StatCollector<'v> {
         ast_visit::walk_path_segment(self, path_span, path_segment)
     }
 
-    fn visit_assoc_ty_constraint(&mut self, constraint: &'v ast::AssocTyConstraint) {
-        self.record("AssocTyConstraint", Id::None, constraint);
-        ast_visit::walk_assoc_ty_constraint(self, constraint)
+    fn visit_assoc_constraint(&mut self, constraint: &'v ast::AssocConstraint) {
+        self.record("AssocConstraint", Id::None, constraint);
+        ast_visit::walk_assoc_constraint(self, constraint)
     }
 
     fn visit_attribute(&mut self, attr: &'v ast::Attribute) {

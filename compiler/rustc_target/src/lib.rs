@@ -15,8 +15,8 @@
 #![feature(exhaustive_patterns)]
 #![feature(min_specialization)]
 #![feature(step_trait)]
-#![feature(unchecked_math)]
 
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 
 #[macro_use]
@@ -48,12 +48,11 @@ const RUST_LIB_DIR: &str = "rustlib";
 /// `"lib*/rustlib/x86_64-unknown-linux-gnu"`.
 pub fn target_rustlib_path(sysroot: &Path, target_triple: &str) -> PathBuf {
     let libdir = find_libdir(sysroot);
-    std::array::IntoIter::new([
+    PathBuf::from_iter([
         Path::new(libdir.as_ref()),
         Path::new(RUST_LIB_DIR),
         Path::new(target_triple),
     ])
-    .collect::<PathBuf>()
 }
 
 /// The name of the directory rustc expects libraries to be located.

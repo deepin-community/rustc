@@ -2,7 +2,6 @@
 //! the guts are broken up into modules; see the comments in those modules.
 
 #![feature(crate_visibility_modifier)]
-#![feature(in_band_lifetimes)]
 #![feature(nll)]
 #![recursion_limit = "256"]
 
@@ -19,7 +18,7 @@ mod normalize_erasing_regions;
 mod normalize_projection_ty;
 mod type_op;
 
-pub use type_op::{type_op_ascribe_user_type_with_span, type_op_prove_predicate_with_span};
+pub use type_op::{type_op_ascribe_user_type_with_span, type_op_prove_predicate_with_cause};
 
 use rustc_middle::ty::query::Providers;
 

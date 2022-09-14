@@ -38,7 +38,7 @@ impl<'tcx> TyCtxt<'tcx> {
         ct: ty::Unevaluated<'tcx>,
         span: Option<Span>,
     ) -> EvalToConstValueResult<'tcx> {
-        match ty::Instance::resolve_opt_const_arg(self, param_env, ct.def, ct.substs(self)) {
+        match ty::Instance::resolve_opt_const_arg(self, param_env, ct.def, ct.substs) {
             Ok(Some(instance)) => {
                 let cid = GlobalId { instance, promoted: ct.promoted };
                 self.const_eval_global_id(param_env, cid, span)
@@ -64,6 +64,7 @@ impl<'tcx> TyCtxt<'tcx> {
         cid: GlobalId<'tcx>,
         span: Option<Span>,
     ) -> EvalToConstValueResult<'tcx> {
+        let param_env = param_env.with_const();
         // Const-eval shouldn't depend on lifetimes at all, so we can erase them, which should
         // improve caching of queries.
         let inputs = self.erase_regions(param_env.and(cid));
@@ -92,8 +93,17 @@ impl<'tcx> TyCtxt<'tcx> {
         gid: GlobalId<'tcx>,
         param_env: ty::ParamEnv<'tcx>,
     ) -> Result<&'tcx mir::Allocation, ErrorHandled> {
+        let param_env = param_env.with_const();
         trace!("eval_to_allocation: Need to compute {:?}", gid);
         let raw_const = self.eval_to_allocation_raw(param_env.and(gid))?;
         Ok(self.global_alloc(raw_const.alloc_id).unwrap_memory())
+    }
+
+    /// Destructure a constant ADT or array into its variant index and its field values.
+    pub fn destructure_const(
+        self,
+        param_env_and_val: ty::ParamEnvAnd<'tcx, ty::Const<'tcx>>,
+    ) -> mir::DestructuredConst<'tcx> {
+        self.try_destructure_const(param_env_and_val).unwrap()
     }
 }

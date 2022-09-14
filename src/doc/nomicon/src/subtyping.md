@@ -418,7 +418,7 @@ And that's why function types, unlike anything else in the language, are
 **contra**variant over their arguments.
 
 Now, this is all well and good for the types the standard library provides, but
-how is variance determined for type that *you* define? A struct, informally
+how is variance determined for types that *you* define? A struct, informally
 speaking, inherits the variance of its fields. If a struct `MyType`
 has a generic argument `A` that is used in a field `a`, then MyType's variance
 over `A` is exactly `a`'s variance over `A`.
@@ -443,7 +443,7 @@ struct MyType<'a, 'b, A: 'a, B: 'b, C, D, E, F, G, H, In, Out, Mixed> {
     f: Vec<F>,    // covariant over F
     g: Cell<G>,   // invariant over G
 
-    h1: H,        // would also be variant over H except...
+    h1: H,        // would also be covariant over H except...
     h2: Cell<H>,  // invariant over H, because invariance wins all conflicts
 
     i: fn(In) -> Out,       // contravariant over In, covariant over Out

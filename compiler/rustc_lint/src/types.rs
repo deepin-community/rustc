@@ -6,14 +6,14 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::{is_range_literal, Expr, ExprKind, Node};
-use rustc_middle::ty::layout::{IntegerExt, SizeSkeleton};
+use rustc_middle::ty::layout::{IntegerExt, LayoutOf, SizeSkeleton};
 use rustc_middle::ty::subst::SubstsRef;
 use rustc_middle::ty::{self, AdtKind, DefIdTree, Ty, TyCtxt, TypeFoldable};
 use rustc_span::source_map;
 use rustc_span::symbol::sym;
 use rustc_span::{Span, Symbol, DUMMY_SP};
 use rustc_target::abi::Abi;
-use rustc_target::abi::{Integer, LayoutOf, TagEncoding, Variants};
+use rustc_target::abi::{Integer, TagEncoding, Variants};
 use rustc_target::spec::abi::Abi as SpecAbi;
 
 use if_chain::if_chain;
@@ -249,7 +249,7 @@ fn report_bin_hex_error(
             ));
         }
         if let Some(sugg_ty) =
-            get_type_suggestion(&cx.typeck_results().node_type(expr.hir_id), val, negative)
+            get_type_suggestion(cx.typeck_results().node_type(expr.hir_id), val, negative)
         {
             if let Some(pos) = repr_str.chars().position(|c| c == 'i' || c == 'u') {
                 let (sans_suffix, _) = repr_str.split_at(pos);
@@ -367,7 +367,7 @@ fn lint_int_literal<'tcx>(
                 max,
             ));
             if let Some(sugg_ty) =
-                get_type_suggestion(&cx.typeck_results().node_type(e.hir_id), v, negative)
+                get_type_suggestion(cx.typeck_results().node_type(e.hir_id), v, negative)
             {
                 err.help(&format!("consider using the type `{}` instead", sugg_ty));
             }
@@ -851,12 +851,18 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
         use FfiResult::*;
 
         if def.repr.transparent() {
-            // Can assume that only one field is not a ZST, so only check
+            // Can assume that at most one field is not a ZST, so only check
             // that field's type for FFI-safety.
             if let Some(field) = transparent_newtype_field(self.cx.tcx, variant) {
                 self.check_field_type_for_ffi(cache, field, substs)
             } else {
-                bug!("malformed transparent type");
+                // All fields are ZSTs; this means that the type should behave
+                // like (), which is FFI-unsafe
+                FfiUnsafe {
+                    ty,
+                    reason: "this struct contains only zero-sized fields".into(),
+                    help: None,
+                }
             }
         } else {
             // We can't completely trust repr(C) markings; make sure the fields are
@@ -1050,6 +1056,15 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
                 FfiSafe
             }
 
+            ty::RawPtr(ty::TypeAndMut { ty, .. })
+                if match ty.kind() {
+                    ty::Tuple(tuple) => tuple.is_empty(),
+                    _ => false,
+                } =>
+            {
+                FfiSafe
+            }
+
             ty::RawPtr(ty::TypeAndMut { ty, .. }) | ty::Ref(_, ty, _) => {
                 self.check_type_for_ffi(cache, ty)
             }
@@ -1080,7 +1095,7 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
                     }
                 }
                 for arg in sig.inputs() {
-                    let r = self.check_type_for_ffi(cache, arg);
+                    let r = self.check_type_for_ffi(cache, *arg);
                     match r {
                         FfiSafe => {}
                         _ => {
@@ -1160,9 +1175,6 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
 
         impl<'a, 'tcx> ty::fold::TypeVisitor<'tcx> for ProhibitOpaqueTypes<'a, 'tcx> {
             type BreakTy = Ty<'tcx>;
-            fn tcx_for_anon_const_substs(&self) -> Option<TyCtxt<'tcx>> {
-                Some(self.cx.tcx)
-            }
 
             fn visit_ty(&mut self, ty: Ty<'tcx>) -> ControlFlow<Self::BreakTy> {
                 match ty.kind() {
@@ -1245,7 +1257,7 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
         let sig = self.cx.tcx.erase_late_bound_regions(sig);
 
         for (input_ty, input_hir) in iter::zip(sig.inputs(), decl.inputs) {
-            self.check_type_for_ffi_and_report_errors(input_hir.span, input_ty, false, false);
+            self.check_type_for_ffi_and_report_errors(input_hir.span, *input_ty, false, false);
         }
 
         if let hir::FnRetTy::Return(ref ret_hir) = decl.output {
@@ -1322,17 +1334,15 @@ impl<'tcx> LateLintPass<'tcx> for VariantSizeDifferences {
             let layout = match cx.layout_of(ty) {
                 Ok(layout) => layout,
                 Err(
-                    ty::layout::LayoutError::Unknown(_) | ty::layout::LayoutError::SizeOverflow(_),
+                    ty::layout::LayoutError::Unknown(_)
+                    | ty::layout::LayoutError::SizeOverflow(_)
+                    | ty::layout::LayoutError::NormalizationFailure(_, _),
                 ) => return,
             };
-            let (variants, tag) = match layout.variants {
-                Variants::Multiple {
-                    tag_encoding: TagEncoding::Direct,
-                    ref tag,
-                    ref variants,
-                    ..
-                } => (variants, tag),
-                _ => return,
+            let Variants::Multiple {
+                    tag_encoding: TagEncoding::Direct, tag, ref variants, ..
+                } = &layout.variants else {
+                return
             };
 
             let tag_size = tag.value.size(&cx.tcx).bytes();
@@ -1454,7 +1464,7 @@ impl InvalidAtomicOrdering {
             sym::AtomicI128,
         ];
         if_chain! {
-            if let ExprKind::MethodCall(ref method_path, _, args, _) = &expr.kind;
+            if let ExprKind::MethodCall(ref method_path, args, _) = &expr.kind;
             if recognized_names.contains(&method_path.ident.name);
             if let Some(m_def_id) = cx.typeck_results().type_dependent_def_id(expr.hir_id);
             if let Some(impl_did) = cx.tcx.impl_of_method(m_def_id);
@@ -1529,8 +1539,7 @@ impl InvalidAtomicOrdering {
             if let ExprKind::Call(ref func, ref args) = expr.kind;
             if let ExprKind::Path(ref func_qpath) = func.kind;
             if let Some(def_id) = cx.qpath_res(func_qpath, func.hir_id).opt_def_id();
-            if cx.tcx.is_diagnostic_item(sym::fence, def_id) ||
-                cx.tcx.is_diagnostic_item(sym::compiler_fence, def_id);
+            if matches!(cx.tcx.get_diagnostic_name(def_id), Some(sym::fence | sym::compiler_fence));
             if let ExprKind::Path(ref ordering_qpath) = &args[0].kind;
             if let Some(ordering_def_id) = cx.qpath_res(ordering_qpath, args[0].hir_id).opt_def_id();
             if Self::matches_ordering(cx, ordering_def_id, &[sym::Relaxed]);

@@ -226,6 +226,15 @@ macro_rules! saturating_impl {
         }
         forward_ref_op_assign! { impl AddAssign, add_assign for Saturating<$t>, Saturating<$t> }
 
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl AddAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn add_assign(&mut self, other: $t) {
+                *self = *self + Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl AddAssign, add_assign for Saturating<$t>, $t }
+
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl Sub for Saturating<$t> {
             type Output = Saturating<$t>;
@@ -246,6 +255,15 @@ macro_rules! saturating_impl {
             }
         }
         forward_ref_op_assign! { impl SubAssign, sub_assign for Saturating<$t>, Saturating<$t> }
+
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl SubAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn sub_assign(&mut self, other: $t) {
+                *self = *self - Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl SubAssign, sub_assign for Saturating<$t>, $t }
 
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl Mul for Saturating<$t> {
@@ -268,12 +286,21 @@ macro_rules! saturating_impl {
         }
         forward_ref_op_assign! { impl MulAssign, mul_assign for Saturating<$t>, Saturating<$t> }
 
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl MulAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn mul_assign(&mut self, other: $t) {
+                *self = *self * Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl MulAssign, mul_assign for Saturating<$t>, $t }
+
         /// # Examples
         ///
         /// Basic usage:
         ///
         /// ```
-        /// #![feature(saturating_int_impl, saturating_div)]
+        /// #![feature(saturating_int_impl)]
         /// use std::num::Saturating;
         ///
         #[doc = concat!("assert_eq!(Saturating(2", stringify!($t), "), Saturating(5", stringify!($t), ") / Saturating(2));")]
@@ -282,7 +309,7 @@ macro_rules! saturating_impl {
         /// ```
         ///
         /// ```should_panic
-        /// #![feature(saturating_int_impl, saturating_div)]
+        /// #![feature(saturating_int_impl)]
         /// use std::num::Saturating;
         ///
         #[doc = concat!("let _ = Saturating(0", stringify!($t), ") / Saturating(0);")]
@@ -299,6 +326,7 @@ macro_rules! saturating_impl {
         forward_ref_binop! { impl Div, div for Saturating<$t>, Saturating<$t>,
                 #[unstable(feature = "saturating_int_impl", issue = "87920")] }
 
+
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl DivAssign for Saturating<$t> {
             #[inline]
@@ -307,6 +335,15 @@ macro_rules! saturating_impl {
             }
         }
         forward_ref_op_assign! { impl DivAssign, div_assign for Saturating<$t>, Saturating<$t> }
+
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl DivAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn div_assign(&mut self, other: $t) {
+                *self = *self / Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl DivAssign, div_assign for Saturating<$t>, $t }
 
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl Rem for Saturating<$t> {
@@ -328,6 +365,15 @@ macro_rules! saturating_impl {
             }
         }
         forward_ref_op_assign! { impl RemAssign, rem_assign for Saturating<$t>, Saturating<$t> }
+
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl RemAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn rem_assign(&mut self, other: $t) {
+                *self = *self % Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl RemAssign, rem_assign for Saturating<$t>, $t }
 
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl Not for Saturating<$t> {
@@ -362,6 +408,15 @@ macro_rules! saturating_impl {
         }
         forward_ref_op_assign! { impl BitXorAssign, bitxor_assign for Saturating<$t>, Saturating<$t> }
 
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl BitXorAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn bitxor_assign(&mut self, other: $t) {
+                *self = *self ^ Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl BitXorAssign, bitxor_assign for Saturating<$t>, $t }
+
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl BitOr for Saturating<$t> {
             type Output = Saturating<$t>;
@@ -383,6 +438,15 @@ macro_rules! saturating_impl {
         }
         forward_ref_op_assign! { impl BitOrAssign, bitor_assign for Saturating<$t>, Saturating<$t> }
 
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl BitOrAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn bitor_assign(&mut self, other: $t) {
+                *self = *self | Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl BitOrAssign, bitor_assign for Saturating<$t>, $t }
+
         #[unstable(feature = "saturating_int_impl", issue = "87920")]
         impl BitAnd for Saturating<$t> {
             type Output = Saturating<$t>;
@@ -403,6 +467,15 @@ macro_rules! saturating_impl {
             }
         }
         forward_ref_op_assign! { impl BitAndAssign, bitand_assign for Saturating<$t>, Saturating<$t> }
+
+        #[unstable(feature = "saturating_int_assign_impl", issue = "92354")]
+        impl BitAndAssign<$t> for Saturating<$t> {
+            #[inline]
+            fn bitand_assign(&mut self, other: $t) {
+                *self = *self & Saturating(other);
+            }
+        }
+        forward_ref_op_assign! { impl BitAndAssign, bitand_assign for Saturating<$t>, $t }
 
     )*)
 }
@@ -474,6 +547,8 @@ macro_rules! saturating_int_impl {
             #[inline]
             #[doc(alias = "popcount")]
             #[doc(alias = "popcnt")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn count_ones(self) -> u32 {
                 self.0.count_ones()
@@ -492,6 +567,8 @@ macro_rules! saturating_int_impl {
             #[doc = concat!("assert_eq!(Saturating(!0", stringify!($t), ").count_zeros(), 0);")]
             /// ```
             #[inline]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn count_zeros(self) -> u32 {
                 self.0.count_zeros()
@@ -512,6 +589,8 @@ macro_rules! saturating_int_impl {
             /// assert_eq!(n.trailing_zeros(), 3);
             /// ```
             #[inline]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn trailing_zeros(self) -> u32 {
                 self.0.trailing_zeros()
@@ -538,6 +617,8 @@ macro_rules! saturating_int_impl {
             /// assert_eq!(n.rotate_left(32), m);
             /// ```
             #[inline]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn rotate_left(self, n: u32) -> Self {
                 Saturating(self.0.rotate_left(n))
@@ -564,6 +645,8 @@ macro_rules! saturating_int_impl {
             /// assert_eq!(n.rotate_right(4), m);
             /// ```
             #[inline]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn rotate_right(self, n: u32) -> Self {
                 Saturating(self.0.rotate_right(n))
@@ -588,6 +671,8 @@ macro_rules! saturating_int_impl {
             /// assert_eq!(m, Saturating(21760));
             /// ```
             #[inline]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn swap_bytes(self) -> Self {
                 Saturating(self.0.swap_bytes())
@@ -614,10 +699,11 @@ macro_rules! saturating_int_impl {
             /// assert_eq!(m.0 as u16, 0b10101010_00000000);
             /// assert_eq!(m, Saturating(-22016));
             /// ```
-            #[unstable(feature = "saturating_int_impl", issue = "87920")]
-            #[rustc_const_stable(feature = "const_reverse_bits", since = "1.37.0")]
             #[inline]
-            #[must_use]
+            #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[rustc_const_unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub const fn reverse_bits(self) -> Self {
                 Saturating(self.0.reverse_bits())
             }
@@ -644,6 +730,7 @@ macro_rules! saturating_int_impl {
             /// }
             /// ```
             #[inline]
+            #[must_use]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn from_be(x: Self) -> Self {
                 Saturating(<$t>::from_be(x.0))
@@ -671,6 +758,7 @@ macro_rules! saturating_int_impl {
             /// }
             /// ```
             #[inline]
+            #[must_use]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn from_le(x: Self) -> Self {
                 Saturating(<$t>::from_le(x.0))
@@ -699,6 +787,8 @@ macro_rules! saturating_int_impl {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub const fn to_be(self) -> Self {
                 Saturating(self.0.to_be())
             }
@@ -726,6 +816,8 @@ macro_rules! saturating_int_impl {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub const fn to_le(self) -> Self {
                 Saturating(self.0.to_le())
             }
@@ -754,6 +846,8 @@ macro_rules! saturating_int_impl {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub fn pow(self, exp: u32) -> Self {
                 Saturating(self.0.saturating_pow(exp))
             }
@@ -782,6 +876,8 @@ macro_rules! saturating_int_impl_signed {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub const fn leading_zeros(self) -> u32 {
                 self.0.leading_zeros()
             }
@@ -805,6 +901,8 @@ macro_rules! saturating_int_impl_signed {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub fn abs(self) -> Saturating<$t> {
                 Saturating(self.0.saturating_abs())
             }
@@ -829,6 +927,8 @@ macro_rules! saturating_int_impl_signed {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub fn signum(self) -> Saturating<$t> {
                 Saturating(self.0.signum())
             }
@@ -847,6 +947,7 @@ macro_rules! saturating_int_impl_signed {
             #[doc = concat!("assert!(Saturating(10", stringify!($t), ").is_positive());")]
             #[doc = concat!("assert!(!Saturating(-10", stringify!($t), ").is_positive());")]
             /// ```
+            #[must_use]
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn is_positive(self) -> bool {
@@ -867,6 +968,7 @@ macro_rules! saturating_int_impl_signed {
             #[doc = concat!("assert!(Saturating(-10", stringify!($t), ").is_negative());")]
             #[doc = concat!("assert!(!Saturating(10", stringify!($t), ").is_negative());")]
             /// ```
+            #[must_use]
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub const fn is_negative(self) -> bool {
@@ -908,6 +1010,8 @@ macro_rules! saturating_int_impl_unsigned {
             /// ```
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
+            #[must_use = "this returns the result of the operation, \
+                          without modifying the original"]
             pub const fn leading_zeros(self) -> u32 {
                 self.0.leading_zeros()
             }
@@ -925,6 +1029,7 @@ macro_rules! saturating_int_impl_unsigned {
             #[doc = concat!("assert!(Saturating(16", stringify!($t), ").is_power_of_two());")]
             #[doc = concat!("assert!(!Saturating(10", stringify!($t), ").is_power_of_two());")]
             /// ```
+            #[must_use]
             #[inline]
             #[unstable(feature = "saturating_int_impl", issue = "87920")]
             pub fn is_power_of_two(self) -> bool {

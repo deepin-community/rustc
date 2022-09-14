@@ -6,6 +6,7 @@
 //! * `x86` and `x86_64`: [`is_x86_feature_detected`]
 //! * `arm`: [`is_arm_feature_detected`]
 //! * `aarch64`: [`is_aarch64_feature_detected`]
+//! * `riscv`: [`is_riscv_feature_detected`]
 //! * `mips`: [`is_mips_feature_detected`]
 //! * `mips64`: [`is_mips64_feature_detected`]
 //! * `powerpc`: [`is_powerpc_feature_detected`]
@@ -16,19 +17,17 @@
 #![deny(rust_2018_idioms)]
 #![allow(clippy::shadow_reuse)]
 #![deny(clippy::missing_inline_in_public_items)]
-#![cfg_attr(all(target_os = "freebsd", target_arch = "aarch64"), feature(asm))]
 #![cfg_attr(test, allow(unused_imports))]
-#![cfg_attr(feature = "std_detect_file_io", feature(vec_spare_capacity))]
 #![no_std]
-
-// rust-lang/rust#83888: removing `extern crate` gives an error that `vec_spare_capacity` is unknown
-#[cfg_attr(feature = "std_detect_file_io", allow(unused_extern_crates))]
-#[cfg(feature = "std_detect_file_io")]
-extern crate alloc;
 
 #[cfg(test)]
 #[macro_use]
 extern crate std;
+
+// rust-lang/rust#83888: removing `extern crate` gives an error that `vec_spare>
+#[cfg_attr(feature = "std_detect_file_io", allow(unused_extern_crates))]
+#[cfg(feature = "std_detect_file_io")]
+extern crate alloc;
 
 #[doc(hidden)]
 #[unstable(feature = "stdsimd", issue = "27731")]

@@ -1,20 +1,22 @@
-use clippy_utils::diagnostics::{span_lint, span_lint_and_help, span_lint_and_note};
-use clippy_utils::source::first_line_of_span;
+use clippy_utils::attrs::is_doc_hidden;
+use clippy_utils::diagnostics::{span_lint, span_lint_and_help, span_lint_and_note, span_lint_and_then};
+use clippy_utils::macros::{is_panic, root_macro_call_first_node};
+use clippy_utils::source::{first_line_of_span, snippet_with_applicability};
 use clippy_utils::ty::{implements_trait, is_type_diagnostic_item};
-use clippy_utils::{is_entrypoint_fn, is_expn_of, match_panic_def_id, method_chain_args, return_ty};
+use clippy_utils::{is_entrypoint_fn, method_chain_args, return_ty};
 use if_chain::if_chain;
 use itertools::Itertools;
-use rustc_ast::ast::{Async, AttrKind, Attribute, FnKind, FnRetTy, ItemKind};
+use rustc_ast::ast::{Async, AttrKind, Attribute, Fn, FnRetTy, ItemKind};
 use rustc_ast::token::CommentKind;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::emitter::EmitterWriter;
-use rustc_errors::Handler;
+use rustc_errors::{Applicability, Handler, SuggestionStyle};
 use rustc_hir as hir;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
-use rustc_hir::{AnonConst, Expr, ExprKind, QPath};
+use rustc_hir::intravisit::{self, Visitor};
+use rustc_hir::{AnonConst, Expr};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty;
 use rustc_parse::maybe_new_parser_from_source_str;
@@ -47,7 +49,7 @@ declare_clippy_lint! {
     /// content are not linted.
     ///
     /// In addition, when writing documentation comments, including `[]` brackets
-    /// inside a link text would trip the parser. Therfore, documenting link with
+    /// inside a link text would trip the parser. Therefore, documenting link with
     /// `[`SmallVec<[T; INLINE_CAPACITY]>`]` and then [`SmallVec<[T; INLINE_CAPACITY]>`]: SmallVec
     /// would fail.
     ///
@@ -66,6 +68,7 @@ declare_clippy_lint! {
     /// /// [SmallVec]: SmallVec
     /// fn main() {}
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DOC_MARKDOWN,
     pedantic,
     "presence of `_`, `::` or camel-case outside backticks in documentation"
@@ -100,6 +103,7 @@ declare_clippy_lint! {
     ///     unimplemented!();
     /// }
     /// ```
+    #[clippy::version = "1.39.0"]
     pub MISSING_SAFETY_DOC,
     style,
     "`pub unsafe fn` without `# Safety` docs"
@@ -128,6 +132,7 @@ declare_clippy_lint! {
     ///     unimplemented!();
     /// }
     /// ```
+    #[clippy::version = "1.41.0"]
     pub MISSING_ERRORS_DOC,
     pedantic,
     "`pub fn` returns `Result` without `# Errors` in doc comment"
@@ -158,6 +163,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.52.0"]
     pub MISSING_PANICS_DOC,
     pedantic,
     "`pub fn` may panic without `# Panics` in doc comment"
@@ -186,6 +192,7 @@ declare_clippy_lint! {
     ///     unimplemented!();
     /// }
     /// ``````
+    #[clippy::version = "1.40.0"]
     pub NEEDLESS_DOCTEST_MAIN,
     style,
     "presence of `fn main() {` in code examples"
@@ -212,7 +219,7 @@ impl_lint_pass!(DocMarkdown =>
 );
 
 impl<'tcx> LateLintPass<'tcx> for DocMarkdown {
-    fn check_crate(&mut self, cx: &LateContext<'tcx>, _: &'tcx hir::Crate<'_>) {
+    fn check_crate(&mut self, cx: &LateContext<'tcx>) {
         let attrs = cx.tcx.hir().attrs(hir::CRATE_HIR_ID);
         check_attrs(cx, &self.valid_idents, attrs);
     }
@@ -236,7 +243,17 @@ impl<'tcx> LateLintPass<'tcx> for DocMarkdown {
             hir::ItemKind::Impl(ref impl_) => {
                 self.in_trait_impl = impl_.of_trait.is_some();
             },
-            _ => {},
+            hir::ItemKind::Trait(_, unsafety, ..) => {
+                if !headers.safety && unsafety == hir::Unsafety::Unsafe {
+                    span_lint(
+                        cx,
+                        MISSING_SAFETY_DOC,
+                        item.span,
+                        "docs for unsafe trait missing `# Safety` section",
+                    );
+                }
+            },
+            _ => (),
         }
     }
 
@@ -287,6 +304,17 @@ fn lint_for_missing_headers<'tcx>(
     if !cx.access_levels.is_exported(def_id) {
         return; // Private functions do not require doc comments
     }
+
+    // do not lint if any parent has `#[doc(hidden)]` attribute (#7347)
+    if cx
+        .tcx
+        .hir()
+        .parent_iter(cx.tcx.hir().local_def_id_to_hir_id(def_id))
+        .any(|(id, _node)| is_doc_hidden(cx.tcx.hir().attrs(id)))
+    {
+        return;
+    }
+
     if !headers.safety && sig.header.unsafety == hir::Unsafety::Unsafe {
         span_lint(
             cx,
@@ -307,7 +335,7 @@ fn lint_for_missing_headers<'tcx>(
     }
     if !headers.errors {
         let hir_id = cx.tcx.hir().local_def_id_to_hir_id(def_id);
-        if is_type_diagnostic_item(cx, return_ty(cx, hir_id), sym::result_type) {
+        if is_type_diagnostic_item(cx, return_ty(cx, hir_id), sym::Result) {
             span_lint(
                 cx,
                 MISSING_ERRORS_DOC,
@@ -325,7 +353,7 @@ fn lint_for_missing_headers<'tcx>(
                 if let ty::Opaque(_, subs) = ret_ty.kind();
                 if let Some(gen) = subs.types().next();
                 if let ty::Generator(_, subs, _) = gen.kind();
-                if is_type_diagnostic_item(cx, subs.as_generator().return_ty(), sym::result_type);
+                if is_type_diagnostic_item(cx, subs.as_generator().return_ty(), sym::Result);
                 then {
                     span_lint(
                         cx,
@@ -396,12 +424,21 @@ struct DocHeaders {
 }
 
 fn check_attrs<'a>(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs: &'a [Attribute]) -> DocHeaders {
+    use pulldown_cmark::{BrokenLink, CowStr, Options};
+    /// We don't want the parser to choke on intra doc links. Since we don't
+    /// actually care about rendering them, just pretend that all broken links are
+    /// point to a fake address.
+    #[allow(clippy::unnecessary_wraps)] // we're following a type signature
+    fn fake_broken_link_callback<'a>(_: BrokenLink<'_>) -> Option<(CowStr<'a>, CowStr<'a>)> {
+        Some(("fake".into(), "fake".into()))
+    }
+
     let mut doc = String::new();
     let mut spans = vec![];
 
     for attr in attrs {
         if let AttrKind::DocComment(comment_kind, comment) = attr.kind {
-            let (comment, current_spans) = strip_doc_comment_decoration(&comment.as_str(), comment_kind, attr.span);
+            let (comment, current_spans) = strip_doc_comment_decoration(comment.as_str(), comment_kind, attr.span);
             spans.extend_from_slice(&current_spans);
             doc.push_str(&comment);
         } else if attr.has_name(sym::doc) {
@@ -430,7 +467,10 @@ fn check_attrs<'a>(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, attrs
         };
     }
 
-    let parser = pulldown_cmark::Parser::new(&doc).into_offset_iter();
+    let mut cb = fake_broken_link_callback;
+
+    let parser =
+        pulldown_cmark::Parser::new_with_broken_link_callback(&doc, Options::empty(), Some(&mut cb)).into_offset_iter();
     // Iterate over all `Events` and combine consecutive events into one
     let events = parser.coalesce(|previous, current| {
         use pulldown_cmark::Event::Text;
@@ -503,16 +543,16 @@ fn check_doc<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a>, Range<usize
             },
             Start(Link(_, url, _)) => in_link = Some(url),
             End(Link(..)) => in_link = None,
-            Start(Heading(_) | Paragraph | Item) => {
-                if let Start(Heading(_)) = event {
+            Start(Heading(_, _, _) | Paragraph | Item) => {
+                if let Start(Heading(_, _, _)) = event {
                     in_heading = true;
                 }
                 ticks_unbalanced = false;
                 let (_, span) = get_current_span(spans, range.start);
                 paragraph_span = first_line_of_span(cx, span);
             },
-            End(Heading(_) | Paragraph | Item) => {
-                if let End(Heading(_)) = event {
+            End(Heading(_, _, _) | Paragraph | Item) => {
+                if let End(Heading(_, _, _)) = event {
                     in_heading = false;
                 }
                 if ticks_unbalanced {
@@ -544,9 +584,12 @@ fn check_doc<'a, Events: Iterator<Item = (pulldown_cmark::Event<'a>, Range<usize
                     // text "http://example.com" by pulldown-cmark
                     continue;
                 }
-                headers.safety |= in_heading && text.trim() == "Safety";
-                headers.errors |= in_heading && text.trim() == "Errors";
-                headers.panics |= in_heading && text.trim() == "Panics";
+                let trimmed_text = text.trim();
+                headers.safety |= in_heading && trimmed_text == "Safety";
+                headers.safety |= in_heading && trimmed_text == "Implementation safety";
+                headers.safety |= in_heading && trimmed_text == "Implementation Safety";
+                headers.errors |= in_heading && trimmed_text == "Errors";
+                headers.panics |= in_heading && trimmed_text == "Panics";
                 if in_code {
                     if is_rust {
                         let edition = edition.unwrap_or_else(|| cx.tcx.sess.edition());
@@ -602,7 +645,9 @@ fn check_code(cx: &LateContext<'_>, text: &str, edition: Edition, span: Span) {
                             | ItemKind::ExternCrate(..)
                             | ItemKind::ForeignMod(..) => return false,
                             // We found a main function ...
-                            ItemKind::Fn(box FnKind(_, sig, _, Some(block))) if item.ident.name == sym::main => {
+                            ItemKind::Fn(box Fn {
+                                sig, body: Some(block), ..
+                            }) if item.ident.name == sym::main => {
                                 let is_async = matches!(sig.header.asyncness, Async::Yes { .. });
                                 let returns_nothing = match &sig.decl.output {
                                     FnRetTy::Default(..) => true,
@@ -652,10 +697,18 @@ fn check_text(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, text: &str
     for word in text.split(|c: char| c.is_whitespace() || c == '\'') {
         // Trim punctuation as in `some comment (see foo::bar).`
         //                                                   ^^
-        // Or even as in `_foo bar_` which is emphasized.
-        let word = word.trim_matches(|c: char| !c.is_alphanumeric());
+        // Or even as in `_foo bar_` which is emphasized. Also preserve `::` as a prefix/suffix.
+        let mut word = word.trim_matches(|c: char| !c.is_alphanumeric() && c != ':');
 
-        if valid_idents.contains(word) {
+        // Remove leading or trailing single `:` which may be part of a sentence.
+        if word.starts_with(':') && !word.starts_with("::") {
+            word = word.trim_start_matches(':');
+        }
+        if word.ends_with(':') && !word.ends_with("::") {
+            word = word.trim_end_matches(':');
+        }
+
+        if valid_idents.contains(word) || word.chars().all(|c| c == ':') {
             continue;
         }
 
@@ -665,6 +718,7 @@ fn check_text(cx: &LateContext<'_>, valid_idents: &FxHashSet<String>, text: &str
             span.lo() + BytePos::from_usize(offset),
             span.lo() + BytePos::from_usize(offset + word.len()),
             span.ctxt(),
+            span.parent(),
         );
 
         check_word(cx, word, span);
@@ -709,17 +763,31 @@ fn check_word(cx: &LateContext<'_>, word: &str, span: Span) {
         }
     }
 
-    // We assume that mixed-case words are not meant to be put inside bacticks. (Issue #2343)
+    // We assume that mixed-case words are not meant to be put inside backticks. (Issue #2343)
     if has_underscore(word) && has_hyphen(word) {
         return;
     }
 
     if has_underscore(word) || word.contains("::") || is_camel_case(word) {
-        span_lint(
+        let mut applicability = Applicability::MachineApplicable;
+
+        span_lint_and_then(
             cx,
             DOC_MARKDOWN,
             span,
-            &format!("you should put `{}` between ticks in the documentation", word),
+            "item in documentation is missing backticks",
+            |diag| {
+                let snippet = snippet_with_applicability(cx, span, "..", &mut applicability);
+                diag.span_suggestion_with_style(
+                    span,
+                    "try",
+                    format!("`{}`", snippet),
+                    applicability,
+                    // always show the suggestion in a separate line, since the
+                    // inline presentation adds another pair of backticks
+                    SuggestionStyle::ShowAlways,
+                );
+            },
         );
     }
 }
@@ -731,36 +799,29 @@ struct FindPanicUnwrap<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for FindPanicUnwrap<'a, 'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::OnlyBodies;
 
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if self.panic_span.is_some() {
             return;
         }
 
-        // check for `begin_panic`
-        if_chain! {
-            if let ExprKind::Call(func_expr, _) = expr.kind;
-            if let ExprKind::Path(QPath::Resolved(_, path)) = func_expr.kind;
-            if let Some(path_def_id) = path.res.opt_def_id();
-            if match_panic_def_id(self.cx, path_def_id);
-            if is_expn_of(expr.span, "unreachable").is_none();
-            if !is_expn_of_debug_assertions(expr.span);
-            then {
-                self.panic_span = Some(expr.span);
+        if let Some(macro_call) = root_macro_call_first_node(self.cx, expr) {
+            if is_panic(self.cx, macro_call.def_id)
+                || matches!(
+                    self.cx.tcx.item_name(macro_call.def_id).as_str(),
+                    "assert" | "assert_eq" | "assert_ne" | "todo"
+                )
+            {
+                self.panic_span = Some(macro_call.span);
             }
-        }
-
-        // check for `assert_eq` or `assert_ne`
-        if is_expn_of(expr.span, "assert_eq").is_some() || is_expn_of(expr.span, "assert_ne").is_some() {
-            self.panic_span = Some(expr.span);
         }
 
         // check for `unwrap`
         if let Some(arglists) = method_chain_args(expr, &["unwrap"]) {
-            let reciever_ty = self.typeck_results.expr_ty(&arglists[0][0]).peel_refs();
-            if is_type_diagnostic_item(self.cx, reciever_ty, sym::option_type)
-                || is_type_diagnostic_item(self.cx, reciever_ty, sym::result_type)
+            let receiver_ty = self.typeck_results.expr_ty(&arglists[0][0]).peel_refs();
+            if is_type_diagnostic_item(self.cx, receiver_ty, sym::Option)
+                || is_type_diagnostic_item(self.cx, receiver_ty, sym::Result)
             {
                 self.panic_span = Some(expr.span);
             }
@@ -773,12 +834,7 @@ impl<'a, 'tcx> Visitor<'tcx> for FindPanicUnwrap<'a, 'tcx> {
     // Panics in const blocks will cause compilation to fail.
     fn visit_anon_const(&mut self, _: &'tcx AnonConst) {}
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.cx.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.cx.tcx.hir()
     }
-}
-
-fn is_expn_of_debug_assertions(span: Span) -> bool {
-    const MACRO_NAMES: &[&str] = &["debug_assert", "debug_assert_eq", "debug_assert_ne"];
-    MACRO_NAMES.iter().any(|name| is_expn_of(span, name).is_some())
 }

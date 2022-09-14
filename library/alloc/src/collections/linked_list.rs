@@ -38,9 +38,12 @@ mod tests;
 /// let list = LinkedList::from([1, 2, 3]);
 /// ```
 ///
-/// NOTE: It is almost always better to use `Vec` or `VecDeque` because
+/// NOTE: It is almost always better to use [`Vec`] or [`VecDeque`] because
 /// array-based containers are generally faster,
 /// more memory efficient, and make better use of CPU cache.
+///
+/// [`Vec`]: crate::vec::Vec
+/// [`VecDeque`]: super::vec_deque::VecDeque
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg_attr(not(test), rustc_diagnostic_item = "LinkedList")]
 #[rustc_insignificant_dtor]
@@ -61,6 +64,7 @@ struct Node<T> {
 ///
 /// This `struct` is created by [`LinkedList::iter()`]. See its
 /// documentation for more.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Iter<'a, T: 'a> {
     head: Option<NonNull<Node<T>>>,
@@ -96,6 +100,7 @@ impl<T> Clone for Iter<'_, T> {
 ///
 /// This `struct` is created by [`LinkedList::iter_mut()`]. See its
 /// documentation for more.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct IterMut<'a, T: 'a> {
     head: Option<NonNull<Node<T>>>,
@@ -122,9 +127,10 @@ impl<T: fmt::Debug> fmt::Debug for IterMut<'_, T> {
 /// An owning iterator over the elements of a `LinkedList`.
 ///
 /// This `struct` is created by the [`into_iter`] method on [`LinkedList`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 ///
 /// [`into_iter`]: LinkedList::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
 #[derive(Clone)]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct IntoIter<T> {
@@ -411,8 +417,9 @@ impl<T> LinkedList<T> {
     /// let list: LinkedList<u32> = LinkedList::new();
     /// ```
     #[inline]
-    #[rustc_const_stable(feature = "const_linked_list_new", since = "1.32.0")]
+    #[rustc_const_stable(feature = "const_linked_list_new", since = "1.39.0")]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[must_use]
     pub const fn new() -> Self {
         LinkedList { head: None, tail: None, len: 0, marker: PhantomData }
     }
@@ -524,6 +531,7 @@ impl<T> LinkedList<T> {
     ///
     /// The cursor is pointing to the "ghost" non-element if the list is empty.
     #[inline]
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn cursor_front(&self) -> Cursor<'_, T> {
         Cursor { index: 0, current: self.head, list: self }
@@ -533,6 +541,7 @@ impl<T> LinkedList<T> {
     ///
     /// The cursor is pointing to the "ghost" non-element if the list is empty.
     #[inline]
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn cursor_front_mut(&mut self) -> CursorMut<'_, T> {
         CursorMut { index: 0, current: self.head, list: self }
@@ -542,6 +551,7 @@ impl<T> LinkedList<T> {
     ///
     /// The cursor is pointing to the "ghost" non-element if the list is empty.
     #[inline]
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn cursor_back(&self) -> Cursor<'_, T> {
         Cursor { index: self.len.checked_sub(1).unwrap_or(0), current: self.tail, list: self }
@@ -551,6 +561,7 @@ impl<T> LinkedList<T> {
     ///
     /// The cursor is pointing to the "ghost" non-element if the list is empty.
     #[inline]
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn cursor_back_mut(&mut self) -> CursorMut<'_, T> {
         CursorMut { index: self.len.checked_sub(1).unwrap_or(0), current: self.tail, list: self }
@@ -572,6 +583,7 @@ impl<T> LinkedList<T> {
     /// assert!(!dl.is_empty());
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn is_empty(&self) -> bool {
         self.head.is_none()
@@ -598,6 +610,7 @@ impl<T> LinkedList<T> {
     /// assert_eq!(dl.len(), 3);
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn len(&self) -> usize {
         self.len
@@ -632,6 +645,8 @@ impl<T> LinkedList<T> {
     /// Returns `true` if the `LinkedList` contains an element equal to the
     /// given value.
     ///
+    /// This operation should compute in *O*(*n*) time.
+    ///
     /// # Examples
     ///
     /// ```
@@ -657,6 +672,8 @@ impl<T> LinkedList<T> {
     /// Provides a reference to the front element, or `None` if the list is
     /// empty.
     ///
+    /// This operation should compute in *O*(1) time.
+    ///
     /// # Examples
     ///
     /// ```
@@ -669,6 +686,7 @@ impl<T> LinkedList<T> {
     /// assert_eq!(dl.front(), Some(&1));
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn front(&self) -> Option<&T> {
         unsafe { self.head.as_ref().map(|node| &node.as_ref().element) }
@@ -676,6 +694,8 @@ impl<T> LinkedList<T> {
 
     /// Provides a mutable reference to the front element, or `None` if the list
     /// is empty.
+    ///
+    /// This operation should compute in *O*(1) time.
     ///
     /// # Examples
     ///
@@ -695,6 +715,7 @@ impl<T> LinkedList<T> {
     /// assert_eq!(dl.front(), Some(&5));
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn front_mut(&mut self) -> Option<&mut T> {
         unsafe { self.head.as_mut().map(|node| &mut node.as_mut().element) }
@@ -702,6 +723,8 @@ impl<T> LinkedList<T> {
 
     /// Provides a reference to the back element, or `None` if the list is
     /// empty.
+    ///
+    /// This operation should compute in *O*(1) time.
     ///
     /// # Examples
     ///
@@ -715,6 +738,7 @@ impl<T> LinkedList<T> {
     /// assert_eq!(dl.back(), Some(&1));
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn back(&self) -> Option<&T> {
         unsafe { self.tail.as_ref().map(|node| &node.as_ref().element) }
@@ -722,6 +746,8 @@ impl<T> LinkedList<T> {
 
     /// Provides a mutable reference to the back element, or `None` if the list
     /// is empty.
+    ///
+    /// This operation should compute in *O*(1) time.
     ///
     /// # Examples
     ///
@@ -1163,6 +1189,7 @@ impl<'a, T> Cursor<'a, T> {
     ///
     /// This returns `None` if the cursor is currently pointing to the
     /// "ghost" non-element.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn index(&self) -> Option<usize> {
         let _ = self.current?;
@@ -1217,6 +1244,7 @@ impl<'a, T> Cursor<'a, T> {
     ///
     /// This returns `None` if the cursor is currently pointing to the
     /// "ghost" non-element.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn current(&self) -> Option<&'a T> {
         unsafe { self.current.map(|current| &(*current.as_ptr()).element) }
@@ -1227,6 +1255,7 @@ impl<'a, T> Cursor<'a, T> {
     /// If the cursor is pointing to the "ghost" non-element then this returns
     /// the first element of the `LinkedList`. If it is pointing to the last
     /// element of the `LinkedList` then this returns `None`.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn peek_next(&self) -> Option<&'a T> {
         unsafe {
@@ -1243,6 +1272,7 @@ impl<'a, T> Cursor<'a, T> {
     /// If the cursor is pointing to the "ghost" non-element then this returns
     /// the last element of the `LinkedList`. If it is pointing to the first
     /// element of the `LinkedList` then this returns `None`.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn peek_prev(&self) -> Option<&'a T> {
         unsafe {
@@ -1256,6 +1286,7 @@ impl<'a, T> Cursor<'a, T> {
 
     /// Provides a reference to the front element of the cursor's parent list,
     /// or None if the list is empty.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn front(&self) -> Option<&'a T> {
         self.list.front()
@@ -1263,6 +1294,7 @@ impl<'a, T> Cursor<'a, T> {
 
     /// Provides a reference to the back element of the cursor's parent list,
     /// or None if the list is empty.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn back(&self) -> Option<&'a T> {
         self.list.back()
@@ -1274,6 +1306,7 @@ impl<'a, T> CursorMut<'a, T> {
     ///
     /// This returns `None` if the cursor is currently pointing to the
     /// "ghost" non-element.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn index(&self) -> Option<usize> {
         let _ = self.current?;
@@ -1328,6 +1361,7 @@ impl<'a, T> CursorMut<'a, T> {
     ///
     /// This returns `None` if the cursor is currently pointing to the
     /// "ghost" non-element.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn current(&mut self) -> Option<&mut T> {
         unsafe { self.current.map(|current| &mut (*current.as_ptr()).element) }
@@ -1370,6 +1404,7 @@ impl<'a, T> CursorMut<'a, T> {
     /// The lifetime of the returned `Cursor` is bound to that of the
     /// `CursorMut`, which means it cannot outlive the `CursorMut` and that the
     /// `CursorMut` is frozen for the lifetime of the `Cursor`.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn as_cursor(&self) -> Cursor<'_, T> {
         Cursor { list: self.list, current: self.current, index: self.index }
@@ -1615,6 +1650,7 @@ impl<'a, T> CursorMut<'a, T> {
 
     /// Provides a reference to the front element of the cursor's parent list,
     /// or None if the list is empty.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn front(&self) -> Option<&T> {
         self.list.front()
@@ -1622,6 +1658,7 @@ impl<'a, T> CursorMut<'a, T> {
 
     /// Provides a mutable reference to the front element of the cursor's
     /// parent list, or None if the list is empty.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn front_mut(&mut self) -> Option<&mut T> {
         self.list.front_mut()
@@ -1629,6 +1666,7 @@ impl<'a, T> CursorMut<'a, T> {
 
     /// Provides a reference to the back element of the cursor's parent list,
     /// or None if the list is empty.
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn back(&self) -> Option<&T> {
         self.list.back()
@@ -1655,6 +1693,7 @@ impl<'a, T> CursorMut<'a, T> {
     /// assert_eq!(contents.next(), Some(0));
     /// assert_eq!(contents.next(), None);
     /// ```
+    #[must_use]
     #[unstable(feature = "linked_list_cursors", issue = "58533")]
     pub fn back_mut(&mut self) -> Option<&mut T> {
         self.list.back_mut()
@@ -1914,6 +1953,8 @@ impl<T: Hash> Hash for LinkedList<T> {
 
 #[stable(feature = "std_collections_from_array", since = "1.56.0")]
 impl<T, const N: usize> From<[T; N]> for LinkedList<T> {
+    /// Converts a `[T; N]` into a `LinkedList<T>`.
+    ///
     /// ```
     /// use std::collections::LinkedList;
     ///
@@ -1922,7 +1963,7 @@ impl<T, const N: usize> From<[T; N]> for LinkedList<T> {
     /// assert_eq!(list1, list2);
     /// ```
     fn from(arr: [T; N]) -> Self {
-        core::array::IntoIter::new(arr).collect()
+        Self::from_iter(arr)
     }
 }
 

@@ -89,8 +89,6 @@ pub type rlim_t = ::c_ulonglong;
 pub type c_long = i64;
 pub type c_ulong = u64;
 
-pub type zx_status_t = i32;
-
 // FIXME: why are these uninhabited types? that seems... wrong?
 // Presumably these should be `()` or an `extern type` (when that stabilizes).
 #[cfg_attr(feature = "extra_traits", derive(Debug))]
@@ -1315,6 +1313,7 @@ pub const SIG_DFL: sighandler_t = 0 as sighandler_t;
 pub const SIG_IGN: sighandler_t = 1 as sighandler_t;
 pub const SIG_ERR: sighandler_t = !0 as sighandler_t;
 
+pub const DT_UNKNOWN: u8 = 0;
 pub const DT_FIFO: u8 = 1;
 pub const DT_CHR: u8 = 2;
 pub const DT_DIR: u8 = 4;
@@ -3394,6 +3393,7 @@ extern "C" {
     pub fn perror(s: *const c_char);
     pub fn atoi(s: *const c_char) -> c_int;
     pub fn strtod(s: *const c_char, endp: *mut *mut c_char) -> c_double;
+    pub fn strtof(s: *const c_char, endp: *mut *mut c_char) -> c_float;
     pub fn strtol(s: *const c_char, endp: *mut *mut c_char, base: c_int) -> c_long;
     pub fn strtoul(s: *const c_char, endp: *mut *mut c_char, base: c_int) -> c_ulong;
     pub fn calloc(nobj: size_t, size: size_t) -> *mut c_void;
@@ -4230,9 +4230,6 @@ extern "C" {
         >,
         data: *mut ::c_void,
     ) -> ::c_int;
-
-    pub fn zx_cprng_draw(buffer: *mut ::c_void, buffer_size: ::size_t);
-    pub fn zx_cprng_add_entropy(buffer: *const ::c_void, buffer_size: ::size_t) -> ::zx_status_t;
 }
 
 cfg_if! {

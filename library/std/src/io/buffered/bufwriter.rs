@@ -1,7 +1,7 @@
 use crate::error;
 use crate::fmt;
 use crate::io::{
-    self, Error, ErrorKind, IntoInnerError, IoSlice, Seek, SeekFrom, Write, DEFAULT_BUF_SIZE,
+    self, ErrorKind, IntoInnerError, IoSlice, Seek, SeekFrom, Write, DEFAULT_BUF_SIZE,
 };
 use crate::mem;
 use crate::ptr;
@@ -18,7 +18,7 @@ use crate::ptr;
 /// *repeated* write calls to the same file or network socket. It does not
 /// help when writing very large amounts at once, or writing just one or a few
 /// times. It also provides no advantage when writing to a destination that is
-/// in memory, like a [`Vec`]`<u8>`.
+/// in memory, like a <code>[Vec]\<u8></code>.
 ///
 /// It is critical to call [`flush`] before `BufWriter<W>` is dropped. Though
 /// dropping will attempt to flush the contents of the buffer, any errors
@@ -168,9 +168,9 @@ impl<W: Write> BufWriter<W> {
 
             match r {
                 Ok(0) => {
-                    return Err(Error::new_const(
+                    return Err(io::const_io_error!(
                         ErrorKind::WriteZero,
-                        &"failed to write the buffered data",
+                        "failed to write the buffered data",
                     ));
                 }
                 Ok(n) => guard.consume(n),
@@ -476,6 +476,7 @@ pub struct WriterPanicked {
 impl WriterPanicked {
     /// Returns the perhaps-unwritten data.  Some of this data may have been written by the
     /// panicking call(s) to the underlying writer, so simply writing it again is not a good idea.
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "bufwriter_into_parts", since = "1.56.0")]
     pub fn into_inner(self) -> Vec<u8> {
         self.buf

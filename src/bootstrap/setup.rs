@@ -1,6 +1,9 @@
+use crate::TargetSelection;
 use crate::{t, VERSION};
+use std::env::consts::EXE_SUFFIX;
 use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::Command;
 use std::str::FromStr;
 use std::{
@@ -107,6 +110,18 @@ pub fn setup(src_path: &Path, profile: Profile) {
     let include_path = profile.include_path(src_path);
     println!("`x.py` will now use the configuration at {}", include_path.display());
 
+    let build = TargetSelection::from_user(&env!("BUILD_TRIPLE"));
+    let stage_path =
+        ["build", build.rustc_target_arg(), "stage1"].join(&MAIN_SEPARATOR.to_string());
+
+    println!();
+
+    if !rustup_installed() && profile != Profile::User {
+        println!("`rustup` is not installed; cannot link `stage1` toolchain");
+    } else if stage_dir_exists(&stage_path[..]) {
+        attempt_toolchain_link(&stage_path[..]);
+    }
+
     let suggestions = match profile {
         Profile::Codegen | Profile::Compiler => &["check", "build", "test"][..],
         Profile::Tools => &[
@@ -137,6 +152,108 @@ pub fn setup(src_path: &Path, profile: Profile) {
             "For more suggestions, see https://rustc-dev-guide.rust-lang.org/building/suggested.html"
         );
     }
+}
+
+fn rustup_installed() -> bool {
+    Command::new("rustup")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .output()
+        .map_or(false, |output| output.status.success())
+}
+
+fn stage_dir_exists(stage_path: &str) -> bool {
+    match fs::create_dir(&stage_path[..]) {
+        Ok(_) => true,
+        Err(_) => Path::new(&stage_path[..]).exists(),
+    }
+}
+
+fn attempt_toolchain_link(stage_path: &str) {
+    if toolchain_is_linked() {
+        return;
+    }
+
+    if !ensure_stage1_toolchain_placeholder_exists(stage_path) {
+        println!(
+            "Failed to create a template for stage 1 toolchain or confirm that it already exists"
+        );
+        return;
+    }
+
+    if try_link_toolchain(&stage_path[..]) {
+        println!(
+            "Added `stage1` rustup toolchain; try `cargo +stage1 build` on a separate rust project to run a newly-built toolchain"
+        );
+    } else {
+        println!("`rustup` failed to link stage 1 build to `stage1` toolchain");
+        println!(
+            "To manually link stage 1 build to `stage1` toolchain, run:\n
+            `rustup toolchain link stage1 {}`",
+            &stage_path[..]
+        );
+    }
+}
+
+fn toolchain_is_linked() -> bool {
+    match Command::new("rustup")
+        .args(&["toolchain", "list"])
+        .stdout(std::process::Stdio::piped())
+        .output()
+    {
+        Ok(toolchain_list) => {
+            if !String::from_utf8_lossy(&toolchain_list.stdout).contains("stage1") {
+                return false;
+            }
+            // The toolchain has already been linked.
+            println!(
+                "`stage1` toolchain already linked; not attempting to link `stage1` toolchain"
+            );
+        }
+        Err(_) => {
+            // In this case, we don't know if the `stage1` toolchain has been linked;
+            // but `rustup` failed, so let's not go any further.
+            println!(
+                "`rustup` failed to list current toolchains; not attempting to link `stage1` toolchain"
+            );
+        }
+    }
+    true
+}
+
+fn try_link_toolchain(stage_path: &str) -> bool {
+    Command::new("rustup")
+        .stdout(std::process::Stdio::null())
+        .args(&["toolchain", "link", "stage1", &stage_path[..]])
+        .output()
+        .map_or(false, |output| output.status.success())
+}
+
+fn ensure_stage1_toolchain_placeholder_exists(stage_path: &str) -> bool {
+    let pathbuf = PathBuf::from(stage_path);
+
+    if fs::create_dir_all(pathbuf.join("lib")).is_err() {
+        return false;
+    };
+
+    let pathbuf = pathbuf.join("bin");
+    if fs::create_dir_all(&pathbuf).is_err() {
+        return false;
+    };
+
+    let pathbuf = pathbuf.join(format!("rustc{}", EXE_SUFFIX));
+
+    if pathbuf.exists() {
+        return true;
+    }
+
+    // Take care not to overwrite the file
+    let result = File::options().append(true).create(true).open(&pathbuf);
+    if result.is_err() {
+        return false;
+    }
+
+    return true;
 }
 
 // Used to get the path for `Subcommand::Setup`
@@ -191,9 +308,9 @@ fn install_git_hook_maybe(src_path: &Path) -> io::Result<()> {
     let mut input = String::new();
     println!(
         "Rust's CI will automatically fail if it doesn't pass `tidy`, the internal tool for ensuring code quality.
-If you'd like, x.py can install a git hook for you that will automatically run `tidy --bless` on each commit
-to ensure your code is up to par. If you decide later that this behavior is undesirable,
-simply delete the `pre-commit` file from .git/hooks."
+If you'd like, x.py can install a git hook for you that will automatically run `tidy --bless` before
+pushing your code to ensure your code is up to par. If you decide later that this behavior is
+undesirable, simply delete the `pre-push` file from .git/hooks."
     );
 
     let should_install = loop {
@@ -213,21 +330,21 @@ simply delete the `pre-commit` file from .git/hooks."
     };
 
     if should_install {
-        let src = src_path.join("src").join("etc").join("pre-commit.sh");
+        let src = src_path.join("src").join("etc").join("pre-push.sh");
         let git = t!(Command::new("git").args(&["rev-parse", "--git-common-dir"]).output().map(
             |output| {
                 assert!(output.status.success(), "failed to run `git`");
                 PathBuf::from(t!(String::from_utf8(output.stdout)).trim())
             }
         ));
-        let dst = git.join("hooks").join("pre-commit");
+        let dst = git.join("hooks").join("pre-push");
         match fs::hard_link(src, &dst) {
             Err(e) => println!(
                 "error: could not create hook {}: do you already have the git hook installed?\n{}",
                 dst.display(),
                 e
             ),
-            Ok(_) => println!("Linked `src/etc/pre-commit.sh` to `.git/hooks/pre-commit`"),
+            Ok(_) => println!("Linked `src/etc/pre-commit.sh` to `.git/hooks/pre-push`"),
         };
     } else {
         println!("Ok, skipping installation!");

@@ -22,7 +22,7 @@ pub struct CodegenFnAttrs {
     /// imported function has in the dynamic library. Note that this must not
     /// be set when `link_name` is set. This is for foreign items with the
     /// "raw-dylib" kind.
-    pub link_ordinal: Option<usize>,
+    pub link_ordinal: Option<u16>,
     /// The `#[target_feature(enable = "...")]` attribute and the enabled
     /// features (only enabled features are supported right now).
     pub target_features: Vec<Symbol>,
@@ -89,6 +89,8 @@ bitflags! {
         /// the MIR `InstrumentCoverage` pass and not added to the coverage map
         /// during codegen.
         const NO_COVERAGE               = 1 << 15;
+        /// `#[used(linker)]`: indicates that LLVM nor the linker can eliminate this function.
+        const USED_LINKER               = 1 << 16;
     }
 }
 

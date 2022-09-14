@@ -113,9 +113,10 @@ fn ensure_drop_params_and_item_params_correspond<'tcx>(
             }
         }
 
-        if let Err(ref errors) = fulfillment_cx.select_all_or_error(&infcx) {
+        let errors = fulfillment_cx.select_all_or_error(&infcx);
+        if !errors.is_empty() {
             // this could be reached when we get lazy normalization
-            infcx.report_fulfillment_errors(errors, None, false);
+            infcx.report_fulfillment_errors(&errors, None, false);
             return Err(ErrorReported);
         }
 
@@ -183,8 +184,6 @@ fn ensure_drop_predicates_are_implied_by_item_defn<'tcx>(
     // absent. So we report an error that the Drop impl injected a
     // predicate that is not present on the struct definition.
 
-    let self_type_hir_id = tcx.hir().local_def_id_to_hir_id(self_type_did);
-
     // We can assume the predicates attached to struct/enum definition
     // hold.
     let generic_assumptions = tcx.predicates_of(self_type_did);
@@ -230,7 +229,13 @@ fn ensure_drop_predicates_are_implied_by_item_defn<'tcx>(
             let p = p.kind();
             match (predicate.skip_binder(), p.skip_binder()) {
                 (ty::PredicateKind::Trait(a), ty::PredicateKind::Trait(b)) => {
-                    relator.relate(predicate.rebind(a), p.rebind(b)).is_ok()
+                    // Since struct predicates cannot have ~const, project the impl predicate
+                    // onto one that ignores the constness. This is equivalent to saying that
+                    // we match a `Trait` bound on the struct with a `Trait` or `~const Trait`
+                    // in the impl.
+                    let non_const_a =
+                        ty::TraitPredicate { constness: ty::BoundConstness::NotConst, ..a };
+                    relator.relate(predicate.rebind(non_const_a), p.rebind(b)).is_ok()
                 }
                 (ty::PredicateKind::Projection(a), ty::PredicateKind::Projection(b)) => {
                     relator.relate(predicate.rebind(a), p.rebind(b)).is_ok()
@@ -239,15 +244,19 @@ fn ensure_drop_predicates_are_implied_by_item_defn<'tcx>(
                     ty::PredicateKind::ConstEvaluatable(a),
                     ty::PredicateKind::ConstEvaluatable(b),
                 ) => tcx.try_unify_abstract_consts((a, b)),
-                (ty::PredicateKind::TypeOutlives(a), ty::PredicateKind::TypeOutlives(b)) => {
-                    relator.relate(predicate.rebind(a.0), p.rebind(b.0)).is_ok()
+                (
+                    ty::PredicateKind::TypeOutlives(ty::OutlivesPredicate(ty_a, lt_a)),
+                    ty::PredicateKind::TypeOutlives(ty::OutlivesPredicate(ty_b, lt_b)),
+                ) => {
+                    relator.relate(predicate.rebind(ty_a), p.rebind(ty_b)).is_ok()
+                        && relator.relate(predicate.rebind(lt_a), p.rebind(lt_b)).is_ok()
                 }
                 _ => predicate == p,
             }
         };
 
         if !assumptions_in_impl_context.iter().copied().any(predicate_matches_closure) {
-            let item_span = tcx.hir().span(self_type_hir_id);
+            let item_span = tcx.def_span(self_type_did);
             let self_descr = tcx.def_kind(self_type_did).descr(self_type_did.to_def_id());
             struct_span_err!(
                 tcx.sess,
@@ -297,7 +306,7 @@ impl<'tcx> SimpleEqRelation<'tcx> {
     }
 }
 
-impl TypeRelation<'tcx> for SimpleEqRelation<'tcx> {
+impl<'tcx> TypeRelation<'tcx> for SimpleEqRelation<'tcx> {
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.tcx
     }
@@ -353,9 +362,9 @@ impl TypeRelation<'tcx> for SimpleEqRelation<'tcx> {
 
     fn consts(
         &mut self,
-        a: &'tcx ty::Const<'tcx>,
-        b: &'tcx ty::Const<'tcx>,
-    ) -> RelateResult<'tcx, &'tcx ty::Const<'tcx>> {
+        a: ty::Const<'tcx>,
+        b: ty::Const<'tcx>,
+    ) -> RelateResult<'tcx, ty::Const<'tcx>> {
         debug!("SimpleEqRelation::consts(a={:?}, b={:?})", a, b);
         ty::relate::super_relate_consts(self, a, b)
     }

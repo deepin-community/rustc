@@ -6,7 +6,7 @@ use super::*;
 use crate::infer::region_constraints::{Constraint, RegionConstraintData};
 use crate::infer::InferCtxt;
 use rustc_middle::ty::fold::TypeFolder;
-use rustc_middle::ty::{Region, RegionVid};
+use rustc_middle::ty::{Region, RegionVid, Term};
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 
@@ -187,9 +187,11 @@ impl<'tcx> AutoTraitFinder<'tcx> {
             // an additional sanity check.
             let mut fulfill = FulfillmentContext::new();
             fulfill.register_bound(&infcx, full_env, ty, trait_did, ObligationCause::dummy());
-            fulfill.select_all_or_error(&infcx).unwrap_or_else(|e| {
-                panic!("Unable to fulfill trait {:?} for '{:?}': {:?}", trait_did, ty, e)
-            });
+            let errors = fulfill.select_all_or_error(&infcx);
+
+            if !errors.is_empty() {
+                panic!("Unable to fulfill trait {:?} for '{:?}': {:?}", trait_did, ty, errors);
+            }
 
             let body_id_map: FxHashMap<_, _> = infcx
                 .inner
@@ -217,7 +219,7 @@ impl<'tcx> AutoTraitFinder<'tcx> {
     }
 }
 
-impl AutoTraitFinder<'tcx> {
+impl<'tcx> AutoTraitFinder<'tcx> {
     /// The core logic responsible for computing the bounds for our synthesized impl.
     ///
     /// To calculate the bounds, we call `SelectionContext.select` in a loop. Like
@@ -286,6 +288,8 @@ impl AutoTraitFinder<'tcx> {
                 substs: infcx.tcx.mk_substs_trait(ty, &[]),
             },
             constness: ty::BoundConstness::NotConst,
+            // Auto traits are positive
+            polarity: ty::ImplPolarity::Positive,
         }));
 
         let computed_preds = param_env.caller_bounds().iter();
@@ -366,12 +370,17 @@ impl AutoTraitFinder<'tcx> {
                 computed_preds.clone().chain(user_computed_preds.iter().cloned()),
             )
             .map(|o| o.predicate);
-            new_env = ty::ParamEnv::new(tcx.mk_predicates(normalized_preds), param_env.reveal());
+            new_env = ty::ParamEnv::new(
+                tcx.mk_predicates(normalized_preds),
+                param_env.reveal(),
+                param_env.constness(),
+            );
         }
 
         let final_user_env = ty::ParamEnv::new(
             tcx.mk_predicates(user_computed_preds.into_iter()),
             user_env.reveal(),
+            user_env.constness(),
         );
         debug!(
             "evaluate_nested_obligations(ty={:?}, trait_did={:?}): succeeded with '{:?}' \
@@ -428,16 +437,12 @@ impl AutoTraitFinder<'tcx> {
                     for (new_region, old_region) in
                         iter::zip(new_substs.regions(), old_substs.regions())
                     {
-                        match (new_region, old_region) {
+                        match (*new_region, *old_region) {
                             // If both predicates have an `ReLateBound` (a HRTB) in the
                             // same spot, we do nothing.
-                            (
-                                ty::RegionKind::ReLateBound(_, _),
-                                ty::RegionKind::ReLateBound(_, _),
-                            ) => {}
+                            (ty::ReLateBound(_, _), ty::ReLateBound(_, _)) => {}
 
-                            (ty::RegionKind::ReLateBound(_, _), _)
-                            | (_, ty::RegionKind::ReVar(_)) => {
+                            (ty::ReLateBound(_, _), _) | (_, ty::ReVar(_)) => {
                                 // One of these is true:
                                 // The new predicate has a HRTB in a spot where the old
                                 // predicate does not (if they both had a HRTB, the previous
@@ -463,8 +468,7 @@ impl AutoTraitFinder<'tcx> {
                                 // `user_computed_preds`.
                                 return false;
                             }
-                            (_, ty::RegionKind::ReLateBound(_, _))
-                            | (ty::RegionKind::ReVar(_), _) => {
+                            (_, ty::ReLateBound(_, _)) | (ty::ReVar(_), _) => {
                                 // This is the opposite situation as the previous arm.
                                 // One of these is true:
                                 //
@@ -597,7 +601,11 @@ impl AutoTraitFinder<'tcx> {
     }
 
     fn is_self_referential_projection(&self, p: ty::PolyProjectionPredicate<'_>) -> bool {
-        matches!(*p.ty().skip_binder().kind(), ty::Projection(proj) if proj == p.skip_binder().projection_ty)
+        if let Term::Ty(ty) = p.term().skip_binder() {
+            matches!(ty.kind(), ty::Projection(proj) if proj == &p.skip_binder().projection_ty)
+        } else {
+            false
+        }
     }
 
     fn evaluate_nested_obligations(
@@ -654,7 +662,7 @@ impl AutoTraitFinder<'tcx> {
                     // Additionally, we check if we've seen this predicate before,
                     // to avoid rendering duplicate bounds to the user.
                     if self.is_param_no_infer(p.skip_binder().projection_ty.substs)
-                        && !p.ty().skip_binder().has_infer_types()
+                        && !p.term().skip_binder().has_infer_types()
                         && is_new_pred
                     {
                         debug!(
@@ -743,7 +751,7 @@ impl AutoTraitFinder<'tcx> {
                             // when we started out trying to unify
                             // some inference variables. See the comment above
                             // for more infomration
-                            if p.ty().skip_binder().has_infer_types() {
+                            if p.term().skip_binder().has_infer_types() {
                                 if !self.evaluate_nested_obligations(
                                     ty,
                                     v.into_iter(),
@@ -765,7 +773,7 @@ impl AutoTraitFinder<'tcx> {
                             // However, we should always make progress (either by generating
                             // subobligations or getting an error) when we started off with
                             // inference variables
-                            if p.ty().skip_binder().has_infer_types() {
+                            if p.term().skip_binder().has_infer_types() {
                                 panic!("Unexpected result when selecting {:?} {:?}", ty, obligation)
                             }
                         }
@@ -801,14 +809,14 @@ impl AutoTraitFinder<'tcx> {
                     };
                 }
                 ty::PredicateKind::ConstEquate(c1, c2) => {
-                    let evaluate = |c: &'tcx ty::Const<'tcx>| {
-                        if let ty::ConstKind::Unevaluated(unevaluated) = c.val {
+                    let evaluate = |c: ty::Const<'tcx>| {
+                        if let ty::ConstKind::Unevaluated(unevaluated) = c.val() {
                             match select.infcx().const_eval_resolve(
                                 obligation.param_env,
                                 unevaluated,
                                 Some(obligation.cause.span),
                             ) {
-                                Ok(val) => Ok(ty::Const::from_value(select.tcx(), val, c.ty)),
+                                Ok(val) => Ok(ty::Const::from_value(select.tcx(), val, c.ty())),
                                 Err(err) => Err(err),
                             }
                         } else {
@@ -830,7 +838,17 @@ impl AutoTraitFinder<'tcx> {
                         _ => return false,
                     }
                 }
-                _ => panic!("Unexpected predicate {:?} {:?}", ty, predicate),
+                // There's not really much we can do with these predicates -
+                // we start out with a `ParamEnv` with no inference variables,
+                // and these don't correspond to adding any new bounds to
+                // the `ParamEnv`.
+                ty::PredicateKind::WellFormed(..)
+                | ty::PredicateKind::ObjectSafe(..)
+                | ty::PredicateKind::ClosureKind(..)
+                | ty::PredicateKind::Subtype(..)
+                | ty::PredicateKind::ConstEvaluatable(..)
+                | ty::PredicateKind::Coerce(..)
+                | ty::PredicateKind::TypeWellFormedFromEnv(..) => {}
             };
         }
         true
@@ -857,8 +875,8 @@ impl<'a, 'tcx> TypeFolder<'tcx> for RegionReplacer<'a, 'tcx> {
     }
 
     fn fold_region(&mut self, r: ty::Region<'tcx>) -> ty::Region<'tcx> {
-        (match r {
-            ty::ReVar(vid) => self.vid_to_region.get(vid).cloned(),
+        (match *r {
+            ty::ReVar(vid) => self.vid_to_region.get(&vid).cloned(),
             _ => None,
         })
         .unwrap_or_else(|| r.super_fold_with(self))

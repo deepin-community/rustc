@@ -66,6 +66,7 @@
         - [Match expressions](expressions/match-expr.md)
         - [Return expressions](expressions/return-expr.md)
         - [Await expressions](expressions/await-expr.md)
+        - [Underscore expressions](expressions/underscore-expr.md)
 
 - [Patterns](patterns.md)
 
@@ -113,6 +114,8 @@
     - [Variables](variables.md)
 
 - [Linkage](linkage.md)
+
+- [Inline assembly](inline-assembly.md)
 
 - [Unsafety](unsafety.md)
     - [Unsafe functions](unsafe-functions.md)

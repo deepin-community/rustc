@@ -3,7 +3,7 @@
 //! Insertion and popping the largest element have *O*(log(*n*)) time complexity.
 //! Checking the largest element is *O*(1). Converting a vector to a binary heap
 //! can be done in-place, and has *O*(*n*) complexity. A binary heap can also be
-//! converted to a sorted vector in-place, allowing it to be used for an *O*(*n* \* log(*n*))
+//! converted to a sorted vector in-place, allowing it to be used for an *O*(*n* * log(*n*))
 //! in-place heapsort.
 //!
 //! # Examples
@@ -149,6 +149,7 @@ use core::mem::{self, swap, ManuallyDrop};
 use core::ops::{Deref, DerefMut};
 use core::ptr;
 
+use crate::collections::TryReserveError;
 use crate::slice;
 use crate::vec::{self, AsIntoIter, Vec};
 
@@ -159,12 +160,12 @@ use super::SpecExtend;
 /// This will be a max-heap.
 ///
 /// It is a logic error for an item to be modified in such a way that the
-/// item's ordering relative to any other item, as determined by the `Ord`
+/// item's ordering relative to any other item, as determined by the [`Ord`]
 /// trait, changes while it is in the heap. This is normally only possible
-/// through `Cell`, `RefCell`, global state, I/O, or unsafe code. The
-/// behavior resulting from such a logic error is not specified, but will
-/// not result in undefined behavior. This could include panics, incorrect
-/// results, aborts, memory leaks, and non-termination.
+/// through [`Cell`], [`RefCell`], global state, I/O, or unsafe code. The
+/// behavior resulting from such a logic error is not specified (it
+/// could include panics, incorrect results, aborts, memory leaks, or
+/// non-termination) but will not be undefined behavior.
 ///
 /// # Examples
 ///
@@ -219,7 +220,7 @@ use super::SpecExtend;
 ///
 /// ## Min-heap
 ///
-/// Either `std::cmp::Reverse` or a custom `Ord` implementation can be used to
+/// Either [`core::cmp::Reverse`] or a custom [`Ord`] implementation can be used to
 /// make `BinaryHeap` a min-heap. This makes `heap.pop()` return the smallest
 /// value instead of the greatest one.
 ///
@@ -243,13 +244,17 @@ use super::SpecExtend;
 ///
 /// # Time complexity
 ///
-/// | [push] | [pop]     | [peek]/[peek\_mut] |
-/// |--------|-----------|--------------------|
-/// | O(1)~  | *O*(log(*n*)) | *O*(1)               |
+/// | [push]  | [pop]         | [peek]/[peek\_mut] |
+/// |---------|---------------|--------------------|
+/// | *O*(1)~ | *O*(log(*n*)) | *O*(1)             |
 ///
 /// The value for `push` is an expected cost; the method documentation gives a
 /// more detailed analysis.
 ///
+/// [`core::cmp::Reverse`]: core::cmp::Reverse
+/// [`Ord`]: core::cmp::Ord
+/// [`Cell`]: core::cell::Cell
+/// [`RefCell`]: core::cell::RefCell
 /// [push]: BinaryHeap::push
 /// [pop]: BinaryHeap::pop
 /// [peek]: BinaryHeap::peek
@@ -360,6 +365,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// heap.push(4);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[must_use]
     pub fn new() -> BinaryHeap<T> {
         BinaryHeap { data: vec![] }
     }
@@ -379,6 +385,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// heap.push(4);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> BinaryHeap<T> {
         BinaryHeap { data: Vec::with_capacity(capacity) }
     }
@@ -426,7 +433,7 @@ impl<T: Ord> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let mut heap = BinaryHeap::from(vec![1, 3]);
+    /// let mut heap = BinaryHeap::from([1, 3]);
     ///
     /// assert_eq!(heap.pop(), Some(3));
     /// assert_eq!(heap.pop(), Some(1));
@@ -499,13 +506,14 @@ impl<T: Ord> BinaryHeap<T> {
     /// ```
     /// use std::collections::BinaryHeap;
     ///
-    /// let mut heap = BinaryHeap::from(vec![1, 2, 4, 5, 7]);
+    /// let mut heap = BinaryHeap::from([1, 2, 4, 5, 7]);
     /// heap.push(6);
     /// heap.push(3);
     ///
     /// let vec = heap.into_sorted_vec();
     /// assert_eq!(vec, [1, 2, 3, 4, 5, 6, 7]);
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "binary_heap_extras_15", since = "1.5.0")]
     pub fn into_sorted_vec(mut self) -> Vec<T> {
         let mut end = self.len();
@@ -717,11 +725,8 @@ impl<T: Ord> BinaryHeap<T> {
     /// ```
     /// use std::collections::BinaryHeap;
     ///
-    /// let v = vec![-10, 1, 2, 3, 3];
-    /// let mut a = BinaryHeap::from(v);
-    ///
-    /// let v = vec![-20, 5, 43];
-    /// let mut b = BinaryHeap::from(v);
+    /// let mut a = BinaryHeap::from([-10, 1, 2, 3, 3]);
+    /// let mut b = BinaryHeap::from([-20, 5, 43]);
     ///
     /// a.append(&mut b);
     ///
@@ -741,9 +746,12 @@ impl<T: Ord> BinaryHeap<T> {
         self.rebuild_tail(start);
     }
 
-    /// Returns an iterator which retrieves elements in heap order.
-    /// The retrieved elements are removed from the original heap.
-    /// The remaining elements will be removed on drop in heap order.
+    /// Clears the binary heap, returning an iterator over the removed elements
+    /// in heap order. If the iterator is dropped before being fully consumed,
+    /// it drops the remaining elements in heap order.
+    ///
+    /// The returned iterator keeps a mutable borrow on the heap to optimize
+    /// its implementation.
     ///
     /// Note:
     /// * `.drain_sorted()` is *O*(*n* \* log(*n*)); much slower than `.drain()`.
@@ -757,7 +765,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// #![feature(binary_heap_drain_sorted)]
     /// use std::collections::BinaryHeap;
     ///
-    /// let mut heap = BinaryHeap::from(vec![1, 2, 3, 4, 5]);
+    /// let mut heap = BinaryHeap::from([1, 2, 3, 4, 5]);
     /// assert_eq!(heap.len(), 5);
     ///
     /// drop(heap.drain_sorted()); // removes all elements in heap order
@@ -782,7 +790,7 @@ impl<T: Ord> BinaryHeap<T> {
     /// #![feature(binary_heap_retain)]
     /// use std::collections::BinaryHeap;
     ///
-    /// let mut heap = BinaryHeap::from(vec![-10, -5, 1, 2, 4, 13]);
+    /// let mut heap = BinaryHeap::from([-10, -5, 1, 2, 4, 13]);
     ///
     /// heap.retain(|x| x % 2 == 0); // only keep even numbers
     ///
@@ -818,7 +826,7 @@ impl<T> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let heap = BinaryHeap::from(vec![1, 2, 3, 4]);
+    /// let heap = BinaryHeap::from([1, 2, 3, 4]);
     ///
     /// // Print 1, 2, 3, 4 in arbitrary order
     /// for x in heap.iter() {
@@ -840,9 +848,9 @@ impl<T> BinaryHeap<T> {
     /// ```
     /// #![feature(binary_heap_into_iter_sorted)]
     /// use std::collections::BinaryHeap;
-    /// let heap = BinaryHeap::from(vec![1, 2, 3, 4, 5]);
+    /// let heap = BinaryHeap::from([1, 2, 3, 4, 5]);
     ///
-    /// assert_eq!(heap.into_iter_sorted().take(2).collect::<Vec<_>>(), vec![5, 4]);
+    /// assert_eq!(heap.into_iter_sorted().take(2).collect::<Vec<_>>(), [5, 4]);
     /// ```
     #[unstable(feature = "binary_heap_into_iter_sorted", issue = "59278")]
     pub fn into_iter_sorted(self) -> IntoIterSorted<T> {
@@ -870,6 +878,7 @@ impl<T> BinaryHeap<T> {
     /// # Time complexity
     ///
     /// Cost is *O*(1) in the worst case.
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn peek(&self) -> Option<&T> {
         self.data.get(0)
@@ -887,6 +896,7 @@ impl<T> BinaryHeap<T> {
     /// assert!(heap.capacity() >= 100);
     /// heap.push(4);
     /// ```
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn capacity(&self) -> usize {
         self.data.capacity()
@@ -944,6 +954,84 @@ impl<T> BinaryHeap<T> {
         self.data.reserve(additional);
     }
 
+    /// Tries to reserve the minimum capacity for exactly `additional`
+    /// elements to be inserted in the given `BinaryHeap<T>`. After calling
+    /// `try_reserve_exact`, capacity will be greater than or equal to
+    /// `self.len() + additional` if it returns `Ok(())`.
+    /// Does nothing if the capacity is already sufficient.
+    ///
+    /// Note that the allocator may give the collection more space than it
+    /// requests. Therefore, capacity can not be relied upon to be precisely
+    /// minimal. Prefer [`try_reserve`] if future insertions are expected.
+    ///
+    /// [`try_reserve`]: BinaryHeap::try_reserve
+    ///
+    /// # Errors
+    ///
+    /// If the capacity overflows, or the allocator reports a failure, then an error
+    /// is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(try_reserve_2)]
+    /// use std::collections::BinaryHeap;
+    /// use std::collections::TryReserveError;
+    ///
+    /// fn find_max_slow(data: &[u32]) -> Result<Option<u32>, TryReserveError> {
+    ///     let mut heap = BinaryHeap::new();
+    ///
+    ///     // Pre-reserve the memory, exiting if we can't
+    ///     heap.try_reserve_exact(data.len())?;
+    ///
+    ///     // Now we know this can't OOM in the middle of our complex work
+    ///     heap.extend(data.iter());
+    ///
+    ///     Ok(heap.pop())
+    /// }
+    /// # find_max_slow(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?");
+    /// ```
+    #[unstable(feature = "try_reserve_2", issue = "91789")]
+    pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        self.data.try_reserve_exact(additional)
+    }
+
+    /// Tries to reserve capacity for at least `additional` more elements to be inserted
+    /// in the given `BinaryHeap<T>`. The collection may reserve more space to avoid
+    /// frequent reallocations. After calling `try_reserve`, capacity will be
+    /// greater than or equal to `self.len() + additional`. Does nothing if
+    /// capacity is already sufficient.
+    ///
+    /// # Errors
+    ///
+    /// If the capacity overflows, or the allocator reports a failure, then an error
+    /// is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(try_reserve_2)]
+    /// use std::collections::BinaryHeap;
+    /// use std::collections::TryReserveError;
+    ///
+    /// fn find_max_slow(data: &[u32]) -> Result<Option<u32>, TryReserveError> {
+    ///     let mut heap = BinaryHeap::new();
+    ///
+    ///     // Pre-reserve the memory, exiting if we can't
+    ///     heap.try_reserve(data.len())?;
+    ///
+    ///     // Now we know this can't OOM in the middle of our complex work
+    ///     heap.extend(data.iter());
+    ///
+    ///     Ok(heap.pop())
+    /// }
+    /// # find_max_slow(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?");
+    /// ```
+    #[unstable(feature = "try_reserve_2", issue = "91789")]
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
+        self.data.try_reserve(additional)
+    }
+
     /// Discards as much additional capacity as possible.
     ///
     /// # Examples
@@ -998,10 +1086,11 @@ impl<T> BinaryHeap<T> {
     /// use std::collections::BinaryHeap;
     /// use std::io::{self, Write};
     ///
-    /// let heap = BinaryHeap::from(vec![1, 2, 3, 4, 5, 6, 7]);
+    /// let heap = BinaryHeap::from([1, 2, 3, 4, 5, 6, 7]);
     ///
     /// io::sink().write(heap.as_slice()).unwrap();
     /// ```
+    #[must_use]
     #[unstable(feature = "binary_heap_as_slice", issue = "83659")]
     pub fn as_slice(&self) -> &[T] {
         self.data.as_slice()
@@ -1016,7 +1105,7 @@ impl<T> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let heap = BinaryHeap::from(vec![1, 2, 3, 4, 5, 6, 7]);
+    /// let heap = BinaryHeap::from([1, 2, 3, 4, 5, 6, 7]);
     /// let vec = heap.into_vec();
     ///
     /// // Will print in some order
@@ -1024,6 +1113,7 @@ impl<T> BinaryHeap<T> {
     ///     println!("{}", x);
     /// }
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "binary_heap_extras_15", since = "1.5.0")]
     pub fn into_vec(self) -> Vec<T> {
         self.into()
@@ -1037,10 +1127,11 @@ impl<T> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let heap = BinaryHeap::from(vec![1, 3]);
+    /// let heap = BinaryHeap::from([1, 3]);
     ///
     /// assert_eq!(heap.len(), 2);
     /// ```
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn len(&self) -> usize {
         self.data.len()
@@ -1064,14 +1155,18 @@ impl<T> BinaryHeap<T> {
     ///
     /// assert!(!heap.is_empty());
     /// ```
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Clears the binary heap, returning an iterator over the removed elements.
+    /// Clears the binary heap, returning an iterator over the removed elements
+    /// in arbitrary order. If the iterator is dropped before being fully
+    /// consumed, it drops the remaining elements in arbitrary order.
     ///
-    /// The elements are removed in arbitrary order.
+    /// The returned iterator keeps a mutable borrow on the heap to optimize
+    /// its implementation.
     ///
     /// # Examples
     ///
@@ -1079,7 +1174,7 @@ impl<T> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let mut heap = BinaryHeap::from(vec![1, 3]);
+    /// let mut heap = BinaryHeap::from([1, 3]);
     ///
     /// assert!(!heap.is_empty());
     ///
@@ -1103,7 +1198,7 @@ impl<T> BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let mut heap = BinaryHeap::from(vec![1, 3]);
+    /// let mut heap = BinaryHeap::from([1, 3]);
     ///
     /// assert!(!heap.is_empty());
     ///
@@ -1194,6 +1289,7 @@ impl<T> Drop for Hole<'_, T> {
 /// documentation for more.
 ///
 /// [`iter`]: BinaryHeap::iter
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Iter<'a, T: 'a> {
     iter: slice::Iter<'a, T>,
@@ -1255,9 +1351,10 @@ impl<T> FusedIterator for Iter<'_, T> {}
 /// An owning iterator over the elements of a `BinaryHeap`.
 ///
 /// This `struct` is created by [`BinaryHeap::into_iter()`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 ///
 /// [`into_iter`]: BinaryHeap::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Clone)]
 pub struct IntoIter<T> {
@@ -1327,6 +1424,7 @@ impl<I> AsIntoIter for IntoIter<I> {
     }
 }
 
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[unstable(feature = "binary_heap_into_iter_sorted", issue = "59278")]
 #[derive(Clone, Debug)]
 pub struct IntoIterSorted<T> {
@@ -1484,7 +1582,7 @@ impl<T: Ord, const N: usize> From<[T; N]> for BinaryHeap<T> {
     /// }
     /// ```
     fn from(arr: [T; N]) -> Self {
-        core::array::IntoIter::new(arr).collect()
+        Self::from_iter(arr)
     }
 }
 
@@ -1521,7 +1619,7 @@ impl<T> IntoIterator for BinaryHeap<T> {
     ///
     /// ```
     /// use std::collections::BinaryHeap;
-    /// let heap = BinaryHeap::from(vec![1, 2, 3, 4]);
+    /// let heap = BinaryHeap::from([1, 2, 3, 4]);
     ///
     /// // Print 1, 2, 3, 4 in arbitrary order
     /// for x in heap.into_iter() {
@@ -1565,6 +1663,14 @@ impl<T: Ord> Extend<T> for BinaryHeap<T> {
 impl<T: Ord, I: IntoIterator<Item = T>> SpecExtend<I> for BinaryHeap<T> {
     default fn spec_extend(&mut self, iter: I) {
         self.extend_desugared(iter.into_iter());
+    }
+}
+
+impl<T: Ord> SpecExtend<Vec<T>> for BinaryHeap<T> {
+    fn spec_extend(&mut self, ref mut other: Vec<T>) {
+        let start = self.data.len();
+        self.data.append(other);
+        self.rebuild_tail(start);
     }
 }
 

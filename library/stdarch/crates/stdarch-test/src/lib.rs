@@ -14,7 +14,7 @@ extern crate cfg_if;
 
 pub use assert_instr_macro::*;
 pub use simd_test_macro::*;
-use std::{cmp, collections::HashSet, env, hash, hint::black_box, str, sync::atomic::AtomicPtr};
+use std::{cmp, collections::HashSet, env, hash, hint::black_box, str};
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -76,31 +76,36 @@ pub fn assert(shim_addr: usize, fnname: &str, expected: &str) {
         instrs = &instrs[..instrs.len() - 1];
     }
 
+    // Look for `expected` as the first part of any instruction in this
+    // function, e.g., tzcntl in tzcntl %rax,%rax.
+    //
     // There are two cases when the expected instruction is nop:
     // 1. The expected intrinsic is compiled away so we can't
     // check for it - aka the intrinsic is not generating any code.
     // 2. It is a mark, indicating that the instruction will be
     // compiled into other instructions - mainly because of llvm
     // optimization.
-    if expected == "nop" {
-        return;
-    }
+    let found = expected == "nop" || instrs.iter().any(|s| s.starts_with(expected));
 
-    // Look for `expected` as the first part of any instruction in this
-    // function, e.g., tzcntl in tzcntl %rax,%rax.
-    let found = instrs.iter().any(|s| s.starts_with(expected));
-
-    // Look for `call` instructions in the disassembly to detect whether
-    // inlining failed: all intrinsics are `#[inline(always)]`, so
-    // calling one intrinsic from another should not generate `call`
-    // instructions.
-    let inlining_failed = instrs.windows(2).any(|s| {
-        // On 32-bit x86 position independent code will call itself and be
-        // immediately followed by a `pop` to learn about the current address.
-        // Let's not take that into account when considering whether a function
-        // failed inlining something.
-        s[0].contains("call") && (!cfg!(target_arch = "x86") || s[1].contains("pop"))
-    });
+    // Look for subroutine call instructions in the disassembly to detect whether
+    // inlining failed: all intrinsics are `#[inline(always)]`, so calling one
+    // intrinsic from another should not generate subroutine call instructions.
+    let inlining_failed = if cfg!(target_arch = "x86_64") || cfg!(target_arch = "wasm32") {
+        instrs.iter().any(|s| s.starts_with("call "))
+    } else if cfg!(target_arch = "x86") {
+        instrs.windows(2).any(|s| {
+            // On 32-bit x86 position independent code will call itself and be
+            // immediately followed by a `pop` to learn about the current address.
+            // Let's not take that into account when considering whether a function
+            // failed inlining something.
+            s[0].starts_with("call ") && s[1].starts_with("pop") // FIXME: original logic but does not match comment
+        })
+    } else if cfg!(target_arch = "aarch64") {
+        instrs.iter().any(|s| s.starts_with("bl "))
+    } else {
+        // FIXME: Add detection for other archs
+        false
+    };
 
     let instruction_limit = std::env::var("STDARCH_ASSERT_INSTR_LIMIT")
         .ok()
@@ -124,11 +129,27 @@ pub fn assert(shim_addr: usize, fnname: &str, expected: &str) {
                 // vfmaq_n_f32_vfma : #instructions = 26 >= 22 (limit)
                 "usad8" | "vfma" | "vfms" => 27,
                 "qadd8" | "qsub8" | "sadd8" | "sel" | "shadd8" | "shsub8" | "usub8" | "ssub8" => 29,
+                // core_arch/src/arm_shared/simd32
+                // vst1q_s64_x4_vst1 : #instructions = 22 >= 22 (limit)
+                "vld3" => 23,
+                // core_arch/src/arm_shared/simd32
+                // vld4q_lane_u32_vld4 : #instructions = 31 >= 22 (limit)
+                "vld4" => 32,
+                // core_arch/src/arm_shared/simd32
+                // vst1q_s64_x4_vst1 : #instructions = 40 >= 22 (limit)
+                "vst1" => 41,
+                // core_arch/src/arm_shared/simd32
+                // vst4q_u32_vst4 : #instructions = 26 >= 22 (limit)
+                "vst4" => 27,
 
                 // Temporary, currently the fptosi.sat and fptoui.sat LLVM
                 // intrinsics emit unnecessary code on arm. This can be
                 // removed once it has been addressed in LLVM.
                 "fcvtzu" | "fcvtzs" | "vcvt" => 64,
+
+                // core_arch/src/arm_shared/simd32
+                // vst1q_p64_x4_nop : #instructions = 33 >= 22 (limit)
+                "nop" if fnname.contains("vst1q_p64") => 34,
 
                 // Original limit was 20 instructions, but ARM DSP Intrinsics
                 // are exactly 20 instructions long. So, bump the limit to 22
@@ -164,8 +185,8 @@ pub fn assert(shim_addr: usize, fnname: &str, expected: &str) {
         );
     } else if inlining_failed {
         panic!(
-            "instruction found, but the disassembly contains `call` \
-             instructions, which hint that inlining failed"
+            "instruction found, but the disassembly contains subroutine \
+             call instructions, which hint that inlining failed"
         );
     }
 }
@@ -178,4 +199,4 @@ pub fn assert_skip_test_ok(name: &str) {
 }
 
 // See comment in `assert-instr-macro` crate for why this exists
-pub static _DONT_DEDUP: AtomicPtr<u8> = AtomicPtr::new(b"".as_ptr() as *mut _);
+pub static mut _DONT_DEDUP: *const u8 = std::ptr::null();

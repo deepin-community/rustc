@@ -5,7 +5,7 @@
 This chapter is about the overall process of compiling a program -- how
 everything fits together.
 
-The rust compiler is special in two ways: it does things to your code that
+The Rust compiler is special in two ways: it does things to your code that
 other compilers don't do (e.g. borrow checking) and it has a lot of
 unconventional implementation choices (e.g. queries). We will talk about these
 in turn in this chapter, and in the rest of the guide, we will look at all the
@@ -43,16 +43,17 @@ we'll talk about that later.
 - The lexer preserves full fidelity information for both IDEs and proc macros.
 - The parser [translates the token stream from the lexer into an Abstract Syntax
   Tree (AST)][parser]. It uses a recursive descent (top-down) approach to syntax
-  analysis. The crate entry points for the parser are the `Parser::parse_crate_mod()` and
-  `Parser::parse_mod()` methods found in `rustc_parse::parser::item`. The external
-  module parsing entry point is `rustc_expand::module::parse_external_mod`. And
-  the macro parser entry point is [`Parser::parse_nonterminal()`][parse_nonterminal].
+  analysis. The crate entry points for the parser are the
+  [`Parser::parse_crate_mod()`][parse_crate_mod] and [`Parser::parse_mod()`][parse_mod]
+  methods found in [`rustc_parse::parser::Parser`]. The external module parsing
+  entry point is [`rustc_expand::module::parse_external_mod`][parse_external_mod].
+  And the macro parser entry point is [`Parser::parse_nonterminal()`][parse_nonterminal].
 - Parsing is performed with a set of `Parser` utility methods including `fn bump`,
   `fn check`, `fn eat`, `fn expect`, `fn look_ahead`.
 - Parsing is organized by the semantic construct that is being parsed. Separate
-  `parse_*` methods can be found in `rustc_parse` `parser` directory. The source
-  file name follows the construct name. For example, the following files are found
-  in the parser:
+  `parse_*` methods can be found in [`rustc_parse` `parser`][rustc_parse_parser_dir]
+  directory. The source file name follows the construct name. For example, the
+  following files are found in the parser:
     - `expr.rs`
     - `pat.rs`
     - `ty.rs`
@@ -123,6 +124,11 @@ we'll talk about that later.
 [`simplify_try`]: https://github.com/rust-lang/rust/pull/66282
 [codegen]: https://rustc-dev-guide.rust-lang.org/backend/codegen.html
 [parse_nonterminal]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.parse_nonterminal
+[parse_crate_mod]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.parse_crate_mod
+[parse_mod]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.parse_mod
+[`rustc_parse::parser::Parser`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html
+[parse_external_mod]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_expand/module/fn.parse_external_mod.html
+[rustc_parse_parser_dir]: https://github.com/rust-lang/rust/tree/master/compiler/rustc_parse/src/parser
 
 ## How it does it
 
@@ -219,7 +225,7 @@ interned.
 
 ### Queries
 
-The first big implementation choice is the _query_ system. The rust compiler
+The first big implementation choice is the _query_ system. The Rust compiler
 uses a query system which is unlike most textbook compilers, which are
 organized as a series of passes over the code that execute sequentially. The
 compiler does this to make incremental compilation possible -- that is, if the
@@ -256,7 +262,7 @@ Moreover, the compiler wasn't originally built to use a query system; the query
 system has been retrofitted into the compiler, so parts of it are not query-fied
 yet. Also, LLVM isn't our code, so that isn't querified either. The plan is to
 eventually query-fy all of the steps listed in the previous section,
-but as of <!-- date: 2021-02 --> February 2021, only the steps between HIR and
+but as of <!-- date: 2021-11 --> November 2021, only the steps between HIR and
 LLVM IR are query-fied. That is, lexing, parsing, name resolution, and macro
 expansion are done all at once for the whole program.
 
@@ -291,12 +297,7 @@ Compiler performance is a problem that we would like to improve on
 (and are always working on). One aspect of that is parallelizing
 `rustc` itself.
 
-Currently, there is only one part of rustc that is already parallel: codegen.
-During monomorphization, the compiler will split up all the code to be
-generated into smaller chunks called _codegen units_. These are then generated
-by independent instances of LLVM. Since they are independent, we can run them
-in parallel. At the end, the linker is run to combine all the codegen units
-together into one binary.
+Currently, there is only one part of rustc that is parallel by default: codegen.
 
 However, the rest of the compiler is still not yet parallel. There have been
 lots of efforts spent on this, but it is generally a hard problem. The current
@@ -372,15 +373,15 @@ For more details on bootstrapping, see
 - The Mid Level Intermediate Representation (MIR)
   - Guide: [The MIR (Mid level IR)](https://rustc-dev-guide.rust-lang.org/mir/index.html)
   - Definition: [`rustc_middle/src/mir`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/index.html)
-  - Definition of source that manipulates the MIR: [`rustc_mir`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/index.html)
+  - Definition of sources that manipulates the MIR: [`rustc_mir_build`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir_build/index.html), [`rustc_mir_dataflow`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir_dataflow/index.html), [`rustc_mir_transform`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir_transform/index.html)
 - The Borrow Checker
   - Guide: [MIR Borrow Check](https://rustc-dev-guide.rust-lang.org/borrow_check.html)
-  - Definition: [`rustc_mir/borrow_check`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/borrow_check/index.html)
-  - Main entry point: [`mir_borrowck` query](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/borrow_check/fn.mir_borrowck.html)
+  - Definition: [`rustc_borrowck`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_borrowck/index.html)
+  - Main entry point: [`mir_borrowck` query](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_borrowck/fn.mir_borrowck.html)
 - MIR Optimizations
   - Guide: [MIR Optimizations](https://rustc-dev-guide.rust-lang.org/mir/optimizations.html)
-  - Definition: [`rustc_mir/transform`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/transform/index.html)
-  - Main entry point: [`optimized_mir` query](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir/transform/fn.optimized_mir.html)
+  - Definition: [`rustc_mir_transform`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir_transform/index.html)
+  - Main entry point: [`optimized_mir` query](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_mir_transform/fn.optimized_mir.html)
 - Code Generation
   - Guide: [Code Generation](https://rustc-dev-guide.rust-lang.org/backend/codegen.html)
   - Generating Machine Code from LLVM IR with LLVM - **TODO: reference?**

@@ -1,13 +1,14 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::higher;
 use clippy_utils::sugg::Sugg;
 use clippy_utils::ty::is_type_diagnostic_item;
-use clippy_utils::usage::contains_return_break_continue_macro;
-use clippy_utils::{eager_or_lazy, in_macro, is_else_clause, is_lang_ctor};
+use clippy_utils::{
+    can_move_expr_to_closure, eager_or_lazy, higher, in_constant, is_else_clause, is_lang_ctor, peel_blocks,
+    peel_hir_expr_while, CaptureKind,
+};
 use if_chain::if_chain;
 use rustc_errors::Applicability;
 use rustc_hir::LangItem::OptionSome;
-use rustc_hir::{BindingAnnotation, Block, Expr, ExprKind, Mutability, PatKind, UnOp};
+use rustc_hir::{def::Res, BindingAnnotation, Expr, ExprKind, Mutability, PatKind, Path, QPath, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::sym;
@@ -20,7 +21,7 @@ declare_clippy_lint! {
     /// expression).
     ///
     /// ### Why is this bad?
-    /// Using the dedicated functions of the Option type is clearer and
+    /// Using the dedicated functions of the `Option` type is clearer and
     /// more concise than an `if let` expression.
     ///
     /// ### Known problems
@@ -57,8 +58,9 @@ declare_clippy_lint! {
     ///     y*y
     /// }, |foo| foo);
     /// ```
+    #[clippy::version = "1.47.0"]
     pub OPTION_IF_LET_ELSE,
-    pedantic,
+    nursery,
     "reimplementation of Option::map_or"
 }
 
@@ -66,9 +68,9 @@ declare_lint_pass!(OptionIfLetElse => [OPTION_IF_LET_ELSE]);
 
 /// Returns true iff the given expression is the result of calling `Result::ok`
 fn is_result_ok(cx: &LateContext<'_>, expr: &'_ Expr<'_>) -> bool {
-    if let ExprKind::MethodCall(path, _, &[ref receiver], _) = &expr.kind {
+    if let ExprKind::MethodCall(path, &[ref receiver], _) = &expr.kind {
         path.ident.name.as_str() == "ok"
-            && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(receiver), sym::result_type)
+            && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(receiver), sym::Result)
     } else {
         false
     }
@@ -83,32 +85,10 @@ struct OptionIfLetElseOccurence {
     none_expr: String,
 }
 
-/// Extracts the body of a given arm. If the arm contains only an expression,
-/// then it returns the expression. Otherwise, it returns the entire block
-fn extract_body_from_expr<'a>(expr: &'a Expr<'a>) -> Option<&'a Expr<'a>> {
-    if let ExprKind::Block(
-        Block {
-            stmts: block_stmts,
-            expr: Some(block_expr),
-            ..
-        },
-        _,
-    ) = expr.kind
-    {
-        if let [] = block_stmts {
-            Some(block_expr)
-        } else {
-            Some(expr)
-        }
-    } else {
-        None
-    }
-}
-
 fn format_option_in_sugg(cx: &LateContext<'_>, cond_expr: &Expr<'_>, as_ref: bool, as_mut: bool) -> String {
     format!(
         "{}{}",
-        Sugg::hir(cx, cond_expr, "..").maybe_par(),
+        Sugg::hir_with_macro_callsite(cx, cond_expr, "..").maybe_par(),
         if as_mut {
             ".as_mut()"
         } else if as_ref {
@@ -124,21 +104,27 @@ fn format_option_in_sugg(cx: &LateContext<'_>, cond_expr: &Expr<'_>, as_ref: boo
 /// this construct is found, or None if this construct is not found.
 fn detect_option_if_let_else<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) -> Option<OptionIfLetElseOccurence> {
     if_chain! {
-        if !in_macro(expr.span); // Don't lint macros, because it behaves weirdly
-        if let Some(higher::IfLet { let_pat, let_expr, if_then, if_else: Some(if_else) }) = higher::IfLet::hir(cx, expr);
+        if !expr.span.from_expansion(); // Don't lint macros, because it behaves weirdly
+        if !in_constant(cx, expr.hir_id);
+        if let Some(higher::IfLet { let_pat, let_expr, if_then, if_else: Some(if_else) })
+            = higher::IfLet::hir(cx, expr);
         if !is_else_clause(cx.tcx, expr);
         if !is_result_ok(cx, let_expr); // Don't lint on Result::ok because a different lint does it already
         if let PatKind::TupleStruct(struct_qpath, [inner_pat], _) = &let_pat.kind;
         if is_lang_ctor(cx, struct_qpath, OptionSome);
-        if let PatKind::Binding(bind_annotation, _, id, _) = &inner_pat.kind;
-        if !contains_return_break_continue_macro(if_then);
-        if !contains_return_break_continue_macro(if_else);
+        if let PatKind::Binding(bind_annotation, _, id, None) = &inner_pat.kind;
+        if let Some(some_captures) = can_move_expr_to_closure(cx, if_then);
+        if let Some(none_captures) = can_move_expr_to_closure(cx, if_else);
+        if some_captures
+            .iter()
+            .filter_map(|(id, &c)| none_captures.get(id).map(|&c2| (c, c2)))
+            .all(|(x, y)| x.is_imm_ref() && y.is_imm_ref());
 
         then {
             let capture_mut = if bind_annotation == &BindingAnnotation::Mutable { "mut " } else { "" };
-            let some_body = extract_body_from_expr(if_then)?;
-            let none_body = extract_body_from_expr(if_else)?;
-            let method_sugg = if eager_or_lazy::is_eagerness_candidate(cx, none_body) { "map_or" } else { "map_or_else" };
+            let some_body = peel_blocks(if_then);
+            let none_body = peel_blocks(if_else);
+            let method_sugg = if eager_or_lazy::switch_to_eager_eval(cx, none_body) { "map_or" } else { "map_or_else" };
             let capture_name = id.name.to_ident_string();
             let (as_ref, as_mut) = match &let_expr.kind {
                 ExprKind::AddrOf(_, Mutability::Not, _) => (true, false),
@@ -150,11 +136,29 @@ fn detect_option_if_let_else<'tcx>(cx: &LateContext<'tcx>, expr: &Expr<'tcx>) ->
                 ExprKind::Unary(UnOp::Deref, expr) | ExprKind::AddrOf(_, _, expr) => expr,
                 _ => let_expr,
             };
+            // Check if captures the closure will need conflict with borrows made in the scrutinee.
+            // TODO: check all the references made in the scrutinee expression. This will require interacting
+            // with the borrow checker. Currently only `<local>[.<field>]*` is checked for.
+            if as_ref || as_mut {
+                let e = peel_hir_expr_while(cond_expr, |e| match e.kind {
+                    ExprKind::Field(e, _) | ExprKind::AddrOf(_, _, e) => Some(e),
+                    _ => None,
+                });
+                if let ExprKind::Path(QPath::Resolved(None, Path { res: Res::Local(local_id), .. })) = e.kind {
+                    match some_captures.get(local_id)
+                        .or_else(|| (method_sugg == "map_or_else").then(|| ()).and_then(|_| none_captures.get(local_id)))
+                    {
+                        Some(CaptureKind::Value | CaptureKind::Ref(Mutability::Mut)) => return None,
+                        Some(CaptureKind::Ref(Mutability::Not)) if as_mut => return None,
+                        Some(CaptureKind::Ref(Mutability::Not)) | None => (),
+                    }
+                }
+            }
             Some(OptionIfLetElseOccurence {
                 option: format_option_in_sugg(cx, cond_expr, as_ref, as_mut),
                 method_sugg: method_sugg.to_string(),
-                some_expr: format!("|{}{}| {}", capture_mut, capture_name, Sugg::hir(cx, some_body, "..")),
-                none_expr: format!("{}{}", if method_sugg == "map_or" { "" } else { "|| " }, Sugg::hir(cx, none_body, "..")),
+                some_expr: format!("|{}{}| {}", capture_mut, capture_name, Sugg::hir_with_macro_callsite(cx, some_body, "..")),
+                none_expr: format!("{}{}", if method_sugg == "map_or" { "" } else { "|| " }, Sugg::hir_with_macro_callsite(cx, none_body, "..")),
             })
         } else {
             None

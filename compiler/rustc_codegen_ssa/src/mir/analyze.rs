@@ -9,8 +9,7 @@ use rustc_index::vec::IndexVec;
 use rustc_middle::mir::traversal;
 use rustc_middle::mir::visit::{MutatingUseContext, NonMutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{self, Location, TerminatorKind};
-use rustc_middle::ty::layout::HasTyCtxt;
-use rustc_target::abi::LayoutOf;
+use rustc_middle::ty::layout::{HasTyCtxt, LayoutOf};
 
 pub fn non_ssa_locals<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
     fx: &FunctionCx<'a, 'tcx, Bx>,
@@ -74,7 +73,7 @@ struct LocalAnalyzer<'mir, 'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> {
     locals: IndexVec<mir::Local, LocalKind>,
 }
 
-impl<Bx: BuilderMethods<'a, 'tcx>> LocalAnalyzer<'mir, 'a, 'tcx, Bx> {
+impl<'mir, 'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> LocalAnalyzer<'mir, 'a, 'tcx, Bx> {
     fn assign(&mut self, local: mir::Local, location: Location) {
         let kind = &mut self.locals[local];
         match *kind {
@@ -276,9 +275,9 @@ pub fn cleanup_kinds(mir: &mir::Body<'_>) -> IndexVec<mir::BasicBlock, CleanupKi
                 | TerminatorKind::SwitchInt { .. }
                 | TerminatorKind::Yield { .. }
                 | TerminatorKind::FalseEdge { .. }
-                | TerminatorKind::FalseUnwind { .. }
-                | TerminatorKind::InlineAsm { .. } => { /* nothing to do */ }
+                | TerminatorKind::FalseUnwind { .. } => { /* nothing to do */ }
                 TerminatorKind::Call { cleanup: unwind, .. }
+                | TerminatorKind::InlineAsm { cleanup: unwind, .. }
                 | TerminatorKind::Assert { cleanup: unwind, .. }
                 | TerminatorKind::DropAndReplace { unwind, .. }
                 | TerminatorKind::Drop { unwind, .. } => {

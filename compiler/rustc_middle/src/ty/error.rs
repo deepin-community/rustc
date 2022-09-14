@@ -34,6 +34,7 @@ impl<T> ExpectedFound<T> {
 pub enum TypeError<'tcx> {
     Mismatch,
     ConstnessMismatch(ExpectedFound<ty::BoundConstness>),
+    PolarityMismatch(ExpectedFound<ty::ImplPolarity>),
     UnsafetyMismatch(ExpectedFound<hir::Unsafety>),
     AbiMismatch(ExpectedFound<abi::Abi>),
     Mutability,
@@ -41,6 +42,7 @@ pub enum TypeError<'tcx> {
     TupleSize(ExpectedFound<usize>),
     FixedArraySize(ExpectedFound<u64>),
     ArgCount,
+    FieldMisMatch(Symbol, Symbol),
 
     RegionsDoesNotOutlive(Region<'tcx>, Region<'tcx>),
     RegionsInsufficientlyPolymorphic(BoundRegionKind, Region<'tcx>),
@@ -58,13 +60,13 @@ pub enum TypeError<'tcx> {
     /// created a cycle (because it appears somewhere within that
     /// type).
     CyclicTy(Ty<'tcx>),
-    CyclicConst(&'tcx ty::Const<'tcx>),
+    CyclicConst(ty::Const<'tcx>),
     ProjectionMismatched(ExpectedFound<DefId>),
     ExistentialMismatch(
         ExpectedFound<&'tcx ty::List<ty::Binder<'tcx, ty::ExistentialPredicate<'tcx>>>>,
     ),
     ObjectUnsafeCoercion(DefId),
-    ConstMismatch(ExpectedFound<&'tcx ty::Const<'tcx>>),
+    ConstMismatch(ExpectedFound<ty::Const<'tcx>>),
 
     IntrinsicCast,
     /// Safe `#[target_feature]` functions are not assignable to safe function pointers.
@@ -104,6 +106,9 @@ impl<'tcx> fmt::Display for TypeError<'tcx> {
             ConstnessMismatch(values) => {
                 write!(f, "expected {} bound, found {} bound", values.expected, values.found)
             }
+            PolarityMismatch(values) => {
+                write!(f, "expected {} polarity, found {} polarity", values.expected, values.found)
+            }
             UnsafetyMismatch(values) => {
                 write!(f, "expected {} fn, found {} fn", values.expected, values.found)
             }
@@ -113,8 +118,7 @@ impl<'tcx> fmt::Display for TypeError<'tcx> {
             ArgumentMutability(_) | Mutability => write!(f, "types differ in mutability"),
             TupleSize(values) => write!(
                 f,
-                "expected a tuple with {} element{}, \
-                           found one with {} element{}",
+                "expected a tuple with {} element{}, found one with {} element{}",
                 values.expected,
                 pluralize!(values.expected),
                 values.found,
@@ -122,14 +126,14 @@ impl<'tcx> fmt::Display for TypeError<'tcx> {
             ),
             FixedArraySize(values) => write!(
                 f,
-                "expected an array with a fixed size of {} element{}, \
-                           found one with {} element{}",
+                "expected an array with a fixed size of {} element{}, found one with {} element{}",
                 values.expected,
                 pluralize!(values.expected),
                 values.found,
                 pluralize!(values.found)
             ),
             ArgCount => write!(f, "incorrect number of function parameters"),
+            FieldMisMatch(adt, field) => write!(f, "field type mismatch: {}.{}", adt, field),
             RegionsDoesNotOutlive(..) => write!(f, "lifetime mismatch"),
             RegionsInsufficientlyPolymorphic(br, _) => write!(
                 f,
@@ -212,15 +216,15 @@ impl<'tcx> TypeError<'tcx> {
         use self::TypeError::*;
         match self {
             CyclicTy(_) | CyclicConst(_) | UnsafetyMismatch(_) | ConstnessMismatch(_)
-            | Mismatch | AbiMismatch(_) | FixedArraySize(_) | ArgumentSorts(..) | Sorts(_)
-            | IntMismatch(_) | FloatMismatch(_) | VariadicMismatch(_) | TargetFeatureCast(_) => {
-                false
-            }
+            | PolarityMismatch(_) | Mismatch | AbiMismatch(_) | FixedArraySize(_)
+            | ArgumentSorts(..) | Sorts(_) | IntMismatch(_) | FloatMismatch(_)
+            | VariadicMismatch(_) | TargetFeatureCast(_) => false,
 
             Mutability
             | ArgumentMutability(_)
             | TupleSize(_)
             | ArgCount
+            | FieldMisMatch(..)
             | RegionsDoesNotOutlive(..)
             | RegionsInsufficientlyPolymorphic(..)
             | RegionsOverlyPolymorphic(..)
@@ -235,8 +239,8 @@ impl<'tcx> TypeError<'tcx> {
     }
 }
 
-impl<'tcx> ty::TyS<'tcx> {
-    pub fn sort_string(&self, tcx: TyCtxt<'_>) -> Cow<'static, str> {
+impl<'tcx> Ty<'tcx> {
+    pub fn sort_string(self, tcx: TyCtxt<'_>) -> Cow<'static, str> {
         match *self.kind() {
             ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str | ty::Never => {
                 format!("`{}`", self).into()
@@ -251,7 +255,7 @@ impl<'tcx> ty::TyS<'tcx> {
                 }
 
                 let n = tcx.lift(n).unwrap();
-                if let ty::ConstKind::Value(v) = n.val {
+                if let ty::ConstKind::Value(v) = n.val() {
                     if let Some(n) = v.try_to_machine_usize(tcx) {
                         return format!("array of {} element{}", n, pluralize!(n)).into();
                     }
@@ -302,7 +306,7 @@ impl<'tcx> ty::TyS<'tcx> {
         }
     }
 
-    pub fn prefix_string(&self, tcx: TyCtxt<'_>) -> Cow<'static, str> {
+    pub fn prefix_string(self, tcx: TyCtxt<'_>) -> Cow<'static, str> {
         match *self.kind() {
             ty::Infer(_)
             | ty::Error(_)
@@ -515,7 +519,7 @@ impl<T> Trait<T> for X {
                             proj_ty,
                             values,
                             body_owner_def_id,
-                            &cause.code,
+                            cause.code(),
                         );
                     }
                     (_, ty::Projection(proj_ty)) => {
@@ -769,11 +773,14 @@ fn foo(&self) -> Self::T { String::new() }
     ) -> bool {
         let assoc = self.associated_item(proj_ty.item_def_id);
         if let ty::Opaque(def_id, _) = *proj_ty.self_ty().kind() {
-            let opaque_local_def_id = def_id.expect_local();
-            let opaque_hir_id = self.hir().local_def_id_to_hir_id(opaque_local_def_id);
-            let opaque_hir_ty = match &self.hir().expect_item(opaque_hir_id).kind {
-                hir::ItemKind::OpaqueTy(opaque_hir_ty) => opaque_hir_ty,
-                _ => bug!("The HirId comes from a `ty::Opaque`"),
+            let opaque_local_def_id = def_id.as_local();
+            let opaque_hir_ty = if let Some(opaque_local_def_id) = opaque_local_def_id {
+                match &self.hir().expect_item(opaque_local_def_id).kind {
+                    hir::ItemKind::OpaqueTy(opaque_hir_ty) => opaque_hir_ty,
+                    _ => bug!("The HirId comes from a `ty::Opaque`"),
+                }
+            } else {
+                return false;
             };
 
             let (trait_ref, assoc_substs) = proj_ty.trait_ref_and_own_substs(self);
@@ -862,7 +869,7 @@ fn foo(&self) -> Self::T { String::new() }
         // When `body_owner` is an `impl` or `trait` item, look in its associated types for
         // `expected` and point at it.
         let parent_id = self.hir().get_parent_item(hir_id);
-        let item = self.hir().find(parent_id);
+        let item = self.hir().find_by_def_id(parent_id);
         debug!("expected_projection parent item {:?}", item);
         match item {
             Some(hir::Node::Item(hir::Item { kind: hir::ItemKind::Trait(.., items), .. })) => {
@@ -964,11 +971,11 @@ fn foo(&self) -> Self::T { String::new() }
         {
             let (span, sugg) = if has_params {
                 let pos = span.hi() - BytePos(1);
-                let span = Span::new(pos, pos, span.ctxt());
-                (span, format!(", {} = {}", assoc.ident, ty))
+                let span = Span::new(pos, pos, span.ctxt(), span.parent());
+                (span, format!(", {} = {}", assoc.ident(self), ty))
             } else {
                 let item_args = self.format_generic_args(assoc_substs);
-                (span.shrink_to_hi(), format!("<{}{} = {}>", assoc.ident, item_args, ty))
+                (span.shrink_to_hi(), format!("<{}{} = {}>", assoc.ident(self), item_args, ty))
             };
             db.span_suggestion_verbose(span, msg, sugg, MaybeIncorrect);
             return true;

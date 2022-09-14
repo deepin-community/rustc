@@ -151,7 +151,7 @@ impl Key for (DefId, DefId) {
     }
 }
 
-impl Key for (ty::Instance<'tcx>, LocalDefId) {
+impl<'tcx> Key for (ty::Instance<'tcx>, LocalDefId) {
     #[inline(always)]
     fn query_crate_is_local(&self) -> bool {
         true
@@ -275,7 +275,7 @@ impl<'tcx> Key for (ty::ParamEnv<'tcx>, ty::PolyTraitRef<'tcx>) {
     }
 }
 
-impl<'tcx> Key for (&'tcx ty::Const<'tcx>, mir::Field) {
+impl<'tcx> Key for (ty::Const<'tcx>, mir::Field) {
     #[inline(always)]
     fn query_crate_is_local(&self) -> bool {
         true
@@ -296,6 +296,16 @@ impl<'tcx> Key for mir::interpret::ConstAlloc<'tcx> {
 }
 
 impl<'tcx> Key for ty::PolyTraitRef<'tcx> {
+    #[inline(always)]
+    fn query_crate_is_local(&self) -> bool {
+        self.def_id().krate == LOCAL_CRATE
+    }
+    fn default_span(&self, tcx: TyCtxt<'_>) -> Span {
+        tcx.def_span(self.def_id())
+    }
+}
+
+impl<'tcx> Key for ty::PolyExistentialTraitRef<'tcx> {
     #[inline(always)]
     fn query_crate_is_local(&self) -> bool {
         self.def_id().krate == LOCAL_CRATE
@@ -335,7 +345,7 @@ impl<'tcx> Key for mir::ConstantKind<'tcx> {
     }
 }
 
-impl<'tcx> Key for &'tcx ty::Const<'tcx> {
+impl<'tcx> Key for ty::Const<'tcx> {
     #[inline(always)]
     fn query_crate_is_local(&self) -> bool {
         true
@@ -448,5 +458,27 @@ impl<'tcx> Key for (ty::Predicate<'tcx>, traits::WellFormedLoc) {
 
     fn default_span(&self, _tcx: TyCtxt<'_>) -> Span {
         DUMMY_SP
+    }
+}
+
+impl<'tcx> Key for (ty::PolyFnSig<'tcx>, &'tcx ty::List<Ty<'tcx>>) {
+    #[inline(always)]
+    fn query_crate_is_local(&self) -> bool {
+        true
+    }
+
+    fn default_span(&self, _: TyCtxt<'_>) -> Span {
+        DUMMY_SP
+    }
+}
+
+impl<'tcx> Key for (ty::Instance<'tcx>, &'tcx ty::List<Ty<'tcx>>) {
+    #[inline(always)]
+    fn query_crate_is_local(&self) -> bool {
+        true
+    }
+
+    fn default_span(&self, tcx: TyCtxt<'_>) -> Span {
+        self.0.default_span(tcx)
     }
 }

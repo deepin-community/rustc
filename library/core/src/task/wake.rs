@@ -39,8 +39,25 @@ impl RawWaker {
     #[rustc_promotable]
     #[stable(feature = "futures_api", since = "1.36.0")]
     #[rustc_const_stable(feature = "futures_api", since = "1.36.0")]
+    #[must_use]
     pub const fn new(data: *const (), vtable: &'static RawWakerVTable) -> RawWaker {
         RawWaker { data, vtable }
+    }
+
+    /// Get the `data` pointer used to create this `RawWaker`.
+    #[inline]
+    #[must_use]
+    #[unstable(feature = "waker_getters", issue = "87021")]
+    pub fn data(&self) -> *const () {
+        self.data
+    }
+
+    /// Get the `vtable` pointer used to create this `RawWaker`.
+    #[inline]
+    #[must_use]
+    #[unstable(feature = "waker_getters", issue = "87021")]
+    pub fn vtable(&self) -> &'static RawWakerVTable {
+        self.vtable
     }
 }
 
@@ -158,6 +175,7 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     /// Create a new `Context` from a `&Waker`.
     #[stable(feature = "futures_api", since = "1.36.0")]
+    #[must_use]
     #[inline]
     pub fn from_waker(waker: &'a Waker) -> Self {
         Context { waker, _marker: PhantomData }
@@ -165,6 +183,7 @@ impl<'a> Context<'a> {
 
     /// Returns a reference to the `Waker` for the current task.
     #[stable(feature = "futures_api", since = "1.36.0")]
+    #[must_use]
     #[inline]
     pub fn waker(&self) -> &'a Waker {
         &self.waker
@@ -240,6 +259,7 @@ impl Waker {
     ///
     /// This function is primarily used for optimization purposes.
     #[inline]
+    #[must_use]
     #[stable(feature = "futures_api", since = "1.36.0")]
     pub fn will_wake(&self, other: &Waker) -> bool {
         self.waker == other.waker
@@ -251,9 +271,18 @@ impl Waker {
     /// in [`RawWaker`]'s and [`RawWakerVTable`]'s documentation is not upheld.
     /// Therefore this method is unsafe.
     #[inline]
+    #[must_use]
     #[stable(feature = "futures_api", since = "1.36.0")]
     pub unsafe fn from_raw(waker: RawWaker) -> Waker {
         Waker { waker }
+    }
+
+    /// Get a reference to the underlying [`RawWaker`].
+    #[inline]
+    #[must_use]
+    #[unstable(feature = "waker_getters", issue = "87021")]
+    pub fn as_raw(&self) -> &RawWaker {
+        &self.waker
     }
 }
 

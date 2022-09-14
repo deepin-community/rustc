@@ -1,5 +1,5 @@
 use clippy_utils::{diagnostics::span_lint, is_lint_allowed};
-use rustc_hir::{hir_id::CRATE_HIR_ID, Crate};
+use rustc_hir::hir_id::CRATE_HIR_ID;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::DUMMY_SP;
@@ -20,6 +20,7 @@ declare_clippy_lint! {
     /// [dependencies]
     /// regex = "*"
     /// ```
+    #[clippy::version = "1.32.0"]
     pub WILDCARD_DEPENDENCIES,
     cargo,
     "wildcard dependencies being used"
@@ -28,7 +29,7 @@ declare_clippy_lint! {
 declare_lint_pass!(WildcardDependencies => [WILDCARD_DEPENDENCIES]);
 
 impl LateLintPass<'_> for WildcardDependencies {
-    fn check_crate(&mut self, cx: &LateContext<'_>, _: &Crate<'_>) {
+    fn check_crate(&mut self, cx: &LateContext<'_>) {
         if is_lint_allowed(cx, WILDCARD_DEPENDENCIES, CRATE_HIR_ID) {
             return;
         }

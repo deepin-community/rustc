@@ -76,7 +76,21 @@ use crate::fmt;
 ///    destroyed, but not all platforms have this guard. Those platforms that do
 ///    not guard typically have a synthetic limit after which point no more
 ///    destructors are run.
+/// 3. When the process exits on Windows systems, TLS destructors may only be
+///    run on the thread that causes the process to exit. This is because the
+///    other threads may be forcibly terminated.
 ///
+/// ## Synchronization in thread-local destructors
+///
+/// On Windows, synchronization operations (such as [`JoinHandle::join`]) in
+/// thread local destructors are prone to deadlocks and so should be avoided.
+/// This is because the [loader lock] is held while a destructor is run. The
+/// lock is acquired whenever a thread starts or exits or when a DLL is loaded
+/// or unloaded. Therefore these events are blocked for as long as a thread
+/// local destructor is running.
+///
+/// [loader lock]: https://docs.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices
+/// [`JoinHandle::join`]: crate::thread::JoinHandle::join
 /// [`with`]: LocalKey::with
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct LocalKey<T: 'static> {
@@ -128,6 +142,7 @@ impl<T: 'static> fmt::Debug for LocalKey<T> {
 /// [`std::thread::LocalKey`]: crate::thread::LocalKey
 #[macro_export]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "thread_local_macro")]
 #[allow_internal_unstable(thread_local_internals)]
 macro_rules! thread_local {
     // empty (base case for the recursion)
@@ -164,7 +179,7 @@ macro_rules! __thread_local_inner {
     (@key $t:ty, const $init:expr) => {{
         #[cfg_attr(not(windows), inline)] // see comments below
         unsafe fn __getit() -> $crate::option::Option<&'static $t> {
-            const _REQUIRE_UNSTABLE: () = $crate::thread::require_unstable_const_init_thread_local();
+            const INIT_EXPR: $t = $init;
 
             // wasm without atomics maps directly to `static mut`, and dtors
             // aren't implemented because thread dtors aren't really a thing
@@ -172,30 +187,29 @@ macro_rules! __thread_local_inner {
             //
             // FIXME(#84224) this should come after the `target_thread_local`
             // block.
-            #[cfg(all(target_arch = "wasm32", not(target_feature = "atomics")))]
+            #[cfg(all(target_family = "wasm", not(target_feature = "atomics")))]
             {
-                static mut VAL: $t = $init;
+                static mut VAL: $t = INIT_EXPR;
                 Some(&VAL)
             }
 
             // If the platform has support for `#[thread_local]`, use it.
             #[cfg(all(
                 target_thread_local,
-                not(all(target_arch = "wasm32", not(target_feature = "atomics"))),
+                not(all(target_family = "wasm", not(target_feature = "atomics"))),
             ))]
             {
+                #[thread_local]
+                static mut VAL: $t = INIT_EXPR;
+
                 // If a dtor isn't needed we can do something "very raw" and
                 // just get going.
                 if !$crate::mem::needs_drop::<$t>() {
-                    #[thread_local]
-                    static mut VAL: $t = $init;
                     unsafe {
                         return Some(&VAL)
                     }
                 }
 
-                #[thread_local]
-                static mut VAL: $t = $init;
                 // 0 == dtor not registered
                 // 1 == dtor registered, dtor not run
                 // 2 == dtor registered and is running or has run
@@ -238,11 +252,11 @@ macro_rules! __thread_local_inner {
             // same implementation as below for os thread locals.
             #[cfg(all(
                 not(target_thread_local),
-                not(all(target_arch = "wasm32", not(target_feature = "atomics"))),
+                not(all(target_family = "wasm", not(target_feature = "atomics"))),
             ))]
             {
                 #[inline]
-                const fn __init() -> $t { $init }
+                const fn __init() -> $t { INIT_EXPR }
                 static __KEY: $crate::thread::__OsLocalKeyInner<$t> =
                     $crate::thread::__OsLocalKeyInner::new();
                 #[allow(unused_unsafe)]
@@ -285,21 +299,21 @@ macro_rules! __thread_local_inner {
             // The issue of "should enable on Windows sometimes" is #84933
             #[cfg_attr(not(windows), inline)]
             unsafe fn __getit() -> $crate::option::Option<&'static $t> {
-                #[cfg(all(target_arch = "wasm32", not(target_feature = "atomics")))]
+                #[cfg(all(target_family = "wasm", not(target_feature = "atomics")))]
                 static __KEY: $crate::thread::__StaticLocalKeyInner<$t> =
                     $crate::thread::__StaticLocalKeyInner::new();
 
                 #[thread_local]
                 #[cfg(all(
                     target_thread_local,
-                    not(all(target_arch = "wasm32", not(target_feature = "atomics"))),
+                    not(all(target_family = "wasm", not(target_feature = "atomics"))),
                 ))]
                 static __KEY: $crate::thread::__FastLocalKeyInner<$t> =
                     $crate::thread::__FastLocalKeyInner::new();
 
                 #[cfg(all(
                     not(target_thread_local),
-                    not(all(target_arch = "wasm32", not(target_feature = "atomics"))),
+                    not(all(target_family = "wasm", not(target_feature = "atomics"))),
                 ))]
                 static __KEY: $crate::thread::__OsLocalKeyInner<$t> =
                     $crate::thread::__OsLocalKeyInner::new();
@@ -479,10 +493,10 @@ mod lazy {
     }
 }
 
-/// On some platforms like wasm32 there's no threads, so no need to generate
+/// On some targets like wasm there's no threads, so no need to generate
 /// thread locals and we can instead just use plain statics!
 #[doc(hidden)]
-#[cfg(all(target_arch = "wasm32", not(target_feature = "atomics")))]
+#[cfg(all(target_family = "wasm", not(target_feature = "atomics")))]
 pub mod statik {
     use super::lazy::LazyKeyInner;
     use crate::fmt;
@@ -569,7 +583,7 @@ pub mod fast {
             Key { inner: LazyKeyInner::new(), dtor_state: Cell::new(DtorState::Unregistered) }
         }
 
-        // note that this is just a publically-callable function only for the
+        // note that this is just a publicly-callable function only for the
         // const-initialized form of thread locals, basically a way to call the
         // free `register_dtor` function defined elsewhere in libstd.
         pub unsafe fn register_dtor(a: *mut u8, dtor: unsafe extern "C" fn(*mut u8)) {
@@ -580,7 +594,7 @@ pub mod fast {
 
         pub unsafe fn get<F: FnOnce() -> T>(&self, init: F) -> Option<&'static T> {
             // SAFETY: See the definitions of `LazyKeyInner::get` and
-            // `try_initialize` for more informations.
+            // `try_initialize` for more information.
             //
             // The caller must ensure no mutable references are ever active to
             // the inner cell or the inner T when this is called.

@@ -97,6 +97,7 @@ declare_clippy_lint! {
     ///         })
     /// }
     /// ```
+    #[clippy::version = "1.48.0"]
     pub MAP_ERR_IGNORE,
     restriction,
     "`map_err` should not ignore the original error"
@@ -112,7 +113,7 @@ impl<'tcx> LateLintPass<'tcx> for MapErrIgnore {
         }
 
         // check if this is a method call (e.g. x.foo())
-        if let ExprKind::MethodCall(method, _t_span, args, _) = e.kind {
+        if let ExprKind::MethodCall(method, args, _) = e.kind {
             // only work if the method name is `map_err` and there are only 2 arguments (e.g. x.map_err(|_|[1]
             // Enum::Variant[2]))
             if method.ident.as_str() == "map_err" && args.len() == 2 {

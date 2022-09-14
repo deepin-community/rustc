@@ -11,7 +11,7 @@
 use super::{recv_vectored_with_ancillary_from, send_vectored_with_ancillary_to, SocketAncillary};
 use super::{sockaddr_un, SocketAddr};
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::Shutdown;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 #[cfg(any(
@@ -102,6 +102,43 @@ impl UnixStream {
             let (addr, len) = sockaddr_un(path.as_ref())?;
 
             cvt(libc::connect(inner.as_raw_fd(), &addr as *const _ as *const _, len))?;
+            Ok(UnixStream(inner))
+        }
+    }
+
+    /// Connects to the socket specified by [`address`].
+    ///
+    /// [`address`]: crate::os::unix::net::SocketAddr
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// #![feature(unix_socket_abstract)]
+    /// use std::os::unix::net::{UnixListener, UnixStream};
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     let listener = UnixListener::bind("/path/to/the/socket")?;
+    ///     let addr = listener.local_addr()?;
+    ///
+    ///     let sock = match UnixStream::connect_addr(&addr) {
+    ///         Ok(sock) => sock,
+    ///         Err(e) => {
+    ///             println!("Couldn't connect: {:?}", e);
+    ///             return Err(e)
+    ///         }
+    ///     };
+    ///     Ok(())
+    /// }
+    /// ````
+    #[unstable(feature = "unix_socket_abstract", issue = "85410")]
+    pub fn connect_addr(socket_addr: &SocketAddr) -> io::Result<UnixStream> {
+        unsafe {
+            let inner = Socket::new_raw(libc::AF_UNIX, libc::SOCK_STREAM)?;
+            cvt(libc::connect(
+                inner.as_raw_fd(),
+                &socket_addr.addr as *const _ as *const _,
+                socket_addr.len,
+            ))?;
             Ok(UnixStream(inner))
         }
     }
@@ -587,11 +624,6 @@ impl io::Read for UnixStream {
     fn is_read_vectored(&self) -> bool {
         io::Read::is_read_vectored(&&*self)
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
 }
 
 #[stable(feature = "unix_socket", since = "1.10.0")]
@@ -607,11 +639,6 @@ impl<'a> io::Read for &'a UnixStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
     }
 }
 

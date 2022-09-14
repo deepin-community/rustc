@@ -1,7 +1,7 @@
 use rustc_hir as hir;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
-use rustc_hir::Node;
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::middle::resolve_lifetime as rl;
 use rustc_middle::ty::{self, Region, TyCtxt};
 
@@ -20,29 +20,23 @@ use rustc_middle::ty::{self, Region, TyCtxt};
 /// ```
 /// The function returns the nested type corresponding to the anonymous region
 /// for e.g., `&u8` and `Vec<&u8>`.
-pub(crate) fn find_anon_type(
+pub(crate) fn find_anon_type<'tcx>(
     tcx: TyCtxt<'tcx>,
     region: Region<'tcx>,
     br: &ty::BoundRegionKind,
-) -> Option<(&'tcx hir::Ty<'tcx>, &'tcx hir::FnDecl<'tcx>)> {
+) -> Option<(&'tcx hir::Ty<'tcx>, &'tcx hir::FnSig<'tcx>)> {
     if let Some(anon_reg) = tcx.is_suitable_region(region) {
         let hir_id = tcx.hir().local_def_id_to_hir_id(anon_reg.def_id);
-        let fndecl = match tcx.hir().get(hir_id) {
-            Node::Item(&hir::Item { kind: hir::ItemKind::Fn(ref m, ..), .. })
-            | Node::TraitItem(&hir::TraitItem {
-                kind: hir::TraitItemKind::Fn(ref m, ..), ..
-            })
-            | Node::ImplItem(&hir::ImplItem { kind: hir::ImplItemKind::Fn(ref m, ..), .. }) => {
-                &m.decl
-            }
-            _ => return None,
+        let Some(fn_sig) = tcx.hir().get(hir_id).fn_sig() else {
+            return None
         };
 
-        fndecl
+        fn_sig
+            .decl
             .inputs
             .iter()
             .find_map(|arg| find_component_for_bound_region(tcx, arg, br))
-            .map(|ty| (ty, &**fndecl))
+            .map(|ty| (ty, fn_sig))
     } else {
         None
     }
@@ -50,7 +44,7 @@ pub(crate) fn find_anon_type(
 
 // This method creates a FindNestedTypeVisitor which returns the type corresponding
 // to the anonymous region.
-fn find_component_for_bound_region(
+fn find_component_for_bound_region<'tcx>(
     tcx: TyCtxt<'tcx>,
     arg: &'tcx hir::Ty<'tcx>,
     br: &ty::BoundRegionKind,
@@ -83,11 +77,11 @@ struct FindNestedTypeVisitor<'tcx> {
     current_index: ty::DebruijnIndex,
 }
 
-impl Visitor<'tcx> for FindNestedTypeVisitor<'tcx> {
-    type Map = Map<'tcx>;
+impl<'tcx> Visitor<'tcx> for FindNestedTypeVisitor<'tcx> {
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_ty(&mut self, arg: &'tcx hir::Ty<'tcx>) {
@@ -207,11 +201,11 @@ struct TyPathVisitor<'tcx> {
     current_index: ty::DebruijnIndex,
 }
 
-impl Visitor<'tcx> for TyPathVisitor<'tcx> {
-    type Map = Map<'tcx>;
+impl<'tcx> Visitor<'tcx> for TyPathVisitor<'tcx> {
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Map<'tcx>> {
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Map<'tcx> {
+        self.tcx.hir()
     }
 
     fn visit_lifetime(&mut self, lifetime: &hir::Lifetime) {

@@ -5,15 +5,14 @@
 //! The providers for the queries defined here can be found in
 //! `rustc_traits`.
 
-use crate::ich::StableHashingContext;
 use crate::infer::canonical::{Canonical, QueryResponse};
 use crate::ty::error::TypeError;
 use crate::ty::subst::GenericArg;
 use crate::ty::{self, Ty, TyCtxt};
 
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
-use rustc_data_structures::sync::Lrc;
 use rustc_errors::struct_span_err;
+use rustc_query_system::ich::StableHashingContext;
 use rustc_span::source_map::Span;
 use std::iter::FromIterator;
 use std::mem;
@@ -97,7 +96,7 @@ pub type CanonicalTypeOpProvePredicateGoal<'tcx> =
 pub type CanonicalTypeOpNormalizeGoal<'tcx, T> =
     Canonical<'tcx, ty::ParamEnvAnd<'tcx, type_op::Normalize<T>>>;
 
-#[derive(Clone, Debug, HashStable)]
+#[derive(Copy, Clone, Debug, HashStable)]
 pub struct NoSolution;
 
 pub type Fallible<T> = Result<T, NoSolution>;
@@ -191,12 +190,12 @@ pub struct CandidateStep<'tcx> {
     pub unsize: bool,
 }
 
-#[derive(Clone, Debug, HashStable)]
+#[derive(Copy, Clone, Debug, HashStable)]
 pub struct MethodAutoderefStepsResult<'tcx> {
     /// The valid autoderef steps that could be find.
-    pub steps: Lrc<Vec<CandidateStep<'tcx>>>,
+    pub steps: &'tcx [CandidateStep<'tcx>],
     /// If Some(T), a type autoderef reported an error on.
-    pub opt_bad_ty: Option<Lrc<MethodAutoderefBadTy<'tcx>>>,
+    pub opt_bad_ty: Option<&'tcx MethodAutoderefBadTy<'tcx>>,
     /// If `true`, `steps` has been truncated due to reaching the
     /// recursion limit.
     pub reached_recursion_limit: bool,

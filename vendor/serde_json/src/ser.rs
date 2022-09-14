@@ -2,8 +2,10 @@
 
 use crate::error::{Error, ErrorCode, Result};
 use crate::io;
-use crate::lib::num::FpCategory;
-use crate::lib::*;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::fmt::{self, Display};
+use core::num::FpCategory;
 use serde::ser::{self, Impossible, Serialize};
 use serde::serde_if_integer128;
 
@@ -756,7 +758,7 @@ where
             #[cfg(feature = "arbitrary_precision")]
             Compound::Number { ref mut ser, .. } => {
                 if key == crate::number::TOKEN {
-                    tri!(value.serialize(NumberStrEmitter(&mut *ser)));
+                    tri!(value.serialize(NumberStrEmitter(ser)));
                     Ok(())
                 } else {
                     Err(invalid_number())
@@ -765,7 +767,7 @@ where
             #[cfg(feature = "raw_value")]
             Compound::RawValue { ref mut ser, .. } => {
                 if key == crate::raw::TOKEN {
-                    tri!(value.serialize(RawValueStrEmitter(&mut *ser)));
+                    tri!(value.serialize(RawValueStrEmitter(ser)));
                     Ok(())
                 } else {
                     Err(invalid_raw_value())
@@ -1545,6 +1547,13 @@ impl<'a, W: io::Write, F: Formatter> ser::Serializer for RawValueStrEmitter<'a, 
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         Err(ser::Error::custom("expected RawValue"))
+    }
+
+    fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + Display,
+    {
+        self.serialize_str(&value.to_string())
     }
 }
 

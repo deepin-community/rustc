@@ -80,9 +80,11 @@ where
     R: ReadRef<'data>,
 {
     fn bytes(&self) -> Result<&'data [u8]> {
+        let segment_index = self.internal.segment_index;
+        let segment = self.file.segment_internal(segment_index)?;
         self.internal
             .section
-            .data(self.file.endian, self.file.data)
+            .data(self.file.endian, segment.data)
             .read_error("Invalid Mach-O section size or offset")
     }
 }
@@ -151,10 +153,20 @@ where
     }
 
     #[inline]
+    fn name_bytes(&self) -> Result<&[u8]> {
+        Ok(self.internal.section.name())
+    }
+
+    #[inline]
     fn name(&self) -> Result<&str> {
         str::from_utf8(self.internal.section.name())
             .ok()
             .read_error("Non UTF-8 Mach-O section name")
+    }
+
+    #[inline]
+    fn segment_name_bytes(&self) -> Result<Option<&[u8]>> {
+        Ok(Some(self.internal.section.segment_name()))
     }
 
     #[inline]
@@ -192,12 +204,17 @@ where
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MachOSectionInternal<'data, Mach: MachHeader> {
     pub index: SectionIndex,
+    pub segment_index: usize,
     pub kind: SectionKind,
     pub section: &'data Mach::Section,
 }
 
 impl<'data, Mach: MachHeader> MachOSectionInternal<'data, Mach> {
-    pub(super) fn parse(index: SectionIndex, section: &'data Mach::Section) -> Self {
+    pub(super) fn parse(
+        index: SectionIndex,
+        segment_index: usize,
+        section: &'data Mach::Section,
+    ) -> Self {
         // TODO: we don't validate flags, should we?
         let kind = match (section.segment_name(), section.name()) {
             (b"__TEXT", b"__text") => SectionKind::Text,
@@ -220,6 +237,7 @@ impl<'data, Mach: MachHeader> MachOSectionInternal<'data, Mach> {
         };
         MachOSectionInternal {
             index,
+            segment_index,
             kind,
             section,
         }

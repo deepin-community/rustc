@@ -57,11 +57,11 @@ pre, .rustdoc.source .example-wrap {
 	background-color: #191f26;
 }
 
-.sidebar {
+.sidebar, .mobile-topbar, .sidebar-menu-toggle {
 	background-color: #14191f;
 }
 
-.logo-container.rust-logo > img {
+.rust-logo {
 	filter: drop-shadow(1px 0 0px #fff)
 		drop-shadow(0 1px 0 #fff)
 		drop-shadow(-1px 0 0 #fff)
@@ -70,11 +70,11 @@ pre, .rustdoc.source .example-wrap {
 
 /* Improve the scrollbar display on firefox */
 * {
-	scrollbar-color: #5c6773 transparent;
+	scrollbar-color: #5c6773 #24292f;
 }
 
 .sidebar {
-	scrollbar-color: #5c6773 transparent;
+	scrollbar-color: #5c6773 #24292f;
 }
 
 /* Improve the scrollbar display on webkit-based browsers */
@@ -91,41 +91,18 @@ pre, .rustdoc.source .example-wrap {
 	background-color: #5c6773;
 }
 
-.sidebar .current {
+.sidebar .current,
+.sidebar a:hover {
 	background-color: transparent;
 	color: #ffb44c;
 }
 
 .source .sidebar {
-	background-color: #0f1419;
-}
-
-.sidebar .location {
-	border-color: #000;
-	background-color: #0f1419;
-	color: #fff;
+	background-color: #14191f;
 }
 
 .sidebar-elems .location {
 	color: #ff7733;
-}
-
-.sidebar-elems .location a {
-	color: #fff;
-}
-
-.sidebar .version {
-	border-bottom-color: #424c57;
-}
-
-.sidebar-title {
-	border-top-color: #5c6773;
-	border-bottom-color: #5c6773;
-}
-
-.block a:hover {
-	background: transparent;
-	color: #ffb44c;
 }
 
 .line-numbers span { color: #5c6773; }
@@ -136,7 +113,7 @@ pre, .rustdoc.source .example-wrap {
 	border-right: 1px solid #ffb44c;
 }
 
-.docblock h1, .docblock h2, .docblock h3, .docblock h4, .docblock h5 {
+.docblock h1, .docblock h2, .docblock h3, .docblock h4, .docblock h5, .docblock h6 {
 	border-bottom-color: #5c6773;
 }
 
@@ -167,29 +144,35 @@ pre, .rustdoc.source .example-wrap {
 
 .content .item-info::before { color: #ccc; }
 
-.content span.foreigntype, .content a.foreigntype { color: #ef57ff; }
-.content span.union, .content a.union { color: #98a01c; }
+.content span.foreigntype, .content a.foreigntype { color: #ffa0a5; }
+.content span.union, .content a.union { color: #ffa0a5; }
 .content span.constant, .content a.constant,
-.content span.static, .content a.static { color: #6380a0; }
-.content span.primitive, .content a.primitive { color: #32889b; }
-.content span.traitalias, .content a.traitalias { color: #57d399; }
-.content span.keyword, .content a.keyword { color: #de5249; }
+.content span.static, .content a.static { color: #39AFD7; }
+.content span.primitive, .content a.primitive { color: #ffa0a5; }
+.content span.traitalias, .content a.traitalias { color: #39AFD7; }
+.content span.keyword, .content a.keyword { color: #39AFD7; }
 
 .content span.externcrate, .content span.mod, .content a.mod {
-	color: #acccf9;
+	color: #39AFD7;
 }
 .content span.struct, .content a.struct {
 	color: #ffa0a5;
 }
 .content span.enum, .content a.enum {
-	color: #99e0c9;
+	color: #ffa0a5;
 }
 .content span.trait, .content a.trait {
 	color: #39AFD7;
 }
 .content span.type, .content a.type {
-	color: #cfbcf5;
+	color: #39AFD7;
 }
+.content span.type,
+.content a.type,
+.block a.current.type { color: #39AFD7; }
+.content span.associatedtype,
+.content a.associatedtype,
+.block a.current.associatedtype { color: #39AFD7; }
 .content span.fn, .content a.fn, .content span.method,
 .content a.method, .content span.tymethod,
 .content a.tymethod, .content .fnname {
@@ -200,12 +183,13 @@ pre, .rustdoc.source .example-wrap {
 	color: #a37acc;
 }
 
+.sidebar a { color: #53b1db; }
+.sidebar a.current.type { color: #53b1db; }
+.sidebar a.current.associatedtype { color: #53b1db; }
+
 pre.rust .comment { color: #788797; }
 pre.rust .doccomment { color: #a1ac88; }
 
-nav:not(.sidebar) {
-	border-bottom-color: #424c57;
-}
 nav.main .current {
 	border-top-color: #5c6773;
 	border-bottom-color: #5c6773;
@@ -214,16 +198,29 @@ nav.main .separator {
 	border: 1px solid #5c6773;
 }
 a {
-	color: #c5c5c5;
-}
-body.source .example-wrap pre.rust a {
-	background: #c5c5c5;
+	color: #39AFD7;
 }
 
-.docblock:not(.type-decl) a:not(.srclink):not(.test-arrow),
-.docblock-short a:not(.srclink):not(.test-arrow), .item-info a,
-#help a {
-	color: #39AFD7;
+a#toggle-all-docs,
+a.anchor,
+.small-section-header a,
+#source-sidebar a,
+pre.rust a,
+.sidebar h2 a,
+.sidebar h3 a,
+.mobile-topbar h2 a,
+.in-band a {
+	color: #c5c5c5;
+}
+.sidebar h2 a,
+.sidebar h3 a {
+	color: white;
+}
+.search-results a {
+	color: #0096cf;
+}
+body.source .example-wrap pre.rust a {
+	background: #333;
 }
 
 details.rustdoc-toggle > summary.hideme > span,
@@ -237,26 +234,14 @@ details.undocumented > summary::before {
 	filter: invert(100%);
 }
 
-#crate-search {
-	color: #c5c5c5;
+#crate-search, .search-input {
 	background-color: #141920;
-	box-shadow: 0 0 0 1px #424c57,0 0 0 2px transparent;
 	border-color: #424c57;
+	color: #c5c5c5;
 }
 
 .search-input {
 	color: #ffffff;
-	background-color: #141920;
-	box-shadow: 0 0 0 1px #424c57,0 0 0 2px transparent;
-	transition: box-shadow 150ms ease-in-out;
-}
-
-#crate-search+.search-input:focus {
-	box-shadow: 0 0 0 1px #148099,0 0 0 2px transparent;
-}
-
-.search-input:disabled {
-	background-color: #3e3e3e;
 }
 
 .module-item .stab,
@@ -286,11 +271,12 @@ details.undocumented > summary::before {
 	border-radius: 4px;
 }
 
-#help > div > span {
-	border-bottom-color: #5c6773;
+#help span.bottom, #help span.top {
+	border-color: #5c6773;
 }
 
-.since {
+.rightside,
+.out-of-band {
 	color: grey;
 }
 
@@ -342,11 +328,8 @@ a.test-arrow:hover {
 	color: #999;
 }
 
-:target, :target > * {
-	background: rgba(255, 236, 164, 0.06);
-}
-
 :target {
+	background: rgba(255, 236, 164, 0.06);
 	border-right: 3px solid rgba(255, 180, 76, 0.85);
 }
 
@@ -451,11 +434,12 @@ above the `@media (max-width: 700px)` rules due to a bug in the css checker */
 .block a.current.derive,.content span.macro,.content a.macro,.block a.current.macro {}
 .content span.struct,.content a.struct,.block a.current.struct {}
 #titles>button:hover,#titles>button.selected {}
-.content span.type,.content a.type,.block a.current.type {}
+.content span.typedef,.content a.typedef,.block a.current.typedef {}
 .content span.union,.content a.union,.block a.current.union {}
 pre.rust .lifetime {}
 .stab.unstable {}
-h2,h3:not(.impl):not(.method):not(.type):not(.tymethod),h4:not(.method):not(.type):not(.tymethod) {}
+h2,
+h3:not(.impl):not(.method):not(.type):not(.tymethod), h4:not(.method):not(.type):not(.tymethod) {}
 .content span.enum,.content a.enum,.block a.current.enum {}
 .content span.constant,.content a.constant,.block a.current.constant,.content span.static,
 .content a.static, .block a.current.static {}
@@ -492,6 +476,7 @@ a.result-fn:focus,
 a.result-method:focus,
 a.result-tymethod:focus {}
 a.result-type:focus {}
+a.result-associatedtype:focus {}
 a.result-foreigntype:focus {}
 a.result-attr:focus,
 a.result-derive:focus,
@@ -500,6 +485,25 @@ a.result-constant:focus,
 a.result-static:focus {}
 a.result-primitive:focus {}
 a.result-keyword:focus {}
+
+.sidebar a.current.enum {}
+.sidebar a.current.struct {}
+.sidebar a.current.foreigntype {}
+.sidebar a.current.attr,
+.sidebar a.current.derive,
+.sidebar a.current.macro {}
+.sidebar a.current.union {}
+.sidebar a.current.constant
+.sidebar a.current.static {}
+.sidebar a.current.primitive {}
+.sidebar a.current.externcrate
+.sidebar a.current.mod {}
+.sidebar a.current.trait {}
+.sidebar a.current.traitalias {}
+.sidebar a.current.fn,
+.sidebar a.current.method,
+.sidebar a.current.tymethod {}
+.sidebar a.current.keyword {}
 
 @media (max-width: 700px) {
 	.sidebar-menu {
@@ -524,7 +528,7 @@ kbd {
 	background-color: #314559;
 	border-color: #5c6773;
 	border-bottom-color: #5c6773;
-	box-shadow-color: #c6cbd1;
+	box-shadow: inset 0 -1px 0 #5c6773;
 }
 
 #theme-picker, #settings-menu, #help-button {
@@ -572,13 +576,6 @@ kbd {
 	}
 }
 
-#all-types {
-	background-color: #14191f;
-}
-#all-types:hover {
-	background-color: rgba(70, 70, 70, 0.33);
-}
-
 .search-results .result-name span.alias {
 	color: #c5c5c5;
 }
@@ -612,4 +609,23 @@ div.files > .selected {
 }
 input:checked + .slider {
 	background-color: #ffb454 !important;
+}
+
+.scraped-example .example-wrap .rust span.highlight {
+	background: rgb(91, 59, 1);
+}
+.scraped-example .example-wrap .rust span.highlight.focus {
+	background: rgb(124, 75, 15);
+}
+.scraped-example:not(.expanded) .code-wrapper:before {
+	background: linear-gradient(to bottom, rgba(15, 20, 25, 1), rgba(15, 20, 25, 0));
+}
+.scraped-example:not(.expanded) .code-wrapper:after {
+	background: linear-gradient(to top, rgba(15, 20, 25, 1), rgba(15, 20, 25, 0));
+}
+.toggle-line-inner {
+	background: #616161;
+}
+.toggle-line:hover .toggle-line-inner {
+	background: #898989;
 }

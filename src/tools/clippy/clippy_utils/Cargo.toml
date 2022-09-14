@@ -1,21 +1,17 @@
 [package]
 name = "clippy_utils"
-version = "0.1.56"
-edition = "2018"
+version = "0.1.60"
+edition = "2021"
 publish = false
 
 [dependencies]
-if_chain = "1.0.0"
-itertools = "0.9"
-regex-syntax = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-unicode-normalization = "0.1"
-rustc-semver="1.1.0"
+arrayvec = { version = "0.7", default-features = false }
+if_chain = "1.0"
+rustc-semver = "1.1"
 
 [features]
 deny-warnings = []
-internal-lints = []
-metadata-collector-lint = []
+internal = []
 
 [package.metadata.rust-analyzer]
 # This crate uses #[feature(rustc_private)]

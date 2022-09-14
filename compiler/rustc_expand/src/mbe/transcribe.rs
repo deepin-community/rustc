@@ -19,9 +19,7 @@ use std::mem;
 struct Marker(LocalExpnId, Transparency);
 
 impl MutVisitor for Marker {
-    fn token_visiting_enabled(&self) -> bool {
-        true
-    }
+    const VISIT_TOKENS: bool = true;
 
     fn visit_span(&mut self, span: &mut Span) {
         *span = span.apply_mark(self.0.to_expn_id(), self.1)
@@ -116,10 +114,8 @@ pub(super) fn transcribe<'a>(
 
     loop {
         // Look at the last frame on the stack.
-        let tree = if let Some(tree) = stack.last_mut().unwrap().next() {
-            // If it still has a TokenTree we have not looked at yet, use that tree.
-            tree
-        } else {
+        // If it still has a TokenTree we have not looked at yet, use that tree.
+        let Some(tree) = stack.last_mut().unwrap().next() else {
             // This else-case never produces a value for `tree` (it `continue`s or `return`s).
 
             // Otherwise, if we have just reached the end of a sequence and we can keep repeating,
@@ -179,20 +175,18 @@ pub(super) fn transcribe<'a>(
                         ));
                     }
 
-                    LockstepIterSize::Contradiction(ref msg) => {
+                    LockstepIterSize::Contradiction(msg) => {
                         // FIXME: this really ought to be caught at macro definition time... It
                         // happens when two meta-variables are used in the same repetition in a
                         // sequence, but they come from different sequence matchers and repeat
                         // different amounts.
-                        return Err(cx.struct_span_err(seq.span(), &msg[..]));
+                        return Err(cx.struct_span_err(seq.span(), &msg));
                     }
 
                     LockstepIterSize::Constraint(len, _) => {
                         // We do this to avoid an extra clone above. We know that this is a
                         // sequence already.
-                        let (sp, seq) = if let mbe::TokenTree::Sequence(sp, seq) = seq {
-                            (sp, seq)
-                        } else {
+                        let mbe::TokenTree::Sequence(sp, seq) = seq else {
                             unreachable!()
                         };
 

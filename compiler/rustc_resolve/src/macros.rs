@@ -11,7 +11,7 @@ use rustc_ast_lowering::ResolverAstLowering;
 use rustc_ast_pretty::pprust;
 use rustc_attr::StabilityLevel;
 use rustc_data_structures::fx::FxHashSet;
-use rustc_data_structures::ptr_key::PtrKey;
+use rustc_data_structures::intern::Interned;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::struct_span_err;
 use rustc_expand::base::{Annotatable, DeriveResolutions, Indeterminate, ResolverExpand};
@@ -23,7 +23,7 @@ use rustc_hir::def::{self, DefKind, NonMacroAttrKind};
 use rustc_hir::def_id::{CrateNum, LocalDefId};
 use rustc_hir::PrimTy;
 use rustc_middle::middle::stability;
-use rustc_middle::ty;
+use rustc_middle::ty::{self, RegisteredTools};
 use rustc_session::lint::builtin::{LEGACY_DERIVE_HELPERS, PROC_MACRO_DERIVE_RESOLUTION_FALLBACK};
 use rustc_session::lint::builtin::{SOFT_UNSTABLE, UNUSED_MACROS};
 use rustc_session::lint::BuiltinLintDiagnostics;
@@ -71,7 +71,7 @@ pub enum MacroRulesScope<'a> {
 /// This helps to avoid uncontrollable growth of `macro_rules!` scope chains,
 /// which usually grow lineraly with the number of macro invocations
 /// in a module (including derives) and hurt performance.
-pub(crate) type MacroRulesScopeRef<'a> = PtrKey<'a, Cell<MacroRulesScope<'a>>>;
+pub(crate) type MacroRulesScopeRef<'a> = Interned<'a, Cell<MacroRulesScope<'a>>>;
 
 // Macro namespace is separated into two sub-namespaces, one for bang macros and
 // one for attribute-like macros (attributes, derives).
@@ -105,7 +105,7 @@ fn fast_print_path(path: &ast::Path) -> Symbol {
                 path_str.push_str("::");
             }
             if segment.ident.name != kw::PathRoot {
-                path_str.push_str(&segment.ident.as_str())
+                path_str.push_str(segment.ident.as_str())
             }
         }
         Symbol::intern(&path_str)
@@ -180,6 +180,10 @@ impl<'a> ResolverExpand for Resolver<'a> {
         self.next_node_id()
     }
 
+    fn invocation_parent(&self, id: LocalExpnId) -> LocalDefId {
+        self.invocation_parents[&id].0
+    }
+
     fn resolve_dollar_crates(&mut self) {
         hygiene::update_dollar_crate_names(|ctxt| {
             let ident = Ident::new(kw::DollarCrate, DUMMY_SP.with_ctxt(ctxt));
@@ -221,7 +225,8 @@ impl<'a> ResolverExpand for Resolver<'a> {
         features: &[Symbol],
         parent_module_id: Option<NodeId>,
     ) -> LocalExpnId {
-        let parent_module = parent_module_id.map(|module_id| self.local_def_id(module_id));
+        let parent_module =
+            parent_module_id.map(|module_id| self.local_def_id(module_id).to_def_id());
         let expn_id = LocalExpnId::fresh(
             ExpnData::allow_unstable(
                 ExpnKind::AstPass(pass),
@@ -229,13 +234,13 @@ impl<'a> ResolverExpand for Resolver<'a> {
                 self.session.edition(),
                 features.into(),
                 None,
-                parent_module.map(LocalDefId::to_def_id),
+                parent_module,
             ),
             self.create_stable_hashing_context(),
         );
 
-        let parent_scope = parent_module
-            .map_or(self.empty_module, |parent_def_id| self.module_map[&parent_def_id]);
+        let parent_scope =
+            parent_module.map_or(self.empty_module, |def_id| self.expect_module(def_id));
         self.ast_transform_scopes.insert(expn_id, parent_scope);
 
         expn_id
@@ -294,57 +299,29 @@ impl<'a> ResolverExpand for Resolver<'a> {
         )?;
 
         let span = invoc.span();
+        let def_id = res.opt_def_id();
         invoc_id.set_expn_data(
             ext.expn_data(
                 parent_scope.expansion,
                 span,
                 fast_print_path(path),
-                res.opt_def_id(),
-                res.opt_def_id().map(|macro_def_id| {
-                    self.macro_def_scope_from_def_id(macro_def_id).nearest_parent_mod
-                }),
+                def_id,
+                def_id.map(|def_id| self.macro_def_scope(def_id).nearest_parent_mod()),
             ),
             self.create_stable_hashing_context(),
         );
-
-        if let Res::Def(_, _) = res {
-            // Gate macro attributes in `#[derive]` output.
-            if !self.session.features_untracked().macro_attributes_in_derive_output
-                && kind == MacroKind::Attr
-                && ext.builtin_name != Some(sym::derive)
-            {
-                let mut expn_id = parent_scope.expansion;
-                loop {
-                    // Helper attr table is a quick way to determine whether the attr is `derive`.
-                    if self.helper_attrs.contains_key(&expn_id) {
-                        feature_err(
-                            &self.session.parse_sess,
-                            sym::macro_attributes_in_derive_output,
-                            path.span,
-                            "macro attributes in `#[derive]` output are unstable",
-                        )
-                        .emit();
-                        break;
-                    } else {
-                        let expn_data = expn_id.expn_data();
-                        match expn_data.kind {
-                            ExpnKind::Root
-                            | ExpnKind::Macro(MacroKind::Bang | MacroKind::Derive, _) => {
-                                break;
-                            }
-                            _ => expn_id = expn_data.parent.expect_local(),
-                        }
-                    }
-                }
-            }
-        }
 
         Ok(ext)
     }
 
     fn check_unused_macros(&mut self) {
-        for (_, &(node_id, span)) in self.unused_macros.iter() {
-            self.lint_buffer.buffer_lint(UNUSED_MACROS, node_id, span, "unused macro definition");
+        for (_, &(node_id, ident)) in self.unused_macros.iter() {
+            self.lint_buffer.buffer_lint(
+                UNUSED_MACROS,
+                node_id,
+                ident.span,
+                &format!("unused macro definition: `{}`", ident.as_str()),
+            );
         }
     }
 
@@ -469,6 +446,10 @@ impl<'a> ResolverExpand for Resolver<'a> {
 
     fn declare_proc_macro(&mut self, id: NodeId) {
         self.proc_macros.push(id)
+    }
+
+    fn registered_tools(&self) -> &RegisteredTools {
+        &self.registered_tools
     }
 }
 
@@ -1156,6 +1137,7 @@ impl<'a> Resolver<'a> {
                         feature,
                         reason,
                         issue,
+                        None,
                         is_soft,
                         span,
                         soft_handler,
@@ -1165,7 +1147,7 @@ impl<'a> Resolver<'a> {
         }
         if let Some(depr) = &ext.deprecation {
             let path = pprust::path_to_string(&path);
-            let (message, lint) = stability::deprecation_message(depr, "macro", &path);
+            let (message, lint) = stability::deprecation_message_and_lint(depr, "macro", &path);
             stability::early_report_deprecation(
                 &mut self.lint_buffer,
                 &message,

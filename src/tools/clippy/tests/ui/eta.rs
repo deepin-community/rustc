@@ -4,17 +4,13 @@
     unused,
     clippy::no_effect,
     clippy::redundant_closure_call,
-    clippy::many_single_char_names,
     clippy::needless_pass_by_value,
-    clippy::option_map_unit_fn
-)]
-#![warn(
-    clippy::redundant_closure,
-    clippy::redundant_closure_for_method_calls,
+    clippy::option_map_unit_fn,
     clippy::needless_borrow
 )]
+#![warn(clippy::redundant_closure, clippy::redundant_closure_for_method_calls)]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 macro_rules! mac {
     () => {
@@ -30,7 +26,6 @@ macro_rules! closure_mac {
 
 fn main() {
     let a = Some(1u8).map(|a| foo(a));
-    meta(|a| foo(a));
     let c = Some(1u8).map(|a| {1+2; foo}(a));
     true.then(|| mac!()); // don't lint function in macro expansion
     Some(1).map(closure_mac!()); // don't lint closure in macro expansion
@@ -90,24 +85,17 @@ impl<'a> std::ops::Deref for TestStruct<'a> {
 fn test_redundant_closures_containing_method_calls() {
     let i = 10;
     let e = Some(TestStruct { some_ref: &i }).map(|a| a.foo());
-    let e = Some(TestStruct { some_ref: &i }).map(TestStruct::foo);
     let e = Some(TestStruct { some_ref: &i }).map(|a| a.trait_foo());
     let e = Some(TestStruct { some_ref: &i }).map(|a| a.trait_foo_ref());
-    let e = Some(TestStruct { some_ref: &i }).map(TestTrait::trait_foo);
     let e = Some(&mut vec![1, 2, 3]).map(|v| v.clear());
-    let e = Some(&mut vec![1, 2, 3]).map(std::vec::Vec::clear);
     unsafe {
         let e = Some(TestStruct { some_ref: &i }).map(|a| a.foo_unsafe());
     }
     let e = Some("str").map(|s| s.to_string());
-    let e = Some("str").map(str::to_string);
     let e = Some('a').map(|s| s.to_uppercase());
-    let e = Some('a').map(char::to_uppercase);
     let e: std::vec::Vec<usize> = vec!['a', 'b', 'c'].iter().map(|c| c.len_utf8()).collect();
     let e: std::vec::Vec<char> = vec!['a', 'b', 'c'].iter().map(|c| c.to_ascii_uppercase()).collect();
-    let e: std::vec::Vec<char> = vec!['a', 'b', 'c'].iter().map(char::to_ascii_uppercase).collect();
-    let p = Some(PathBuf::new());
-    let e = p.as_ref().and_then(|s| s.to_str());
+    let e = Some(PathBuf::new()).as_ref().and_then(|s| s.to_str());
     let c = Some(TestStruct { some_ref: &i })
         .as_ref()
         .map(|c| c.to_ascii_uppercase());
@@ -119,10 +107,6 @@ fn test_redundant_closures_containing_method_calls() {
         t.iter().filter(|x| x.trait_foo_ref());
         t.iter().map(|x| x.trait_foo_ref());
     }
-
-    let mut some = Some(|x| x * x);
-    let arr = [Ok(1), Err(2)];
-    let _: Vec<_> = arr.iter().map(|x| x.map_err(|e| some.take().unwrap()(e))).collect();
 }
 
 struct Thunk<T>(Box<dyn FnMut() -> T>);
@@ -143,13 +127,6 @@ impl<T> Thunk<T> {
 fn foobar() {
     let thunk = Thunk::new(|| println!("Hello, world!"));
     thunk.unwrap()
-}
-
-fn meta<F>(f: F)
-where
-    F: Fn(u8),
-{
-    f(1u8)
 }
 
 fn foo(_: u8) {}
@@ -235,4 +212,47 @@ fn mutable_closure_in_loop() {
     for _ in 0..5 {
         Some(1).map(|n| closure(n));
     }
+}
+
+fn late_bound_lifetimes() {
+    fn take_asref_path<P: AsRef<Path>>(path: P) {}
+
+    fn map_str<F>(thunk: F)
+    where
+        F: FnOnce(&str),
+    {
+    }
+
+    fn map_str_to_path<F>(thunk: F)
+    where
+        F: FnOnce(&str) -> &Path,
+    {
+    }
+    map_str(|s| take_asref_path(s));
+    map_str_to_path(|s| s.as_ref());
+}
+
+mod type_param_bound {
+    trait Trait {
+        fn fun();
+    }
+
+    fn take<T: 'static>(_: T) {}
+
+    fn test<X: Trait>() {
+        // don't lint, but it's questionable that rust requires a cast
+        take(|| X::fun());
+        take(X::fun as fn());
+    }
+}
+
+// #8073 Don't replace closure with `Arc<F>` or `Rc<F>`
+fn arc_fp() {
+    let rc = std::rc::Rc::new(|| 7);
+    let arc = std::sync::Arc::new(|n| n + 1);
+    let ref_arc = &std::sync::Arc::new(|_| 5);
+
+    true.then(|| rc());
+    (0..5).map(|n| arc(n));
+    Some(4).map(|n| ref_arc(n));
 }

@@ -3,19 +3,22 @@ use libc::c_uint;
 use rustc_ast::expand::allocator::{AllocatorKind, AllocatorTy, ALLOCATOR_METHODS};
 use rustc_middle::bug;
 use rustc_middle::ty::TyCtxt;
+use rustc_session::config::DebugInfo;
 use rustc_span::symbol::sym;
 
+use crate::debuginfo;
 use crate::llvm::{self, False, True};
 use crate::ModuleLlvm;
 
 pub(crate) unsafe fn codegen(
     tcx: TyCtxt<'_>,
-    mods: &mut ModuleLlvm,
+    module_llvm: &mut ModuleLlvm,
+    module_name: &str,
     kind: AllocatorKind,
     has_alloc_error_handler: bool,
 ) {
-    let llcx = &*mods.llcx;
-    let llmod = mods.llmod();
+    let llcx = &*module_llvm.llcx;
+    let llmod = module_llvm.llmod();
     let usize = match tcx.sess.target.pointer_width {
         16 => llvm::LLVMInt16TypeInContext(llcx),
         32 => llvm::LLVMInt32TypeInContext(llcx),
@@ -61,7 +64,7 @@ pub(crate) unsafe fn codegen(
             llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
         }
         if tcx.sess.must_emit_unwind_tables() {
-            attributes::emit_uwtable(llfn, true);
+            attributes::emit_uwtable(llfn);
         }
 
         let callee = kind.fn_name(method.name);
@@ -108,7 +111,7 @@ pub(crate) unsafe fn codegen(
         llvm::LLVMRustSetVisibility(llfn, llvm::Visibility::Hidden);
     }
     if tcx.sess.must_emit_unwind_tables() {
-        attributes::emit_uwtable(llfn, true);
+        attributes::emit_uwtable(llfn);
     }
 
     let kind = if has_alloc_error_handler { AllocatorKind::Global } else { AllocatorKind::Default };
@@ -132,4 +135,10 @@ pub(crate) unsafe fn codegen(
     llvm::LLVMSetTailCall(ret, True);
     llvm::LLVMBuildRetVoid(llbuilder);
     llvm::LLVMDisposeBuilder(llbuilder);
+
+    if tcx.sess.opts.debuginfo != DebugInfo::None {
+        let dbg_cx = debuginfo::CrateDebugContext::new(llmod);
+        debuginfo::metadata::compile_unit_metadata(tcx, module_name, &dbg_cx);
+        dbg_cx.finalize(tcx.sess);
+    }
 }

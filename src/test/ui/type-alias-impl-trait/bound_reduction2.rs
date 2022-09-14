@@ -7,6 +7,7 @@ trait TraitWithAssoc {
 }
 
 type Foo<V> = impl Trait<V>;
+//~^ ERROR could not find defining uses
 
 trait Trait<U> {}
 

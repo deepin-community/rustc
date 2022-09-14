@@ -14,8 +14,8 @@ use rustc_middle::mir::{
     visit::{MutatingUseContext, NonMutatingUseContext, PlaceContext, Visitor as _},
     Mutability,
 };
-use rustc_middle::ty::{self, fold::TypeVisitor, Ty, TyCtxt};
-use rustc_mir::dataflow::{Analysis, AnalysisDomain, GenKill, GenKillAnalysis, ResultsCursor};
+use rustc_middle::ty::{self, fold::TypeVisitor, Ty};
+use rustc_mir_dataflow::{Analysis, AnalysisDomain, CallReturnPlaces, GenKill, GenKillAnalysis, ResultsCursor};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::{BytePos, Span};
 use rustc_span::sym;
@@ -62,6 +62,7 @@ declare_clippy_lint! {
     ///
     /// Path::new("/a/b").join("c").to_path_buf();
     /// ```
+    #[clippy::version = "1.32.0"]
     pub REDUNDANT_CLONE,
     perf,
     "`clone()` of an owned value that is going to be dropped immediately"
@@ -123,7 +124,7 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClone {
             let from_borrow = match_def_path(cx, fn_def_id, &paths::CLONE_TRAIT_METHOD)
                 || match_def_path(cx, fn_def_id, &paths::TO_OWNED_METHOD)
                 || (match_def_path(cx, fn_def_id, &paths::TO_STRING_METHOD)
-                    && is_type_diagnostic_item(cx, arg_ty, sym::string_type));
+                    && is_type_diagnostic_item(cx, arg_ty, sym::String));
 
             let from_deref = !from_borrow
                 && (match_def_path(cx, fn_def_id, &paths::PATH_TO_PATH_BUF)
@@ -219,7 +220,7 @@ impl<'tcx> LateLintPass<'tcx> for RedundantClone {
                     continue;
                 } else if let Some(loc) = clone_usage.cloned_consume_or_mutate_loc {
                     // cloned value is mutated, and the clone is alive.
-                    if possible_borrower.is_alive_at(ret_local, loc) {
+                    if possible_borrower.local_is_alive_at(ret_local, loc) {
                         continue;
                     }
                 }
@@ -499,11 +500,9 @@ impl<'tcx> GenKillAnalysis<'tcx> for MaybeStorageLive {
 
     fn call_return_effect(
         &self,
-        _in_out: &mut impl GenKill<Self::Idx>,
+        _trans: &mut impl GenKill<Self::Idx>,
         _block: mir::BasicBlock,
-        _func: &mir::Operand<'tcx>,
-        _args: &[mir::Operand<'tcx>],
-        _return_place: mir::Place<'tcx>,
+        _return_places: CallReturnPlaces<'_, 'tcx>,
     ) {
         // Nothing to do when a call returns successfully
     }
@@ -576,7 +575,7 @@ impl<'a, 'tcx> mir::visit::Visitor<'tcx> for PossibleBorrowerVisitor<'a, 'tcx> {
                 self.possible_borrower.add(borrowed.local, lhs);
             },
             other => {
-                if ContainsRegion(self.cx.tcx)
+                if ContainsRegion
                     .visit_ty(place.ty(&self.body.local_decls, self.cx.tcx).ty)
                     .is_continue()
                 {
@@ -625,7 +624,7 @@ impl<'a, 'tcx> mir::visit::Visitor<'tcx> for PossibleBorrowerVisitor<'a, 'tcx> {
                 .flat_map(HybridBitSet::iter)
                 .collect();
 
-            if ContainsRegion(self.cx.tcx).visit_ty(self.body.local_decls[*dest].ty).is_break() {
+            if ContainsRegion.visit_ty(self.body.local_decls[*dest].ty).is_break() {
                 mutable_variables.push(*dest);
             }
 
@@ -701,15 +700,12 @@ impl<'a, 'tcx> mir::visit::Visitor<'tcx> for PossibleOriginVisitor<'a, 'tcx> {
     }
 }
 
-struct ContainsRegion<'tcx>(TyCtxt<'tcx>);
+struct ContainsRegion;
 
-impl<'tcx> TypeVisitor<'tcx> for ContainsRegion<'tcx> {
+impl TypeVisitor<'_> for ContainsRegion {
     type BreakTy = ();
-    fn tcx_for_anon_const_substs(&self) -> Option<TyCtxt<'tcx>> {
-        Some(self.0)
-    }
 
-    fn visit_region(&mut self, _: ty::Region<'tcx>) -> ControlFlow<Self::BreakTy> {
+    fn visit_region(&mut self, _: ty::Region<'_>) -> ControlFlow<Self::BreakTy> {
         ControlFlow::BREAK
     }
 }
@@ -765,7 +761,7 @@ impl PossibleBorrowerMap<'_, '_> {
         self.bitset.0 == self.bitset.1
     }
 
-    fn is_alive_at(&mut self, local: mir::Local, at: mir::Location) -> bool {
+    fn local_is_alive_at(&mut self, local: mir::Local, at: mir::Location) -> bool {
         self.maybe_live.seek_after_primary_effect(at);
         self.maybe_live.contains(local)
     }

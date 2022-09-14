@@ -12,15 +12,18 @@ use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{collections::HashMap, io::ErrorKind};
 use std::{
-    env, fmt,
+    env,
     fs::write,
     path::{Path, PathBuf},
+    thread,
+    time::Duration,
 };
 
 use clap::{App, Arg, ArgMatches};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use walkdir::{DirEntry, WalkDir};
 
 #[cfg(not(windows))]
 const CLIPPY_DRIVER_PATH: &str = "target/debug/clippy-driver";
@@ -98,13 +101,44 @@ struct ClippyWarning {
     is_ice: bool,
 }
 
-impl std::fmt::Display for ClippyWarning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            r#"target/lintcheck/sources/{}-{}/{}:{}:{} {} "{}""#,
-            &self.crate_name, &self.crate_version, &self.file, &self.line, &self.column, &self.linttype, &self.message
-        )
+#[allow(unused)]
+impl ClippyWarning {
+    fn to_output(&self, markdown: bool) -> String {
+        let file = format!("{}-{}/{}", &self.crate_name, &self.crate_version, &self.file);
+        let file_with_pos = format!("{}:{}:{}", &file, &self.line, &self.column);
+        if markdown {
+            let lint = format!("`{}`", self.linttype);
+
+            let mut output = String::from("| ");
+            output.push_str(&format!(
+                "[`{}`](../target/lintcheck/sources/{}#L{})",
+                file_with_pos, file, self.line
+            ));
+            output.push_str(&format!(r#" | {:<50} | "{}" |"#, lint, self.message));
+            output.push('\n');
+            output
+        } else {
+            format!(
+                "target/lintcheck/sources/{} {} \"{}\"\n",
+                file_with_pos, self.linttype, self.message
+            )
+        }
+    }
+}
+
+fn get(path: &str) -> Result<ureq::Response, ureq::Error> {
+    const MAX_RETRIES: u8 = 4;
+    let mut retries = 0;
+    loop {
+        match ureq::get(path).call() {
+            Ok(res) => return Ok(res),
+            Err(e) if retries >= MAX_RETRIES => return Err(e),
+            Err(ureq::Error::Transport(e)) => eprintln!("Error: {}", e),
+            Err(e) => return Err(e),
+        }
+        eprintln!("retrying in {} seconds...", retries);
+        thread::sleep(Duration::from_secs(retries as u64));
+        retries += 1;
     }
 }
 
@@ -128,7 +162,7 @@ impl CrateSource {
                 if !krate_file_path.is_file() {
                     // create a file path to download and write the crate data into
                     let mut krate_dest = std::fs::File::create(&krate_file_path).unwrap();
-                    let mut krate_req = ureq::get(&url).call().unwrap().into_reader();
+                    let mut krate_req = get(&url).unwrap().into_reader();
                     // copy the crate into the file
                     std::io::copy(&mut krate_req, &mut krate_dest).unwrap();
 
@@ -193,32 +227,41 @@ impl CrateSource {
                 }
             },
             CrateSource::Path { name, path, options } => {
-                use fs_extra::dir;
+                // copy path into the dest_crate_root but skip directories that contain a CACHEDIR.TAG file.
+                // The target/ directory contains a CACHEDIR.TAG file so it is the most commonly skipped directory
+                // as a result of this filter.
+                let dest_crate_root = PathBuf::from(LINTCHECK_SOURCES).join(name);
+                if dest_crate_root.exists() {
+                    println!("Deleting existing directory at {:?}", dest_crate_root);
+                    std::fs::remove_dir_all(&dest_crate_root).unwrap();
+                }
 
-                // simply copy the entire directory into our target dir
-                let copy_dest = PathBuf::from(format!("{}/", LINTCHECK_SOURCES));
+                println!("Copying {:?} to {:?}", path, dest_crate_root);
 
-                // the source path of the crate we copied,  ${copy_dest}/crate_name
-                let crate_root = copy_dest.join(name); // .../crates/local_crate
+                fn is_cache_dir(entry: &DirEntry) -> bool {
+                    std::fs::read(entry.path().join("CACHEDIR.TAG"))
+                        .map(|x| x.starts_with(b"Signature: 8a477f597d28d172789f06886806bc55"))
+                        .unwrap_or(false)
+                }
 
-                if crate_root.exists() {
-                    println!(
-                        "Not copying {} to {}, destination already exists",
-                        path.display(),
-                        crate_root.display()
-                    );
-                } else {
-                    println!("Copying {} to {}", path.display(), copy_dest.display());
+                for entry in WalkDir::new(path).into_iter().filter_entry(|e| !is_cache_dir(e)) {
+                    let entry = entry.unwrap();
+                    let entry_path = entry.path();
+                    let relative_entry_path = entry_path.strip_prefix(path).unwrap();
+                    let dest_path = dest_crate_root.join(relative_entry_path);
+                    let metadata = entry_path.symlink_metadata().unwrap();
 
-                    dir::copy(path, &copy_dest, &dir::CopyOptions::new()).unwrap_or_else(|_| {
-                        panic!("Failed to copy from {}, to  {}", path.display(), crate_root.display())
-                    });
+                    if metadata.is_dir() {
+                        std::fs::create_dir(dest_path).unwrap();
+                    } else if metadata.is_file() {
+                        std::fs::copy(entry_path, dest_path).unwrap();
+                    }
                 }
 
                 Crate {
                     version: String::from("local"),
                     name: name.clone(),
-                    path: crate_root,
+                    path: dest_crate_root,
                     options: options.clone(),
                 }
             },
@@ -236,6 +279,7 @@ impl Crate {
         thread_limit: usize,
         total_crates_to_lint: usize,
         fix: bool,
+        lint_filter: &Vec<String>,
     ) -> Vec<ClippyWarning> {
         // advance the atomic index by one
         let index = target_dir_index.fetch_add(1, Ordering::SeqCst);
@@ -260,9 +304,9 @@ impl Crate {
         let shared_target_dir = clippy_project_root().join("target/lintcheck/shared_target_dir");
 
         let mut args = if fix {
-            vec!["--fix", "--allow-no-vcs", "--", "--cap-lints=warn"]
+            vec!["--fix", "--allow-no-vcs", "--"]
         } else {
-            vec!["--", "--message-format=json", "--", "--cap-lints=warn"]
+            vec!["--", "--message-format=json", "--"]
         };
 
         if let Some(options) = &self.options {
@@ -271,6 +315,13 @@ impl Crate {
             }
         } else {
             args.extend(&["-Wclippy::pedantic", "-Wclippy::cargo"])
+        }
+
+        if lint_filter.is_empty() {
+            args.push("--cap-lints=warn");
+        } else {
+            args.push("--cap-lints=allow");
+            args.extend(lint_filter.iter().map(|filter| filter.as_str()))
         }
 
         let all_output = std::process::Command::new(&cargo_clippy_path)
@@ -332,14 +383,18 @@ impl Crate {
 
 #[derive(Debug)]
 struct LintcheckConfig {
-    // max number of jobs to spawn (default 1)
+    /// max number of jobs to spawn (default 1)
     max_jobs: usize,
-    // we read the sources to check from here
+    /// we read the sources to check from here
     sources_toml_path: PathBuf,
-    // we save the clippy lint results here
+    /// we save the clippy lint results here
     lintcheck_results_path: PathBuf,
-    // whether to just run --fix and not collect all the warnings
+    /// whether to just run --fix and not collect all the warnings
     fix: bool,
+    /// A list of lint that this lintcheck run shound focus on
+    lint_filter: Vec<String>,
+    /// Indicate if the output should support markdown syntax
+    markdown: bool,
 }
 
 impl LintcheckConfig {
@@ -355,12 +410,17 @@ impl LintcheckConfig {
                 .to_string()
         });
 
+        let markdown = clap_config.is_present("markdown");
         let sources_toml_path = PathBuf::from(sources_toml);
 
         // for the path where we save the lint results, get the filename without extension (so for
         // wasd.toml, use "wasd"...)
         let filename: PathBuf = sources_toml_path.file_stem().unwrap().into();
-        let lintcheck_results_path = PathBuf::from(format!("lintcheck-logs/{}_logs.txt", filename.display()));
+        let lintcheck_results_path = PathBuf::from(format!(
+            "lintcheck-logs/{}_logs.{}",
+            filename.display(),
+            if markdown { "md" } else { "txt" }
+        ));
 
         // look at the --threads arg, if 0 is passed, ask rayon rayon how many threads it would spawn and
         // use half of that for the physical core count
@@ -382,12 +442,27 @@ impl LintcheckConfig {
             None => 1,
         };
         let fix: bool = clap_config.is_present("fix");
+        let lint_filter: Vec<String> = clap_config
+            .values_of("filter")
+            .map(|iter| {
+                iter.map(|lint_name| {
+                    let mut filter = lint_name.replace('_', "-");
+                    if !filter.starts_with("clippy::") {
+                        filter.insert_str(0, "clippy::");
+                    }
+                    filter
+                })
+                .collect()
+            })
+            .unwrap_or_default();
 
         LintcheckConfig {
             max_jobs,
             sources_toml_path,
             lintcheck_results_path,
             fix,
+            lint_filter,
+            markdown,
         }
     }
 }
@@ -535,7 +610,7 @@ fn parse_json_message(json_message: &str, krate: &Crate) -> ClippyWarning {
     }
 }
 
-/// Generate a short list of occuring lints-types and their count
+/// Generate a short list of occurring lints-types and their count
 fn gather_stats(clippy_warnings: &[ClippyWarning]) -> (String, HashMap<&String, usize>) {
     // count lint type occurrences
     let mut counter: HashMap<&String, usize> = HashMap::new();
@@ -549,10 +624,15 @@ fn gather_stats(clippy_warnings: &[ClippyWarning]) -> (String, HashMap<&String, 
     // to not have a lint with 200 and 2 warnings take the same spot
     stats.sort_by_key(|(lint, count)| format!("{:0>4}, {}", count, lint));
 
+    let mut header = String::from("| lint                                               | count |\n");
+    header.push_str("| -------------------------------------------------- | ----- |\n");
     let stats_string = stats
         .iter()
-        .map(|(lint, count)| format!("{} {}\n", lint, count))
-        .collect::<String>();
+        .map(|(lint, count)| format!("| {:<50} |  {:>4} |\n", lint, count))
+        .fold(header, |mut table, line| {
+            table.push_str(&line);
+            table
+        });
 
     (stats_string, counter)
 }
@@ -585,16 +665,6 @@ fn lintcheck_needs_rerun(lintcheck_logs_path: &Path) -> bool {
     logs_modified < clippy_modified
 }
 
-fn is_in_clippy_root() -> bool {
-    if let Ok(pb) = std::env::current_dir() {
-        if let Some(file) = pb.file_name() {
-            return file == PathBuf::from("rust-clippy");
-        }
-    }
-
-    false
-}
-
 /// lintchecks `main()` function
 ///
 /// # Panics
@@ -603,7 +673,7 @@ fn is_in_clippy_root() -> bool {
 /// or if lintcheck is executed from the wrong directory (aka none-repo-root)
 pub fn main() {
     // assert that we launch lintcheck from the repo root (via cargo lintcheck)
-    if !is_in_clippy_root() {
+    if std::fs::metadata("lintcheck/Cargo.toml").is_err() {
         eprintln!("lintcheck needs to be run from clippys repo root!\nUse `cargo lintcheck` alternatively.");
         std::process::exit(3);
     }
@@ -654,6 +724,15 @@ pub fn main() {
     let old_stats = read_stats_from_file(&config.lintcheck_results_path);
 
     let counter = AtomicUsize::new(1);
+    let lint_filter: Vec<String> = config
+        .lint_filter
+        .iter()
+        .map(|filter| {
+            let mut filter = filter.clone();
+            filter.insert_str(0, "--force-warn=");
+            filter
+        })
+        .collect();
 
     let clippy_warnings: Vec<ClippyWarning> = if let Some(only_one_crate) = clap_config.value_of("only") {
         // if we don't have the specified crate in the .toml, throw an error
@@ -677,7 +756,9 @@ pub fn main() {
             .into_iter()
             .map(|krate| krate.download_and_extract())
             .filter(|krate| krate.name == only_one_crate)
-            .flat_map(|krate| krate.run_clippy_lints(&cargo_clippy_path, &AtomicUsize::new(0), 1, 1, config.fix))
+            .flat_map(|krate| {
+                krate.run_clippy_lints(&cargo_clippy_path, &AtomicUsize::new(0), 1, 1, config.fix, &lint_filter)
+            })
             .collect()
     } else {
         if config.max_jobs > 1 {
@@ -690,7 +771,7 @@ pub fn main() {
             // quarter of the time which might result in a longer wall clock runtime
 
             // This helps when we check many small crates with dep-trees that don't have a lot of branches in
-            // order to achive some kind of parallelism
+            // order to achieve some kind of parallelism
 
             // by default, use a single thread
             let num_cpus = config.max_jobs;
@@ -701,7 +782,14 @@ pub fn main() {
                 .into_par_iter()
                 .map(|krate| krate.download_and_extract())
                 .flat_map(|krate| {
-                    krate.run_clippy_lints(&cargo_clippy_path, &counter, num_cpus, num_crates, config.fix)
+                    krate.run_clippy_lints(
+                        &cargo_clippy_path,
+                        &counter,
+                        num_cpus,
+                        num_crates,
+                        config.fix,
+                        &lint_filter,
+                    )
                 })
                 .collect()
         } else {
@@ -710,7 +798,9 @@ pub fn main() {
             crates
                 .into_iter()
                 .map(|krate| krate.download_and_extract())
-                .flat_map(|krate| krate.run_clippy_lints(&cargo_clippy_path, &counter, 1, num_crates, config.fix))
+                .flat_map(|krate| {
+                    krate.run_clippy_lints(&cargo_clippy_path, &counter, 1, num_crates, config.fix, &lint_filter)
+                })
                 .collect()
         }
     };
@@ -730,22 +820,31 @@ pub fn main() {
         .map(|w| (&w.crate_name, &w.message))
         .collect();
 
-    let mut all_msgs: Vec<String> = clippy_warnings.iter().map(ToString::to_string).collect();
+    let mut all_msgs: Vec<String> = clippy_warnings
+        .iter()
+        .map(|warn| warn.to_output(config.markdown))
+        .collect();
     all_msgs.sort();
-    all_msgs.push("\n\n\n\nStats:\n".into());
+    all_msgs.push("\n\n### Stats:\n\n".into());
     all_msgs.push(stats_formatted);
 
     // save the text into lintcheck-logs/logs.txt
     let mut text = clippy_ver; // clippy version number on top
-    text.push_str(&format!("\n{}", all_msgs.join("")));
-    text.push_str("ICEs:\n");
+    text.push_str("\n### Reports\n\n");
+    if config.markdown {
+        text.push_str("| file | lint | message |\n");
+        text.push_str("| --- | --- | --- |\n");
+    }
+    text.push_str(&format!("{}", all_msgs.join("")));
+    text.push_str("\n\n### ICEs:\n");
     ices.iter()
         .for_each(|(cratename, msg)| text.push_str(&format!("{}: '{}'", cratename, msg)));
 
     println!("Writing logs to {}", config.lintcheck_results_path.display());
+    std::fs::create_dir_all(config.lintcheck_results_path.parent().unwrap()).unwrap();
     write(&config.lintcheck_results_path, text).unwrap();
 
-    print_stats(old_stats, new_stats);
+    print_stats(old_stats, new_stats, &config.lint_filter);
 }
 
 /// read the previous stats from the lintcheck-log file
@@ -759,26 +858,27 @@ fn read_stats_from_file(file_path: &Path) -> HashMap<String, usize> {
 
     let lines: Vec<String> = file_content.lines().map(ToString::to_string).collect();
 
-    // search for the beginning "Stats:" and the end "ICEs:" of the section we want
-    let start = lines.iter().position(|line| line == "Stats:").unwrap();
-    let end = lines.iter().position(|line| line == "ICEs:").unwrap();
-
-    let stats_lines = &lines[start + 1..end];
-
-    stats_lines
+    lines
         .iter()
-        .map(|line| {
-            let mut spl = line.split(' ');
-            (
-                spl.next().unwrap().to_string(),
-                spl.next().unwrap().parse::<usize>().unwrap(),
-            )
+        .skip_while(|line| line.as_str() != "### Stats:")
+        // Skipping the table header and the `Stats:` label
+        .skip(4)
+        .take_while(|line| line.starts_with("| "))
+        .filter_map(|line| {
+            let mut spl = line.split('|');
+            // Skip the first `|` symbol
+            spl.next();
+            if let (Some(lint), Some(count)) = (spl.next(), spl.next()) {
+                Some((lint.trim().to_string(), count.trim().parse::<usize>().unwrap()))
+            } else {
+                None
+            }
         })
         .collect::<HashMap<String, usize>>()
 }
 
 /// print how lint counts changed between runs
-fn print_stats(old_stats: HashMap<String, usize>, new_stats: HashMap<&String, usize>) {
+fn print_stats(old_stats: HashMap<String, usize>, new_stats: HashMap<&String, usize>, lint_filter: &Vec<String>) {
     let same_in_both_hashmaps = old_stats
         .iter()
         .filter(|(old_key, old_val)| new_stats.get::<&String>(&old_key) == Some(old_val))
@@ -817,6 +917,7 @@ fn print_stats(old_stats: HashMap<String, usize>, new_stats: HashMap<&String, us
     old_stats_deduped
         .iter()
         .filter(|(old_key, _)| new_stats_deduped.get::<&String>(&old_key).is_none())
+        .filter(|(old_key, _)| lint_filter.is_empty() || lint_filter.contains(old_key))
         .for_each(|(old_key, old_value)| {
             println!("{} {} => 0", old_key, old_value);
         });
@@ -874,6 +975,19 @@ fn get_clap_config<'a>() -> ArgMatches<'a> {
             Arg::with_name("fix")
                 .long("--fix")
                 .help("runs cargo clippy --fix and checks if all suggestions apply"),
+        )
+        .arg(
+            Arg::with_name("filter")
+                .long("--filter")
+                .takes_value(true)
+                .multiple(true)
+                .value_name("clippy_lint_name")
+                .help("apply a filter to only collect specified lints, this also overrides `allow` attributes"),
+        )
+        .arg(
+            Arg::with_name("markdown")
+                .long("--markdown")
+                .help("change the reports table to use markdown links"),
         )
         .get_matches()
 }

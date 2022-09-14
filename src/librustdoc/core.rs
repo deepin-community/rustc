@@ -1,18 +1,14 @@
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::sync::{self, Lrc};
-use rustc_driver::abort_on_err;
 use rustc_errors::emitter::{Emitter, EmitterWriter};
 use rustc_errors::json::JsonEmitter;
 use rustc_feature::UnstableFeatures;
 use rustc_hir::def::Res;
-use rustc_hir::def_id::{DefId, LocalDefId};
-use rustc_hir::HirId;
-use rustc_hir::{
-    intravisit::{self, NestedVisitorMap, Visitor},
-    Path,
-};
-use rustc_interface::{interface, Queries};
-use rustc_middle::hir::map::Map;
+use rustc_hir::def_id::{DefId, DefIdMap, LocalDefId};
+use rustc_hir::intravisit::{self, Visitor};
+use rustc_hir::{HirId, Path, TraitCandidate};
+use rustc_interface::interface;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::middle::privacy::AccessLevels;
 use rustc_middle::ty::{ParamEnv, Ty, TyCtxt};
 use rustc_resolve as resolve;
@@ -20,11 +16,11 @@ use rustc_session::config::{self, CrateType, ErrorOutputType};
 use rustc_session::lint;
 use rustc_session::DiagnosticOutput;
 use rustc_session::Session;
-use rustc_span::source_map;
 use rustc_span::symbol::sym;
-use rustc_span::Span;
+use rustc_span::{source_map, Span};
 
 use std::cell::RefCell;
+use std::lazy::SyncLazy;
 use std::mem;
 use std::rc::Rc;
 
@@ -32,18 +28,27 @@ use crate::clean::inline::build_external_trait;
 use crate::clean::{self, ItemId, TraitWithExtraInfo};
 use crate::config::{Options as RustdocOptions, OutputFormat, RenderOptions};
 use crate::formats::cache::Cache;
-use crate::passes::{self, Condition::*, ConditionalPass};
+use crate::passes::{self, Condition::*};
 
 crate use rustc_session::config::{DebuggingOptions, Input, Options};
+
+crate struct ResolverCaches {
+    /// Traits in scope for a given module.
+    /// See `collect_intra_doc_links::traits_implemented_by` for more details.
+    crate traits_in_scope: DefIdMap<Vec<TraitCandidate>>,
+    crate all_traits: Option<Vec<DefId>>,
+    crate all_trait_impls: Option<Vec<DefId>>,
+}
 
 crate struct DocContext<'tcx> {
     crate tcx: TyCtxt<'tcx>,
     /// Name resolver. Used for intra-doc links.
     ///
     /// The `Rc<RefCell<...>>` wrapping is needed because that is what's returned by
-    /// [`Queries::expansion()`].
+    /// [`rustc_interface::Queries::expansion()`].
     // FIXME: see if we can get rid of this RefCell somehow
     crate resolver: Rc<RefCell<interface::BoxedResolver>>,
+    crate resolver_caches: ResolverCaches,
     /// Used for normalization.
     ///
     /// Most of this logic is copied from rustc_lint::late.
@@ -53,14 +58,10 @@ crate struct DocContext<'tcx> {
     /// Used while populating `external_traits` to ensure we don't process the same trait twice at
     /// the same time.
     crate active_extern_traits: FxHashSet<DefId>,
-    // The current set of type and lifetime substitutions,
+    // The current set of parameter substitutions,
     // for expanding type aliases at the HIR level:
-    /// Table `DefId` of type parameter -> substituted type
-    crate ty_substs: FxHashMap<DefId, clean::Type>,
-    /// Table `DefId` of lifetime parameter -> substituted lifetime
-    crate lt_substs: FxHashMap<DefId, clean::Lifetime>,
-    /// Table `DefId` of const parameter -> substituted const
-    crate ct_substs: FxHashMap<DefId, clean::Constant>,
+    /// Table `DefId` of type, lifetime, or const parameter -> substituted type, lifetime, or const
+    crate substs: FxHashMap<DefId, clean::SubstParam>,
     /// Table synthetic type parameter for `impl Trait` in argument position -> bounds
     crate impl_trait_bounds: FxHashMap<ImplTraitParam, Vec<clean::GenericBound>>,
     /// Auto-trait or blanket impls processed so far, as `(self_ty, trait_def_id)`.
@@ -69,11 +70,6 @@ crate struct DocContext<'tcx> {
     crate auto_traits: Vec<DefId>,
     /// The options given to rustdoc that could be relevant to a pass.
     crate render_options: RenderOptions,
-    /// The traits in scope for a given module.
-    ///
-    /// See `collect_intra_doc_links::traits_implemented_by` for more details.
-    /// `map<module, set<trait>>`
-    crate module_trait_cache: FxHashMap<DefId, FxHashSet<DefId>>,
     /// This same cache is used throughout rustdoc, including in [`crate::html::render`].
     crate cache: Cache,
     /// Used by [`clean::inline`] to tell if an item has already been inlined.
@@ -84,7 +80,7 @@ crate struct DocContext<'tcx> {
 
 impl<'tcx> DocContext<'tcx> {
     crate fn sess(&self) -> &'tcx Session {
-        &self.tcx.sess
+        self.tcx.sess
     }
 
     crate fn with_param_env<T, F: FnOnce(&mut Self) -> T>(&mut self, def_id: DefId, f: F) -> T {
@@ -103,25 +99,13 @@ impl<'tcx> DocContext<'tcx> {
 
     /// Call the closure with the given parameters set as
     /// the substitutions for a type alias' RHS.
-    crate fn enter_alias<F, R>(
-        &mut self,
-        ty_substs: FxHashMap<DefId, clean::Type>,
-        lt_substs: FxHashMap<DefId, clean::Lifetime>,
-        ct_substs: FxHashMap<DefId, clean::Constant>,
-        f: F,
-    ) -> R
+    crate fn enter_alias<F, R>(&mut self, substs: FxHashMap<DefId, clean::SubstParam>, f: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
     {
-        let (old_tys, old_lts, old_cts) = (
-            mem::replace(&mut self.ty_substs, ty_substs),
-            mem::replace(&mut self.lt_substs, lt_substs),
-            mem::replace(&mut self.ct_substs, ct_substs),
-        );
+        let old_substs = mem::replace(&mut self.substs, substs);
         let r = f(self);
-        self.ty_substs = old_tys;
-        self.lt_substs = old_lts;
-        self.ct_substs = old_cts;
+        self.substs = old_substs;
         r
     }
 
@@ -135,6 +119,18 @@ impl<'tcx> DocContext<'tcx> {
             // FIXME: Can this be `Some` for `Auto` or `Blanket`?
             _ => None,
         }
+    }
+
+    crate fn with_all_traits(&mut self, f: impl FnOnce(&mut Self, &[DefId])) {
+        let all_traits = self.resolver_caches.all_traits.take();
+        f(self, all_traits.as_ref().expect("`all_traits` are already borrowed"));
+        self.resolver_caches.all_traits = all_traits;
+    }
+
+    crate fn with_all_trait_impls(&mut self, f: impl FnOnce(&mut Self, &[DefId])) {
+        let all_trait_impls = self.resolver_caches.all_trait_impls.take();
+        f(self, all_trait_impls.as_ref().expect("`all_trait_impls` are already borrowed"));
+        self.resolver_caches.all_trait_impls = all_trait_impls;
     }
 }
 
@@ -204,7 +200,7 @@ crate fn create_config(
         lint_opts,
         describe_lints,
         lint_cap,
-        display_warnings,
+        scrape_examples_options,
         ..
     }: RustdocOptions,
 ) -> rustc_interface::Config {
@@ -232,12 +228,13 @@ crate fn create_config(
 
     let crate_types =
         if proc_macro_crate { vec![CrateType::ProcMacro] } else { vec![CrateType::Rlib] };
+    let test = scrape_examples_options.map(|opts| opts.scrape_tests).unwrap_or(false);
     // plays with error output here!
     let sessopts = config::Options {
         maybe_sysroot,
         search_paths: libs,
         crate_types,
-        lint_opts: if !display_warnings { lint_opts } else { vec![] },
+        lint_opts,
         lint_cap,
         cg: codegen_options,
         externs,
@@ -249,22 +246,23 @@ crate fn create_config(
         edition,
         describe_lints,
         crate_name,
+        test,
         ..Options::default()
     };
 
     interface::Config {
         opts: sessopts,
         crate_cfg: interface::parse_cfgspecs(cfgs),
+        crate_check_cfg: interface::parse_check_cfg(vec![]),
         input,
         input_path: cpath,
         output_file: None,
         output_dir: None,
         file_loader: None,
         diagnostic_output: DiagnosticOutput::Default,
-        stderr: None,
         lint_caps,
         parse_sess_created: None,
-        register_lints: Some(Box::new(crate::lint::register_lints)),
+        register_lints: Some(box crate::lint::register_lints),
         override_queries: Some(|_sess, providers, _external_providers| {
             // Most lints will require typechecking, so just don't run them.
             providers.lint_mod = |_, _| {};
@@ -272,9 +270,8 @@ crate fn create_config(
             providers.typeck_item_bodies = |_, _| {};
             // hack so that `used_trait_imports` won't try to call typeck
             providers.used_trait_imports = |_, _| {
-                lazy_static! {
-                    static ref EMPTY_SET: FxHashSet<LocalDefId> = FxHashSet::default();
-                }
+                static EMPTY_SET: SyncLazy<FxHashSet<LocalDefId>> =
+                    SyncLazy::new(FxHashSet::default);
                 &EMPTY_SET
             };
             // In case typeck does end up being called, don't ICE in case there were name resolution errors
@@ -282,9 +279,9 @@ crate fn create_config(
                 // Closures' tables come from their outermost function,
                 // as they are part of the same "inference environment".
                 // This avoids emitting errors for the parent twice (see similar code in `typeck_with_fallback`)
-                let outer_def_id = tcx.closure_base_def_id(def_id.to_def_id()).expect_local();
-                if outer_def_id != def_id {
-                    return tcx.typeck(outer_def_id);
+                let typeck_root_def_id = tcx.typeck_root_def_id(def_id.to_def_id()).expect_local();
+                if typeck_root_def_id != def_id {
+                    return tcx.typeck(typeck_root_def_id);
                 }
 
                 let hir = tcx.hir();
@@ -299,21 +296,11 @@ crate fn create_config(
     }
 }
 
-crate fn create_resolver<'a>(
-    queries: &Queries<'a>,
-    sess: &Session,
-) -> Rc<RefCell<interface::BoxedResolver>> {
-    let (krate, resolver, _) = &*abort_on_err(queries.expansion(), sess).peek();
-    let resolver = resolver.clone();
-
-    crate::passes::collect_intra_doc_links::load_intra_link_crates(resolver, krate)
-}
-
 crate fn run_global_ctxt(
     tcx: TyCtxt<'_>,
     resolver: Rc<RefCell<interface::BoxedResolver>>,
-    mut default_passes: passes::DefaultPassOption,
-    manual_passes: Vec<String>,
+    resolver_caches: ResolverCaches,
+    show_coverage: bool,
     render_options: RenderOptions,
     output_format: OutputFormat,
 ) -> (clean::Crate, RenderOptions, Cache) {
@@ -330,21 +317,25 @@ crate fn run_global_ctxt(
 
     // NOTE: This is copy/pasted from typeck/lib.rs and should be kept in sync with those changes.
     tcx.sess.time("item_types_checking", || {
-        for &module in tcx.hir().krate().modules.keys() {
-            tcx.ensure().check_mod_item_types(module);
-        }
+        tcx.hir().for_each_module(|module| tcx.ensure().check_mod_item_types(module))
     });
     tcx.sess.abort_if_errors();
     tcx.sess.time("missing_docs", || {
         rustc_lint::check_crate(tcx, rustc_lint::builtin::MissingDoc::new);
     });
     tcx.sess.time("check_mod_attrs", || {
-        for &module in tcx.hir().krate().modules.keys() {
-            tcx.ensure().check_mod_attrs(module);
-        }
+        tcx.hir().for_each_module(|module| tcx.ensure().check_mod_attrs(module))
     });
     rustc_passes::stability::check_unused_or_stable_features(tcx);
 
+    let auto_traits = resolver_caches
+        .all_traits
+        .as_ref()
+        .expect("`all_traits` are already borrowed")
+        .iter()
+        .copied()
+        .filter(|&trait_def_id| tcx.trait_is_auto(trait_def_id))
+        .collect();
     let access_levels = AccessLevels {
         map: tcx.privacy_access_levels(()).map.iter().map(|(k, v)| (k.to_def_id(), *v)).collect(),
     };
@@ -352,21 +343,14 @@ crate fn run_global_ctxt(
     let mut ctxt = DocContext {
         tcx,
         resolver,
+        resolver_caches,
         param_env: ParamEnv::empty(),
         external_traits: Default::default(),
         active_extern_traits: Default::default(),
-        ty_substs: Default::default(),
-        lt_substs: Default::default(),
-        ct_substs: Default::default(),
+        substs: Default::default(),
         impl_trait_bounds: Default::default(),
         generated_synthetics: Default::default(),
-        auto_traits: tcx
-            .all_traits(())
-            .iter()
-            .cloned()
-            .filter(|trait_def_id| tcx.trait_is_auto(*trait_def_id))
-            .collect(),
-        module_trait_cache: FxHashMap::default(),
+        auto_traits,
         cache: Cache::new(access_levels, render_options.document_private),
         inlined: FxHashSet::default(),
         output_format,
@@ -411,11 +395,13 @@ crate fn run_global_ctxt(
             diag.struct_span_warn(sp, &format!("the `#![doc({})]` attribute is deprecated", name));
         msg.note(
             "see issue #44136 <https://github.com/rust-lang/rust/issues/44136> \
-             for more information",
+            for more information",
         );
 
         if name == "no_default_passes" {
-            msg.help("you may want to use `#![doc(document_private_items)]`");
+            msg.help("`#![doc(no_default_passes)]` no longer functions; you may want to use `#![doc(document_private_items)]`");
+        } else if name.starts_with("passes") {
+            msg.help("`#![doc(passes = \"...\")]` no longer functions; you may want to use `#![doc(document_private_items)]`");
         } else if name.starts_with("plugins") {
             msg.warn("`#![doc(plugins = \"...\")]` no longer functions; see CVE-2018-1000622 <https://nvd.nist.gov/vuln/detail/CVE-2018-1000622>");
         }
@@ -423,54 +409,24 @@ crate fn run_global_ctxt(
         msg.emit();
     }
 
-    let parse_pass = |name: &str, sp: Option<Span>| {
-        if let Some(pass) = passes::find_pass(name) {
-            Some(ConditionalPass::always(pass))
-        } else {
-            let msg = &format!("ignoring unknown pass `{}`", name);
-            let mut warning = if let Some(sp) = sp {
-                tcx.sess.struct_span_warn(sp, msg)
-            } else {
-                tcx.sess.struct_warn(msg)
-            };
-            if name == "collapse-docs" {
-                warning.note("the `collapse-docs` pass was removed in #80261 <https://github.com/rust-lang/rust/pull/80261>");
-            }
-            warning.emit();
-            None
-        }
-    };
-
-    let mut manual_passes: Vec<_> =
-        manual_passes.into_iter().flat_map(|name| parse_pass(&name, None)).collect();
-
     // Process all of the crate attributes, extracting plugin metadata along
     // with the passes which we are supposed to run.
     for attr in krate.module.attrs.lists(sym::doc) {
         let diag = ctxt.sess().diagnostic();
 
         let name = attr.name_or_empty();
-        if attr.is_word() {
-            if name == sym::no_default_passes {
-                report_deprecated_attr("no_default_passes", diag, attr.span());
-                if default_passes == passes::DefaultPassOption::Default {
-                    default_passes = passes::DefaultPassOption::None;
-                }
-            }
-        } else if let Some(value) = attr.value_str() {
+        // `plugins = "..."`, `no_default_passes`, and `passes = "..."` have no effect
+        if attr.is_word() && name == sym::no_default_passes {
+            report_deprecated_attr("no_default_passes", diag, attr.span());
+        } else if attr.value_str().is_some() {
             match name {
                 sym::passes => {
                     report_deprecated_attr("passes = \"...\"", diag, attr.span());
                 }
                 sym::plugins => {
                     report_deprecated_attr("plugins = \"...\"", diag, attr.span());
-                    continue;
                 }
-                _ => continue,
-            };
-            for name in value.as_str().split_whitespace() {
-                let span = attr.name_value_literal_span().unwrap_or(attr.span());
-                manual_passes.extend(parse_pass(name, Some(span)));
+                _ => (),
             }
         }
 
@@ -479,10 +435,9 @@ crate fn run_global_ctxt(
         }
     }
 
-    let passes = passes::defaults(default_passes).iter().copied().chain(manual_passes);
     info!("Executing passes");
 
-    for p in passes {
+    for p in passes::defaults(show_coverage) {
         let run = match p.condition {
             Always => true,
             WhenDocumentPrivate => ctxt.render_options.document_private,
@@ -491,20 +446,17 @@ crate fn run_global_ctxt(
         };
         if run {
             debug!("running pass {}", p.pass.name);
-            krate = ctxt.tcx.sess.time(p.pass.name, || (p.pass.run)(krate, &mut ctxt));
+            krate = tcx.sess.time(p.pass.name, || (p.pass.run)(krate, &mut ctxt));
         }
     }
 
-    ctxt.sess().abort_if_errors();
+    if tcx.sess.diagnostic().has_errors_or_lint_errors() {
+        rustc_errors::FatalError.raise();
+    }
 
-    let render_options = ctxt.render_options;
-    let mut cache = ctxt.cache;
-    krate = tcx.sess.time("create_format_cache", || cache.populate(krate, tcx, &render_options));
+    krate = tcx.sess.time("create_format_cache", || Cache::populate(&mut ctxt, krate));
 
-    // The main crate doc comments are always collapsed.
-    krate.collapsed = true;
-
-    (krate, render_options, cache)
+    (krate, ctxt.render_options, ctxt.cache)
 }
 
 /// Due to <https://github.com/rust-lang/rust/pull/73566>,
@@ -522,12 +474,12 @@ impl<'tcx> EmitIgnoredResolutionErrors<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for EmitIgnoredResolutionErrors<'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
+    fn nested_visit_map(&mut self) -> Self::Map {
         // We need to recurse into nested closures,
         // since those will fallback to the parent for type checking.
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+        self.tcx.hir()
     }
 
     fn visit_path(&mut self, path: &'tcx Path<'_>, _id: HirId) {
@@ -540,9 +492,9 @@ impl<'tcx> Visitor<'tcx> for EmitIgnoredResolutionErrors<'tcx> {
                 "could not resolve path `{}`",
                 path.segments
                     .iter()
-                    .map(|segment| segment.ident.as_str().to_string())
-                    .collect::<Vec<_>>()
-                    .join("::")
+                    .map(|segment| segment.ident.as_str())
+                    .intersperse("::")
+                    .collect::<String>()
             );
             let mut err = rustc_errors::struct_span_err!(
                 self.tcx.sess,

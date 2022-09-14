@@ -4,7 +4,9 @@ use super::expr::LhsExpr;
 use super::pat::RecoverComma;
 use super::path::PathStyle;
 use super::TrailingToken;
-use super::{AttrWrapper, BlockMode, ForceCollect, Parser, Restrictions, SemiColonMode};
+use super::{
+    AttrWrapper, BlockMode, FnParseMode, ForceCollect, Parser, Restrictions, SemiColonMode,
+};
 use crate::maybe_whole;
 
 use rustc_ast as ast;
@@ -16,7 +18,7 @@ use rustc_ast::{
 };
 use rustc_ast::{Block, BlockCheckMode, Expr, ExprKind, Local, Stmt};
 use rustc_ast::{StmtKind, DUMMY_NODE_ID};
-use rustc_errors::{Applicability, PResult};
+use rustc_errors::{Applicability, DiagnosticBuilder, PResult};
 use rustc_span::source_map::{BytePos, Span};
 use rustc_span::symbol::{kw, sym};
 
@@ -79,9 +81,13 @@ impl<'a> Parser<'a> {
             } else {
                 self.parse_stmt_path_start(lo, attrs)
             }?
-        } else if let Some(item) =
-            self.parse_item_common(attrs.clone(), false, true, |_| true, force_collect)?
-        {
+        } else if let Some(item) = self.parse_item_common(
+            attrs.clone(),
+            false,
+            true,
+            FnParseMode { req_name: |_| true, req_body: true },
+            force_collect,
+        )? {
             // FIXME: Bad copy of attrs
             self.mk_stmt(lo.to(item.span), StmtKind::Item(P(item)))
         } else if self.eat(&token::Semi) {
@@ -155,17 +161,20 @@ impl<'a> Parser<'a> {
 
         let mac = MacCall { path, args, prior_type_ascription: self.last_type_ascription };
 
-        let kind = if delim == token::Brace || self.token == token::Semi || self.token == token::Eof
-        {
-            StmtKind::MacCall(P(MacCallStmt { mac, style, attrs, tokens: None }))
-        } else {
-            // Since none of the above applied, this is an expression statement macro.
-            let e = self.mk_expr(lo.to(hi), ExprKind::MacCall(mac), AttrVec::new());
-            let e = self.maybe_recover_from_bad_qpath(e, true)?;
-            let e = self.parse_dot_or_call_expr_with(e, lo, attrs.into())?;
-            let e = self.parse_assoc_expr_with(0, LhsExpr::AlreadyParsed(e))?;
-            StmtKind::Expr(e)
-        };
+        let kind =
+            if (delim == token::Brace && self.token != token::Dot && self.token != token::Question)
+                || self.token == token::Semi
+                || self.token == token::Eof
+            {
+                StmtKind::MacCall(P(MacCallStmt { mac, style, attrs, tokens: None }))
+            } else {
+                // Since none of the above applied, this is an expression statement macro.
+                let e = self.mk_expr(lo.to(hi), ExprKind::MacCall(mac), AttrVec::new());
+                let e = self.maybe_recover_from_bad_qpath(e, true)?;
+                let e = self.parse_dot_or_call_expr_with(e, lo, attrs.into())?;
+                let e = self.parse_assoc_expr_with(0, LhsExpr::AlreadyParsed(e))?;
+                StmtKind::Expr(e)
+            };
         Ok(self.mk_stmt(lo.to(hi), kind))
     }
 
@@ -297,6 +306,12 @@ impl<'a> Parser<'a> {
             None => LocalKind::Decl,
             Some(init) => {
                 if self.eat_keyword(kw::Else) {
+                    if self.token.is_keyword(kw::If) {
+                        // `let...else if`. Emit the same error that `parse_block()` would,
+                        // but explicitly point out that this pattern is not allowed.
+                        let msg = "conditional `else if` is not supported for `let...else`";
+                        return Err(self.error_block_no_opening_brace_msg(msg));
+                    }
                     let els = self.parse_block()?;
                     self.check_let_else_init_bool_expr(&init);
                     self.check_let_else_init_trailing_brace(&init);
@@ -325,7 +340,7 @@ impl<'a> Parser<'a> {
                     ),
                 )
                 .multipart_suggestion(
-                    "wrap the expression in parenthesis",
+                    "wrap the expression in parentheses",
                     suggs,
                     Applicability::MachineApplicable,
                 )
@@ -346,7 +361,7 @@ impl<'a> Parser<'a> {
                 "right curly brace `}` before `else` in a `let...else` statement not allowed",
             )
             .multipart_suggestion(
-                "try wrapping the expression in parenthesis",
+                "try wrapping the expression in parentheses",
                 suggs,
                 Applicability::MachineApplicable,
             )
@@ -389,10 +404,9 @@ impl<'a> Parser<'a> {
         Ok(block)
     }
 
-    fn error_block_no_opening_brace<T>(&mut self) -> PResult<'a, T> {
+    fn error_block_no_opening_brace_msg(&mut self, msg: &str) -> DiagnosticBuilder<'a> {
         let sp = self.token.span;
-        let tok = super::token_descr(&self.token);
-        let mut e = self.struct_span_err(sp, &format!("expected `{{`, found {}", tok));
+        let mut e = self.struct_span_err(sp, msg);
         let do_not_suggest_help = self.token.is_keyword(kw::In) || self.token == token::Colon;
 
         // Check to see if the user has written something like
@@ -432,7 +446,13 @@ impl<'a> Parser<'a> {
             _ => {}
         }
         e.span_label(sp, "expected `{`");
-        Err(e)
+        e
+    }
+
+    fn error_block_no_opening_brace<T>(&mut self) -> PResult<'a, T> {
+        let tok = super::token_descr(&self.token);
+        let msg = format!("expected `{{`, found {}", tok);
+        Err(self.error_block_no_opening_brace_msg(&msg))
     }
 
     /// Parses a block. Inner attributes are allowed.

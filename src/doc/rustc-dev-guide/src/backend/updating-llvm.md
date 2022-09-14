@@ -67,7 +67,7 @@ Example PRs look like:
 ## Feature updates
 
 > Note that this information is as of the time of this writing <!-- date:
-2021-04 --> (April 2021). The process for updating LLVM changes with
+2021-10 --> (October 2021). The process for updating LLVM changes with
 practically all LLVM updates, so this may be out of date!
 
 Unlike bugfixes, updating to pick up a new feature of LLVM typically requires a
@@ -102,7 +102,7 @@ through each in detail.
    with updated LLVM bindings. Note that you should use `#ifdef` and such to ensure
    that the bindings still compile on older LLVM versions.
 
-   Note that `profile = "compiler"` and other defaults set by `x.py setup`
+   Note that `profile = "compiler"` and other defaults set by `./x.py setup`
    download LLVM from CI instead of building it from source. You should
    disable this temporarily to make sure your changes are being used, by setting
    ```toml

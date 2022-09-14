@@ -1,16 +1,16 @@
 use clippy_utils::diagnostics::{span_lint_and_note, span_lint_and_then};
 use clippy_utils::source::{first_line_of_span, indent_of, reindent_multiline, snippet, snippet_opt};
 use clippy_utils::{
-    both, count_eq, eq_expr_value, get_enclosing_block, get_parent_expr, if_sequence, in_macro, is_else_clause,
-    is_lint_allowed, search_same, ContainsName, SpanlessEq, SpanlessHash,
+    both, count_eq, eq_expr_value, get_enclosing_block, get_parent_expr, if_sequence, is_else_clause, is_lint_allowed,
+    search_same, ContainsName, SpanlessEq, SpanlessHash,
 };
 use if_chain::if_chain;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::{Applicability, DiagnosticBuilder};
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{Block, Expr, ExprKind, HirId};
-use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
+use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_middle::hir::nested_filter;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::{source_map::Span, symbol::Symbol, BytePos};
 use std::borrow::Cow;
@@ -41,6 +41,7 @@ declare_clippy_lint! {
     ///     …
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub IFS_SAME_COND,
     correctness,
     "consecutive `if`s with the same condition"
@@ -88,6 +89,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.41.0"]
     pub SAME_FUNCTIONS_IN_IF_CONDITION,
     pedantic,
     "consecutive `if`s with the same function call"
@@ -109,6 +111,7 @@ declare_clippy_lint! {
     ///     42
     /// };
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub IF_SAME_THEN_ELSE,
     correctness,
     "`if` with the same `then` and `else` blocks"
@@ -147,8 +150,9 @@ declare_clippy_lint! {
     ///     42
     /// };
     /// ```
+    #[clippy::version = "1.53.0"]
     pub BRANCHES_SHARING_CODE,
-    complexity,
+    nursery,
     "`if` statement with shared code in all blocks"
 }
 
@@ -179,7 +183,7 @@ impl<'tcx> LateLintPass<'tcx> for CopyAndPaste {
                 lint_same_cond(cx, &conds);
                 lint_same_fns_in_if_cond(cx, &conds);
                 // Block duplication
-                lint_same_then_else(cx, &blocks, conds.len() == blocks.len(), expr);
+                lint_same_then_else(cx, &conds, &blocks, conds.len() == blocks.len(), expr);
             }
         }
     }
@@ -188,6 +192,7 @@ impl<'tcx> LateLintPass<'tcx> for CopyAndPaste {
 /// Implementation of `BRANCHES_SHARING_CODE` and `IF_SAME_THEN_ELSE` if the blocks are equal.
 fn lint_same_then_else<'tcx>(
     cx: &LateContext<'tcx>,
+    conds: &[&'tcx Expr<'_>],
     blocks: &[&Block<'tcx>],
     has_conditional_else: bool,
     expr: &'tcx Expr<'_>,
@@ -200,7 +205,7 @@ fn lint_same_then_else<'tcx>(
     // Check if each block has shared code
     let has_expr = blocks[0].expr.is_some();
 
-    let (start_eq, mut end_eq, expr_eq) = if let Some(block_eq) = scan_block_for_eq(cx, blocks) {
+    let (start_eq, mut end_eq, expr_eq) = if let Some(block_eq) = scan_block_for_eq(cx, conds, blocks) {
         (block_eq.start_eq, block_eq.end_eq, block_eq.expr_eq)
     } else {
         return;
@@ -312,14 +317,14 @@ struct BlockEqual {
 
 /// This function can also trigger the `IF_SAME_THEN_ELSE` in which case it'll return `None` to
 /// abort any further processing and avoid duplicate lint triggers.
-fn scan_block_for_eq(cx: &LateContext<'tcx>, blocks: &[&Block<'tcx>]) -> Option<BlockEqual> {
+fn scan_block_for_eq(cx: &LateContext<'_>, conds: &[&Expr<'_>], blocks: &[&Block<'_>]) -> Option<BlockEqual> {
     let mut start_eq = usize::MAX;
     let mut end_eq = usize::MAX;
     let mut expr_eq = true;
-    let mut iter = blocks.windows(2);
-    while let Some(&[win0, win1]) = iter.next() {
-        let l_stmts = win0.stmts;
-        let r_stmts = win1.stmts;
+    let mut iter = blocks.windows(2).enumerate();
+    while let Some((i, &[block0, block1])) = iter.next() {
+        let l_stmts = block0.stmts;
+        let r_stmts = block1.stmts;
 
         // `SpanlessEq` now keeps track of the locals and is therefore context sensitive clippy#6752.
         // The comparison therefore needs to be done in a way that builds the correct context.
@@ -336,22 +341,26 @@ fn scan_block_for_eq(cx: &LateContext<'tcx>, blocks: &[&Block<'tcx>]) -> Option<
             it1.zip(it2)
                 .fold(0, |acc, (l, r)| if evaluator.eq_stmt(l, r) { acc + 1 } else { 0 })
         };
-        let block_expr_eq = both(&win0.expr, &win1.expr, |l, r| evaluator.eq_expr(l, r));
+        let block_expr_eq = both(&block0.expr, &block1.expr, |l, r| evaluator.eq_expr(l, r));
 
         // IF_SAME_THEN_ELSE
         if_chain! {
             if block_expr_eq;
             if l_stmts.len() == r_stmts.len();
             if l_stmts.len() == current_start_eq;
-            if !is_lint_allowed(cx, IF_SAME_THEN_ELSE, win0.hir_id);
-            if !is_lint_allowed(cx, IF_SAME_THEN_ELSE, win1.hir_id);
+            // `conds` may have one last item than `blocks`.
+            // Any `i` from `blocks.windows(2)` will exist in `conds`, but `i+1` may not exist on the last iteration.
+            if !matches!(conds[i].kind, ExprKind::Let(..));
+            if !matches!(conds.get(i + 1).map(|e| &e.kind), Some(ExprKind::Let(..)));
+            if !is_lint_allowed(cx, IF_SAME_THEN_ELSE, block0.hir_id);
+            if !is_lint_allowed(cx, IF_SAME_THEN_ELSE, block1.hir_id);
             then {
                 span_lint_and_note(
                     cx,
                     IF_SAME_THEN_ELSE,
-                    win0.span,
+                    block0.span,
                     "this `if` has identical blocks",
-                    Some(win1.span),
+                    Some(block1.span),
                     "same as this",
                 );
 
@@ -381,11 +390,7 @@ fn scan_block_for_eq(cx: &LateContext<'tcx>, blocks: &[&Block<'tcx>]) -> Option<
     })
 }
 
-fn check_for_warn_of_moved_symbol(
-    cx: &LateContext<'tcx>,
-    symbols: &FxHashSet<Symbol>,
-    if_expr: &'tcx Expr<'_>,
-) -> bool {
+fn check_for_warn_of_moved_symbol(cx: &LateContext<'_>, symbols: &FxHashSet<Symbol>, if_expr: &Expr<'_>) -> bool {
     get_enclosing_block(cx, if_expr.hir_id).map_or(false, |block| {
         let ignore_span = block.span.shrink_to_lo().to(if_expr.span);
 
@@ -415,13 +420,13 @@ fn check_for_warn_of_moved_symbol(
 }
 
 fn emit_branches_sharing_code_lint(
-    cx: &LateContext<'tcx>,
+    cx: &LateContext<'_>,
     start_stmts: usize,
     end_stmts: usize,
     lint_end: bool,
     warn_about_moved_symbol: bool,
-    blocks: &[&Block<'tcx>],
-    if_expr: &'tcx Expr<'_>,
+    blocks: &[&Block<'_>],
+    if_expr: &Expr<'_>,
 ) {
     if start_stmts == 0 && !lint_end {
         return;
@@ -432,10 +437,11 @@ fn emit_branches_sharing_code_lint(
     let mut add_expr_note = false;
 
     // Construct suggestions
+    let sm = cx.sess().source_map();
     if start_stmts > 0 {
         let block = blocks[0];
         let span_start = first_line_of_span(cx, if_expr.span).shrink_to_lo();
-        let span_end = block.stmts[start_stmts - 1].span.source_callsite();
+        let span_end = sm.stmt_span(block.stmts[start_stmts - 1].span, block.span);
 
         let cond_span = first_line_of_span(cx, if_expr.span).until(block.span);
         let cond_snippet = reindent_multiline(snippet(cx, cond_span, "_"), false, None);
@@ -454,15 +460,14 @@ fn emit_branches_sharing_code_lint(
         let span_end = block.span.shrink_to_hi();
 
         let moved_start = if end_stmts == 0 && block.expr.is_some() {
-            block.expr.unwrap().span
+            block.expr.unwrap().span.source_callsite()
         } else {
-            block.stmts[block.stmts.len() - end_stmts].span
-        }
-        .source_callsite();
-        let moved_end = block
-            .expr
-            .map_or_else(|| block.stmts[block.stmts.len() - 1].span, |expr| expr.span)
-            .source_callsite();
+            sm.stmt_span(block.stmts[block.stmts.len() - end_stmts].span, block.span)
+        };
+        let moved_end = block.expr.map_or_else(
+            || sm.stmt_span(block.stmts[block.stmts.len() - 1].span, block.span),
+            |expr| expr.span.source_callsite(),
+        );
 
         let moved_span = moved_start.to(moved_end);
         let moved_snipped = reindent_multiline(snippet(cx, moved_span, "_"), true, None);
@@ -472,7 +477,7 @@ fn emit_branches_sharing_code_lint(
 
         let mut span = moved_start.to(span_end);
         // Improve formatting if the inner block has indention (i.e. normal Rust formatting)
-        let test_span = Span::new(span.lo() - BytePos(4), span.lo(), span.ctxt());
+        let test_span = Span::new(span.lo() - BytePos(4), span.lo(), span.ctxt(), span.parent());
         if snippet_opt(cx, test_span)
             .map(|snip| snip == "    ")
             .unwrap_or_default()
@@ -561,10 +566,10 @@ impl<'a, 'tcx> UsedValueFinderVisitor<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for UsedValueFinderVisitor<'a, 'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::All;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::All(self.cx.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.cx.tcx.hir()
     }
 
     fn visit_local(&mut self, l: &'tcx rustc_hir::Local<'tcx>) {
@@ -623,7 +628,7 @@ fn lint_same_fns_in_if_cond(cx: &LateContext<'_>, conds: &[&Expr<'_>]) {
 
     let eq: &dyn Fn(&&Expr<'_>, &&Expr<'_>) -> bool = &|&lhs, &rhs| -> bool {
         // Do not lint if any expr originates from a macro
-        if in_macro(lhs.span) || in_macro(rhs.span) {
+        if lhs.span.from_expansion() || rhs.span.from_expansion() {
             return false;
         }
         // Do not spawn warning if `IFS_SAME_COND` already produced it.

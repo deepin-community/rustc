@@ -46,7 +46,7 @@ pub use core::str::pattern;
 pub use core::str::EncodeUtf16;
 #[stable(feature = "split_ascii_whitespace", since = "1.34.0")]
 pub use core::str::SplitAsciiWhitespace;
-#[stable(feature = "split_inclusive", since = "1.53.0")]
+#[stable(feature = "split_inclusive", since = "1.51.0")]
 pub use core::str::SplitInclusive;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::str::SplitWhitespace;
@@ -178,12 +178,20 @@ where
 
     unsafe {
         let pos = result.len();
-        let target = result.get_unchecked_mut(pos..reserved_len);
+        let target = result.spare_capacity_mut().get_unchecked_mut(..reserved_len - pos);
+
+        // Convert the separator and slices to slices of MaybeUninit
+        // to simplify implementation in specialize_for_lengths
+        let sep_uninit = core::slice::from_raw_parts(sep.as_ptr().cast(), sep.len());
+        let iter_uninit = iter.map(|it| {
+            let it = it.borrow().as_ref();
+            core::slice::from_raw_parts(it.as_ptr().cast(), it.len())
+        });
 
         // copy separator and slices over without bounds checks
         // generate loops with hardcoded offsets for small separators
         // massive improvements possible (~ x2)
-        let remain = specialize_for_lengths!(sep, target, iter; 0, 1, 2, 3, 4);
+        let remain = specialize_for_lengths!(sep_uninit, target, iter_uninit; 0, 1, 2, 3, 4);
 
         // A weird borrow implementation may return different
         // slices for the length calculation and the actual copy.
@@ -243,6 +251,7 @@ impl str {
     /// assert_eq!(*boxed_bytes, *s.as_bytes());
     /// ```
     #[stable(feature = "str_box_extras", since = "1.20.0")]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[inline]
     pub fn into_boxed_bytes(self: Box<str>) -> Box<[u8]> {
         self.into()
@@ -367,6 +376,8 @@ impl str {
     /// assert_eq!(new_year, new_year.to_lowercase());
     /// ```
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "this returns the lowercase string as a new String, \
+                  without modifying the original"]
     #[stable(feature = "unicode_case_mapping", since = "1.2.0")]
     pub fn to_lowercase(&self) -> String {
         let mut s = String::with_capacity(self.len());
@@ -447,6 +458,8 @@ impl str {
     /// assert_eq!("TSCHÜSS", s.to_uppercase());
     /// ```
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "this returns the uppercase string as a new String, \
+                  without modifying the original"]
     #[stable(feature = "unicode_case_mapping", since = "1.2.0")]
     pub fn to_uppercase(&self) -> String {
         let mut s = String::with_capacity(self.len());
@@ -480,6 +493,7 @@ impl str {
     /// assert_eq!(boxed_str.into_string(), string);
     /// ```
     #[stable(feature = "box_str", since = "1.4.0")]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[inline]
     pub fn into_string(self: Box<str>) -> String {
         let slice = Box::<[u8]>::from(self);
@@ -504,9 +518,10 @@ impl str {
     ///
     /// ```should_panic
     /// // this will panic at runtime
-    /// "0123456789abcdef".repeat(usize::MAX);
+    /// let huge = "0123456789abcdef".repeat(usize::MAX);
     /// ```
     #[cfg(not(no_global_oom_handling))]
+    #[must_use]
     #[stable(feature = "repeat_str", since = "1.16.0")]
     pub fn repeat(&self, n: usize) -> String {
         unsafe { String::from_utf8_unchecked(self.as_bytes().repeat(n)) }
@@ -534,6 +549,7 @@ impl str {
     /// [`make_ascii_uppercase`]: str::make_ascii_uppercase
     /// [`to_uppercase`]: #method.to_uppercase
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "to uppercase the value in-place, use `make_ascii_uppercase()`"]
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
     #[inline]
     pub fn to_ascii_uppercase(&self) -> String {
@@ -565,6 +581,7 @@ impl str {
     /// [`make_ascii_lowercase`]: str::make_ascii_lowercase
     /// [`to_lowercase`]: #method.to_lowercase
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "to lowercase the value in-place, use `make_ascii_lowercase()`"]
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
     #[inline]
     pub fn to_ascii_lowercase(&self) -> String {
@@ -589,6 +606,7 @@ impl str {
 /// assert_eq!("☺", &*smile);
 /// ```
 #[stable(feature = "str_box_extras", since = "1.20.0")]
+#[must_use]
 #[inline]
 pub unsafe fn from_boxed_utf8_unchecked(v: Box<[u8]>) -> Box<str> {
     unsafe { Box::from_raw(Box::into_raw(v) as *mut str) }

@@ -1,3 +1,4 @@
+use std::assert_matches::assert_matches;
 use std::borrow::Cow;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::{from_utf8, from_utf8_unchecked};
@@ -161,7 +162,7 @@ fn test_join_for_different_lengths_with_long_separator() {
 }
 
 #[test]
-fn test_join_isue_80335() {
+fn test_join_issue_80335() {
     use core::{borrow::Borrow, cell::Cell};
 
     struct WeirdBorrow {
@@ -884,6 +885,33 @@ fn test_is_utf8() {
 }
 
 #[test]
+fn test_const_is_utf8() {
+    const _: () = {
+        // deny overlong encodings
+        assert!(from_utf8(&[0xc0, 0x80]).is_err());
+        assert!(from_utf8(&[0xc0, 0xae]).is_err());
+        assert!(from_utf8(&[0xe0, 0x80, 0x80]).is_err());
+        assert!(from_utf8(&[0xe0, 0x80, 0xaf]).is_err());
+        assert!(from_utf8(&[0xe0, 0x81, 0x81]).is_err());
+        assert!(from_utf8(&[0xf0, 0x82, 0x82, 0xac]).is_err());
+        assert!(from_utf8(&[0xf4, 0x90, 0x80, 0x80]).is_err());
+
+        // deny surrogates
+        assert!(from_utf8(&[0xED, 0xA0, 0x80]).is_err());
+        assert!(from_utf8(&[0xED, 0xBF, 0xBF]).is_err());
+
+        assert!(from_utf8(&[0xC2, 0x80]).is_ok());
+        assert!(from_utf8(&[0xDF, 0xBF]).is_ok());
+        assert!(from_utf8(&[0xE0, 0xA0, 0x80]).is_ok());
+        assert!(from_utf8(&[0xED, 0x9F, 0xBF]).is_ok());
+        assert!(from_utf8(&[0xEE, 0x80, 0x80]).is_ok());
+        assert!(from_utf8(&[0xEF, 0xBF, 0xBF]).is_ok());
+        assert!(from_utf8(&[0xF0, 0x90, 0x80, 0x80]).is_ok());
+        assert!(from_utf8(&[0xF4, 0x8F, 0xBF, 0xBF]).is_ok());
+    };
+}
+
+#[test]
 fn from_utf8_mostly_ascii() {
     // deny invalid bytes embedded in long stretches of ascii
     for i in 32..64 {
@@ -896,12 +924,42 @@ fn from_utf8_mostly_ascii() {
 }
 
 #[test]
+fn const_from_utf8_mostly_ascii() {
+    const _: () = {
+        // deny invalid bytes embedded in long stretches of ascii
+        let mut i = 32;
+        while i < 64 {
+            let mut data = [0; 128];
+            data[i] = 0xC0;
+            assert!(from_utf8(&data).is_err());
+            data[i] = 0xC2;
+            assert!(from_utf8(&data).is_err());
+
+            i = i + 1;
+        }
+    };
+}
+
+#[test]
 fn from_utf8_error() {
     macro_rules! test {
-        ($input: expr, $expected_valid_up_to: expr, $expected_error_len: expr) => {
+        ($input: expr, $expected_valid_up_to:pat, $expected_error_len:pat) => {
             let error = from_utf8($input).unwrap_err();
-            assert_eq!(error.valid_up_to(), $expected_valid_up_to);
-            assert_eq!(error.error_len(), $expected_error_len);
+            assert_matches!(error.valid_up_to(), $expected_valid_up_to);
+            assert_matches!(error.error_len(), $expected_error_len);
+
+            const _: () = {
+                match from_utf8($input) {
+                    Err(error) => {
+                        let valid_up_to = error.valid_up_to();
+                        let error_len = error.error_len();
+
+                        assert!(matches!(valid_up_to, $expected_valid_up_to));
+                        assert!(matches!(error_len, $expected_error_len));
+                    }
+                    Ok(_) => unreachable!(),
+                }
+            };
         };
     }
     test!(b"A\xC3\xA9 \xFF ", 4, Some(1));
@@ -1031,7 +1089,7 @@ fn test_split_at_mut() {
 #[should_panic]
 fn test_split_at_boundscheck() {
     let s = "ศไทย中华Việt Nam";
-    s.split_at(1);
+    let _ = s.split_at(1);
 }
 
 #[test]
@@ -1117,6 +1175,37 @@ fn test_rev_iterator() {
 
     let mut pos = 0;
     let it = s.chars().rev();
+
+    for c in it {
+        assert_eq!(c, v[pos]);
+        pos += 1;
+    }
+    assert_eq!(pos, v.len());
+}
+
+#[test]
+fn test_to_lowercase_rev_iterator() {
+    let s = "AÖßÜ💩ΣΤΙΓΜΑΣǅﬁİ";
+    let v = ['\u{307}', 'i', 'ﬁ', 'ǆ', 'σ', 'α', 'μ', 'γ', 'ι', 'τ', 'σ', '💩', 'ü', 'ß', 'ö', 'a'];
+
+    let mut pos = 0;
+    let it = s.chars().flat_map(|c| c.to_lowercase()).rev();
+
+    for c in it {
+        assert_eq!(c, v[pos]);
+        pos += 1;
+    }
+    assert_eq!(pos, v.len());
+}
+
+#[test]
+fn test_to_uppercase_rev_iterator() {
+    let s = "aößü💩στιγμαςǅﬁᾀ";
+    let v =
+        ['Ι', 'Ἀ', 'I', 'F', 'Ǆ', 'Σ', 'Α', 'Μ', 'Γ', 'Ι', 'Τ', 'Σ', '💩', 'Ü', 'S', 'S', 'Ö', 'A'];
+
+    let mut pos = 0;
+    let it = s.chars().flat_map(|c| c.to_uppercase()).rev();
 
     for c in it {
         assert_eq!(c, v[pos]);
@@ -2140,4 +2229,138 @@ fn utf8_chars() {
     assert!((!from_utf8(&[0xf0, 0x10]).is_ok()));
     assert!((!from_utf8(&[0xf0, 0xff, 0x10]).is_ok()));
     assert!((!from_utf8(&[0xf0, 0xff, 0xff, 0x10]).is_ok()));
+}
+
+#[test]
+fn utf8_char_counts() {
+    let strs = [("e", 1), ("é", 1), ("€", 1), ("\u{10000}", 1), ("eé€\u{10000}", 4)];
+    let mut reps =
+        [8, 64, 256, 512, 1024].iter().copied().flat_map(|n| n - 8..=n + 8).collect::<Vec<usize>>();
+    if cfg!(not(miri)) {
+        let big = 1 << 16;
+        reps.extend(big - 8..=big + 8);
+    }
+    let counts = if cfg!(miri) { 0..1 } else { 0..8 };
+    let padding = counts.map(|len| " ".repeat(len)).collect::<Vec<String>>();
+
+    for repeat in reps {
+        for (tmpl_str, tmpl_char_count) in strs {
+            for pad_start in &padding {
+                for pad_end in &padding {
+                    // Create a string with padding...
+                    let with_padding =
+                        format!("{}{}{}", pad_start, tmpl_str.repeat(repeat), pad_end);
+                    // ...and then skip past that padding. This should ensure
+                    // that we test several different alignments for both head
+                    // and tail.
+                    let si = pad_start.len();
+                    let ei = with_padding.len() - pad_end.len();
+                    let target = &with_padding[si..ei];
+
+                    assert!(!target.starts_with(" ") && !target.ends_with(" "));
+                    let expected_count = tmpl_char_count * repeat;
+                    assert_eq!(
+                        expected_count,
+                        target.chars().count(),
+                        "wrong count for `{:?}.repeat({})` (padding: `{:?}`)",
+                        tmpl_str,
+                        repeat,
+                        (pad_start.len(), pad_end.len()),
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn floor_char_boundary() {
+    fn check_many(s: &str, arg: impl IntoIterator<Item = usize>, ret: usize) {
+        for idx in arg {
+            assert_eq!(
+                s.floor_char_boundary(idx),
+                ret,
+                "{:?}.floor_char_boundary({:?}) != {:?}",
+                s,
+                idx,
+                ret
+            );
+        }
+    }
+
+    // edge case
+    check_many("", [0, 1, isize::MAX as usize, usize::MAX], 0);
+
+    // basic check
+    check_many("x", [0], 0);
+    check_many("x", [1, isize::MAX as usize, usize::MAX], 1);
+
+    // 1-byte chars
+    check_many("jp", [0], 0);
+    check_many("jp", [1], 1);
+    check_many("jp", 2..4, 2);
+
+    // 2-byte chars
+    check_many("ĵƥ", 0..2, 0);
+    check_many("ĵƥ", 2..4, 2);
+    check_many("ĵƥ", 4..6, 4);
+
+    // 3-byte chars
+    check_many("日本", 0..3, 0);
+    check_many("日本", 3..6, 3);
+    check_many("日本", 6..8, 6);
+
+    // 4-byte chars
+    check_many("🇯🇵", 0..4, 0);
+    check_many("🇯🇵", 4..8, 4);
+    check_many("🇯🇵", 8..10, 8);
+}
+
+#[test]
+fn ceil_char_boundary() {
+    fn check_many(s: &str, arg: impl IntoIterator<Item = usize>, ret: usize) {
+        for idx in arg {
+            assert_eq!(
+                s.ceil_char_boundary(idx),
+                ret,
+                "{:?}.ceil_char_boundary({:?}) != {:?}",
+                s,
+                idx,
+                ret
+            );
+        }
+    }
+
+    // edge case
+    check_many("", [0], 0);
+
+    // basic check
+    check_many("x", [0], 0);
+    check_many("x", [1], 1);
+
+    // 1-byte chars
+    check_many("jp", [0], 0);
+    check_many("jp", [1], 1);
+    check_many("jp", [2], 2);
+
+    // 2-byte chars
+    check_many("ĵƥ", 0..=0, 0);
+    check_many("ĵƥ", 1..=2, 2);
+    check_many("ĵƥ", 3..=4, 4);
+
+    // 3-byte chars
+    check_many("日本", 0..=0, 0);
+    check_many("日本", 1..=3, 3);
+    check_many("日本", 4..=6, 6);
+
+    // 4-byte chars
+    check_many("🇯🇵", 0..=0, 0);
+    check_many("🇯🇵", 1..=4, 4);
+    check_many("🇯🇵", 5..=8, 8);
+}
+
+#[test]
+#[should_panic]
+fn ceil_char_boundary_above_len_panic() {
+    let _ = "x".ceil_char_boundary(2);
 }

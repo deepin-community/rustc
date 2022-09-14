@@ -8,7 +8,7 @@ use rustc_span::sym;
 
 declare_clippy_lint! {
     /// ### What it does
-    /// it lints if an exported function, method, trait method with default impl,
+    /// It lints if an exported function, method, trait method with default impl,
     /// or trait method impl is not `#[inline]`.
     ///
     /// ### Why is this bad?
@@ -52,6 +52,7 @@ declare_clippy_lint! {
     ///    fn def_bar() {} // missing #[inline]
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub MISSING_INLINE_IN_PUBLIC_ITEMS,
     restriction,
     "detects missing `#[inline]` attribute for public callables (functions, trait methods, methods...)"

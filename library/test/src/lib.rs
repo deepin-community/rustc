@@ -13,22 +13,14 @@
 // running tests while providing a base that other test frameworks may
 // build off of.
 
-// N.B., this is also specified in this crate's Cargo.toml, but librustc_ast contains logic specific to
-// this crate, which relies on this attribute (rather than the value of `--crate-name` passed by
-// cargo) to detect this crate.
-
-#![crate_name = "test"]
 #![unstable(feature = "test", issue = "50297")]
 #![doc(test(attr(deny(warnings))))]
-#![feature(libc)]
-#![feature(rustc_private)]
 #![feature(nll)]
-#![feature(available_concurrency)]
 #![feature(bench_black_box)]
 #![feature(internal_output_capture)]
-#![feature(panic_unwind)]
 #![feature(staged_api)]
 #![feature(termination_trait_lib)]
+#![feature(process_exitcode_placeholder)]
 #![feature(test)]
 #![feature(total_cmp)]
 
@@ -91,6 +83,7 @@ mod tests;
 use event::{CompletedTest, TestEvent};
 use helpers::concurrency::get_concurrency;
 use helpers::exit_code::get_exit_code;
+use helpers::shuffle::{get_shuffle_seed, shuffle_tests};
 use options::{Concurrent, RunStrategy};
 use test_result::*;
 use time::TestExecTime;
@@ -190,7 +183,7 @@ fn make_owned_test(test: &&TestDescAndFn) -> TestDescAndFn {
 /// Tests is considered a failure. By default, invokes `report()`
 /// and checks for a `0` result.
 pub fn assert_test_result<T: Termination>(result: T) {
-    let code = result.report();
+    let code = result.report().to_i32();
     assert_eq!(
         code, 0,
         "the test returned a termination value with a non-zero status code ({}) \
@@ -247,7 +240,9 @@ where
 
     let filtered_descs = filtered_tests.iter().map(|t| t.desc.clone()).collect();
 
-    let event = TestEvent::TeFiltered(filtered_descs);
+    let shuffle_seed = get_shuffle_seed(opts);
+
+    let event = TestEvent::TeFiltered(filtered_descs, shuffle_seed);
     notify_about_test_event(event)?;
 
     let (filtered_tests, filtered_benchs): (Vec<_>, _) = filtered_tests
@@ -259,7 +254,11 @@ where
     let concurrency = opts.test_threads.unwrap_or_else(get_concurrency);
 
     let mut remaining = filtered_tests;
-    remaining.reverse();
+    if let Some(shuffle_seed) = shuffle_seed {
+        shuffle_tests(shuffle_seed, &mut remaining);
+    } else {
+        remaining.reverse();
+    }
     let mut pending = 0;
 
     let (tx, rx) = channel::<CompletedTest>();
@@ -437,8 +436,8 @@ pub fn convert_benchmarks_to_tests(tests: Vec<TestDescAndFn>) -> Vec<TestDescAnd
         .into_iter()
         .map(|x| {
             let testfn = match x.testfn {
-                DynBenchFn(bench) => DynTestFn(Box::new(move || {
-                    bench::run_once(|b| __rust_begin_short_backtrace(|| bench.run(b)))
+                DynBenchFn(benchfn) => DynTestFn(Box::new(move || {
+                    bench::run_once(|b| __rust_begin_short_backtrace(|| benchfn(b)))
                 })),
                 StaticBenchFn(benchfn) => DynTestFn(Box::new(move || {
                     bench::run_once(|b| __rust_begin_short_backtrace(|| benchfn(b)))
@@ -463,7 +462,7 @@ pub fn run_test(
 
     // Emscripten can catch panics but other wasm targets cannot
     let ignore_because_no_process_support = desc.should_panic != ShouldPanic::No
-        && cfg!(target_arch = "wasm32")
+        && cfg!(target_family = "wasm")
         && !cfg!(target_os = "emscripten");
 
     if force_ignore || desc.ignore || ignore_because_no_process_support {
@@ -512,7 +511,7 @@ pub fn run_test(
         // If the platform is single-threaded we're just going to run
         // the test synchronously, regardless of the concurrency
         // level.
-        let supports_threads = !cfg!(target_os = "emscripten") && !cfg!(target_arch = "wasm32");
+        let supports_threads = !cfg!(target_os = "emscripten") && !cfg!(target_family = "wasm");
         if concurrency == Concurrent::Yes && supports_threads {
             let cfg = thread::Builder::new().name(name.as_slice().to_owned());
             let mut runtest = Arc::new(Mutex::new(Some(runtest)));
@@ -537,11 +536,9 @@ pub fn run_test(
         TestRunOpts { strategy, nocapture: opts.nocapture, concurrency, time: opts.time_options };
 
     match testfn {
-        DynBenchFn(bencher) => {
+        DynBenchFn(benchfn) => {
             // Benchmarks aren't expected to panic, so we run them all in-process.
-            crate::bench::benchmark(id, desc, monitor_ch, opts.nocapture, |harness| {
-                bencher.run(harness)
-            });
+            crate::bench::benchmark(id, desc, monitor_ch, opts.nocapture, benchfn);
             None
         }
         StaticBenchFn(benchfn) => {

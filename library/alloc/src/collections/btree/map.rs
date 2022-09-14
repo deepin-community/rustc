@@ -1,3 +1,4 @@
+use crate::vec::Vec;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
@@ -9,27 +10,31 @@ use core::ops::{Index, RangeBounds};
 use core::ptr;
 
 use super::borrow::DormantMutRef;
+use super::dedup_sorted_iter::DedupSortedIter;
 use super::navigate::{LazyLeafRange, LeafRange};
 use super::node::{self, marker, ForceResult::*, Handle, NodeRef, Root};
 use super::search::SearchResult::*;
 
 mod entry;
+
+#[stable(feature = "rust1", since = "1.0.0")]
 pub use entry::{Entry, OccupiedEntry, OccupiedError, VacantEntry};
+
 use Entry::*;
 
-/// Minimum number of elements in nodes that are not a root.
+/// Minimum number of elements in a node that is not a root.
 /// We might temporarily have fewer elements during methods.
 pub(super) const MIN_LEN: usize = node::MIN_LEN_AFTER_SPLIT;
 
 // A tree in a `BTreeMap` is a tree in the `node` module with additional invariants:
 // - Keys must appear in ascending order (according to the key's type).
-// - If the root node is internal, it must contain at least 1 element.
+// - Every non-leaf node contains at least 1 element (has at least 2 children).
 // - Every non-root node contains at least MIN_LEN elements.
 //
-// An empty map may be represented both by the absence of a root node or by a
+// An empty map is represented either by the absence of a root node or by a
 // root node that is an empty leaf.
 
-/// A map based on a [B-Tree].
+/// An ordered map based on a [B-Tree].
 ///
 /// B-Trees represent a fundamental compromise between cache-efficiency and actually minimizing
 /// the amount of work performed in a search. In theory, a binary search tree (BST) is the optimal
@@ -53,15 +58,19 @@ pub(super) const MIN_LEN: usize = node::MIN_LEN_AFTER_SPLIT;
 /// performance on *small* nodes of elements which are cheap to compare. However in the future we
 /// would like to further explore choosing the optimal search strategy based on the choice of B,
 /// and possibly other factors. Using linear search, searching for a random element is expected
-/// to take O(B * log(n)) comparisons, which is generally worse than a BST. In practice,
+/// to take B * log(n) comparisons, which is generally worse than a BST. In practice,
 /// however, performance is excellent.
 ///
 /// It is a logic error for a key to be modified in such a way that the key's ordering relative to
 /// any other key, as determined by the [`Ord`] trait, changes while it is in the map. This is
 /// normally only possible through [`Cell`], [`RefCell`], global state, I/O, or unsafe code.
-/// The behavior resulting from such a logic error is not specified, but will not result in
-/// undefined behavior. This could include panics, incorrect results, aborts, memory leaks, and
-/// non-termination.
+/// The behavior resulting from such a logic error is not specified (it could include panics,
+/// incorrect results, aborts, memory leaks, or non-termination) but will not be undefined
+/// behavior.
+///
+/// Iterators obtained from functions such as [`BTreeMap::iter`], [`BTreeMap::values`], or
+/// [`BTreeMap::keys`] produce their items in order by key, and take worst-case logarithmic and
+/// amortized constant time per item returned.
 ///
 /// [B-Tree]: https://en.wikipedia.org/wiki/B-tree
 /// [`Cell`]: core::cell::Cell
@@ -286,6 +295,7 @@ where
 /// documentation for more.
 ///
 /// [`iter`]: BTreeMap::iter
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Iter<'a, K: 'a, V: 'a> {
     range: LazyLeafRange<marker::Immut<'a>, K, V>,
@@ -314,6 +324,7 @@ pub struct IterMut<'a, K: 'a, V: 'a> {
     _marker: PhantomData<&'a mut (K, V)>,
 }
 
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "collection_debug", since = "1.17.0")]
 impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for IterMut<'_, K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -325,9 +336,10 @@ impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for IterMut<'_, K, V> {
 /// An owning iterator over the entries of a `BTreeMap`.
 ///
 /// This `struct` is created by the [`into_iter`] method on [`BTreeMap`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
 #[stable(feature = "rust1", since = "1.0.0")]
 #[rustc_insignificant_dtor]
 pub struct IntoIter<K, V> {
@@ -356,6 +368,7 @@ impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for IntoIter<K, V> {
 /// documentation for more.
 ///
 /// [`keys`]: BTreeMap::keys
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Keys<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
@@ -374,6 +387,7 @@ impl<K: fmt::Debug, V> fmt::Debug for Keys<'_, K, V> {
 /// documentation for more.
 ///
 /// [`values`]: BTreeMap::values
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Values<'a, K: 'a, V: 'a> {
     inner: Iter<'a, K, V>,
@@ -392,6 +406,7 @@ impl<K, V: fmt::Debug> fmt::Debug for Values<'_, K, V> {
 /// documentation for more.
 ///
 /// [`values_mut`]: BTreeMap::values_mut
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "map_values_mut", since = "1.10.0")]
 pub struct ValuesMut<'a, K: 'a, V: 'a> {
     inner: IterMut<'a, K, V>,
@@ -410,6 +425,7 @@ impl<K, V: fmt::Debug> fmt::Debug for ValuesMut<'_, K, V> {
 /// See its documentation for more.
 ///
 /// [`into_keys`]: BTreeMap::into_keys
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "map_into_keys_values", since = "1.54.0")]
 pub struct IntoKeys<K, V> {
     inner: IntoIter<K, V>,
@@ -428,6 +444,7 @@ impl<K: fmt::Debug, V> fmt::Debug for IntoKeys<K, V> {
 /// See its documentation for more.
 ///
 /// [`into_values`]: BTreeMap::into_values
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "map_into_keys_values", since = "1.54.0")]
 pub struct IntoValues<K, V> {
     inner: IntoIter<K, V>,
@@ -446,6 +463,7 @@ impl<K, V: fmt::Debug> fmt::Debug for IntoValues<K, V> {
 /// documentation for more.
 ///
 /// [`range`]: BTreeMap::range
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "btree_range", since = "1.17.0")]
 pub struct Range<'a, K: 'a, V: 'a> {
     inner: LeafRange<marker::Immut<'a>, K, V>,
@@ -464,6 +482,7 @@ impl<K: fmt::Debug, V: fmt::Debug> fmt::Debug for Range<'_, K, V> {
 /// documentation for more.
 ///
 /// [`range_mut`]: BTreeMap::range_mut
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "btree_range", since = "1.17.0")]
 pub struct RangeMut<'a, K: 'a, V: 'a> {
     inner: LeafRange<marker::ValMut<'a>, K, V>,
@@ -499,6 +518,7 @@ impl<K, V> BTreeMap<K, V> {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_const_unstable(feature = "const_btree_new", issue = "71835")]
+    #[must_use]
     pub const fn new() -> BTreeMap<K, V> {
         BTreeMap { root: None, length: 0 }
     }
@@ -1078,10 +1098,8 @@ impl<K, V> BTreeMap<K, V> {
     /// ```
     /// use std::collections::BTreeMap;
     ///
-    /// let mut map: BTreeMap<&str, i32> = ["Alice", "Bob", "Carol", "Cheryl"]
-    ///     .iter()
-    ///     .map(|&s| (s, 0))
-    ///     .collect();
+    /// let mut map: BTreeMap<&str, i32> =
+    ///     [("Alice", 0), ("Bob", 0), ("Carol", 0), ("Cheryl", 0)].into();
     /// for (_, balance) in map.range_mut("B".."Cheryl") {
     ///     *balance += 100;
     /// }
@@ -1115,7 +1133,7 @@ impl<K, V> BTreeMap<K, V> {
     /// let mut count: BTreeMap<&str, usize> = BTreeMap::new();
     ///
     /// // count the number of occurrences of letters in the vec
-    /// for x in vec!["a", "b", "a", "c", "a", "b"] {
+    /// for x in ["a", "b", "a", "c", "a", "b"] {
     ///     *count.entry(x).or_insert(0) += 1;
     /// }
     ///
@@ -1215,8 +1233,8 @@ impl<K, V> BTreeMap<K, V> {
     /// let mut map: BTreeMap<i32, i32> = (0..8).map(|x| (x, x)).collect();
     /// let evens: BTreeMap<_, _> = map.drain_filter(|k, _v| k % 2 == 0).collect();
     /// let odds = map;
-    /// assert_eq!(evens.keys().copied().collect::<Vec<_>>(), vec![0, 2, 4, 6]);
-    /// assert_eq!(odds.keys().copied().collect::<Vec<_>>(), vec![1, 3, 5, 7]);
+    /// assert_eq!(evens.keys().copied().collect::<Vec<_>>(), [0, 2, 4, 6]);
+    /// assert_eq!(odds.keys().copied().collect::<Vec<_>>(), [1, 3, 5, 7]);
     /// ```
     #[unstable(feature = "btree_drain_filter", issue = "70530")]
     pub fn drain_filter<F>(&mut self, pred: F) -> DrainFilter<'_, K, V, F>
@@ -1286,6 +1304,18 @@ impl<K, V> BTreeMap<K, V> {
     #[stable(feature = "map_into_keys_values", since = "1.54.0")]
     pub fn into_values(self) -> IntoValues<K, V> {
         IntoValues { inner: self.into_iter() }
+    }
+
+    /// Makes a `BTreeMap` from a sorted iterator.
+    pub(crate) fn bulk_build_from_sorted_iter<I>(iter: I) -> Self
+    where
+        K: Ord,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        let mut root = Root::new();
+        let mut length = 0;
+        root.bulk_push(DedupSortedIter::new(iter.into_iter()), &mut length);
+        BTreeMap { root: Some(root), length }
     }
 }
 
@@ -1720,8 +1750,8 @@ impl<'a, K: 'a, V: 'a> DrainFilterInner<'a, K, V> {
     pub(super) fn size_hint(&self) -> (usize, Option<usize>) {
         // In most of the btree iterators, `self.length` is the number of elements
         // yet to be visited. Here, it includes elements that were visited and that
-        // the predicate decided not to drain. Making this upper bound more accurate
-        // requires maintaining an extra field and is not worth while.
+        // the predicate decided not to drain. Making this upper bound more tight
+        // during iteration would require an extra field.
         (0, Some(*self.length))
     }
 }
@@ -1911,9 +1941,15 @@ impl<K, V> FusedIterator for RangeMut<'_, K, V> {}
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<K: Ord, V> FromIterator<(K, V)> for BTreeMap<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> BTreeMap<K, V> {
-        let mut map = BTreeMap::new();
-        map.extend(iter);
-        map
+        let mut inputs: Vec<_> = iter.into_iter().collect();
+
+        if inputs.is_empty() {
+            return BTreeMap::new();
+        }
+
+        // use stable sort to preserve the insertion order.
+        inputs.sort_by(|a, b| a.0.cmp(&b.0));
+        BTreeMap::bulk_build_from_sorted_iter(inputs)
     }
 }
 
@@ -1947,6 +1983,7 @@ impl<'a, K: Ord + Copy, V: Copy> Extend<(&'a K, &'a V)> for BTreeMap<K, V> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<K: Hash, V: Hash> Hash for BTreeMap<K, V> {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len().hash(state);
         for elt in self {
             elt.hash(state);
         }
@@ -2015,6 +2052,8 @@ where
 
 #[stable(feature = "std_collections_from_array", since = "1.56.0")]
 impl<K: Ord, V, const N: usize> From<[(K, V); N]> for BTreeMap<K, V> {
+    /// Converts a `[(K, V); N]` into a `BTreeMap<(K, V)>`.
+    ///
     /// ```
     /// use std::collections::BTreeMap;
     ///
@@ -2022,8 +2061,14 @@ impl<K: Ord, V, const N: usize> From<[(K, V); N]> for BTreeMap<K, V> {
     /// let map2: BTreeMap<_, _> = [(1, 2), (3, 4)].into();
     /// assert_eq!(map1, map2);
     /// ```
-    fn from(arr: [(K, V); N]) -> Self {
-        core::array::IntoIter::new(arr).collect()
+    fn from(mut arr: [(K, V); N]) -> Self {
+        if N == 0 {
+            return BTreeMap::new();
+        }
+
+        // use stable sort to preserve the insertion order.
+        arr.sort_by(|a, b| a.0.cmp(&b.0));
+        BTreeMap::bulk_build_from_sorted_iter(arr)
     }
 }
 
@@ -2069,10 +2114,11 @@ impl<K, V> BTreeMap<K, V> {
     /// ```
     /// use std::collections::BTreeMap;
     ///
-    /// let mut map = BTreeMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let mut map = BTreeMap::from([
+    ///    ("a", 1),
+    ///    ("b", 2),
+    ///    ("c", 3),
+    /// ]);
     ///
     /// // add 10 to the value if the key isn't "a"
     /// for (key, value) in map.iter_mut() {
@@ -2174,6 +2220,7 @@ impl<K, V> BTreeMap<K, V> {
     /// a.insert(1, "a");
     /// assert_eq!(a.len(), 1);
     /// ```
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_const_unstable(feature = "const_btree_new", issue = "71835")]
     pub const fn len(&self) -> usize {
@@ -2194,6 +2241,7 @@ impl<K, V> BTreeMap<K, V> {
     /// a.insert(1, "a");
     /// assert!(!a.is_empty());
     /// ```
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_const_unstable(feature = "const_btree_new", issue = "71835")]
     pub const fn is_empty(&self) -> bool {

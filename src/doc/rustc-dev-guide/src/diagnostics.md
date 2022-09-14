@@ -26,10 +26,12 @@ LL | more code
    |      ^^^^
 ```
 
-- Description (`error`, `warning`, etc.).
+- Level (`error`, `warning`, etc.). It indicates the severity of the message.
+  (See [diagnostic levels](#diagnostic-levels))
 - Code (for example, for "mismatched types", it is `E0308`). It helps
   users get more information about the current error through an extended
-  description of the problem in the error code index.
+  description of the problem in the error code index. Diagnostics created
+  by lints don't have a code in the emitted message.
 - Message. It is the main description of the problem. It should be general and
   able to stand on its own, so that it can make sense even in isolation.
 - Diagnostic window. This contains several things:
@@ -61,7 +63,11 @@ error: the fobrulator needs to be krontrificated
 ```
 
 When code or an identifier must appear in a message or label, it should be
-surrounded with backticks: `` `foo.bar` ``.
+surrounded with backticks:
+
+```txt
+error: the identifier `foo.bar` is invalid
+```
 
 ### Error explanations
 
@@ -222,9 +228,13 @@ Guidelines for different diagnostic levels:
   The error or warning portion should *not* suggest how to fix the problem,
   only the "help" sub-diagnostic should.
 
-- `note`: emitted to identify additional circumstances and parts of the code
-  that caused the warning or error. For example, the borrow checker will note
-  any previous conflicting borrows.
+- `note`: emitted to given more context and identify additional circumstances
+  and parts of the code that caused the warning or error. For example, the
+  borrow checker will note any previous conflicting borrows.
+
+  `help` vs `note`: `help` should be used to show changes the user can
+  possibly make to fix the problem. `note` should be used for everything else,
+  such as other context, information and facts, online resources to read, etc.
 
 Not to be confused with *lint levels*, whose guidelines are:
 

@@ -24,6 +24,7 @@
 //    in the last step
 
 use crate::imports::ImportKind;
+use crate::module_to_string;
 use crate::Resolver;
 
 use rustc_ast as ast;
@@ -32,7 +33,6 @@ use rustc_ast::visit::{self, Visitor};
 use rustc_ast_lowering::ResolverAstLowering;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::pluralize;
-use rustc_middle::ty;
 use rustc_session::lint::builtin::{MACRO_USE_EXTERN_CRATE, UNUSED_IMPORTS};
 use rustc_session::lint::BuiltinLintDiagnostics;
 use rustc_span::{MultiSpan, Span, DUMMY_SP};
@@ -228,7 +228,7 @@ impl Resolver<'_> {
         for import in self.potentially_unused_imports.iter() {
             match import.kind {
                 _ if import.used.get()
-                    || import.vis.get() == ty::Visibility::Public
+                    || import.vis.get().is_public()
                     || import.span.is_dummy() =>
                 {
                     if let ImportKind::MacroUse = import.kind {
@@ -315,12 +315,29 @@ impl Resolver<'_> {
                 "remove the unused import"
             };
 
+            let parent_module = visitor.r.get_nearest_non_block_module(
+                visitor.r.local_def_id(unused.use_tree_id).to_def_id(),
+            );
+            let test_module_span = match module_to_string(parent_module) {
+                Some(module)
+                    if module == "test"
+                        || module == "tests"
+                        || module.starts_with("test_")
+                        || module.starts_with("tests_")
+                        || module.ends_with("_test")
+                        || module.ends_with("_tests") =>
+                {
+                    Some(parent_module.span)
+                }
+                _ => None,
+            };
+
             visitor.r.lint_buffer.buffer_lint_with_diagnostic(
                 UNUSED_IMPORTS,
                 unused.use_tree_id,
                 ms,
                 &msg,
-                BuiltinLintDiagnostics::UnusedImports(fix_msg.into(), fixes),
+                BuiltinLintDiagnostics::UnusedImports(fix_msg.into(), fixes, test_module_span),
             );
         }
     }

@@ -16,11 +16,6 @@ use build_helper::t;
 use crate::builder::Builder;
 use crate::config::{Config, TargetSelection};
 
-/// Returns the `name` as the filename of a static library for `target`.
-pub fn staticlib(name: &str, target: TargetSelection) -> String {
-    if target.contains("windows") { format!("{}.lib", name) } else { format!("lib{}.a", name) }
-}
-
 /// Given an executable called `name`, return the filename for the
 /// executable for a particular target.
 pub fn exe(name: &str, target: TargetSelection) -> String {
@@ -54,29 +49,7 @@ pub fn add_dylib_path(path: Vec<PathBuf>, cmd: &mut Command) {
     cmd.env(dylib_path_var(), t!(env::join_paths(list)));
 }
 
-/// Returns the environment variable which the dynamic library lookup path
-/// resides in for this platform.
-pub fn dylib_path_var() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "PATH"
-    } else if cfg!(target_os = "macos") {
-        "DYLD_LIBRARY_PATH"
-    } else if cfg!(target_os = "haiku") {
-        "LIBRARY_PATH"
-    } else {
-        "LD_LIBRARY_PATH"
-    }
-}
-
-/// Parses the `dylib_path_var()` environment variable, returning a list of
-/// paths that are members of this lookup path.
-pub fn dylib_path() -> Vec<PathBuf> {
-    let var = match env::var_os(dylib_path_var()) {
-        Some(v) => v,
-        None => return vec![],
-    };
-    env::split_paths(&var).collect()
-}
+include!("dylib_util.rs");
 
 /// Adds a list of lookup paths to `cmd`'s link library lookup path.
 pub fn add_link_lib_path(path: Vec<PathBuf>, cmd: &mut Command) {
@@ -101,21 +74,6 @@ fn link_lib_path() -> Vec<PathBuf> {
         None => return vec![],
     };
     env::split_paths(&var).collect()
-}
-
-/// `push` all components to `buf`. On windows, append `.exe` to the last component.
-pub fn push_exe_path(mut buf: PathBuf, components: &[&str]) -> PathBuf {
-    let (&file, components) = components.split_last().expect("at least one component required");
-    let mut file = file.to_owned();
-
-    if cfg!(windows) {
-        file.push_str(".exe");
-    }
-
-    buf.extend(components);
-    buf.push(file);
-
-    buf
 }
 
 pub struct TimeIt(bool, Instant);
@@ -309,4 +267,37 @@ pub fn use_host_linker(target: TargetSelection) -> bool {
         || target.contains("fortanix")
         || target.contains("fuchsia")
         || target.contains("bpf"))
+}
+
+pub fn is_valid_test_suite_arg<'a, P: AsRef<Path>>(
+    path: &'a Path,
+    suite_path: P,
+    builder: &Builder<'_>,
+) -> Option<&'a str> {
+    let suite_path = suite_path.as_ref();
+    let path = match path.strip_prefix(".") {
+        Ok(p) => p,
+        Err(_) => path,
+    };
+    if !path.starts_with(suite_path) {
+        return None;
+    }
+    let abs_path = builder.src.join(path);
+    let exists = abs_path.is_dir() || abs_path.is_file();
+    if !exists {
+        if let Some(p) = abs_path.to_str() {
+            builder.info(&format!("Warning: Skipping \"{}\": not a regular file or directory", p));
+        }
+        return None;
+    }
+    // Since test suite paths are themselves directories, if we don't
+    // specify a directory or file, we'll get an empty string here
+    // (the result of the test suite directory without its suite prefix).
+    // Therefore, we need to filter these out, as only the first --test-args
+    // flag is respected, so providing an empty --test-args conflicts with
+    // any following it.
+    match path.strip_prefix(suite_path).ok().and_then(|p| p.to_str()) {
+        Some(s) if !s.is_empty() => Some(s),
+        _ => None,
+    }
 }

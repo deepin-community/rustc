@@ -32,6 +32,7 @@ declare_clippy_lint! {
     /// let foo: Option<i32> = None;
     /// foo.ok_or("error");
     /// ```
+    #[clippy::version = "1.49.0"]
     pub MANUAL_OK_OR,
     pedantic,
     "finds patterns that can be encoded more concisely with `Option::ok_or`"
@@ -39,19 +40,19 @@ declare_clippy_lint! {
 
 declare_lint_pass!(ManualOkOr => [MANUAL_OK_OR]);
 
-impl LateLintPass<'_> for ManualOkOr {
+impl<'tcx> LateLintPass<'tcx> for ManualOkOr {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, scrutinee: &'tcx Expr<'tcx>) {
         if in_external_macro(cx.sess(), scrutinee.span) {
             return;
         }
 
         if_chain! {
-            if let ExprKind::MethodCall(method_segment, _, args, _) = scrutinee.kind;
+            if let ExprKind::MethodCall(method_segment, args, _) = scrutinee.kind;
             if method_segment.ident.name == sym!(map_or);
             if args.len() == 3;
             let method_receiver = &args[0];
             let ty = cx.typeck_results().expr_ty(method_receiver);
-            if is_type_diagnostic_item(cx, ty, sym::option_type);
+            if is_type_diagnostic_item(cx, ty, sym::Option);
             let or_expr = &args[1];
             if is_ok_wrapping(cx, &args[2]);
             if let ExprKind::Call(Expr { kind: ExprKind::Path(err_path), .. }, &[ref err_arg]) = or_expr.kind;

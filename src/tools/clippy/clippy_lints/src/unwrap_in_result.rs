@@ -3,17 +3,16 @@ use clippy_utils::ty::is_type_diagnostic_item;
 use clippy_utils::{method_chain_args, return_ty};
 use if_chain::if_chain;
 use rustc_hir as hir;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{Expr, ImplItemKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
 use rustc_middle::ty;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::{sym, Span};
 
 declare_clippy_lint! {
     /// ### What it does
-    /// Checks for functions of type Result that contain `expect()` or `unwrap()`
+    /// Checks for functions of type `Result` that contain `expect()` or `unwrap()`
     ///
     /// ### Why is this bad?
     /// These functions promote recoverable errors to non-recoverable errors which may be undesirable in code bases which wish to avoid panics.
@@ -51,6 +50,7 @@ declare_clippy_lint! {
     ///     Ok(())
     /// }
     /// ```
+    #[clippy::version = "1.48.0"]
     pub UNWRAP_IN_RESULT,
     restriction,
     "functions of type `Result<..>` or `Option`<...> that contain `expect()` or `unwrap()`"
@@ -64,8 +64,8 @@ impl<'tcx> LateLintPass<'tcx> for UnwrapInResult {
             // first check if it's a method or function
             if let hir::ImplItemKind::Fn(ref _signature, _) = impl_item.kind;
             // checking if its return type is `result` or `option`
-            if is_type_diagnostic_item(cx, return_ty(cx, impl_item.hir_id()), sym::result_type)
-                || is_type_diagnostic_item(cx, return_ty(cx, impl_item.hir_id()), sym::option_type);
+            if is_type_diagnostic_item(cx, return_ty(cx, impl_item.hir_id()), sym::Result)
+                || is_type_diagnostic_item(cx, return_ty(cx, impl_item.hir_id()), sym::Option);
             then {
                 lint_impl_body(cx, impl_item.span, impl_item);
             }
@@ -80,14 +80,12 @@ struct FindExpectUnwrap<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for FindExpectUnwrap<'a, 'tcx> {
-    type Map = Map<'tcx>;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         // check for `expect`
         if let Some(arglists) = method_chain_args(expr, &["expect"]) {
             let reciever_ty = self.typeck_results.expr_ty(&arglists[0][0]).peel_refs();
-            if is_type_diagnostic_item(self.lcx, reciever_ty, sym::option_type)
-                || is_type_diagnostic_item(self.lcx, reciever_ty, sym::result_type)
+            if is_type_diagnostic_item(self.lcx, reciever_ty, sym::Option)
+                || is_type_diagnostic_item(self.lcx, reciever_ty, sym::Result)
             {
                 self.result.push(expr.span);
             }
@@ -96,8 +94,8 @@ impl<'a, 'tcx> Visitor<'tcx> for FindExpectUnwrap<'a, 'tcx> {
         // check for `unwrap`
         if let Some(arglists) = method_chain_args(expr, &["unwrap"]) {
             let reciever_ty = self.typeck_results.expr_ty(&arglists[0][0]).peel_refs();
-            if is_type_diagnostic_item(self.lcx, reciever_ty, sym::option_type)
-                || is_type_diagnostic_item(self.lcx, reciever_ty, sym::result_type)
+            if is_type_diagnostic_item(self.lcx, reciever_ty, sym::Option)
+                || is_type_diagnostic_item(self.lcx, reciever_ty, sym::Result)
             {
                 self.result.push(expr.span);
             }
@@ -105,10 +103,6 @@ impl<'a, 'tcx> Visitor<'tcx> for FindExpectUnwrap<'a, 'tcx> {
 
         // and check sub-expressions
         intravisit::walk_expr(self, expr);
-    }
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
     }
 }
 

@@ -1,4 +1,19 @@
+//! Removes excess indentation on comments in order for the Markdown
+//! to be parsed correctly. This is necessary because the convention for
+//! writing documentation is to provide a space between the /// or //! marker
+//! and the doc text, but Markdown is whitespace-sensitive. For example,
+//! a block of text with four-space indentation is parsed as a code block,
+//! so if we didn't unindent comments, these list items
+//!
+//! /// A list:
+//! ///
+//! ///    - Foo
+//! ///    - Bar
+//!
+//! would be parsed as if they were in a code block, which is likely not what the user intended.
 use std::cmp;
+
+use rustc_span::symbol::kw;
 
 use crate::clean::{self, DocFragment, DocFragmentKind, Item};
 use crate::core::DocContext;
@@ -87,7 +102,7 @@ fn unindent_fragments(docs: &mut Vec<DocFragment>) {
     };
 
     for fragment in docs {
-        if fragment.doc.as_str().lines().count() == 0 {
+        if fragment.doc == kw::Empty {
             continue;
         }
 

@@ -1,3 +1,4 @@
+//! Strip all doc(hidden) items from the output.
 use rustc_span::symbol::sym;
 use std::mem;
 
@@ -14,7 +15,7 @@ crate const STRIP_HIDDEN: Pass = Pass {
 };
 
 /// Strip items marked `#[doc(hidden)]`
-crate fn strip_hidden(krate: clean::Crate, _: &mut DocContext<'_>) -> clean::Crate {
+crate fn strip_hidden(krate: clean::Crate, cx: &mut DocContext<'_>) -> clean::Crate {
     let mut retained = ItemIdSet::default();
 
     // strip all #[doc(hidden)] items
@@ -24,7 +25,7 @@ crate fn strip_hidden(krate: clean::Crate, _: &mut DocContext<'_>) -> clean::Cra
     };
 
     // strip all impls referencing stripped items
-    let mut stripper = ImplStripper { retained: &retained };
+    let mut stripper = ImplStripper { retained: &retained, cache: &cx.cache };
     stripper.fold_crate(krate)
 }
 

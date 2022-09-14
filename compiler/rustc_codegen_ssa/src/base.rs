@@ -1,3 +1,4 @@
+use crate::back::metadata::create_compressed_metadata_file;
 use crate::back::write::{
     compute_per_cgu_lto_type, start_async_codegen, submit_codegened_module_to_llvm,
     submit_post_lto_module_to_llvm, submit_pre_lto_module_to_llvm, ComputedLtoType, OngoingCodegen,
@@ -8,7 +9,7 @@ use crate::mir;
 use crate::mir::operand::OperandValue;
 use crate::mir::place::PlaceRef;
 use crate::traits::*;
-use crate::{CachedModuleCodegen, CrateInfo, MemFlags, ModuleCodegen, ModuleKind};
+use crate::{CachedModuleCodegen, CompiledModule, CrateInfo, MemFlags, ModuleCodegen, ModuleKind};
 
 use rustc_attr as attr;
 use rustc_data_structures::fx::FxHashMap;
@@ -18,18 +19,19 @@ use rustc_hir as hir;
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_hir::lang_items::LangItem;
 use rustc_index::vec::Idx;
+use rustc_metadata::EncodedMetadata;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrs;
-use rustc_middle::middle::cstore::EncodedMetadata;
+use rustc_middle::middle::exported_symbols;
 use rustc_middle::middle::lang_items;
 use rustc_middle::mir::mono::{CodegenUnit, CodegenUnitNameBuilder, MonoItem};
-use rustc_middle::ty::layout::{HasTyCtxt, TyAndLayout};
+use rustc_middle::ty::layout::{HasTyCtxt, LayoutOf, TyAndLayout};
 use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
 use rustc_session::cgu_reuse_tracker::CguReuse;
-use rustc_session::config::{self, EntryFnType};
+use rustc_session::config::{self, EntryFnType, OutputType};
 use rustc_session::Session;
 use rustc_span::symbol::sym;
-use rustc_target::abi::{Align, LayoutOf, VariantIdx};
+use rustc_target::abi::{Align, VariantIdx};
 
 use std::convert::TryFrom;
 use std::ops::{Deref, DerefMut};
@@ -484,14 +486,14 @@ fn get_argc_argv<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>>(
 
 pub fn codegen_crate<B: ExtraBackendMethods>(
     backend: B,
-    tcx: TyCtxt<'tcx>,
+    tcx: TyCtxt<'_>,
     target_cpu: String,
     metadata: EncodedMetadata,
     need_metadata_module: bool,
 ) -> OngoingCodegen<B> {
     // Skip crate items and just output metadata in -Z no-codegen mode.
     if tcx.sess.opts.debugging_opts.no_codegen || !tcx.sess.opts.output_types.should_codegen() {
-        let ongoing_codegen = start_async_codegen(backend, tcx, target_cpu, metadata, 1);
+        let ongoing_codegen = start_async_codegen(backend, tcx, target_cpu, metadata, None, 1);
 
         ongoing_codegen.codegen_finished(tcx);
 
@@ -517,8 +519,41 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
         }
     }
 
-    let ongoing_codegen =
-        start_async_codegen(backend.clone(), tcx, target_cpu, metadata, codegen_units.len());
+    let metadata_module = if need_metadata_module {
+        // Emit compressed metadata object.
+        let metadata_cgu_name =
+            cgu_name_builder.build_cgu_name(LOCAL_CRATE, &["crate"], Some("metadata")).to_string();
+        tcx.sess.time("write_compressed_metadata", || {
+            let file_name =
+                tcx.output_filenames(()).temp_path(OutputType::Metadata, Some(&metadata_cgu_name));
+            let data = create_compressed_metadata_file(
+                tcx.sess,
+                &metadata,
+                &exported_symbols::metadata_symbol_name(tcx),
+            );
+            if let Err(err) = std::fs::write(&file_name, data) {
+                tcx.sess.fatal(&format!("error writing metadata object file: {}", err));
+            }
+            Some(CompiledModule {
+                name: metadata_cgu_name,
+                kind: ModuleKind::Metadata,
+                object: Some(file_name),
+                dwarf_object: None,
+                bytecode: None,
+            })
+        })
+    } else {
+        None
+    };
+
+    let ongoing_codegen = start_async_codegen(
+        backend.clone(),
+        tcx,
+        target_cpu,
+        metadata,
+        metadata_module,
+        codegen_units.len(),
+    );
     let ongoing_codegen = AbortCodegenOnDrop::<B>(Some(ongoing_codegen));
 
     // Codegen an allocator shim, if necessary.
@@ -538,39 +573,24 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
     } else if let Some(kind) = tcx.allocator_kind(()) {
         let llmod_id =
             cgu_name_builder.build_cgu_name(LOCAL_CRATE, &["crate"], Some("allocator")).to_string();
-        let mut modules = backend.new_metadata(tcx, &llmod_id);
+        let mut module_llvm = backend.new_metadata(tcx, &llmod_id);
         tcx.sess.time("write_allocator_module", || {
-            backend.codegen_allocator(tcx, &mut modules, kind, tcx.lang_items().oom().is_some())
+            backend.codegen_allocator(
+                tcx,
+                &mut module_llvm,
+                &llmod_id,
+                kind,
+                tcx.lang_items().oom().is_some(),
+            )
         });
 
-        Some(ModuleCodegen { name: llmod_id, module_llvm: modules, kind: ModuleKind::Allocator })
+        Some(ModuleCodegen { name: llmod_id, module_llvm, kind: ModuleKind::Allocator })
     } else {
         None
     };
 
     if let Some(allocator_module) = allocator_module {
         ongoing_codegen.submit_pre_codegened_module_to_llvm(tcx, allocator_module);
-    }
-
-    if need_metadata_module {
-        // Codegen the encoded metadata.
-        let metadata_cgu_name =
-            cgu_name_builder.build_cgu_name(LOCAL_CRATE, &["crate"], Some("metadata")).to_string();
-        let mut metadata_llvm_module = backend.new_metadata(tcx, &metadata_cgu_name);
-        tcx.sess.time("write_compressed_metadata", || {
-            backend.write_compressed_metadata(
-                tcx,
-                &ongoing_codegen.metadata,
-                &mut metadata_llvm_module,
-            );
-        });
-
-        let metadata_module = ModuleCodegen {
-            name: metadata_cgu_name,
-            module_llvm: metadata_llvm_module,
-            kind: ModuleKind::Metadata,
-        };
-        ongoing_codegen.submit_pre_codegened_module_to_llvm(tcx, metadata_module);
     }
 
     // For better throughput during parallel processing by LLVM, we used to sort
@@ -652,7 +672,7 @@ pub fn codegen_crate<B: ExtraBackendMethods>(
         }
 
         let cgu_reuse = cgu_reuse[i];
-        tcx.sess.cgu_reuse_tracker.set_actual_reuse(&cgu.name().as_str(), cgu_reuse);
+        tcx.sess.cgu_reuse_tracker.set_actual_reuse(cgu.name().as_str(), cgu_reuse);
 
         match cgu_reuse {
             CguReuse::No => {
@@ -823,7 +843,7 @@ impl CrateInfo {
             used_crate_source: Default::default(),
             lang_item_to_crate: Default::default(),
             missing_lang_items: Default::default(),
-            dependency_formats: tcx.dependency_formats(()),
+            dependency_formats: tcx.dependency_formats(()).clone(),
             windows_subsystem,
         };
         let lang_items = tcx.lang_items();
@@ -840,7 +860,7 @@ impl CrateInfo {
             info.native_libraries
                 .insert(cnum, tcx.native_libraries(cnum).iter().map(Into::into).collect());
             info.crate_name.insert(cnum, tcx.crate_name(cnum).to_string());
-            info.used_crate_source.insert(cnum, tcx.used_crate_source(cnum));
+            info.used_crate_source.insert(cnum, tcx.used_crate_source(cnum).clone());
             if tcx.is_compiler_builtins(cnum) {
                 info.compiler_builtins = Some(cnum);
             }

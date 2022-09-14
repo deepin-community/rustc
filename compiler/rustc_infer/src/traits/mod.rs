@@ -10,7 +10,7 @@ pub mod util;
 
 use rustc_hir as hir;
 use rustc_middle::ty::error::{ExpectedFound, TypeError};
-use rustc_middle::ty::{self, Const, Ty};
+use rustc_middle::ty::{self, Const, Ty, TyCtxt};
 use rustc_span::Span;
 
 pub use self::FulfillmentErrorCode::*;
@@ -55,9 +55,33 @@ pub struct Obligation<'tcx, T> {
 pub type PredicateObligation<'tcx> = Obligation<'tcx, ty::Predicate<'tcx>>;
 pub type TraitObligation<'tcx> = Obligation<'tcx, ty::PolyTraitPredicate<'tcx>>;
 
+impl<'tcx> PredicateObligation<'tcx> {
+    /// Flips the polarity of the inner predicate.
+    ///
+    /// Given `T: Trait` predicate it returns `T: !Trait` and given `T: !Trait` returns `T: Trait`.
+    pub fn flip_polarity(&self, tcx: TyCtxt<'tcx>) -> Option<PredicateObligation<'tcx>> {
+        Some(PredicateObligation {
+            cause: self.cause.clone(),
+            param_env: self.param_env,
+            predicate: self.predicate.flip_polarity(tcx)?,
+            recursion_depth: self.recursion_depth,
+        })
+    }
+}
+
+impl TraitObligation<'_> {
+    /// Returns `true` if the trait predicate is considered `const` in its ParamEnv.
+    pub fn is_const(&self) -> bool {
+        match (self.predicate.skip_binder().constness, self.param_env.constness()) {
+            (ty::BoundConstness::ConstIfConst, hir::Constness::Const) => true,
+            _ => false,
+        }
+    }
+}
+
 // `PredicateObligation` is used a lot. Make sure it doesn't unintentionally get bigger.
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(PredicateObligation<'_>, 32);
+static_assert_size!(PredicateObligation<'_>, 48);
 
 pub type PredicateObligations<'tcx> = Vec<PredicateObligation<'tcx>>;
 
@@ -66,10 +90,6 @@ pub type Selection<'tcx> = ImplSource<'tcx, PredicateObligation<'tcx>>;
 pub struct FulfillmentError<'tcx> {
     pub obligation: PredicateObligation<'tcx>,
     pub code: FulfillmentErrorCode<'tcx>,
-    /// Diagnostics only: we opportunistically change the `code.span` when we encounter an
-    /// obligation error caused by a call argument. When this is the case, we also signal that in
-    /// this field to ensure accuracy of suggestions.
-    pub points_at_arg_span: bool,
     /// Diagnostics only: the 'root' obligation which resulted in
     /// the failure to process `obligation`. This is the obligation
     /// that was initially passed to `register_predicate_obligation`
@@ -81,7 +101,7 @@ pub enum FulfillmentErrorCode<'tcx> {
     CodeSelectionError(SelectionError<'tcx>),
     CodeProjectionError(MismatchedProjectionTypes<'tcx>),
     CodeSubtypeError(ExpectedFound<Ty<'tcx>>, TypeError<'tcx>), // always comes from a SubtypePredicate
-    CodeConstEquateError(ExpectedFound<&'tcx Const<'tcx>>, TypeError<'tcx>),
+    CodeConstEquateError(ExpectedFound<Const<'tcx>>, TypeError<'tcx>),
     CodeAmbiguity,
 }
 
@@ -128,11 +148,15 @@ impl<'tcx> FulfillmentError<'tcx> {
         code: FulfillmentErrorCode<'tcx>,
         root_obligation: PredicateObligation<'tcx>,
     ) -> FulfillmentError<'tcx> {
-        FulfillmentError { obligation, code, points_at_arg_span: false, root_obligation }
+        FulfillmentError { obligation, code, root_obligation }
     }
 }
 
 impl<'tcx> TraitObligation<'tcx> {
+    pub fn polarity(&self) -> ty::ImplPolarity {
+        self.predicate.skip_binder().polarity
+    }
+
     pub fn self_ty(&self) -> ty::Binder<'tcx, Ty<'tcx>> {
         self.predicate.map_bound(|p| p.self_ty())
     }

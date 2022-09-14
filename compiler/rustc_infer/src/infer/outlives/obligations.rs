@@ -1,5 +1,5 @@
 //! Code that handles "type-outlives" constraints like `T: 'a`. This
-//! is based on the `push_outlives_components` function defined on the tcx,
+//! is based on the `push_outlives_components` function defined in rustc_infer,
 //! but it adds a bit of heuristics on top, in particular to deal with
 //! associated types and projections.
 //!
@@ -59,13 +59,13 @@
 //! might later infer `?U` to something like `&'b u32`, which would
 //! imply that `'b: 'a`.
 
+use crate::infer::outlives::components::{push_outlives_components, Component};
 use crate::infer::outlives::env::RegionBoundPairs;
 use crate::infer::outlives::verify::VerifyBoundCx;
 use crate::infer::{
     self, GenericKind, InferCtxt, RegionObligation, SubregionOrigin, UndoLog, VerifyBound,
 };
 use crate::traits::{ObligationCause, ObligationCauseCode};
-use rustc_middle::ty::outlives::Component;
 use rustc_middle::ty::subst::GenericArgKind;
 use rustc_middle::ty::{self, Region, Ty, TyCtxt, TypeFoldable};
 
@@ -102,7 +102,7 @@ impl<'cx, 'tcx> InferCtxt<'cx, 'tcx> {
             infer::RelateParamBound(
                 cause.span,
                 sup_type,
-                match cause.code.peel_derives() {
+                match cause.code().peel_derives() {
                     ObligationCauseCode::BindingObligation(_, span) => Some(*span),
                     _ => None,
                 },
@@ -164,7 +164,7 @@ impl<'cx, 'tcx> InferCtxt<'cx, 'tcx> {
             "cannot process registered region obligations in a snapshot"
         );
 
-        debug!("process_registered_region_obligations()");
+        debug!(?param_env, "process_registered_region_obligations()");
 
         let my_region_obligations = self.take_registered_region_obligations();
 
@@ -271,7 +271,7 @@ where
         assert!(!ty.has_escaping_bound_vars());
 
         let mut components = smallvec![];
-        self.tcx.push_outlives_components(ty, &mut components);
+        push_outlives_components(self.tcx, ty, &mut components);
         self.components_must_outlive(origin, &components, region);
     }
 
@@ -285,7 +285,7 @@ where
             let origin = origin.clone();
             match component {
                 Component::Region(region1) => {
-                    self.delegate.push_sub_region_constraint(origin, region, region1);
+                    self.delegate.push_sub_region_constraint(origin, region, *region1);
                 }
                 Component::Param(param_ty) => {
                     self.param_ty_must_outlive(origin, region, *param_ty);
@@ -355,6 +355,8 @@ where
         // results.
         let trait_bounds: Vec<_> =
             self.verify_bound.projection_declared_bounds_from_trait(projection_ty).collect();
+
+        debug!(?trait_bounds);
 
         // Compute the bounds we can derive from the environment. This
         // is an "approximate" match -- in some cases, these bounds

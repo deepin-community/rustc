@@ -12,13 +12,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::builder::TaskPath;
 use crate::cache::{Interned, INTERNER};
 use crate::channel::GitInfo;
 pub use crate::flags::Subcommand;
 use crate::flags::{Color, Flags};
 use crate::util::exe;
 use build_helper::t;
-use merge::Merge;
 use serde::Deserialize;
 
 macro_rules! check_ci_llvm {
@@ -63,7 +63,7 @@ pub struct Config {
     pub sanitizers: bool,
     pub profiler: bool,
     pub ignore_git: bool,
-    pub exclude: Vec<PathBuf>,
+    pub exclude: Vec<TaskPath>,
     pub include_default_paths: bool,
     pub rustc_error_format: Option<String>,
     pub json_output: bool,
@@ -90,6 +90,7 @@ pub struct Config {
     // llvm codegen options
     pub llvm_skip_rebuild: bool,
     pub llvm_assertions: bool,
+    pub llvm_tests: bool,
     pub llvm_plugins: bool,
     pub llvm_optimize: bool,
     pub llvm_thin_lto: bool,
@@ -107,6 +108,7 @@ pub struct Config {
     pub llvm_polly: bool,
     pub llvm_clang: bool,
     pub llvm_from_ci: bool,
+    pub llvm_build_config: HashMap<String, String>,
 
     pub use_lld: bool,
     pub lld_enabled: bool,
@@ -140,7 +142,7 @@ pub struct Config {
     pub rust_verify_llvm_ir: bool,
     pub rust_thin_lto_import_instr_limit: Option<u32>,
     pub rust_remap_debuginfo: bool,
-    pub rust_new_symbol_mangling: bool,
+    pub rust_new_symbol_mangling: Option<bool>,
     pub rust_profile_use: Option<String>,
     pub rust_profile_generate: Option<String>,
     pub llvm_profile_use: Option<String>,
@@ -293,6 +295,7 @@ pub struct Target {
     pub cxx: Option<PathBuf>,
     pub ar: Option<PathBuf>,
     pub ranlib: Option<PathBuf>,
+    pub default_linker: Option<PathBuf>,
     pub linker: Option<PathBuf>,
     pub ndk: Option<PathBuf>,
     pub sanitizers: Option<bool>,
@@ -332,6 +335,10 @@ struct TomlConfig {
     profile: Option<String>,
 }
 
+trait Merge {
+    fn merge(&mut self, other: Self);
+}
+
 impl Merge for TomlConfig {
     fn merge(
         &mut self,
@@ -355,103 +362,137 @@ impl Merge for TomlConfig {
     }
 }
 
-/// TOML representation of various global build decisions.
-#[derive(Deserialize, Default, Clone, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Build {
-    build: Option<String>,
-    host: Option<Vec<String>>,
-    target: Option<Vec<String>>,
-    // This is ignored, the rust code always gets the build directory from the `BUILD_DIR` env variable
-    build_dir: Option<String>,
-    cargo: Option<String>,
-    rustc: Option<String>,
-    rustfmt: Option<PathBuf>,
-    docs: Option<bool>,
-    compiler_docs: Option<bool>,
-    docs_minification: Option<bool>,
-    submodules: Option<bool>,
-    fast_submodules: Option<bool>,
-    gdb: Option<String>,
-    nodejs: Option<String>,
-    npm: Option<String>,
-    python: Option<String>,
-    locked_deps: Option<bool>,
-    vendor: Option<bool>,
-    full_bootstrap: Option<bool>,
-    extended: Option<bool>,
-    tools: Option<HashSet<String>>,
-    verbose: Option<usize>,
-    sanitizers: Option<bool>,
-    profiler: Option<bool>,
-    cargo_native_static: Option<bool>,
-    low_priority: Option<bool>,
-    configure_args: Option<Vec<String>>,
-    local_rebuild: Option<bool>,
-    print_step_timings: Option<bool>,
-    print_step_rusage: Option<bool>,
-    check_stage: Option<u32>,
-    doc_stage: Option<u32>,
-    build_stage: Option<u32>,
-    test_stage: Option<u32>,
-    install_stage: Option<u32>,
-    dist_stage: Option<u32>,
-    bench_stage: Option<u32>,
+// We are using a decl macro instead of a derive proc macro here to reduce the compile time of
+// rustbuild.
+macro_rules! derive_merge {
+    ($(#[$attr:meta])* struct $name:ident {
+        $($field:ident: $field_ty:ty,)*
+    }) => {
+        $(#[$attr])*
+        struct $name {
+            $($field: $field_ty,)*
+        }
+
+        impl Merge for $name {
+            fn merge(&mut self, other: Self) {
+                $(
+                    if !self.$field.is_some() {
+                        self.$field = other.$field;
+                    }
+                )*
+            }
+        }
+    }
 }
 
-/// TOML representation of various global install decisions.
-#[derive(Deserialize, Default, Clone, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Install {
-    prefix: Option<String>,
-    sysconfdir: Option<String>,
-    docdir: Option<String>,
-    bindir: Option<String>,
-    libdir: Option<String>,
-    mandir: Option<String>,
-    datadir: Option<String>,
+derive_merge! {
+    /// TOML representation of various global build decisions.
+    #[derive(Deserialize, Default, Clone)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct Build {
+        build: Option<String>,
+        host: Option<Vec<String>>,
+        target: Option<Vec<String>>,
+        // This is ignored, the rust code always gets the build directory from the `BUILD_DIR` env variable
+        build_dir: Option<String>,
+        cargo: Option<String>,
+        rustc: Option<String>,
+        rustfmt: Option<PathBuf>,
+        docs: Option<bool>,
+        compiler_docs: Option<bool>,
+        docs_minification: Option<bool>,
+        submodules: Option<bool>,
+        fast_submodules: Option<bool>,
+        gdb: Option<String>,
+        nodejs: Option<String>,
+        npm: Option<String>,
+        python: Option<String>,
+        locked_deps: Option<bool>,
+        vendor: Option<bool>,
+        full_bootstrap: Option<bool>,
+        extended: Option<bool>,
+        tools: Option<HashSet<String>>,
+        verbose: Option<usize>,
+        sanitizers: Option<bool>,
+        profiler: Option<bool>,
+        cargo_native_static: Option<bool>,
+        low_priority: Option<bool>,
+        configure_args: Option<Vec<String>>,
+        local_rebuild: Option<bool>,
+        print_step_timings: Option<bool>,
+        print_step_rusage: Option<bool>,
+        check_stage: Option<u32>,
+        doc_stage: Option<u32>,
+        build_stage: Option<u32>,
+        test_stage: Option<u32>,
+        install_stage: Option<u32>,
+        dist_stage: Option<u32>,
+        bench_stage: Option<u32>,
+        patch_binaries_for_nix: Option<bool>,
+    }
 }
 
-/// TOML representation of how the LLVM build is configured.
-#[derive(Deserialize, Default, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Llvm {
-    skip_rebuild: Option<bool>,
-    optimize: Option<bool>,
-    thin_lto: Option<bool>,
-    release_debuginfo: Option<bool>,
-    assertions: Option<bool>,
-    plugins: Option<bool>,
-    ccache: Option<StringOrBool>,
-    version_check: Option<bool>,
-    static_libstdcpp: Option<bool>,
-    ninja: Option<bool>,
-    targets: Option<String>,
-    experimental_targets: Option<String>,
-    link_jobs: Option<u32>,
-    link_shared: Option<bool>,
-    version_suffix: Option<String>,
-    clang_cl: Option<String>,
-    cflags: Option<String>,
-    cxxflags: Option<String>,
-    ldflags: Option<String>,
-    use_libcxx: Option<bool>,
-    use_linker: Option<String>,
-    allow_old_toolchain: Option<bool>,
-    polly: Option<bool>,
-    clang: Option<bool>,
-    download_ci_llvm: Option<StringOrBool>,
+derive_merge! {
+    /// TOML representation of various global install decisions.
+    #[derive(Deserialize, Default, Clone)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct Install {
+        prefix: Option<String>,
+        sysconfdir: Option<String>,
+        docdir: Option<String>,
+        bindir: Option<String>,
+        libdir: Option<String>,
+        mandir: Option<String>,
+        datadir: Option<String>,
+    }
 }
 
-#[derive(Deserialize, Default, Clone, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Dist {
-    sign_folder: Option<String>,
-    gpg_password_file: Option<String>,
-    upload_addr: Option<String>,
-    src_tarball: Option<bool>,
-    missing_tools: Option<bool>,
-    compression_formats: Option<Vec<String>>,
+derive_merge! {
+    /// TOML representation of how the LLVM build is configured.
+    #[derive(Deserialize, Default)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct Llvm {
+        skip_rebuild: Option<bool>,
+        optimize: Option<bool>,
+        thin_lto: Option<bool>,
+        release_debuginfo: Option<bool>,
+        assertions: Option<bool>,
+        tests: Option<bool>,
+        plugins: Option<bool>,
+        ccache: Option<StringOrBool>,
+        version_check: Option<bool>,
+        static_libstdcpp: Option<bool>,
+        ninja: Option<bool>,
+        targets: Option<String>,
+        experimental_targets: Option<String>,
+        link_jobs: Option<u32>,
+        link_shared: Option<bool>,
+        version_suffix: Option<String>,
+        clang_cl: Option<String>,
+        cflags: Option<String>,
+        cxxflags: Option<String>,
+        ldflags: Option<String>,
+        use_libcxx: Option<bool>,
+        use_linker: Option<String>,
+        allow_old_toolchain: Option<bool>,
+        polly: Option<bool>,
+        clang: Option<bool>,
+        download_ci_llvm: Option<StringOrBool>,
+        build_config: Option<HashMap<String, String>>,
+    }
+}
+
+derive_merge! {
+    #[derive(Deserialize, Default, Clone)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct Dist {
+        sign_folder: Option<String>,
+        gpg_password_file: Option<String>,
+        upload_addr: Option<String>,
+        src_tarball: Option<bool>,
+        missing_tools: Option<bool>,
+        compression_formats: Option<Vec<String>>,
+    }
 }
 
 #[derive(Deserialize)]
@@ -467,79 +508,84 @@ impl Default for StringOrBool {
     }
 }
 
-/// TOML representation of how the Rust build is configured.
-#[derive(Deserialize, Default, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct Rust {
-    optimize: Option<bool>,
-    debug: Option<bool>,
-    codegen_units: Option<u32>,
-    codegen_units_std: Option<u32>,
-    debug_assertions: Option<bool>,
-    debug_assertions_std: Option<bool>,
-    overflow_checks: Option<bool>,
-    overflow_checks_std: Option<bool>,
-    debug_logging: Option<bool>,
-    debuginfo_level: Option<u32>,
-    debuginfo_level_rustc: Option<u32>,
-    debuginfo_level_std: Option<u32>,
-    debuginfo_level_tools: Option<u32>,
-    debuginfo_level_tests: Option<u32>,
-    run_dsymutil: Option<bool>,
-    backtrace: Option<bool>,
-    incremental: Option<bool>,
-    parallel_compiler: Option<bool>,
-    default_linker: Option<String>,
-    channel: Option<String>,
-    description: Option<String>,
-    musl_root: Option<String>,
-    rpath: Option<bool>,
-    verbose_tests: Option<bool>,
-    optimize_tests: Option<bool>,
-    codegen_tests: Option<bool>,
-    ignore_git: Option<bool>,
-    dist_src: Option<bool>,
-    save_toolstates: Option<String>,
-    codegen_backends: Option<Vec<String>>,
-    lld: Option<bool>,
-    use_lld: Option<bool>,
-    llvm_tools: Option<bool>,
-    deny_warnings: Option<bool>,
-    backtrace_on_ice: Option<bool>,
-    verify_llvm_ir: Option<bool>,
-    thin_lto_import_instr_limit: Option<u32>,
-    remap_debuginfo: Option<bool>,
-    jemalloc: Option<bool>,
-    test_compare_mode: Option<bool>,
-    llvm_libunwind: Option<String>,
-    control_flow_guard: Option<bool>,
-    new_symbol_mangling: Option<bool>,
-    profile_generate: Option<String>,
-    profile_use: Option<String>,
-    // ignored; this is set from an env var set by bootstrap.py
-    download_rustc: Option<StringOrBool>,
+derive_merge! {
+    /// TOML representation of how the Rust build is configured.
+    #[derive(Deserialize, Default)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct Rust {
+        optimize: Option<bool>,
+        debug: Option<bool>,
+        codegen_units: Option<u32>,
+        codegen_units_std: Option<u32>,
+        debug_assertions: Option<bool>,
+        debug_assertions_std: Option<bool>,
+        overflow_checks: Option<bool>,
+        overflow_checks_std: Option<bool>,
+        debug_logging: Option<bool>,
+        debuginfo_level: Option<u32>,
+        debuginfo_level_rustc: Option<u32>,
+        debuginfo_level_std: Option<u32>,
+        debuginfo_level_tools: Option<u32>,
+        debuginfo_level_tests: Option<u32>,
+        run_dsymutil: Option<bool>,
+        backtrace: Option<bool>,
+        incremental: Option<bool>,
+        parallel_compiler: Option<bool>,
+        default_linker: Option<String>,
+        channel: Option<String>,
+        description: Option<String>,
+        musl_root: Option<String>,
+        rpath: Option<bool>,
+        verbose_tests: Option<bool>,
+        optimize_tests: Option<bool>,
+        codegen_tests: Option<bool>,
+        ignore_git: Option<bool>,
+        dist_src: Option<bool>,
+        save_toolstates: Option<String>,
+        codegen_backends: Option<Vec<String>>,
+        lld: Option<bool>,
+        use_lld: Option<bool>,
+        llvm_tools: Option<bool>,
+        deny_warnings: Option<bool>,
+        backtrace_on_ice: Option<bool>,
+        verify_llvm_ir: Option<bool>,
+        thin_lto_import_instr_limit: Option<u32>,
+        remap_debuginfo: Option<bool>,
+        jemalloc: Option<bool>,
+        test_compare_mode: Option<bool>,
+        llvm_libunwind: Option<String>,
+        control_flow_guard: Option<bool>,
+        new_symbol_mangling: Option<bool>,
+        profile_generate: Option<String>,
+        profile_use: Option<String>,
+        // ignored; this is set from an env var set by bootstrap.py
+        download_rustc: Option<StringOrBool>,
+    }
 }
 
-/// TOML representation of how each build target is configured.
-#[derive(Deserialize, Default, Merge)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-struct TomlTarget {
-    cc: Option<String>,
-    cxx: Option<String>,
-    ar: Option<String>,
-    ranlib: Option<String>,
-    linker: Option<String>,
-    llvm_config: Option<String>,
-    llvm_filecheck: Option<String>,
-    android_ndk: Option<String>,
-    sanitizers: Option<bool>,
-    profiler: Option<bool>,
-    crt_static: Option<bool>,
-    musl_root: Option<String>,
-    musl_libdir: Option<String>,
-    wasi_root: Option<String>,
-    qemu_rootfs: Option<String>,
-    no_std: Option<bool>,
+derive_merge! {
+    /// TOML representation of how each build target is configured.
+    #[derive(Deserialize, Default)]
+    #[serde(deny_unknown_fields, rename_all = "kebab-case")]
+    struct TomlTarget {
+        cc: Option<String>,
+        cxx: Option<String>,
+        ar: Option<String>,
+        ranlib: Option<String>,
+        default_linker: Option<PathBuf>,
+        linker: Option<String>,
+        llvm_config: Option<String>,
+        llvm_filecheck: Option<String>,
+        android_ndk: Option<String>,
+        sanitizers: Option<bool>,
+        profiler: Option<bool>,
+        crt_static: Option<bool>,
+        musl_root: Option<String>,
+        musl_libdir: Option<String>,
+        wasi_root: Option<String>,
+        qemu_rootfs: Option<String>,
+        no_std: Option<bool>,
+    }
 }
 
 impl Config {
@@ -592,7 +638,7 @@ impl Config {
         let flags = Flags::parse(&args);
 
         let mut config = Config::default_opts();
-        config.exclude = flags.exclude;
+        config.exclude = flags.exclude.into_iter().map(|path| TaskPath::parse(path)).collect();
         config.include_default_paths = flags.include_default_paths;
         config.rustc_error_format = flags.rustc_error_format;
         config.json_output = flags.json_output;
@@ -714,6 +760,7 @@ impl Config {
         // Store off these values as options because if they're not provided
         // we'll infer default values for them later
         let mut llvm_assertions = None;
+        let mut llvm_tests = None;
         let mut llvm_plugins = None;
         let mut debug = None;
         let mut debug_assertions = None;
@@ -739,6 +786,7 @@ impl Config {
             }
             set(&mut config.ninja_in_file, llvm.ninja);
             llvm_assertions = llvm.assertions;
+            llvm_tests = llvm.tests;
             llvm_plugins = llvm.plugins;
             llvm_skip_rebuild = llvm_skip_rebuild.or(llvm.skip_rebuild);
             set(&mut config.llvm_optimize, llvm.optimize);
@@ -761,13 +809,16 @@ impl Config {
             config.llvm_allow_old_toolchain = llvm.allow_old_toolchain.unwrap_or(false);
             config.llvm_polly = llvm.polly.unwrap_or(false);
             config.llvm_clang = llvm.clang.unwrap_or(false);
+            config.llvm_build_config = llvm.build_config.clone().unwrap_or(Default::default());
             config.llvm_from_ci = match llvm.download_ci_llvm {
                 Some(StringOrBool::String(s)) => {
                     assert!(s == "if-available", "unknown option `{}` for download-ci-llvm", s);
-                    // This is currently all tier 1 targets (since others may not have CI artifacts)
+                    // This is currently all tier 1 targets and tier 2 targets with host tools
+                    // (since others may not have CI artifacts)
                     // https://doc.rust-lang.org/rustc/platform-support.html#tier-1
                     // FIXME: this is duplicated in bootstrap.py
                     let supported_platforms = [
+                        // tier 1
                         "aarch64-unknown-linux-gnu",
                         "i686-pc-windows-gnu",
                         "i686-pc-windows-msvc",
@@ -776,6 +827,26 @@ impl Config {
                         "x86_64-apple-darwin",
                         "x86_64-pc-windows-gnu",
                         "x86_64-pc-windows-msvc",
+                        // tier 2 with host tools
+                        "aarch64-apple-darwin",
+                        "aarch64-pc-windows-msvc",
+                        "aarch64-unknown-linux-musl",
+                        "arm-unknown-linux-gnueabi",
+                        "arm-unknown-linux-gnueabihf",
+                        "armv7-unknown-linux-gnueabihf",
+                        "mips-unknown-linux-gnu",
+                        "mips64-unknown-linux-gnuabi64",
+                        "mips64el-unknown-linux-gnuabi64",
+                        "mipsel-unknown-linux-gnu",
+                        "powerpc-unknown-linux-gnu",
+                        "powerpc64-unknown-linux-gnu",
+                        "powerpc64le-unknown-linux-gnu",
+                        "riscv64gc-unknown-linux-gnu",
+                        "s390x-unknown-linux-gnu",
+                        "x86_64-unknown-freebsd",
+                        "x86_64-unknown-illumos",
+                        "x86_64-unknown-linux-musl",
+                        "x86_64-unknown-netbsd",
                     ];
                     supported_platforms.contains(&&*config.build.triple)
                 }
@@ -808,6 +879,7 @@ impl Config {
                 check_ci_llvm!(llvm.allow_old_toolchain);
                 check_ci_llvm!(llvm.polly);
                 check_ci_llvm!(llvm.clang);
+                check_ci_llvm!(llvm.build_config);
                 check_ci_llvm!(llvm.plugins);
 
                 // CI-built LLVM can be either dynamic or static.
@@ -824,15 +896,10 @@ impl Config {
                 };
             }
 
-            if config.llvm_thin_lto {
-                // If we're building with ThinLTO on, we want to link to LLVM
-                // shared, to avoid re-doing ThinLTO (which happens in the link
-                // step) with each stage.
-                assert_ne!(
-                    llvm.link_shared,
-                    Some(false),
-                    "setting link-shared=false is incompatible with thin-lto=true"
-                );
+            if config.llvm_thin_lto && llvm.link_shared.is_none() {
+                // If we're building with ThinLTO on, by default we want to link
+                // to LLVM shared, to avoid re-doing ThinLTO (which happens in
+                // the link step) with each stage.
                 config.llvm_link_shared = true;
             }
         }
@@ -852,7 +919,7 @@ impl Config {
             config.rust_run_dsymutil = rust.run_dsymutil.unwrap_or(false);
             optimize = rust.optimize;
             ignore_git = rust.ignore_git;
-            set(&mut config.rust_new_symbol_mangling, rust.new_symbol_mangling);
+            config.rust_new_symbol_mangling = rust.new_symbol_mangling;
             set(&mut config.rust_optimize_tests, rust.optimize_tests);
             set(&mut config.codegen_tests, rust.codegen_tests);
             set(&mut config.rust_rpath, rust.rpath);
@@ -973,6 +1040,7 @@ impl Config {
 
         config.llvm_skip_rebuild = llvm_skip_rebuild.unwrap_or(false);
         config.llvm_assertions = llvm_assertions.unwrap_or(false);
+        config.llvm_tests = llvm_tests.unwrap_or(false);
         config.llvm_plugins = llvm_plugins.unwrap_or(false);
         config.rust_optimize = optimize.unwrap_or(true);
 
@@ -981,7 +1049,8 @@ impl Config {
         config.rust_debug_assertions_std =
             debug_assertions_std.unwrap_or(config.rust_debug_assertions);
         config.rust_overflow_checks = overflow_checks.unwrap_or(default);
-        config.rust_overflow_checks_std = overflow_checks_std.unwrap_or(default);
+        config.rust_overflow_checks_std =
+            overflow_checks_std.unwrap_or(config.rust_overflow_checks);
 
         config.rust_debug_logging = debug_logging.unwrap_or(config.rust_debug_assertions);
 
@@ -1083,10 +1152,6 @@ impl Config {
 
     pub fn verbose(&self) -> bool {
         self.verbose > 0
-    }
-
-    pub fn very_verbose(&self) -> bool {
-        self.verbose > 1
     }
 
     pub fn sanitizers_enabled(&self, target: TargetSelection) -> bool {

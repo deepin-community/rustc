@@ -47,6 +47,7 @@ declare_clippy_lint! {
     ///     log_err_msg(format_msg(msg));
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub OPTION_MAP_UNIT_FN,
     complexity,
     "using `option.map(f)`, where `f` is a function or closure that returns `()`"
@@ -87,6 +88,7 @@ declare_clippy_lint! {
     ///     log_err_msg(format_msg(msg));
     /// };
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub RESULT_MAP_UNIT_FN,
     complexity,
     "using `result.map(f)`, where `f` is a function or closure that returns `()`"
@@ -127,7 +129,7 @@ fn reduce_unit_expression<'a>(cx: &LateContext<'_>, expr: &'a hir::Expr<'_>) -> 
     }
 
     match expr.kind {
-        hir::ExprKind::Call(_, _) | hir::ExprKind::MethodCall(_, _, _, _) => {
+        hir::ExprKind::Call(_, _) | hir::ExprKind::MethodCall(..) => {
             // Calls can't be reduced any more
             Some(expr.span)
         },
@@ -188,7 +190,7 @@ fn unit_closure<'tcx>(
 /// Anything else will return `a`.
 fn let_binding_name(cx: &LateContext<'_>, var_arg: &hir::Expr<'_>) -> String {
     match &var_arg.kind {
-        hir::ExprKind::Field(_, _) => snippet(cx, var_arg.span, "_").replace(".", "_"),
+        hir::ExprKind::Field(_, _) => snippet(cx, var_arg.span, "_").replace('.', "_"),
         hir::ExprKind::Path(_) => format!("_{}", snippet(cx, var_arg.span, "")),
         _ => "a".to_string(),
     }
@@ -205,14 +207,13 @@ fn suggestion_msg(function_type: &str, map_type: &str) -> String {
 fn lint_map_unit_fn(cx: &LateContext<'_>, stmt: &hir::Stmt<'_>, expr: &hir::Expr<'_>, map_args: &[hir::Expr<'_>]) {
     let var_arg = &map_args[0];
 
-    let (map_type, variant, lint) =
-        if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::option_type) {
-            ("Option", "Some", OPTION_MAP_UNIT_FN)
-        } else if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::result_type) {
-            ("Result", "Ok", RESULT_MAP_UNIT_FN)
-        } else {
-            return;
-        };
+    let (map_type, variant, lint) = if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::Option) {
+        ("Option", "Some", OPTION_MAP_UNIT_FN)
+    } else if is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(var_arg), sym::Result) {
+        ("Result", "Ok", RESULT_MAP_UNIT_FN)
+    } else {
+        return;
+    };
     let fn_arg = &map_args[1];
 
     if is_unit_function(cx, fn_arg) {

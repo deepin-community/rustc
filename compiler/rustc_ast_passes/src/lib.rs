@@ -4,10 +4,11 @@
 //!
 //! The crate also contains other misc AST visitors, e.g. `node_count` and `show_span`.
 
-#![cfg_attr(bootstrap, feature(bindings_after_at))]
 #![feature(iter_is_partitioned)]
 #![feature(box_patterns)]
+#![feature(let_else)]
 #![recursion_limit = "256"]
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 pub mod ast_validation;
 pub mod feature_gate;

@@ -328,16 +328,28 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                 err.emit();
             }
             CastError::CastToChar => {
-                type_error_struct!(
+                let mut err = type_error_struct!(
                     fcx.tcx.sess,
                     self.span,
                     self.expr_ty,
                     E0604,
                     "only `u8` can be cast as `char`, not `{}`",
                     self.expr_ty
-                )
-                .span_label(self.span, "invalid cast")
-                .emit();
+                );
+                err.span_label(self.span, "invalid cast");
+                if self.expr_ty.is_numeric() {
+                    err.span_help(
+                        self.span,
+                        if self.expr_ty == fcx.tcx.types.i8 {
+                            "try casting from `u8` instead"
+                        } else if self.expr_ty == fcx.tcx.types.u32 {
+                            "try `char::from_u32` instead"
+                        } else {
+                            "try `char::from_u32` instead (via a `u32`)"
+                        },
+                    );
+                }
+                err.emit();
             }
             CastError::NonScalar => {
                 let mut err = type_error_struct!(
@@ -351,21 +363,22 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                 );
                 let mut sugg = None;
                 let mut sugg_mutref = false;
-                if let ty::Ref(reg, _, mutbl) = *self.cast_ty.kind() {
+                if let ty::Ref(reg, cast_ty, mutbl) = *self.cast_ty.kind() {
                     if let ty::RawPtr(TypeAndMut { ty: expr_ty, .. }) = *self.expr_ty.kind() {
                         if fcx
                             .try_coerce(
                                 self.expr,
                                 fcx.tcx.mk_ref(
-                                    &ty::RegionKind::ReErased,
+                                    fcx.tcx.lifetimes.re_erased,
                                     TypeAndMut { ty: expr_ty, mutbl },
                                 ),
                                 self.cast_ty,
                                 AllowTwoPhase::No,
+                                None,
                             )
                             .is_ok()
                         {
-                            sugg = Some(format!("&{}*", mutbl.prefix_str()));
+                            sugg = Some((format!("&{}*", mutbl.prefix_str()), cast_ty == expr_ty));
                         }
                     } else if let ty::Ref(expr_reg, expr_ty, expr_mutbl) = *self.expr_ty.kind() {
                         if expr_mutbl == Mutability::Not
@@ -379,6 +392,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                                     ),
                                     self.cast_ty,
                                     AllowTwoPhase::No,
+                                    None,
                                 )
                                 .is_ok()
                         {
@@ -394,37 +408,64 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                                 fcx.tcx.mk_ref(reg, TypeAndMut { ty: self.expr_ty, mutbl }),
                                 self.cast_ty,
                                 AllowTwoPhase::No,
+                                None,
                             )
                             .is_ok()
                     {
-                        sugg = Some(format!("&{}", mutbl.prefix_str()));
+                        sugg = Some((format!("&{}", mutbl.prefix_str()), false));
                     }
                 } else if let ty::RawPtr(TypeAndMut { mutbl, .. }) = *self.cast_ty.kind() {
                     if fcx
                         .try_coerce(
                             self.expr,
                             fcx.tcx.mk_ref(
-                                &ty::RegionKind::ReErased,
+                                fcx.tcx.lifetimes.re_erased,
                                 TypeAndMut { ty: self.expr_ty, mutbl },
                             ),
                             self.cast_ty,
                             AllowTwoPhase::No,
+                            None,
                         )
                         .is_ok()
                     {
-                        sugg = Some(format!("&{}", mutbl.prefix_str()));
+                        sugg = Some((format!("&{}", mutbl.prefix_str()), false));
                     }
                 }
                 if sugg_mutref {
                     err.span_label(self.span, "invalid cast");
                     err.span_note(self.expr.span, "this reference is immutable");
                     err.span_note(self.cast_span, "trying to cast to a mutable reference type");
-                } else if let Some(sugg) = sugg {
+                } else if let Some((sugg, remove_cast)) = sugg {
                     err.span_label(self.span, "invalid cast");
-                    err.span_suggestion_verbose(
-                        self.expr.span.shrink_to_lo(),
+
+                    let has_parens = fcx
+                        .tcx
+                        .sess
+                        .source_map()
+                        .span_to_snippet(self.expr.span)
+                        .map_or(false, |snip| snip.starts_with('('));
+
+                    // Very crude check to see whether the expression must be wrapped
+                    // in parentheses for the suggestion to work (issue #89497).
+                    // Can/should be extended in the future.
+                    let needs_parens =
+                        !has_parens && matches!(self.expr.kind, hir::ExprKind::Cast(..));
+
+                    let mut suggestion = vec![(self.expr.span.shrink_to_lo(), sugg)];
+                    if needs_parens {
+                        suggestion[0].1 += "(";
+                        suggestion.push((self.expr.span.shrink_to_hi(), ")".to_string()));
+                    }
+                    if remove_cast {
+                        suggestion.push((
+                            self.expr.span.shrink_to_hi().to(self.cast_span),
+                            String::new(),
+                        ));
+                    }
+
+                    err.multipart_suggestion_verbose(
                         "consider borrowing the value",
-                        sugg,
+                        suggestion,
                         Applicability::MachineApplicable,
                     );
                 } else if !matches!(
@@ -434,7 +475,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                     let mut label = true;
                     // Check `impl From<self.expr_ty> for self.cast_ty {}` for accurate suggestion:
                     if let Ok(snippet) = fcx.tcx.sess.source_map().span_to_snippet(self.expr.span) {
-                        if let Some(from_trait) = fcx.tcx.get_diagnostic_item(sym::from_trait) {
+                        if let Some(from_trait) = fcx.tcx.get_diagnostic_item(sym::From) {
                             let ty = fcx.resolve_vars_if_possible(self.cast_ty);
                             // Erase regions to avoid panic in `prove_value` when calling
                             // `type_implements_trait`.
@@ -609,7 +650,11 @@ impl<'a, 'tcx> CastCheck<'tcx> {
         self.expr_ty = fcx.structurally_resolved_type(self.expr.span, self.expr_ty);
         self.cast_ty = fcx.structurally_resolved_type(self.cast_span, self.cast_ty);
 
-        if !fcx.type_is_known_to_be_sized_modulo_regions(self.cast_ty, self.span) {
+        debug!("check_cast({}, {:?} as {:?})", self.expr.hir_id, self.expr_ty, self.cast_ty);
+
+        if !fcx.type_is_known_to_be_sized_modulo_regions(self.cast_ty, self.span)
+            && !self.cast_ty.has_infer_types()
+        {
             self.report_cast_to_unsized_type(fcx);
         } else if self.expr_ty.references_error() || self.cast_ty.references_error() {
             // No sense in giving duplicate error messages
@@ -666,6 +711,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                             self.expr_ty,
                             fcx.tcx.mk_fn_ptr(f),
                             AllowTwoPhase::No,
+                            None,
                         );
                         if let Err(TypeError::IntrinsicCast) = res {
                             return Err(CastError::IllegalCast);
@@ -829,7 +875,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
 
                 // Coerce to a raw pointer so that we generate AddressOf in MIR.
                 let array_ptr_type = fcx.tcx.mk_ptr(m_expr);
-                fcx.try_coerce(self.expr, self.expr_ty, array_ptr_type, AllowTwoPhase::No)
+                fcx.try_coerce(self.expr, self.expr_ty, array_ptr_type, AllowTwoPhase::No, None)
                     .unwrap_or_else(|_| {
                         bug!(
                         "could not cast from reference to array to pointer to array ({:?} to {:?})",
@@ -839,7 +885,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
                     });
 
                 // this will report a type mismatch if needed
-                fcx.demand_eqtype(self.span, ety, m_cast.ty);
+                fcx.demand_eqtype(self.span, *ety, m_cast.ty);
                 return Ok(CastKind::ArrayPtrCast);
             }
         }
@@ -861,7 +907,7 @@ impl<'a, 'tcx> CastCheck<'tcx> {
     }
 
     fn try_coercion_cast(&self, fcx: &FnCtxt<'a, 'tcx>) -> Result<(), ty::error::TypeError<'_>> {
-        match fcx.try_coerce(self.expr, self.expr_ty, self.cast_ty, AllowTwoPhase::No) {
+        match fcx.try_coerce(self.expr, self.expr_ty, self.cast_ty, AllowTwoPhase::No, None) {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
         }

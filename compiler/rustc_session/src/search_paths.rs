@@ -9,28 +9,21 @@ pub struct SearchPath {
     pub files: Vec<SearchPathFile>,
 }
 
-// The obvious implementation of `SearchPath::files` is a `Vec<PathBuf>`. But
-// it is searched repeatedly by `find_library_crate`, and the searches involve
-// checking the prefix and suffix of the filename of each `PathBuf`. This is
-// doable, but very slow, because it involves calls to `file_name` and
-// `extension` that are themselves slow.
-//
-// This type augments the `PathBuf` with an `Option<String>` containing the
-// `PathBuf`'s filename. The prefix and suffix checking is much faster on the
-// `Option<String>` than the `PathBuf`. (It's an `Option` because
-// `Path::file_name` can fail; if that happens then all subsequent checking
-// will also fail, which is fine.)
+/// The obvious implementation of `SearchPath::files` is a `Vec<PathBuf>`. But
+/// it is searched repeatedly by `find_library_crate`, and the searches involve
+/// checking the prefix and suffix of the filename of each `PathBuf`. This is
+/// doable, but very slow, because it involves calls to `file_name` and
+/// `extension` that are themselves slow.
+///
+/// This type augments the `PathBuf` with an `String` containing the
+/// `PathBuf`'s filename. The prefix and suffix checking is much faster on the
+/// `String` than the `PathBuf`. (The filename must be valid UTF-8. If it's
+/// not, the entry should be skipped, because all Rust output files are valid
+/// UTF-8, and so a non-UTF-8 filename couldn't be one we're looking for.)
 #[derive(Clone, Debug)]
 pub struct SearchPathFile {
     pub path: PathBuf,
-    pub file_name_str: Option<String>,
-}
-
-impl SearchPathFile {
-    fn new(path: PathBuf) -> SearchPathFile {
-        let file_name_str = path.file_name().and_then(|f| f.to_str()).map(|s| s.to_string());
-        SearchPathFile { path, file_name_str }
-    }
+    pub file_name_str: String,
 }
 
 #[derive(PartialEq, Clone, Copy, Debug, Hash, Eq, Encodable, Decodable)]
@@ -85,7 +78,14 @@ impl SearchPath {
         // Get the files within the directory.
         let files = match std::fs::read_dir(&dir) {
             Ok(files) => files
-                .filter_map(|e| e.ok().map(|e| SearchPathFile::new(e.path())))
+                .filter_map(|e| {
+                    e.ok().and_then(|e| {
+                        e.file_name().to_str().map(|s| SearchPathFile {
+                            path: e.path(),
+                            file_name_str: s.to_string(),
+                        })
+                    })
+                })
                 .collect::<Vec<_>>(),
             Err(..) => vec![],
         };

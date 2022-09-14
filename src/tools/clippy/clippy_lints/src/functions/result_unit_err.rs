@@ -13,7 +13,7 @@ use clippy_utils::ty::is_type_diagnostic_item;
 
 use super::RESULT_UNIT_ERR;
 
-pub(super) fn check_item(cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
+pub(super) fn check_item(cx: &LateContext<'_>, item: &hir::Item<'_>) {
     if let hir::ItemKind::Fn(ref sig, ref _generics, _) = item.kind {
         let is_public = cx.access_levels.is_exported(item.def_id);
         let fn_header_span = item.span.with_hi(sig.decl.output.span().hi());
@@ -23,17 +23,17 @@ pub(super) fn check_item(cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
     }
 }
 
-pub(super) fn check_impl_item(cx: &LateContext<'tcx>, item: &'tcx hir::ImplItem<'_>) {
+pub(super) fn check_impl_item(cx: &LateContext<'_>, item: &hir::ImplItem<'_>) {
     if let hir::ImplItemKind::Fn(ref sig, _) = item.kind {
         let is_public = cx.access_levels.is_exported(item.def_id);
         let fn_header_span = item.span.with_hi(sig.decl.output.span().hi());
-        if is_public && trait_ref_of_method(cx, item.hir_id()).is_none() {
+        if is_public && trait_ref_of_method(cx, item.def_id).is_none() {
             check_result_unit_err(cx, sig.decl, item.span, fn_header_span);
         }
     }
 }
 
-pub(super) fn check_trait_item(cx: &LateContext<'tcx>, item: &'tcx hir::TraitItem<'_>) {
+pub(super) fn check_trait_item(cx: &LateContext<'_>, item: &hir::TraitItem<'_>) {
     if let hir::TraitItemKind::Fn(ref sig, _) = item.kind {
         let is_public = cx.access_levels.is_exported(item.def_id);
         let fn_header_span = item.span.with_hi(sig.decl.output.span().hi());
@@ -48,7 +48,7 @@ fn check_result_unit_err(cx: &LateContext<'_>, decl: &hir::FnDecl<'_>, item_span
         if !in_external_macro(cx.sess(), item_span);
         if let hir::FnRetTy::Return(ty) = decl.output;
         let ty = hir_ty_to_ty(cx.tcx, ty);
-        if is_type_diagnostic_item(cx, ty, sym::result_type);
+        if is_type_diagnostic_item(cx, ty, sym::Result);
         if let ty::Adt(_, substs) = ty.kind();
         let err_ty = substs.type_at(1);
         if err_ty.is_unit();

@@ -90,7 +90,7 @@ macro call_intrinsic_match {
         match $intrinsic {
             $(
                 sym::$name => {
-                    assert!($substs.is_noop());
+                    assert!($substs.is_empty());
                     if let [$(ref $arg),*] = *$args {
                         let ($($arg,)*) = (
                             $(codegen_operand($fx, $arg),)*
@@ -143,8 +143,8 @@ macro validate_simd_type($fx:ident, $intrinsic:ident, $span:ident, $ty:expr) {
 }
 
 pub(crate) fn clif_vector_type<'tcx>(tcx: TyCtxt<'tcx>, layout: TyAndLayout<'tcx>) -> Option<Type> {
-    let (element, count) = match &layout.abi {
-        Abi::Vector { element, count } => (element.clone(), *count),
+    let (element, count) = match layout.abi {
+        Abi::Vector { element, count } => (element, count),
         _ => unreachable!(),
     };
 
@@ -407,10 +407,8 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
     destination: Option<(CPlace<'tcx>, BasicBlock)>,
     span: Span,
 ) {
-    let def_id = instance.def_id();
+    let intrinsic = fx.tcx.item_name(instance.def_id());
     let substs = instance.substs;
-
-    let intrinsic = fx.tcx.item_name(def_id);
 
     let ret = match destination {
         Some((place, _)) => place,
@@ -505,10 +503,10 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
 
             if intrinsic == sym::copy_nonoverlapping {
                 // FIXME emit_small_memcpy
-                fx.bcx.call_memcpy(fx.module.target_config(), dst, src, byte_amount);
+                fx.bcx.call_memcpy(fx.target_config, dst, src, byte_amount);
             } else {
                 // FIXME emit_small_memmove
-                fx.bcx.call_memmove(fx.module.target_config(), dst, src, byte_amount);
+                fx.bcx.call_memmove(fx.target_config, dst, src, byte_amount);
             }
         };
         // NOTE: the volatile variants have src and dst swapped
@@ -524,10 +522,10 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
             // FIXME make the copy actually volatile when using emit_small_mem{cpy,move}
             if intrinsic == sym::volatile_copy_nonoverlapping_memory {
                 // FIXME emit_small_memcpy
-                fx.bcx.call_memcpy(fx.module.target_config(), dst, src, byte_amount);
+                fx.bcx.call_memcpy(fx.target_config, dst, src, byte_amount);
             } else {
                 // FIXME emit_small_memmove
-                fx.bcx.call_memmove(fx.module.target_config(), dst, src, byte_amount);
+                fx.bcx.call_memmove(fx.target_config, dst, src, byte_amount);
             }
         };
         size_of_val, <T> (c ptr) {
@@ -675,7 +673,7 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
             let dst_ptr = dst.load_scalar(fx);
             // FIXME make the memset actually volatile when switching to emit_small_memset
             // FIXME use emit_small_memset
-            fx.bcx.call_memset(fx.module.target_config(), dst_ptr, val, count);
+            fx.bcx.call_memset(fx.target_config, dst_ptr, val, count);
         };
         ctlz | ctlz_nonzero, <T> (v arg) {
             // FIXME trap on `ctlz_nonzero` with zero arg.
@@ -823,7 +821,7 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
             dest.write_cvalue(fx, val);
         };
 
-        pref_align_of | min_align_of | needs_drop | type_id | type_name | variant_count, () {
+        pref_align_of | needs_drop | type_id | type_name | variant_count, () {
             let const_val =
                 fx.tcx.const_eval_instance(ParamEnv::reveal_all(), instance, None).unwrap();
             let val = crate::constant::codegen_const_value(
@@ -1069,7 +1067,7 @@ pub(crate) fn codegen_intrinsic_call<'tcx>(
         kw.Try, (v f, v data, v _catch_fn) {
             // FIXME once unwinding is supported, change this to actually catch panics
             let f_sig = fx.bcx.func.import_signature(Signature {
-                call_conv: CallConv::triple_default(fx.triple()),
+                call_conv: fx.target_config.default_call_conv,
                 params: vec![AbiParam::new(fx.bcx.func.dfg.value_type(data))],
                 returns: vec![],
             });

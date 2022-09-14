@@ -1,16 +1,17 @@
-use crate::ich::StableHashingContext;
 use crate::mir::interpret::ErrorHandled;
 use crate::ty;
 use crate::ty::util::{Discr, IntTypeExt};
 use rustc_data_structures::captures::Captures;
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::fx::FxHashMap;
+use rustc_data_structures::stable_hasher::HashingControls;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_errors::ErrorReported;
-use rustc_hir::def::{DefKind, Res};
+use rustc_hir as hir;
+use rustc_hir::def::{CtorKind, DefKind, Res};
 use rustc_hir::def_id::DefId;
 use rustc_index::vec::{Idx, IndexVec};
-use rustc_serialize::{self, Encodable, Encoder};
+use rustc_query_system::ich::StableHashingContext;
 use rustc_session::DataTypeKind;
 use rustc_span::symbol::sym;
 use rustc_target::abi::VariantIdx;
@@ -19,17 +20,17 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
-use std::{ptr, str};
+use std::str;
 
 use super::{
     Destructor, FieldDef, GenericPredicates, ReprOptions, Ty, TyCtxt, VariantDef, VariantDiscr,
 };
 
-#[derive(Clone, HashStable, Debug)]
+#[derive(Copy, Clone, HashStable, Debug)]
 pub struct AdtSizedConstraint<'tcx>(pub &'tcx [Ty<'tcx>]);
 
 bitflags! {
-    #[derive(HashStable)]
+    #[derive(HashStable, TyEncodable, TyDecodable)]
     pub struct AdtFlags: u32 {
         const NO_ADT_FLAGS        = 0;
         /// Indicates whether the ADT is an enum.
@@ -63,6 +64,31 @@ bitflags! {
 /// Moreover, Rust only allows recursive data types through indirection.
 ///
 /// [adt]: https://en.wikipedia.org/wiki/Algebraic_data_type
+///
+/// # Recursive types
+///
+/// It may seem impossible to represent recursive types using [`Ty`],
+/// since [`TyKind::Adt`] includes [`AdtDef`], which includes its fields,
+/// creating a cycle. However, `AdtDef` does not actually include the *types*
+/// of its fields; it includes just their [`DefId`]s.
+///
+/// [`TyKind::Adt`]: ty::TyKind::Adt
+///
+/// For example, the following type:
+///
+/// ```
+/// struct S { x: Box<S> }
+/// ```
+///
+/// is essentially represented with [`Ty`] as the following pseudocode:
+///
+/// ```
+/// struct S { x }
+/// ```
+///
+/// where `x` here represents the `DefId` of `S.x`. Then, the `DefId`
+/// can be used with [`TyCtxt::type_of()`] to get the type of the field.
+#[derive(TyEncodable, TyDecodable)]
 pub struct AdtDef {
     /// The `DefId` of the struct, enum or union item.
     pub did: DefId,
@@ -88,38 +114,36 @@ impl Ord for AdtDef {
     }
 }
 
+/// There should be only one AdtDef for each `did`, therefore
+/// it is fine to implement `PartialEq` only based on `did`.
 impl PartialEq for AdtDef {
-    // `AdtDef`s are always interned, and this is part of `TyS` equality.
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        ptr::eq(self, other)
+        self.did == other.did
     }
 }
 
 impl Eq for AdtDef {}
 
+/// There should be only one AdtDef for each `did`, therefore
+/// it is fine to implement `Hash` only based on `did`.
 impl Hash for AdtDef {
     #[inline]
     fn hash<H: Hasher>(&self, s: &mut H) {
-        (self as *const AdtDef).hash(s)
-    }
-}
-
-impl<S: Encoder> Encodable<S> for AdtDef {
-    fn encode(&self, s: &mut S) -> Result<(), S::Error> {
-        self.did.encode(s)
+        self.did.hash(s)
     }
 }
 
 impl<'a> HashStable<StableHashingContext<'a>> for AdtDef {
     fn hash_stable(&self, hcx: &mut StableHashingContext<'a>, hasher: &mut StableHasher) {
         thread_local! {
-            static CACHE: RefCell<FxHashMap<usize, Fingerprint>> = Default::default();
+            static CACHE: RefCell<FxHashMap<(usize, HashingControls), Fingerprint>> = Default::default();
         }
 
         let hash: Fingerprint = CACHE.with(|cache| {
             let addr = self as *const AdtDef as usize;
-            *cache.borrow_mut().entry(addr).or_insert_with(|| {
+            let hashing_controls = hcx.hashing_controls();
+            *cache.borrow_mut().entry((addr, hashing_controls)).or_insert_with(|| {
                 let ty::AdtDef { did, ref variants, ref flags, ref repr } = *self;
 
                 let mut hasher = StableHasher::new();
@@ -136,7 +160,7 @@ impl<'a> HashStable<StableHashingContext<'a>> for AdtDef {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TyEncodable, TyDecodable)]
 pub enum AdtKind {
     Struct,
     Union,
@@ -288,6 +312,10 @@ impl<'tcx> AdtDef {
         self.destructor(tcx).is_some()
     }
 
+    pub fn has_non_const_dtor(&self, tcx: TyCtxt<'tcx>) -> bool {
+        matches!(self.destructor(tcx), Some(Destructor { constness: hir::Constness::NotConst, .. }))
+    }
+
     /// Asserts this is a struct or union and returns its unique variant.
     pub fn non_enum_variant(&self) -> &VariantDef {
         assert!(self.is_struct() || self.is_union());
@@ -309,6 +337,22 @@ impl<'tcx> AdtDef {
     /// Whether the ADT lacks fields. Note that this includes uninhabited enums,
     /// e.g., `enum Void {}` is considered payload free as well.
     pub fn is_payloadfree(&self) -> bool {
+        // Treat the ADT as not payload-free if arbitrary_enum_discriminant is used (#88621).
+        // This would disallow the following kind of enum from being casted into integer.
+        // ```
+        // enum Enum {
+        //    Foo() = 1,
+        //    Bar{} = 2,
+        //    Baz = 3,
+        // }
+        // ```
+        if self
+            .variants
+            .iter()
+            .any(|v| matches!(v.discr, VariantDiscr::Explicit(_)) && v.ctor_kind != CtorKind::Const)
+        {
+            return false;
+        }
         self.variants.iter().all(|v| v.fields.is_empty())
     }
 
@@ -351,7 +395,7 @@ impl<'tcx> AdtDef {
             | Res::Def(DefKind::Union, _)
             | Res::Def(DefKind::TyAlias, _)
             | Res::Def(DefKind::AssocTy, _)
-            | Res::SelfTy(..)
+            | Res::SelfTy { .. }
             | Res::SelfCtor(..) => self.non_enum_variant(),
             _ => bug!("unexpected res {:?} in variant_of_res", res),
         }

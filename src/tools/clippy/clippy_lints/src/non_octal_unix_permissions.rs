@@ -32,6 +32,7 @@ declare_clippy_lint! {
     /// let mut options = OpenOptions::new();
     /// options.mode(0o644);
     /// ```
+    #[clippy::version = "1.53.0"]
     pub NON_OCTAL_UNIX_PERMISSIONS,
     correctness,
     "use of non-octal value to set unix file permissions, which will be translated into octal"
@@ -39,10 +40,10 @@ declare_clippy_lint! {
 
 declare_lint_pass!(NonOctalUnixPermissions => [NON_OCTAL_UNIX_PERMISSIONS]);
 
-impl LateLintPass<'_> for NonOctalUnixPermissions {
+impl<'tcx> LateLintPass<'tcx> for NonOctalUnixPermissions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
         match &expr.kind {
-            ExprKind::MethodCall(path, _, [func, param], _) => {
+            ExprKind::MethodCall(path, [func, param], _) => {
                 let obj_ty = cx.typeck_results().expr_ty(func).peel_refs();
 
                 if_chain! {

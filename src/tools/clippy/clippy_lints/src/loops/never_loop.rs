@@ -4,35 +4,41 @@ use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::higher::ForLoop;
 use clippy_utils::source::snippet;
 use rustc_errors::Applicability;
-use rustc_hir::{Block, Expr, ExprKind, HirId, InlineAsmOperand, LoopSource, Node, Pat, Stmt, StmtKind};
+use rustc_hir::{Block, Expr, ExprKind, HirId, InlineAsmOperand, Pat, Stmt, StmtKind};
 use rustc_lint::LateContext;
+use rustc_span::Span;
 use std::iter::{once, Iterator};
 
-pub(super) fn check(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
-    if let ExprKind::Loop(block, _, source, _) = expr.kind {
-        match never_loop_block(block, expr.hir_id) {
-            NeverLoopResult::AlwaysBreak => {
-                span_lint_and_then(cx, NEVER_LOOP, expr.span, "this loop never actually loops", |diag| {
-                    if_chain! {
-                        if let LoopSource::ForLoop = source;
-                        if let Some((_, Node::Expr(parent_match))) = cx.tcx.hir().parent_iter(expr.hir_id).nth(1);
-                        if let Some(ForLoop { arg: iterator, pat, span: for_span, .. }) = ForLoop::hir(parent_match);
-                        then {
-                            // Suggests using an `if let` instead. This is `Unspecified` because the
-                            // loop may (probably) contain `break` statements which would be invalid
-                            // in an `if let`.
-                            diag.span_suggestion_verbose(
-                                for_span.with_hi(iterator.span.hi()),
-                                "if you need the first element of the iterator, try writing",
-                                for_to_if_let_sugg(cx, iterator, pat),
-                                Applicability::Unspecified,
-                            );
-                        }
-                    };
-                });
-            },
-            NeverLoopResult::MayContinueMainLoop | NeverLoopResult::Otherwise => (),
-        }
+pub(super) fn check(
+    cx: &LateContext<'_>,
+    block: &Block<'_>,
+    loop_id: HirId,
+    span: Span,
+    for_loop: Option<&ForLoop<'_>>,
+) {
+    match never_loop_block(block, loop_id) {
+        NeverLoopResult::AlwaysBreak => {
+            span_lint_and_then(cx, NEVER_LOOP, span, "this loop never actually loops", |diag| {
+                if let Some(ForLoop {
+                    arg: iterator,
+                    pat,
+                    span: for_span,
+                    ..
+                }) = for_loop
+                {
+                    // Suggests using an `if let` instead. This is `Unspecified` because the
+                    // loop may (probably) contain `break` statements which would be invalid
+                    // in an `if let`.
+                    diag.span_suggestion_verbose(
+                        for_span.with_hi(iterator.span.hi()),
+                        "if you need the first element of the iterator, try writing",
+                        for_to_if_let_sugg(cx, iterator, pat),
+                        Applicability::Unspecified,
+                    );
+                }
+            });
+        },
+        NeverLoopResult::MayContinueMainLoop | NeverLoopResult::Otherwise => (),
     }
 }
 
@@ -86,9 +92,7 @@ fn combine_branches(b1: NeverLoopResult, b2: NeverLoopResult) -> NeverLoopResult
 }
 
 fn never_loop_block(block: &Block<'_>, main_loop_id: HirId) -> NeverLoopResult {
-    let stmts = block.stmts.iter().map(stmt_to_expr);
-    let expr = once(block.expr.as_deref());
-    let mut iter = stmts.chain(expr).flatten();
+    let mut iter = block.stmts.iter().filter_map(stmt_to_expr).chain(block.expr);
     never_loop_expr_seq(&mut iter, main_loop_id)
 }
 
@@ -100,7 +104,7 @@ fn never_loop_expr_seq<'a, T: Iterator<Item = &'a Expr<'a>>>(es: &mut T, main_lo
 fn stmt_to_expr<'tcx>(stmt: &Stmt<'tcx>) -> Option<&'tcx Expr<'tcx>> {
     match stmt.kind {
         StmtKind::Semi(e, ..) | StmtKind::Expr(e, ..) => Some(e),
-        StmtKind::Local(local) => local.init.as_deref(),
+        StmtKind::Local(local) => local.init,
         StmtKind::Item(..) => None,
     }
 }
@@ -111,13 +115,13 @@ fn never_loop_expr(expr: &Expr<'_>, main_loop_id: HirId) -> NeverLoopResult {
         | ExprKind::Unary(_, e)
         | ExprKind::Cast(e, _)
         | ExprKind::Type(e, _)
-        | ExprKind::Let(_, e, _)
         | ExprKind::Field(e, _)
         | ExprKind::AddrOf(_, _, e)
         | ExprKind::Struct(_, _, Some(e))
         | ExprKind::Repeat(e, _)
         | ExprKind::DropTemps(e) => never_loop_expr(e, main_loop_id),
-        ExprKind::Array(es) | ExprKind::MethodCall(_, _, es, _) | ExprKind::Tup(es) => {
+        ExprKind::Let(let_expr) => never_loop_expr(let_expr.init, main_loop_id),
+        ExprKind::Array(es) | ExprKind::MethodCall(_, es, _) | ExprKind::Tup(es) => {
             never_loop_expr_all(&mut es.iter(), main_loop_id)
         },
         ExprKind::Call(e, es) => never_loop_expr_all(&mut once(e).chain(es.iter()), main_loop_id),
@@ -177,7 +181,6 @@ fn never_loop_expr(expr: &Expr<'_>, main_loop_id: HirId) -> NeverLoopResult {
         ExprKind::Struct(_, _, None)
         | ExprKind::Yield(_, _)
         | ExprKind::Closure(_, _, _, _, _)
-        | ExprKind::LlvmInlineAsm(_)
         | ExprKind::Path(_)
         | ExprKind::ConstBlock(_)
         | ExprKind::Lit(_)

@@ -14,7 +14,7 @@ pub mod vec_deque;
 #[cfg(not(no_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub mod btree_map {
-    //! A map based on a B-Tree.
+    //! An ordered map based on a B-Tree.
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::btree::map::*;
 }
@@ -22,7 +22,7 @@ pub mod btree_map {
 #[cfg(not(no_global_oom_handling))]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub mod btree_set {
-    //! A set based on a B-Tree.
+    //! An ordered set based on a B-Tree.
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::btree::set::*;
 }
@@ -57,7 +57,7 @@ use core::fmt::Display;
 
 /// The error type for `try_reserve` methods.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[unstable(feature = "try_reserve", reason = "new API", issue = "48043")]
+#[stable(feature = "try_reserve", since = "1.57.0")]
 pub struct TryReserveError {
     kind: TryReserveErrorKind,
 }
@@ -65,6 +65,7 @@ pub struct TryReserveError {
 impl TryReserveError {
     /// Details about the allocation that caused the error
     #[inline]
+    #[must_use]
     #[unstable(
         feature = "try_reserve_kind",
         reason = "Uncertain how much info should be exposed",
@@ -126,7 +127,7 @@ impl From<LayoutError> for TryReserveErrorKind {
     }
 }
 
-#[unstable(feature = "try_reserve", reason = "new API", issue = "48043")]
+#[stable(feature = "try_reserve", since = "1.57.0")]
 impl Display for TryReserveError {
     fn fmt(
         &self,

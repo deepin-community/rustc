@@ -3,13 +3,13 @@ use clippy_utils::is_hir_ty_cfg_dependant;
 use if_chain::if_chain;
 use rustc_hir::{Expr, ExprKind, GenericArg};
 use rustc_lint::LateContext;
+use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Ty};
 use rustc_span::symbol::sym;
-use rustc_target::abi::LayoutOf;
 
 use super::CAST_PTR_ALIGNMENT;
 
-pub(super) fn check(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
+pub(super) fn check(cx: &LateContext<'_>, expr: &Expr<'_>) {
     if let ExprKind::Cast(cast_expr, cast_to) = expr.kind {
         if is_hir_ty_cfg_dependant(cx, cast_to) {
             return;
@@ -19,7 +19,7 @@ pub(super) fn check(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
             cx.typeck_results().expr_ty(expr),
         );
         lint_cast_ptr_alignment(cx, expr, cast_from, cast_to);
-    } else if let ExprKind::MethodCall(method_path, _, args, _) = expr.kind {
+    } else if let ExprKind::MethodCall(method_path, [self_arg, ..], _) = &expr.kind {
         if_chain! {
             if method_path.ident.name == sym!(cast);
             if let Some(generic_args) = method_path.args;
@@ -28,7 +28,7 @@ pub(super) fn check(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
             if !is_hir_ty_cfg_dependant(cx, cast_to);
             then {
                 let (cast_from, cast_to) =
-                    (cx.typeck_results().expr_ty(&args[0]), cx.typeck_results().expr_ty(expr));
+                    (cx.typeck_results().expr_ty(self_arg), cx.typeck_results().expr_ty(expr));
                 lint_cast_ptr_alignment(cx, expr, cast_from, cast_to);
             }
         }

@@ -19,7 +19,7 @@ use crate::ops::Try;
 /// you can also [`map`] backwards:
 ///
 /// ```rust
-/// let v: Vec<i32> = vec![1, 2, 3].into_iter().map(|x| x + 1).rev().collect();
+/// let v: Vec<i32> = [1, 2, 3].into_iter().map(|x| x + 1).rev().collect();
 ///
 /// assert_eq!(v, [4, 3, 2]);
 /// ```
@@ -32,7 +32,7 @@ use crate::ops::Try;
 /// ```rust
 /// let mut c = 0;
 ///
-/// for pair in vec!['a', 'b', 'c'].into_iter()
+/// for pair in ['a', 'b', 'c'].into_iter()
 ///                                .map(|letter| { c += 1; (letter, c) }) {
 ///     println!("{:?}", pair);
 /// }
@@ -49,7 +49,7 @@ use crate::ops::Try;
 /// ```rust
 /// let mut c = 0;
 ///
-/// for pair in vec!['a', 'b', 'c'].into_iter()
+/// for pair in ['a', 'b', 'c'].into_iter()
 ///                                .map(|letter| { c += 1; (letter, c) })
 ///                                .rev() {
 ///     println!("{:?}", pair);
@@ -201,15 +201,14 @@ where
 }
 
 #[unstable(issue = "none", feature = "inplace_iteration")]
-unsafe impl<S: Iterator, B, I: Iterator, F> SourceIter for Map<I, F>
+unsafe impl<I, F> SourceIter for Map<I, F>
 where
-    F: FnMut(I::Item) -> B,
-    I: SourceIter<Source = S>,
+    I: SourceIter,
 {
-    type Source = S;
+    type Source = I::Source;
 
     #[inline]
-    unsafe fn as_inner(&mut self) -> &mut S {
+    unsafe fn as_inner(&mut self) -> &mut I::Source {
         // SAFETY: unsafe function forwarding to unsafe function with the same requirements
         unsafe { SourceIter::as_inner(&mut self.iter) }
     }

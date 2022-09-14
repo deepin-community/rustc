@@ -15,14 +15,15 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(bool_to_option)]
 #![feature(box_patterns)]
+#![feature(derive_default_enum)]
 #![feature(extend_one)]
-#![feature(iter_zip)]
+#![feature(let_else)]
 #![feature(never_type)]
-#![feature(in_band_lifetimes)]
 #![feature(control_flow_enum)]
 #![feature(min_specialization)]
 #![feature(label_break_value)]
 #![recursion_limit = "512"] // For rustdoc
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 #[macro_use]
 extern crate rustc_macros;

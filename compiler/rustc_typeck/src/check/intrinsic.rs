@@ -2,7 +2,7 @@
 //! intrinsics that the compiler exposes.
 
 use crate::errors::{
-    SimdShuffleMissingLength, UnrecognizedAtomicOperation, UnrecognizedIntrinsicFunction,
+    UnrecognizedAtomicOperation, UnrecognizedIntrinsicFunction,
     WrongNumberOfGenericArgumentsToIntrinsic,
 };
 use crate::require_same_types;
@@ -297,6 +297,11 @@ pub fn check_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>) {
             sym::const_allocate => {
                 (0, vec![tcx.types.usize, tcx.types.usize], tcx.mk_mut_ptr(tcx.types.u8))
             }
+            sym::const_deallocate => (
+                0,
+                vec![tcx.mk_mut_ptr(tcx.types.u8), tcx.types.usize, tcx.types.usize],
+                tcx.mk_unit(),
+            ),
 
             sym::ptr_offset_from => {
                 (1, vec![tcx.mk_imm_ptr(param(0)), tcx.mk_imm_ptr(param(0))], tcx.types.isize)
@@ -324,9 +329,10 @@ pub fn check_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>) {
             sym::unlikely => (0, vec![tcx.types.bool], tcx.types.bool),
 
             sym::discriminant_value => {
-                let assoc_items =
-                    tcx.associated_items(tcx.lang_items().discriminant_kind_trait().unwrap());
-                let discriminant_def_id = assoc_items.in_definition_order().next().unwrap().def_id;
+                let assoc_items = tcx.associated_item_def_ids(
+                    tcx.require_lang_item(hir::LangItem::DiscriminantKind, None),
+                );
+                let discriminant_def_id = assoc_items[0];
 
                 let br = ty::BoundRegion { var: ty::BoundVar::from_u32(0), kind: ty::BrAnon(0) };
                 (
@@ -390,6 +396,8 @@ pub fn check_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>) {
 
             sym::black_box => (1, vec![param(0)], param(0)),
 
+            sym::const_eval_select => (4, vec![param(0), param(1), param(2)], param(3)),
+
             other => {
                 tcx.sess.emit_err(UnrecognizedIntrinsicFunction { span: it.span, name: other });
                 return;
@@ -450,7 +458,7 @@ pub fn check_platform_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>)
         sym::simd_scatter => (3, vec![param(0), param(1), param(2)], tcx.mk_unit()),
         sym::simd_insert => (2, vec![param(0), tcx.types.u32, param(1)], param(0)),
         sym::simd_extract => (2, vec![param(0), tcx.types.u32], param(1)),
-        sym::simd_cast => (2, vec![param(0)], param(1)),
+        sym::simd_cast | sym::simd_as => (2, vec![param(0)], param(1)),
         sym::simd_bitmask => (2, vec![param(0)], param(1)),
         sym::simd_select | sym::simd_select_bitmask => {
             (2, vec![param(0), param(1), param(1)], param(1))
@@ -468,6 +476,7 @@ pub fn check_platform_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>)
         | sym::simd_reduce_max
         | sym::simd_reduce_min_nanless
         | sym::simd_reduce_max_nanless => (2, vec![param(0)], param(1)),
+        sym::simd_shuffle => (3, vec![param(0), param(0), param(1)], param(2)),
         name if name.as_str().starts_with("simd_shuffle") => {
             match name.as_str()["simd_shuffle".len()..].parse() {
                 Ok(n) => {
@@ -475,7 +484,9 @@ pub fn check_platform_intrinsic_type(tcx: TyCtxt<'_>, it: &hir::ForeignItem<'_>)
                     (2, params, param(1))
                 }
                 Err(_) => {
-                    tcx.sess.emit_err(SimdShuffleMissingLength { span: it.span, name });
+                    let msg =
+                        format!("unrecognized platform-specific intrinsic function: `{}`", name);
+                    tcx.sess.struct_span_err(it.span, &msg).emit();
                     return;
                 }
             }

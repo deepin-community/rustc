@@ -1,8 +1,9 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(if_let_guard)]
 #![feature(nll)]
-#![cfg_attr(bootstrap, allow(incomplete_features))] // if_let_guard
+#![feature(let_else)]
 #![recursion_limit = "256"]
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 mod dump_visitor;
 mod dumper;
@@ -19,12 +20,12 @@ use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::Node;
 use rustc_hir_pretty::{enum_def_to_string, fn_to_string, ty_to_string};
-use rustc_middle::hir::map::Map;
-use rustc_middle::middle::cstore::ExternCrate;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::middle::privacy::AccessLevels;
 use rustc_middle::ty::{self, print::with_no_trimmed_paths, DefIdTree, TyCtxt};
 use rustc_middle::{bug, span_bug};
 use rustc_session::config::{CrateType, Input, OutputType};
+use rustc_session::cstore::ExternCrate;
 use rustc_session::output::{filename_for_metadata, out_filename};
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Ident;
@@ -711,13 +712,11 @@ impl<'tcx> SaveContext<'tcx> {
             }
             Res::Def(HirDefKind::AssocFn, decl_id) => {
                 let def_id = if decl_id.is_local() {
-                    let ti = self.tcx.associated_item(decl_id);
-
-                    self.tcx
-                        .associated_items(ti.container.id())
-                        .filter_by_name_unhygienic(ti.ident.name)
-                        .find(|item| item.defaultness.has_value())
-                        .map(|item| item.def_id)
+                    if self.tcx.associated_item(decl_id).defaultness.has_value() {
+                        Some(decl_id)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 };
@@ -740,6 +739,7 @@ impl<'tcx> SaveContext<'tcx> {
                 | HirDefKind::ForeignMod
                 | HirDefKind::LifetimeParam
                 | HirDefKind::AnonConst
+                | HirDefKind::InlineConst
                 | HirDefKind::Use
                 | HirDefKind::Field
                 | HirDefKind::GlobalAsm
@@ -749,7 +749,7 @@ impl<'tcx> SaveContext<'tcx> {
                 _,
             )
             | Res::PrimTy(..)
-            | Res::SelfTy(..)
+            | Res::SelfTy { .. }
             | Res::ToolMod
             | Res::NonMacroAttr(..)
             | Res::SelfCtor(..)
@@ -814,7 +814,7 @@ impl<'tcx> SaveContext<'tcx> {
 
     fn lookup_def_id(&self, ref_id: hir::HirId) -> Option<DefId> {
         match self.get_path_res(ref_id) {
-            Res::PrimTy(_) | Res::SelfTy(..) | Res::Err => None,
+            Res::PrimTy(_) | Res::SelfTy { .. } | Res::Err => None,
             def => def.opt_def_id(),
         }
     }
@@ -823,9 +823,9 @@ impl<'tcx> SaveContext<'tcx> {
         let mut result = String::new();
 
         for attr in attrs {
-            if let Some(val) = attr.doc_str() {
+            if let Some((val, kind)) = attr.doc_str_and_comment_kind() {
                 // FIXME: Should save-analysis beautify doc strings itself or leave it to users?
-                result.push_str(&beautify_doc_string(val).as_str());
+                result.push_str(beautify_doc_string(val, kind).as_str());
                 result.push('\n');
             }
         }
@@ -861,10 +861,10 @@ impl<'l> PathCollector<'l> {
 }
 
 impl<'l> Visitor<'l> for PathCollector<'l> {
-    type Map = Map<'l>;
+    type NestedFilter = nested_filter::All;
 
-    fn nested_visit_map(&mut self) -> intravisit::NestedVisitorMap<Self::Map> {
-        intravisit::NestedVisitorMap::All(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_pat(&mut self, p: &'l hir::Pat<'l>) {
@@ -986,7 +986,7 @@ pub fn process_crate<'l, 'tcx, H: SaveHandler>(
         tcx.dep_graph.with_ignore(|| {
             info!("Dumping crate {}", cratename);
 
-            // Privacy checking requires and is done after type checking; use a
+            // Privacy checking must be done outside of type inference; use a
             // fallback in case the access levels couldn't have been correctly computed.
             let access_levels = match tcx.sess.compile_status() {
                 Ok(..) => tcx.privacy_access_levels(()),
@@ -1004,9 +1004,9 @@ pub fn process_crate<'l, 'tcx, H: SaveHandler>(
 
             let mut visitor = DumpVisitor::new(save_ctxt);
 
-            visitor.dump_crate_info(cratename, tcx.hir().krate());
+            visitor.dump_crate_info(cratename);
             visitor.dump_compilation_options(input, cratename);
-            visitor.process_crate(tcx.hir().krate());
+            visitor.process_crate();
 
             handler.save(&visitor.save_ctxt, &visitor.analysis())
         })
@@ -1036,7 +1036,7 @@ fn find_config(supplied: Option<Config>) -> Config {
 
 // Helper function to escape quotes in a string
 fn escape(s: String) -> String {
-    s.replace("\"", "\"\"")
+    s.replace('\"', "\"\"")
 }
 
 // Helper function to determine if a span came from a

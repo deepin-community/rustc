@@ -90,6 +90,7 @@ mod tests;
 use crate::cell::Cell;
 use crate::fmt;
 use crate::marker;
+use crate::panic::{RefUnwindSafe, UnwindSafe};
 use crate::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use crate::thread::{self, Thread};
 
@@ -122,6 +123,12 @@ pub struct Once {
 unsafe impl Sync for Once {}
 #[stable(feature = "rust1", since = "1.0.0")]
 unsafe impl Send for Once {}
+
+#[stable(feature = "sync_once_unwind_safe", since = "1.59.0")]
+impl UnwindSafe for Once {}
+
+#[stable(feature = "sync_once_unwind_safe", since = "1.59.0")]
+impl RefUnwindSafe for Once {}
 
 /// State yielded to [`Once::call_once_force()`]’s closure parameter. The state
 /// can be used to query the poison status of the [`Once`].
@@ -186,6 +193,7 @@ impl Once {
     #[inline]
     #[stable(feature = "once_new", since = "1.2.0")]
     #[rustc_const_stable(feature = "const_once_new", since = "1.32.0")]
+    #[must_use]
     pub const fn new() -> Once {
         Once { state_and_queue: AtomicUsize::new(INCOMPLETE), _marker: marker::PhantomData }
     }

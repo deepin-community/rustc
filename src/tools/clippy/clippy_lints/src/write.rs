@@ -4,12 +4,12 @@ use std::ops::{Deref, Range};
 
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::{snippet_opt, snippet_with_applicability};
-use rustc_ast::ast::{Expr, ExprKind, ImplKind, Item, ItemKind, MacCall, Path, StrLit, StrStyle};
+use rustc_ast::ast::{Expr, ExprKind, Impl, Item, ItemKind, MacCall, Path, StrLit, StrStyle};
 use rustc_ast::token::{self, LitKind};
 use rustc_ast::tokenstream::TokenStream;
 use rustc_errors::Applicability;
 use rustc_lexer::unescape::{self, EscapeError};
-use rustc_lint::{EarlyContext, EarlyLintPass};
+use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_parse::parser;
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::symbol::{kw, Symbol};
@@ -31,6 +31,7 @@ declare_clippy_lint! {
     /// // Good
     /// println!();
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub PRINTLN_EMPTY_STRING,
     style,
     "using `println!(\"\")` with an empty string"
@@ -55,6 +56,7 @@ declare_clippy_lint! {
     /// # let name = "World";
     /// println!("Hello {}!", name);
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub PRINT_WITH_NEWLINE,
     style,
     "using `print!()` with a format string that ends in a single newline"
@@ -70,12 +72,19 @@ declare_clippy_lint! {
     /// application and might forget to remove those prints afterward.
     ///
     /// ### Known problems
-    /// Only catches `print!` and `println!` calls.
+    /// * Only catches `print!` and `println!` calls.
+    /// * The lint level is unaffected by crate attributes. The level can still
+    ///   be set for functions, modules and other items. To change the level for
+    ///   the entire crate, please use command line flags. More information and a
+    ///   configuration example can be found in [clippy#6610].
+    ///
+    /// [clippy#6610]: https://github.com/rust-lang/rust-clippy/issues/6610#issuecomment-977120558
     ///
     /// ### Example
     /// ```rust
     /// println!("Hello world!");
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub PRINT_STDOUT,
     restriction,
     "printing on stdout"
@@ -91,12 +100,19 @@ declare_clippy_lint! {
     /// application and might forget to remove those prints afterward.
     ///
     /// ### Known problems
-    /// Only catches `eprint!` and `eprintln!` calls.
+    /// * Only catches `eprint!` and `eprintln!` calls.
+    /// * The lint level is unaffected by crate attributes. The level can still
+    ///   be set for functions, modules and other items. To change the level for
+    ///   the entire crate, please use command line flags. More information and a
+    ///   configuration example can be found in [clippy#6610].
+    ///
+    /// [clippy#6610]: https://github.com/rust-lang/rust-clippy/issues/6610#issuecomment-977120558
     ///
     /// ### Example
     /// ```rust
     /// eprintln!("Hello world!");
     /// ```
+    #[clippy::version = "1.50.0"]
     pub PRINT_STDERR,
     restriction,
     "printing on stderr"
@@ -116,6 +132,7 @@ declare_clippy_lint! {
     /// # let foo = "bar";
     /// println!("{:?}", foo);
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub USE_DEBUG,
     restriction,
     "use of `Debug`-based formatting"
@@ -142,6 +159,7 @@ declare_clippy_lint! {
     /// ```rust
     /// println!("foo");
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub PRINT_LITERAL,
     style,
     "printing a literal with a format string"
@@ -165,6 +183,7 @@ declare_clippy_lint! {
     /// // Good
     /// writeln!(buf);
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub WRITELN_EMPTY_STRING,
     style,
     "using `writeln!(buf, \"\")` with an empty string"
@@ -191,6 +210,7 @@ declare_clippy_lint! {
     /// // Good
     /// writeln!(buf, "Hello {}!", name);
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub WRITE_WITH_NEWLINE,
     style,
     "using `write!()` with a format string that ends in a single newline"
@@ -219,6 +239,7 @@ declare_clippy_lint! {
     /// // Good
     /// writeln!(buf, "foo");
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub WRITE_LITERAL,
     style,
     "writing a literal with a format string"
@@ -243,7 +264,7 @@ impl_lint_pass!(Write => [
 
 impl EarlyLintPass for Write {
     fn check_item(&mut self, _: &EarlyContext<'_>, item: &Item) {
-        if let ItemKind::Impl(box ImplKind {
+        if let ItemKind::Impl(box Impl {
             of_trait: Some(trait_ref),
             ..
         }) = &item.kind
@@ -269,7 +290,7 @@ impl EarlyLintPass for Write {
     fn check_mac(&mut self, cx: &EarlyContext<'_>, mac: &MacCall) {
         fn is_build_script(cx: &EarlyContext<'_>) -> bool {
             // Cargo sets the crate name for build scripts to `build_script_build`
-            cx.sess
+            cx.sess()
                 .opts
                 .crate_name
                 .as_ref()
@@ -350,9 +371,9 @@ impl EarlyLintPass for Write {
 /// Return this and a boolean indicating whether it only consisted of a newline.
 fn newline_span(fmtstr: &StrLit) -> (Span, bool) {
     let sp = fmtstr.span;
-    let contents = &fmtstr.symbol.as_str();
+    let contents = fmtstr.symbol.as_str();
 
-    if *contents == r"\n" {
+    if contents == r"\n" {
         return (sp, true);
     }
 
@@ -432,7 +453,7 @@ impl SimpleFormatArgs {
                     }
                 }
             },
-            ArgumentNamed(n) => {
+            ArgumentNamed(n, _) => {
                 if let Some(x) = self.named.iter_mut().find(|x| x.0 == n) {
                     match x.1.as_slice() {
                         // A non-empty format string has been seen already.
@@ -463,7 +484,7 @@ impl Write {
             StrStyle::Raw(n) => Some(n as usize),
         };
 
-        let mut parser = Parser::new(&str_sym, style, snippet_opt(cx, str_lit.span), false, ParseMode::Format);
+        let mut parser = Parser::new(str_sym, style, snippet_opt(cx, str_lit.span), false, ParseMode::Format);
         let mut args = SimpleFormatArgs::default();
 
         while let Some(arg) = parser.next() {
@@ -508,7 +529,7 @@ impl Write {
     /// ```
     #[allow(clippy::too_many_lines)]
     fn check_tts<'a>(&self, cx: &EarlyContext<'a>, tts: TokenStream, is_write: bool) -> (Option<StrLit>, Option<Expr>) {
-        let mut parser = parser::Parser::new(&cx.sess.parse_sess, tts, false, None);
+        let mut parser = parser::Parser::new(&cx.sess().parse_sess, tts, false, None);
         let expr = if is_write {
             match parser
                 .parse_expr()
@@ -562,13 +583,13 @@ impl Write {
             let replacement: String = match lit.token.kind {
                 LitKind::Integer | LitKind::Float | LitKind::Err => continue,
                 LitKind::StrRaw(_) | LitKind::ByteStrRaw(_) if matches!(fmtstr.style, StrStyle::Raw(_)) => {
-                    lit.token.symbol.as_str().replace("{", "{{").replace("}", "}}")
+                    lit.token.symbol.as_str().replace('{', "{{").replace('}', "}}")
                 },
                 LitKind::Str | LitKind::ByteStr if matches!(fmtstr.style, StrStyle::Cooked) => {
-                    lit.token.symbol.as_str().replace("{", "{{").replace("}", "}}")
+                    lit.token.symbol.as_str().replace('{', "{{").replace('}', "}}")
                 },
                 LitKind::StrRaw(_) | LitKind::Str | LitKind::ByteStrRaw(_) | LitKind::ByteStr => continue,
-                LitKind::Byte | LitKind::Char => match &*lit.token.symbol.as_str() {
+                LitKind::Byte | LitKind::Char => match lit.token.symbol.as_str() {
                     "\"" if matches!(fmtstr.style, StrStyle::Cooked) => "\\\"",
                     "\"" if matches!(fmtstr.style, StrStyle::Raw(0)) => continue,
                     "\\\\" if matches!(fmtstr.style, StrStyle::Raw(_)) => "\\",
@@ -650,7 +671,7 @@ fn check_newlines(fmtstr: &StrLit) -> bool {
     let mut last_was_cr = false;
     let mut should_lint = false;
 
-    let contents = &fmtstr.symbol.as_str();
+    let contents = fmtstr.symbol.as_str();
 
     let mut cb = |r: Range<usize>, c: Result<char, EscapeError>| {
         let c = c.unwrap();

@@ -15,15 +15,16 @@ use rustc_middle::mir::interpret::{
     Scalar as InterpScalar,
 };
 use rustc_middle::mir::mono::MonoItem;
+use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Instance, Ty};
 use rustc_middle::{bug, span_bug};
 use rustc_target::abi::{
-    AddressSpace, Align, HasDataLayout, LayoutOf, Primitive, Scalar, Size, WrappingRange,
+    AddressSpace, Align, HasDataLayout, Primitive, Scalar, Size, WrappingRange,
 };
 use std::ops::Range;
 use tracing::debug;
 
-pub fn const_alloc_to_llvm(cx: &CodegenCx<'ll, '_>, alloc: &Allocation) -> &'ll Value {
+pub fn const_alloc_to_llvm<'ll>(cx: &CodegenCx<'ll, '_>, alloc: &Allocation) -> &'ll Value {
     let mut llvals = Vec::with_capacity(alloc.relocations().len() + 1);
     let dl = cx.data_layout();
     let pointer_size = dl.pointer_size.bytes() as usize;
@@ -110,7 +111,7 @@ pub fn const_alloc_to_llvm(cx: &CodegenCx<'ll, '_>, alloc: &Allocation) -> &'ll 
                 Pointer::new(alloc_id, Size::from_bytes(ptr_offset)),
                 &cx.tcx,
             ),
-            &Scalar { value: Primitive::Pointer, valid_range: WrappingRange { start: 0, end: !0 } },
+            Scalar { value: Primitive::Pointer, valid_range: WrappingRange { start: 0, end: !0 } },
             cx.type_i8p_ext(address_space),
         ));
         next_offset = offset + pointer_size;
@@ -126,7 +127,7 @@ pub fn const_alloc_to_llvm(cx: &CodegenCx<'ll, '_>, alloc: &Allocation) -> &'ll 
     cx.const_struct(&llvals, true)
 }
 
-pub fn codegen_static_initializer(
+pub fn codegen_static_initializer<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     def_id: DefId,
 ) -> Result<(&'ll Value, &'tcx Allocation), ErrorHandled> {
@@ -134,7 +135,7 @@ pub fn codegen_static_initializer(
     Ok((const_alloc_to_llvm(cx, alloc), alloc))
 }
 
-fn set_global_alignment(cx: &CodegenCx<'ll, '_>, gv: &'ll Value, mut align: Align) {
+fn set_global_alignment<'ll>(cx: &CodegenCx<'ll, '_>, gv: &'ll Value, mut align: Align) {
     // The target may require greater alignment for globals than the type does.
     // Note: GCC and Clang also allow `__attribute__((aligned))` on variables,
     // which can force it to be smaller.  Rust doesn't support this yet.
@@ -151,7 +152,7 @@ fn set_global_alignment(cx: &CodegenCx<'ll, '_>, gv: &'ll Value, mut align: Alig
     }
 }
 
-fn check_and_apply_linkage(
+fn check_and_apply_linkage<'ll, 'tcx>(
     cx: &CodegenCx<'ll, 'tcx>,
     attrs: &CodegenFnAttrs,
     ty: Ty<'tcx>,
@@ -177,7 +178,7 @@ fn check_and_apply_linkage(
         };
         unsafe {
             // Declare a symbol `foo` with the desired linkage.
-            let g1 = cx.declare_global(&sym, llty2);
+            let g1 = cx.declare_global(sym, llty2);
             llvm::LLVMRustSetLinkage(g1, base::linkage_to_llvm(linkage));
 
             // Declare an internal global `extern_with_linkage_foo` which
@@ -187,7 +188,7 @@ fn check_and_apply_linkage(
             // `extern_with_linkage_foo` will instead be initialized to
             // zero.
             let mut real_name = "_rust_extern_with_linkage_".to_string();
-            real_name.push_str(&sym);
+            real_name.push_str(sym);
             let g2 = cx.define_global(&real_name, llty).unwrap_or_else(|| {
                 cx.sess().span_fatal(
                     cx.tcx.def_span(span_def_id),
@@ -201,15 +202,15 @@ fn check_and_apply_linkage(
     } else {
         // Generate an external declaration.
         // FIXME(nagisa): investigate whether it can be changed into define_global
-        cx.declare_global(&sym, llty)
+        cx.declare_global(sym, llty)
     }
 }
 
-pub fn ptrcast(val: &'ll Value, ty: &'ll Type) -> &'ll Value {
+pub fn ptrcast<'ll>(val: &'ll Value, ty: &'ll Type) -> &'ll Value {
     unsafe { llvm::LLVMConstPointerCast(val, ty) }
 }
 
-impl CodegenCx<'ll, 'tcx> {
+impl<'ll> CodegenCx<'ll, '_> {
     crate fn const_bitcast(&self, val: &'ll Value, ty: &'ll Type) -> &'ll Value {
         unsafe { llvm::LLVMConstBitCast(val, ty) }
     }
@@ -224,7 +225,7 @@ impl CodegenCx<'ll, 'tcx> {
             let gv = match kind {
                 Some(kind) if !self.tcx.sess.fewer_names() => {
                     let name = self.generate_local_symbol_name(kind);
-                    let gv = self.define_global(&name[..], self.val_ty(cv)).unwrap_or_else(|| {
+                    let gv = self.define_global(&name, self.val_ty(cv)).unwrap_or_else(|| {
                         bug!("symbol `{}` is already defined", name);
                     });
                     llvm::LLVMRustSetLinkage(gv, llvm::Linkage::PrivateLinkage);
@@ -233,7 +234,7 @@ impl CodegenCx<'ll, 'tcx> {
                 _ => self.define_private_global(self.val_ty(cv)),
             };
             llvm::LLVMSetInitializer(gv, cv);
-            set_global_alignment(&self, gv, align);
+            set_global_alignment(self, gv, align);
             llvm::SetUnnamedAddress(gv, llvm::UnnamedAddr::Global);
             gv
         }
@@ -278,7 +279,7 @@ impl CodegenCx<'ll, 'tcx> {
 
             g
         } else {
-            check_and_apply_linkage(&self, &fn_attrs, ty, sym, def_id)
+            check_and_apply_linkage(self, fn_attrs, ty, sym, def_id)
         };
 
         // Thread-local statics in some other crate need to *always* be linked
@@ -343,7 +344,7 @@ impl CodegenCx<'ll, 'tcx> {
     }
 }
 
-impl StaticMethods for CodegenCx<'ll, 'tcx> {
+impl<'ll> StaticMethods for CodegenCx<'ll, '_> {
     fn static_addr_of(&self, cv: &'ll Value, align: Align, kind: Option<&str>) -> &'ll Value {
         if let Some(&gv) = self.const_globals.borrow().get(&cv) {
             unsafe {
@@ -368,7 +369,7 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
         unsafe {
             let attrs = self.tcx.codegen_fn_attrs(def_id);
 
-            let (v, alloc) = match codegen_static_initializer(&self, def_id) {
+            let (v, alloc) = match codegen_static_initializer(self, def_id) {
                 Ok(v) => v,
                 // Error has already been reported
                 Err(_) => return,
@@ -416,7 +417,7 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
                 self.statics_to_rauw.borrow_mut().push((g, new_g));
                 new_g
             };
-            set_global_alignment(&self, g, self.align_of(ty));
+            set_global_alignment(self, g, self.align_of(ty));
             llvm::LLVMSetInitializer(g, v);
 
             if self.should_assume_dso_local(g, true) {
@@ -429,7 +430,7 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
                 llvm::LLVMSetGlobalConstant(g, llvm::True);
             }
 
-            debuginfo::create_global_var_metadata(&self, def_id, g);
+            debuginfo::create_global_var_metadata(self, def_id, g);
 
             if attrs.flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
                 llvm::set_thread_local_mode(g, self.tls_model);
@@ -489,7 +490,7 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
 
             // Wasm statics with custom link sections get special treatment as they
             // go into custom sections of the wasm executable.
-            if self.tcx.sess.opts.target_triple.triple().starts_with("wasm32") {
+            if self.tcx.sess.target.is_like_wasm {
                 if let Some(section) = attrs.link_section {
                     let section = llvm::LLVMMDStringInContext(
                         self.llcx,
@@ -517,10 +518,13 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
                     );
                 }
             } else {
-                base::set_link_section(g, &attrs);
+                base::set_link_section(g, attrs);
             }
 
             if attrs.flags.contains(CodegenFnAttrFlags::USED) {
+                // `USED` and `USED_LINKER` can't be used together.
+                assert!(!attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER));
+
                 // The semantics of #[used] in Rust only require the symbol to make it into the
                 // object file. It is explicitly allowed for the linker to strip the symbol if it
                 // is dead. As such, use llvm.compiler.used instead of llvm.used.
@@ -528,6 +532,12 @@ impl StaticMethods for CodegenCx<'ll, 'tcx> {
                 // sections with SHF_GNU_RETAIN flag for llvm.used symbols, which may trigger bugs
                 // in some versions of the gold linker.
                 self.add_compiler_used_global(g);
+            }
+            if attrs.flags.contains(CodegenFnAttrFlags::USED_LINKER) {
+                // `USED` and `USED_LINKER` can't be used together.
+                assert!(!attrs.flags.contains(CodegenFnAttrFlags::USED));
+
+                self.add_used_global(g);
             }
         }
     }

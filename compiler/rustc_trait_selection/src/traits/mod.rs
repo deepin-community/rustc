@@ -15,6 +15,7 @@ mod object_safety;
 mod on_unimplemented;
 mod project;
 pub mod query;
+pub(crate) mod relationships;
 mod select;
 mod specialize;
 mod structural_match;
@@ -32,8 +33,7 @@ use rustc_hir::lang_items::LangItem;
 use rustc_middle::ty::fold::TypeFoldable;
 use rustc_middle::ty::subst::{InternalSubsts, SubstsRef};
 use rustc_middle::ty::{
-    self, GenericParamDefKind, ToPredicate, Ty, TyCtxt, VtblEntry, WithConstness,
-    COMMON_VTABLE_ENTRIES,
+    self, GenericParamDefKind, ToPredicate, Ty, TyCtxt, VtblEntry, COMMON_VTABLE_ENTRIES,
 };
 use rustc_span::{sym, Span};
 use smallvec::SmallVec;
@@ -63,7 +63,10 @@ pub use self::specialize::specialization_graph::FutureCompatOverlapErrorKind;
 pub use self::specialize::{specialization_graph, translate_substs, OverlapError};
 pub use self::structural_match::search_for_structural_match_violation;
 pub use self::structural_match::NonStructuralMatchTy;
-pub use self::util::{elaborate_predicates, elaborate_trait_ref, elaborate_trait_refs};
+pub use self::util::{
+    elaborate_obligations, elaborate_predicates, elaborate_predicates_with_span,
+    elaborate_trait_ref, elaborate_trait_refs,
+};
 pub use self::util::{expand_trait_aliases, TraitAliasExpander};
 pub use self::util::{
     get_vtable_index_of_object_method, impl_item_is_final, predicate_for_trait_def, upcast_choices,
@@ -78,24 +81,20 @@ pub use self::chalk_fulfill::FulfillmentContext as ChalkFulfillmentContext;
 pub use rustc_infer::traits::*;
 
 /// Whether to skip the leak check, as part of a future compatibility warning step.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+///
+/// The "default" for skip-leak-check corresponds to the current
+/// behavior (do not skip the leak check) -- not the behavior we are
+/// transitioning into.
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub enum SkipLeakCheck {
     Yes,
+    #[default]
     No,
 }
 
 impl SkipLeakCheck {
     fn is_yes(self) -> bool {
         self == SkipLeakCheck::Yes
-    }
-}
-
-/// The "default" for skip-leak-check corresponds to the current
-/// behavior (do not skip the leak check) -- not the behavior we are
-/// transitioning into.
-impl Default for SkipLeakCheck {
-    fn default() -> Self {
-        SkipLeakCheck::No
     }
 }
 
@@ -139,7 +138,8 @@ pub fn type_known_to_meet_bound_modulo_regions<'a, 'tcx>(
         infcx.tcx.def_path_str(def_id)
     );
 
-    let trait_ref = ty::TraitRef { def_id, substs: infcx.tcx.mk_substs_trait(ty, &[]) };
+    let trait_ref =
+        ty::Binder::dummy(ty::TraitRef { def_id, substs: infcx.tcx.mk_substs_trait(ty, &[]) });
     let obligation = Obligation {
         param_env,
         cause: ObligationCause::misc(span, hir::CRATE_HIR_ID),
@@ -176,8 +176,8 @@ pub fn type_known_to_meet_bound_modulo_regions<'a, 'tcx>(
         // Note: we only assume something is `Copy` if we can
         // *definitively* show that it implements `Copy`. Otherwise,
         // assume it is move; linear is always ok.
-        match fulfill_cx.select_all_or_error(infcx) {
-            Ok(()) => {
+        match fulfill_cx.select_all_or_error(infcx).as_slice() {
+            [] => {
                 debug!(
                     "type_known_to_meet_bound_modulo_regions: ty={:?} bound={} success",
                     ty,
@@ -185,12 +185,12 @@ pub fn type_known_to_meet_bound_modulo_regions<'a, 'tcx>(
                 );
                 true
             }
-            Err(e) => {
+            errors => {
                 debug!(
-                    "type_known_to_meet_bound_modulo_regions: ty={:?} bound={} errors={:?}",
-                    ty,
-                    infcx.tcx.def_path_str(def_id),
-                    e
+                    ?ty,
+                    bound = %infcx.tcx.def_path_str(def_id),
+                    ?errors,
+                    "type_known_to_meet_bound_modulo_regions"
                 );
                 false
             }
@@ -291,7 +291,7 @@ pub fn normalize_param_env_or_error<'tcx>(
     //
     // In any case, in practice, typeck constructs all the
     // parameter environments once for every fn as it goes,
-    // and errors will get reported then; so after typeck we
+    // and errors will get reported then; so outside of type inference we
     // can be sure that no errors should occur.
 
     debug!(
@@ -306,8 +306,11 @@ pub fn normalize_param_env_or_error<'tcx>(
 
     debug!("normalize_param_env_or_error: elaborated-predicates={:?}", predicates);
 
-    let elaborated_env =
-        ty::ParamEnv::new(tcx.intern_predicates(&predicates), unnormalized_env.reveal());
+    let elaborated_env = ty::ParamEnv::new(
+        tcx.intern_predicates(&predicates),
+        unnormalized_env.reveal(),
+        unnormalized_env.constness(),
+    );
 
     // HACK: we are trying to normalize the param-env inside *itself*. The problem is that
     // normalization expects its param-env to be already normalized, which means we have
@@ -359,8 +362,11 @@ pub fn normalize_param_env_or_error<'tcx>(
     // predicates here anyway. Keeping them here anyway because it seems safer.
     let outlives_env: Vec<_> =
         non_outlives_predicates.iter().chain(&outlives_predicates).cloned().collect();
-    let outlives_env =
-        ty::ParamEnv::new(tcx.intern_predicates(&outlives_env), unnormalized_env.reveal());
+    let outlives_env = ty::ParamEnv::new(
+        tcx.intern_predicates(&outlives_env),
+        unnormalized_env.reveal(),
+        unnormalized_env.constness(),
+    );
     let outlives_predicates = match do_normalize_predicates(
         tcx,
         region_context,
@@ -380,7 +386,11 @@ pub fn normalize_param_env_or_error<'tcx>(
     let mut predicates = non_outlives_predicates;
     predicates.extend(outlives_predicates);
     debug!("normalize_param_env_or_error: final predicates={:?}", predicates);
-    ty::ParamEnv::new(tcx.intern_predicates(&predicates), unnormalized_env.reveal())
+    ty::ParamEnv::new(
+        tcx.intern_predicates(&predicates),
+        unnormalized_env.reveal(),
+        unnormalized_env.constness(),
+    )
 }
 
 pub fn fully_normalize<'a, 'tcx, T>(
@@ -406,7 +416,10 @@ where
     }
 
     debug!("fully_normalize: select_all_or_error start");
-    fulfill_cx.select_all_or_error(infcx)?;
+    let errors = fulfill_cx.select_all_or_error(infcx);
+    if !errors.is_empty() {
+        return Err(errors);
+    }
     debug!("fully_normalize: select_all_or_error complete");
     let resolved_value = infcx.resolve_vars_if_possible(normalized_value);
     debug!("fully_normalize: resolved_value={:?}", resolved_value);
@@ -437,7 +450,9 @@ pub fn impossible_predicates<'tcx>(
             fulfill_cx.register_predicate_obligation(&infcx, obligation);
         }
 
-        fulfill_cx.select_all_or_error(&infcx).is_err()
+        let errors = fulfill_cx.select_all_or_error(&infcx);
+
+        !errors.is_empty()
     });
     debug!("impossible_predicates = {:?}", result);
     result
@@ -450,7 +465,7 @@ fn subst_and_check_impossible_predicates<'tcx>(
     debug!("subst_and_check_impossible_predicates(key={:?})", key);
 
     let mut predicates = tcx.predicates_of(key.0).instantiate(tcx, key.1).predicates;
-    predicates.retain(|predicate| !predicate.definitely_needs_subst(tcx));
+    predicates.retain(|predicate| !predicate.needs_subst());
     let result = impossible_predicates(tcx, predicates);
 
     debug!("subst_and_check_impossible_predicates(key={:?}) = {:?}", key, result);
@@ -558,14 +573,17 @@ fn prepare_vtable_segments<'tcx, T>(
                     .predicates
                     .into_iter()
                     .filter_map(move |(pred, _)| {
-                        pred.subst_supertrait(tcx, &inner_most_trait_ref).to_opt_poly_trait_ref()
+                        pred.subst_supertrait(tcx, &inner_most_trait_ref).to_opt_poly_trait_pred()
                     });
 
                 'diving_in_skip_visited_traits: loop {
                     if let Some(next_super_trait) = direct_super_traits_iter.next() {
                         if visited.insert(next_super_trait.to_predicate(tcx)) {
+                            // We're throwing away potential constness of super traits here.
+                            // FIXME: handle ~const super traits
+                            let next_super_trait = next_super_trait.map_bound(|t| t.trait_ref);
                             stack.push((
-                                next_super_trait.value,
+                                next_super_trait,
                                 emit_vptr_on_new_entry,
                                 Some(direct_super_traits_iter),
                             ));
@@ -597,7 +615,11 @@ fn prepare_vtable_segments<'tcx, T>(
                     if let Some(siblings) = siblings_opt {
                         if let Some(next_inner_most_trait_ref) = siblings.next() {
                             if visited.insert(next_inner_most_trait_ref.to_predicate(tcx)) {
-                                *inner_most_trait_ref = next_inner_most_trait_ref.value;
+                                // We're throwing away potential constness of super traits here.
+                                // FIXME: handle ~const super traits
+                                let next_inner_most_trait_ref =
+                                    next_inner_most_trait_ref.map_bound(|t| t.trait_ref);
+                                *inner_most_trait_ref = next_inner_most_trait_ref;
                                 *emit_vptr = emit_vptr_on_new_entry;
                                 break 'exiting_out;
                             } else {
@@ -621,8 +643,33 @@ fn dump_vtable_entries<'tcx>(
     trait_ref: ty::PolyTraitRef<'tcx>,
     entries: &[VtblEntry<'tcx>],
 ) {
-    let msg = format!("Vtable entries for `{}`: {:#?}", trait_ref, entries);
+    let msg = format!("vtable entries for `{}`: {:#?}", trait_ref, entries);
     tcx.sess.struct_span_err(sp, &msg).emit();
+}
+
+fn own_existential_vtable_entries<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    trait_ref: ty::PolyExistentialTraitRef<'tcx>,
+) -> &'tcx [DefId] {
+    let trait_methods = tcx
+        .associated_items(trait_ref.def_id())
+        .in_definition_order()
+        .filter(|item| item.kind == ty::AssocKind::Fn);
+    // Now list each method's DefId (for within its trait).
+    let own_entries = trait_methods.filter_map(move |trait_method| {
+        debug!("own_existential_vtable_entry: trait_method={:?}", trait_method);
+        let def_id = trait_method.def_id;
+
+        // Some methods cannot be called on an object; skip those.
+        if !is_vtable_safe_method(tcx, trait_ref.def_id(), &trait_method) {
+            debug!("own_existential_vtable_entry: not vtable safe");
+            return None;
+        }
+
+        Some(def_id)
+    });
+
+    tcx.arena.alloc_from_iter(own_entries.into_iter())
 }
 
 /// Given a trait `trait_ref`, iterates the vtable entries
@@ -641,21 +688,15 @@ fn vtable_entries<'tcx>(
                 entries.extend(COMMON_VTABLE_ENTRIES);
             }
             VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
-                let trait_methods = tcx
-                    .associated_items(trait_ref.def_id())
-                    .in_definition_order()
-                    .filter(|item| item.kind == ty::AssocKind::Fn);
-                // Now list each method's DefId and InternalSubsts (for within its trait).
-                // If the method can never be called from this object, produce `Vacant`.
-                let own_entries = trait_methods.map(move |trait_method| {
-                    debug!("vtable_entries: trait_method={:?}", trait_method);
-                    let def_id = trait_method.def_id;
+                let existential_trait_ref = trait_ref
+                    .map_bound(|trait_ref| ty::ExistentialTraitRef::erase_self_ty(tcx, trait_ref));
 
-                    // Some methods cannot be called on an object; skip those.
-                    if !is_vtable_safe_method(tcx, trait_ref.def_id(), &trait_method) {
-                        debug!("vtable_entries: not vtable safe");
-                        return VtblEntry::Vacant;
-                    }
+                // Lookup the shape of vtable for the trait.
+                let own_existential_entries =
+                    tcx.own_existential_vtable_entries(existential_trait_ref);
+
+                let own_entries = own_existential_entries.iter().copied().map(|def_id| {
+                    debug!("vtable_entries: trait_method={:?}", def_id);
 
                     // The method may have some early-bound lifetimes; add regions for those.
                     let substs = trait_ref.map_bound(|trait_ref| {
@@ -725,6 +766,9 @@ fn vtable_trait_first_method_offset<'tcx>(
 ) -> usize {
     let (trait_to_be_found, trait_owning_vtable) = key;
 
+    // #90177
+    let trait_to_be_found_erased = tcx.erase_regions(trait_to_be_found);
+
     let vtable_segment_callback = {
         let mut vtable_base = 0;
 
@@ -734,7 +778,7 @@ fn vtable_trait_first_method_offset<'tcx>(
                     vtable_base += COMMON_VTABLE_ENTRIES.len();
                 }
                 VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
-                    if trait_ref == trait_to_be_found {
+                    if tcx.erase_regions(trait_ref) == trait_to_be_found_erased {
                         return ControlFlow::Break(vtable_base);
                     }
                     vtable_base += util::count_own_vtable_entries(tcx, trait_ref);
@@ -757,7 +801,7 @@ fn vtable_trait_first_method_offset<'tcx>(
 }
 
 /// Find slot offset for trait vptr within vtable entries of another trait
-pub fn vtable_trait_upcasting_coercion_new_vptr_slot(
+pub fn vtable_trait_upcasting_coercion_new_vptr_slot<'tcx>(
     tcx: TyCtxt<'tcx>,
     key: (
         Ty<'tcx>, // trait object type whose trait owning vtable
@@ -781,6 +825,7 @@ pub fn vtable_trait_upcasting_coercion_new_vptr_slot(
         ty::Binder::dummy(ty::TraitPredicate {
             trait_ref,
             constness: ty::BoundConstness::NotConst,
+            polarity: ty::ImplPolarity::Positive,
         }),
     );
 
@@ -804,19 +849,20 @@ pub fn provide(providers: &mut ty::query::Providers) {
         specialization_graph_of: specialize::specialization_graph_provider,
         specializes: specialize::specializes,
         codegen_fulfill_obligation: codegen::codegen_fulfill_obligation,
+        own_existential_vtable_entries,
         vtable_entries,
         vtable_trait_upcasting_coercion_new_vptr_slot,
         subst_and_check_impossible_predicates,
-        mir_abstract_const: |tcx, def_id| {
+        thir_abstract_const: |tcx, def_id| {
             let def_id = def_id.expect_local();
             if let Some(def) = ty::WithOptConstParam::try_lookup(def_id, tcx) {
-                tcx.mir_abstract_const_of_const_arg(def)
+                tcx.thir_abstract_const_of_const_arg(def)
             } else {
-                const_evaluatable::mir_abstract_const(tcx, ty::WithOptConstParam::unknown(def_id))
+                const_evaluatable::thir_abstract_const(tcx, ty::WithOptConstParam::unknown(def_id))
             }
         },
-        mir_abstract_const_of_const_arg: |tcx, (did, param_did)| {
-            const_evaluatable::mir_abstract_const(
+        thir_abstract_const_of_const_arg: |tcx, (did, param_did)| {
+            const_evaluatable::thir_abstract_const(
                 tcx,
                 ty::WithOptConstParam { did, const_param_did: Some(param_did) },
             )

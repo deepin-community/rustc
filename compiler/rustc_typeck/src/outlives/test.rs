@@ -5,14 +5,14 @@ use rustc_middle::ty::TyCtxt;
 use rustc_span::symbol::sym;
 
 pub fn test_inferred_outlives(tcx: TyCtxt<'_>) {
-    tcx.hir().krate().visit_all_item_likes(&mut OutlivesTest { tcx });
+    tcx.hir().visit_all_item_likes(&mut OutlivesTest { tcx });
 }
 
 struct OutlivesTest<'tcx> {
     tcx: TyCtxt<'tcx>,
 }
 
-impl ItemLikeVisitor<'tcx> for OutlivesTest<'tcx> {
+impl<'tcx> ItemLikeVisitor<'tcx> for OutlivesTest<'tcx> {
     fn visit_item(&mut self, item: &'tcx hir::Item<'tcx>) {
         // For unit testing: check for a special "rustc_outlives"
         // attribute and report an error with various results if found.

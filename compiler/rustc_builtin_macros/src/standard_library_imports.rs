@@ -11,7 +11,6 @@ pub fn inject(
     mut krate: ast::Crate,
     resolver: &mut dyn ResolverExpand,
     sess: &Session,
-    alt_std_name: Option<Symbol>,
 ) -> ast::Crate {
     let edition = sess.parse_sess.edition;
 
@@ -53,7 +52,7 @@ pub fn inject(
                 span,
                 ident,
                 vec![cx.attribute(cx.meta_word(span, sym::macro_use))],
-                ast::ItemKind::ExternCrate(alt_std_name),
+                ast::ItemKind::ExternCrate(None),
             ),
         );
     }
@@ -77,7 +76,7 @@ pub fn inject(
 
     let use_item = cx.item(
         span,
-        Ident::invalid(),
+        Ident::empty(),
         vec![cx.attribute(cx.meta_word(span, sym::prelude_import))],
         ast::ItemKind::Use(ast::UseTree {
             prefix: cx.path(span, import_path),

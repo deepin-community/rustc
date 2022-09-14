@@ -183,10 +183,6 @@ where
     Option<T>: FixedSizeEncoding,
 {
     type Meta = usize;
-
-    fn min_size(len: usize) -> usize {
-        len
-    }
 }
 
 impl<I: Idx, T> Lazy<Table<I, T>>
@@ -199,7 +195,7 @@ where
         debug!("Table::lookup: index={:?} len={:?}", i, self.meta);
 
         let start = self.position.get();
-        let bytes = &metadata.raw_bytes()[start..start + self.meta];
+        let bytes = &metadata.blob()[start..start + self.meta];
         <Option<T>>::maybe_read_from_bytes_at(bytes, i.index())?
     }
 

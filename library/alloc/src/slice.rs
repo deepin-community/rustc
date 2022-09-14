@@ -108,6 +108,8 @@ pub use core::slice::ArrayChunks;
 pub use core::slice::ArrayChunksMut;
 #[unstable(feature = "array_windows", issue = "75027")]
 pub use core::slice::ArrayWindows;
+#[stable(feature = "inherent_ascii_escape", since = "1.60.0")]
+pub use core::slice::EscapeAscii;
 #[stable(feature = "slice_get_slice", since = "1.28.0")]
 pub use core::slice::SliceIndex;
 #[stable(feature = "from_ref", since = "1.28.0")]
@@ -130,6 +132,8 @@ pub use core::slice::{RChunks, RChunksExact, RChunksExactMut, RChunksMut};
 pub use core::slice::{RSplit, RSplitMut};
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::slice::{RSplitN, RSplitNMut, SplitN, SplitNMut};
+#[stable(feature = "split_inclusive", since = "1.51.0")]
+pub use core::slice::{SplitInclusive, SplitInclusiveMut};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Basic slice extension methods
@@ -371,7 +375,10 @@ impl<T> [T] {
 
     /// Sorts the slice with a key extraction function.
     ///
-    /// During sorting, the key function is called only once per element.
+    /// During sorting, the key function is called at most once per element, by using
+    /// temporary storage to remember the results of key evaluation.
+    /// The order of calls to the key function is unspecified and may change in future versions
+    /// of the standard library.
     ///
     /// This sort is stable (i.e., does not reorder equal elements) and *O*(*m* \* *n* + *n* \* log(*n*))
     /// worst-case, where the key function is *O*(*m*).
@@ -662,6 +669,8 @@ impl [u8] {
     ///
     /// [`make_ascii_uppercase`]: slice::make_ascii_uppercase
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "this returns the uppercase bytes as a new Vec, \
+                  without modifying the original"]
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
     #[inline]
     pub fn to_ascii_uppercase(&self) -> Vec<u8> {
@@ -680,6 +689,8 @@ impl [u8] {
     ///
     /// [`make_ascii_lowercase`]: slice::make_ascii_lowercase
     #[cfg(not(no_global_oom_handling))]
+    #[must_use = "this returns the lowercase bytes as a new Vec, \
+                  without modifying the original"]
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
     #[inline]
     pub fn to_ascii_lowercase(&self) -> Vec<u8> {
@@ -884,7 +895,7 @@ where
             //    performance than with the 2nd method.
             //
             // All methods were benchmarked, and the 3rd showed best results. So we chose that one.
-            let mut tmp = mem::ManuallyDrop::new(ptr::read(&v[0]));
+            let tmp = mem::ManuallyDrop::new(ptr::read(&v[0]));
 
             // Intermediate state of the insertion process is always tracked by `hole`, which
             // serves two purposes:
@@ -896,7 +907,7 @@ where
             // If `is_less` panics at any point during the process, `hole` will get dropped and
             // fill the hole in `v` with `tmp`, thus ensuring that `v` still holds every object it
             // initially held exactly once.
-            let mut hole = InsertionHole { src: &mut *tmp, dest: &mut v[1] };
+            let mut hole = InsertionHole { src: &*tmp, dest: &mut v[1] };
             ptr::copy_nonoverlapping(&v[1], &mut v[0], 1);
 
             for i in 2..v.len() {
@@ -912,7 +923,7 @@ where
 
     // When dropped, copies from `src` into `dest`.
     struct InsertionHole<T> {
-        src: *mut T,
+        src: *const T,
         dest: *mut T,
     }
 

@@ -1,6 +1,8 @@
 use super::*;
 
-use crate::collections::BTreeSet;
+use crate::collections::hash_map::DefaultHasher;
+use crate::collections::{BTreeSet, HashSet};
+use crate::hash::Hasher;
 use crate::rc::Rc;
 use crate::sync::Arc;
 use core::hint::black_box;
@@ -1262,6 +1264,16 @@ pub fn test_push() {
         tp!("\\\\.\\foo", "..\\bar", "\\\\.\\foo\\..\\bar");
 
         tp!("\\\\?\\C:", "foo", "\\\\?\\C:\\foo"); // this is a weird one
+
+        tp!(r"\\?\C:\bar", "../foo", r"\\?\C:\foo");
+        tp!(r"\\?\C:\bar", "../../foo", r"\\?\C:\foo");
+        tp!(r"\\?\C:\", "../foo", r"\\?\C:\foo");
+        tp!(r"\\?\C:", r"D:\foo/./", r"D:\foo/./");
+        tp!(r"\\?\C:", r"\\?\D:\foo\.\", r"\\?\D:\foo\.\");
+        tp!(r"\\?\A:\x\y", "/foo", r"\\?\A:\foo");
+        tp!(r"\\?\A:", r"..\foo\.", r"\\?\A:\foo");
+        tp!(r"\\?\A:\x\y", r".\foo\.", r"\\?\A:\x\y\foo");
+        tp!(r"\\?\A:\x\y", r"", r"\\?\A:\x\y\");
     }
 }
 
@@ -1486,6 +1498,20 @@ pub fn test_compare() {
     relative_from: Some("")
     );
 
+    tc!("foo/.", "foo",
+    eq: true,
+    starts_with: true,
+    ends_with: true,
+    relative_from: Some("")
+    );
+
+    tc!("foo/./bar", "foo/bar",
+    eq: true,
+    starts_with: true,
+    ends_with: true,
+    relative_from: Some("")
+    );
+
     tc!("foo/bar", "foo",
     eq: false,
     starts_with: true,
@@ -1528,6 +1554,27 @@ pub fn test_compare() {
         starts_with: true,
         ends_with: true,
         relative_from: Some("")
+        );
+
+        tc!(r"C:\foo\.\bar.txt", r"C:\foo\bar.txt",
+        eq: true,
+        starts_with: true,
+        ends_with: true,
+        relative_from: Some("")
+        );
+
+        tc!(r"C:\foo\.", r"C:\foo",
+        eq: true,
+        starts_with: true,
+        ends_with: true,
+        relative_from: Some("")
+        );
+
+        tc!(r"\\?\C:\foo\.\bar.txt", r"\\?\C:\foo\bar.txt",
+        eq: false,
+        starts_with: false,
+        ends_with: false,
+        relative_from: None
         );
     }
 }
@@ -1622,7 +1669,25 @@ fn into_rc() {
 fn test_ord() {
     macro_rules! ord(
         ($ord:ident, $left:expr, $right:expr) => ( {
-            assert_eq!(Path::new($left).cmp(&Path::new($right)), core::cmp::Ordering::$ord);
+            use core::cmp::Ordering;
+
+            let left = Path::new($left);
+            let right = Path::new($right);
+            assert_eq!(left.cmp(&right), Ordering::$ord);
+            if (core::cmp::Ordering::$ord == Ordering::Equal) {
+                assert_eq!(left, right);
+
+                let mut hasher = DefaultHasher::new();
+                left.hash(&mut hasher);
+                let left_hash = hasher.finish();
+                hasher = DefaultHasher::new();
+                right.hash(&mut hasher);
+                let right_hash = hasher.finish();
+
+                assert_eq!(left_hash, right_hash, "hashes for {:?} and {:?} must match", left, right);
+            } else {
+                assert_ne!(left, right);
+            }
         });
     );
 
@@ -1633,6 +1698,64 @@ fn test_ord() {
     ord!(Equal, "foo/bar", "foo/bar/");
     ord!(Equal, "foo/bar", "foo/bar/.");
     ord!(Equal, "foo/bar", "foo/bar//");
+}
+
+#[test]
+#[cfg(unix)]
+fn test_unix_absolute() {
+    use crate::path::absolute;
+
+    assert!(absolute("").is_err());
+
+    let relative = "a/b";
+    let mut expected = crate::env::current_dir().unwrap();
+    expected.push(relative);
+    assert_eq!(absolute(relative).unwrap(), expected);
+
+    // Test how components are collected.
+    assert_eq!(absolute("/a/b/c").unwrap(), Path::new("/a/b/c"));
+    assert_eq!(absolute("/a//b/c").unwrap(), Path::new("/a/b/c"));
+    assert_eq!(absolute("//a/b/c").unwrap(), Path::new("//a/b/c"));
+    assert_eq!(absolute("///a/b/c").unwrap(), Path::new("/a/b/c"));
+    assert_eq!(absolute("/a/b/c/").unwrap(), Path::new("/a/b/c/"));
+    assert_eq!(absolute("/a/./b/../c/.././..").unwrap(), Path::new("/a/b/../c/../.."));
+}
+
+#[test]
+#[cfg(windows)]
+fn test_windows_absolute() {
+    use crate::path::absolute;
+    // An empty path is an error.
+    assert!(absolute("").is_err());
+
+    let relative = r"a\b";
+    let mut expected = crate::env::current_dir().unwrap();
+    expected.push(relative);
+    assert_eq!(absolute(relative).unwrap(), expected);
+
+    macro_rules! unchanged(
+        ($path:expr) => {
+            assert_eq!(absolute($path).unwrap(), Path::new($path));
+        }
+    );
+
+    unchanged!(r"C:\path\to\file");
+    unchanged!(r"C:\path\to\file\");
+    unchanged!(r"\\server\share\to\file");
+    unchanged!(r"\\server.\share.\to\file");
+    unchanged!(r"\\.\PIPE\name");
+    unchanged!(r"\\.\C:\path\to\COM1");
+    unchanged!(r"\\?\C:\path\to\file");
+    unchanged!(r"\\?\UNC\server\share\to\file");
+    unchanged!(r"\\?\PIPE\name");
+    // Verbatim paths are always unchanged, no matter what.
+    unchanged!(r"\\?\path.\to/file..");
+
+    assert_eq!(absolute(r"C:\path..\to.\file.").unwrap(), Path::new(r"C:\path..\to\file"));
+    assert_eq!(absolute(r"C:\path\to\COM1").unwrap(), Path::new(r"\\.\COM1"));
+    assert_eq!(absolute(r"C:\path\to\COM1.txt").unwrap(), Path::new(r"\\.\COM1"));
+    assert_eq!(absolute(r"C:\path\to\COM1  .txt").unwrap(), Path::new(r"\\.\COM1"));
+    assert_eq!(absolute(r"C:\path\to\cOnOuT$").unwrap(), Path::new(r"\\.\cOnOuT$"));
 }
 
 #[bench]
@@ -1682,4 +1805,60 @@ fn bench_path_cmp_fast_path_short(b: &mut test::Bencher) {
         set.remove(paths[500].as_path());
         set.insert(paths[500].as_path());
     });
+}
+
+#[bench]
+fn bench_path_hashset(b: &mut test::Bencher) {
+    let prefix = "/my/home/is/my/castle/and/my/castle/has/a/rusty/workbench/";
+    let paths: Vec<_> =
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+
+    let mut set = HashSet::new();
+
+    paths.iter().for_each(|p| {
+        set.insert(p.as_path());
+    });
+
+    b.iter(|| {
+        set.remove(paths[500].as_path());
+        set.insert(black_box(paths[500].as_path()))
+    });
+}
+
+#[bench]
+fn bench_path_hashset_miss(b: &mut test::Bencher) {
+    let prefix = "/my/home/is/my/castle/and/my/castle/has/a/rusty/workbench/";
+    let paths: Vec<_> =
+        (0..1000).map(|num| PathBuf::from(prefix).join(format!("file {}.rs", num))).collect();
+
+    let mut set = HashSet::new();
+
+    paths.iter().for_each(|p| {
+        set.insert(p.as_path());
+    });
+
+    let probe = PathBuf::from(prefix).join("other");
+
+    b.iter(|| set.remove(black_box(probe.as_path())));
+}
+
+#[bench]
+fn bench_hash_path_short(b: &mut test::Bencher) {
+    let mut hasher = DefaultHasher::new();
+    let path = Path::new("explorer.exe");
+
+    b.iter(|| black_box(path).hash(&mut hasher));
+
+    black_box(hasher.finish());
+}
+
+#[bench]
+fn bench_hash_path_long(b: &mut test::Bencher) {
+    let mut hasher = DefaultHasher::new();
+    let path =
+        Path::new("/aaaaa/aaaaaa/./../aaaaaaaa/bbbbbbbbbbbbb/ccccccccccc/ddddddddd/eeeeeee.fff");
+
+    b.iter(|| black_box(path).hash(&mut hasher));
+
+    black_box(hasher.finish());
 }

@@ -1,7 +1,7 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(crate_visibility_modifier)]
 #![feature(drain_filter)]
-#![feature(in_band_lifetimes)]
+#![feature(let_else)]
 #![feature(nll)]
 #![feature(once_cell)]
 #![feature(proc_macro_internals)]
@@ -9,6 +9,7 @@
 #![feature(try_blocks)]
 #![feature(never_type)]
 #![recursion_limit = "256"]
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 extern crate proc_macro;
 
@@ -27,7 +28,6 @@ mod native_libs;
 mod rmeta;
 
 pub mod creader;
-pub mod dynamic_lib;
 pub mod locator;
 
-pub use rmeta::METADATA_HEADER;
+pub use rmeta::{encode_metadata, EncodedMetadata, METADATA_HEADER};

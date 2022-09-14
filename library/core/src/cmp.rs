@@ -199,10 +199,22 @@ use self::Ordering::*;
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(alias = "==")]
 #[doc(alias = "!=")]
-#[rustc_on_unimplemented(
-    message = "can't compare `{Self}` with `{Rhs}`",
-    label = "no implementation for `{Self} == {Rhs}`"
+#[cfg_attr(
+    bootstrap,
+    rustc_on_unimplemented(
+        message = "can't compare `{Self}` with `{Rhs}`",
+        label = "no implementation for `{Self} == {Rhs}`"
+    )
 )]
+#[cfg_attr(
+    not(bootstrap),
+    rustc_on_unimplemented(
+        message = "can't compare `{Self}` with `{Rhs}`",
+        label = "no implementation for `{Self} == {Rhs}`",
+        append_const_msg,
+    )
+)]
+#[rustc_diagnostic_item = "PartialEq"]
 pub trait PartialEq<Rhs: ?Sized = Self> {
     /// This method tests for `self` and `other` values to be equal, and is used
     /// by `==`.
@@ -214,6 +226,7 @@ pub trait PartialEq<Rhs: ?Sized = Self> {
     #[inline]
     #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[default_method_body_is_const]
     fn ne(&self, other: &Rhs) -> bool {
         !self.eq(other)
     }
@@ -269,6 +282,7 @@ pub macro PartialEq($item:item) {
 #[doc(alias = "==")]
 #[doc(alias = "!=")]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_diagnostic_item = "Eq"]
 pub trait Eq: PartialEq<Self> {
     // this method is used solely by #[deriving] to assert
     // that every component of a type implements #[deriving]
@@ -321,6 +335,7 @@ pub struct AssertParamIsEq<T: Eq + ?Sized> {
 /// ```
 #[derive(Clone, Copy, PartialEq, Debug, Hash)]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[repr(i8)]
 pub enum Ordering {
     /// An ordering where a compared value is less than another.
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -657,20 +672,37 @@ impl<T: Clone> Clone for Reverse<T> {
 ///
 /// ## Derivable
 ///
-/// This trait can be used with `#[derive]`. When `derive`d on structs, it will produce a
-/// [lexicographic](https://en.wikipedia.org/wiki/Lexicographic_order) ordering based on the top-to-bottom declaration order of the struct's members.
-/// When `derive`d on enums, variants are ordered by their top-to-bottom discriminant order.
-/// This means variants at the top are less than variants at the bottom.
-/// Here's an example:
+/// This trait can be used with `#[derive]`.
+///
+/// When `derive`d on structs, it will produce a
+/// [lexicographic](https://en.wikipedia.org/wiki/Lexicographic_order) ordering
+/// based on the top-to-bottom declaration order of the struct's members.
+///
+/// When `derive`d on enums, variants are ordered by their discriminants.
+/// By default, the discriminant is smallest for variants at the top, and
+/// largest for variants at the bottom. Here's an example:
 ///
 /// ```
-/// #[derive(PartialEq, PartialOrd)]
-/// enum Size {
-///     Small,
-///     Large,
+/// #[derive(PartialEq, Eq, PartialOrd, Ord)]
+/// enum E {
+///     Top,
+///     Bottom,
 /// }
 ///
-/// assert!(Size::Small < Size::Large);
+/// assert!(E::Top < E::Bottom);
+/// ```
+///
+/// However, manually setting the discriminants can override this default
+/// behavior:
+///
+/// ```
+/// #[derive(PartialEq, Eq, PartialOrd, Ord)]
+/// enum E {
+///     Top = 2,
+///     Bottom = 1,
+/// }
+///
+/// assert!(E::Bottom < E::Top);
 /// ```
 ///
 /// ## Lexicographical comparison
@@ -728,6 +760,7 @@ impl<T: Clone> Clone for Reverse<T> {
 #[doc(alias = "<=")]
 #[doc(alias = ">=")]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_diagnostic_item = "Ord"]
 pub trait Ord: Eq + PartialOrd<Self> {
     /// This method returns an [`Ordering`] between `self` and `other`.
     ///
@@ -847,7 +880,7 @@ impl PartialOrd for Ordering {
     }
 }
 
-/// Trait for values that can be compared for a sort-order.
+/// Trait for types that form a [partial order](https://en.wikipedia.org/wiki/Partial_order).
 ///
 /// The `lt`, `le`, `gt`, and `ge` methods of this trait can be called using
 /// the `<`, `<=`, `>`, and `>=` operators, respectively.
@@ -890,9 +923,38 @@ impl PartialOrd for Ordering {
 ///
 /// ## Derivable
 ///
-/// This trait can be used with `#[derive]`. When `derive`d on structs, it will produce a
-/// lexicographic ordering based on the top-to-bottom declaration order of the struct's members.
-/// When `derive`d on enums, variants are ordered by their top-to-bottom discriminant order.
+/// This trait can be used with `#[derive]`.
+///
+/// When `derive`d on structs, it will produce a
+/// [lexicographic](https://en.wikipedia.org/wiki/Lexicographic_order) ordering
+/// based on the top-to-bottom declaration order of the struct's members.
+///
+/// When `derive`d on enums, variants are ordered by their discriminants.
+/// By default, the discriminant is smallest for variants at the top, and
+/// largest for variants at the bottom. Here's an example:
+///
+/// ```
+/// #[derive(PartialEq, PartialOrd)]
+/// enum E {
+///     Top,
+///     Bottom,
+/// }
+///
+/// assert!(E::Top < E::Bottom);
+/// ```
+///
+/// However, manually setting the discriminants can override this default
+/// behavior:
+///
+/// ```
+/// #[derive(PartialEq, PartialOrd)]
+/// enum E {
+///     Top = 2,
+///     Bottom = 1,
+/// }
+///
+/// assert!(E::Bottom < E::Top);
+/// ```
 ///
 /// ## How can I implement `PartialOrd`?
 ///
@@ -965,8 +1027,8 @@ impl PartialOrd for Ordering {
 /// # Examples
 ///
 /// ```
-/// let x : u32 = 0;
-/// let y : u32 = 1;
+/// let x: u32 = 0;
+/// let y: u32 = 1;
 ///
 /// assert_eq!(x < y, true);
 /// assert_eq!(x.lt(&y), true);
@@ -980,10 +1042,22 @@ impl PartialOrd for Ordering {
 #[doc(alias = "<")]
 #[doc(alias = "<=")]
 #[doc(alias = ">=")]
-#[rustc_on_unimplemented(
-    message = "can't compare `{Self}` with `{Rhs}`",
-    label = "no implementation for `{Self} < {Rhs}` and `{Self} > {Rhs}`"
+#[cfg_attr(
+    bootstrap,
+    rustc_on_unimplemented(
+        message = "can't compare `{Self}` with `{Rhs}`",
+        label = "no implementation for `{Self} < {Rhs}` and `{Self} > {Rhs}`",
+    )
 )]
+#[cfg_attr(
+    not(bootstrap),
+    rustc_on_unimplemented(
+        message = "can't compare `{Self}` with `{Rhs}`",
+        label = "no implementation for `{Self} < {Rhs}` and `{Self} > {Rhs}`",
+        append_const_msg,
+    )
+)]
+#[rustc_diagnostic_item = "PartialOrd"]
 pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
     /// This method returns an ordering between `self` and `other` values if one exists.
     ///
@@ -1026,6 +1100,7 @@ pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
     #[inline]
     #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[default_method_body_is_const]
     fn lt(&self, other: &Rhs) -> bool {
         matches!(self.partial_cmp(other), Some(Less))
     }
@@ -1045,6 +1120,7 @@ pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
     #[inline]
     #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[default_method_body_is_const]
     fn le(&self, other: &Rhs) -> bool {
         // Pattern `Some(Less | Eq)` optimizes worse than negating `None | Some(Greater)`.
         // FIXME: The root cause was fixed upstream in LLVM with:
@@ -1067,6 +1143,7 @@ pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
     #[inline]
     #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[default_method_body_is_const]
     fn gt(&self, other: &Rhs) -> bool {
         matches!(self.partial_cmp(other), Some(Greater))
     }
@@ -1086,6 +1163,7 @@ pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> {
     #[inline]
     #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[default_method_body_is_const]
     fn ge(&self, other: &Rhs) -> bool {
         matches!(self.partial_cmp(other), Some(Greater | Equal))
     }

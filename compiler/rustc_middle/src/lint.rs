@@ -1,11 +1,11 @@
 use std::cmp;
 
-use crate::ich::StableHashingContext;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_errors::{DiagnosticBuilder, DiagnosticId};
 use rustc_hir::HirId;
 use rustc_index::vec::IndexVec;
+use rustc_query_system::ich::StableHashingContext;
 use rustc_session::lint::{
     builtin::{self, FORBIDDEN_LINT_GROUPS},
     FutureIncompatibilityReason, Level, Lint, LintId,
@@ -192,6 +192,7 @@ impl<'a> LintDiagnosticBuilder<'a> {
     /// Return the inner DiagnosticBuilder, first setting the primary message to `msg`.
     pub fn build(mut self, msg: &str) -> DiagnosticBuilder<'a> {
         self.0.set_primary_message(msg);
+        self.0.set_is_lint();
         self.0
     }
 
@@ -211,7 +212,7 @@ pub fn struct_lint_level<'s, 'd>(
 ) {
     // Avoid codegen bloat from monomorphization by immediately doing dyn dispatch of `decorate` to
     // the "real" work.
-    fn struct_lint_level_impl(
+    fn struct_lint_level_impl<'s, 'd>(
         sess: &'s Session,
         lint: &'static Lint,
         level: Level,
@@ -220,7 +221,6 @@ pub fn struct_lint_level<'s, 'd>(
         decorate: Box<dyn for<'b> FnOnce(LintDiagnosticBuilder<'b>) + 'd>,
     ) {
         // Check for future incompatibility lints and issue a stronger warning.
-        let lint_id = LintId::of(lint);
         let future_incompatible = lint.future_incompatible;
 
         let has_future_breakage = future_incompatible.map_or(
@@ -247,8 +247,12 @@ pub fn struct_lint_level<'s, 'd>(
             (Level::Warn, None) => sess.struct_warn(""),
             (Level::ForceWarn, Some(span)) => sess.struct_span_force_warn(span, ""),
             (Level::ForceWarn, None) => sess.struct_force_warn(""),
-            (Level::Deny | Level::Forbid, Some(span)) => sess.struct_span_err(span, ""),
-            (Level::Deny | Level::Forbid, None) => sess.struct_err(""),
+            (Level::Deny | Level::Forbid, Some(span)) => {
+                let mut builder = sess.diagnostic().struct_err_lint("");
+                builder.set_span(span);
+                builder
+            }
+            (Level::Deny | Level::Forbid, None) => sess.diagnostic().struct_err_lint(""),
         };
 
         // If this code originates in a foreign macro, aka something that this crate
@@ -257,7 +261,7 @@ pub fn struct_lint_level<'s, 'd>(
         if err.span.primary_spans().iter().any(|s| in_external_macro(sess, *s)) {
             // Any suggestions made here are likely to be incorrect, so anything we
             // emit shouldn't be automatically fixed by rustfix.
-            err.allow_suggestions(false);
+            err.disable_suggestions();
 
             // If this is a future incompatible that is not an edition fixing lint
             // it'll become a hard error, so we have to emit *something*. Also,
@@ -290,7 +294,7 @@ pub fn struct_lint_level<'s, 'd>(
                     Level::Allow => "-A",
                     Level::ForceWarn => "--force-warn",
                 };
-                let hyphen_case_lint_name = name.replace("_", "-");
+                let hyphen_case_lint_name = name.replace('_', "-");
                 if lint_flag_val.as_str() == name {
                     sess.diag_note_once(
                         &mut err,
@@ -301,7 +305,7 @@ pub fn struct_lint_level<'s, 'd>(
                         ),
                     );
                 } else {
-                    let hyphen_case_flag_val = lint_flag_val.as_str().replace("_", "-");
+                    let hyphen_case_flag_val = lint_flag_val.as_str().replace('_', "-");
                     sess.diag_note_once(
                         &mut err,
                         DiagnosticMessageId::from(lint),
@@ -314,7 +318,7 @@ pub fn struct_lint_level<'s, 'd>(
             }
             LintLevelSource::Node(lint_attr_name, src, reason) => {
                 if let Some(rationale) = reason {
-                    err.note(&rationale.as_str());
+                    err.note(rationale.as_str());
                 }
                 sess.diag_span_note_once(
                     &mut err,
@@ -340,31 +344,29 @@ pub fn struct_lint_level<'s, 'd>(
         err.code(DiagnosticId::Lint { name, has_future_breakage, is_force_warn });
 
         if let Some(future_incompatible) = future_incompatible {
-            let explanation = if lint_id == LintId::of(builtin::UNSTABLE_NAME_COLLISIONS) {
-                "once this associated item is added to the standard library, the ambiguity may \
-                 cause an error or change in behavior!"
-                    .to_owned()
-            } else if lint_id == LintId::of(builtin::MUTABLE_BORROW_RESERVATION_CONFLICT) {
-                "this borrowing pattern was not meant to be accepted, and may become a hard error \
-                 in the future"
-                    .to_owned()
-            } else if let FutureIncompatibilityReason::EditionError(edition) =
-                future_incompatible.reason
-            {
-                let current_edition = sess.edition();
-                format!(
-                    "this is accepted in the current edition (Rust {}) but is a hard error in Rust {}!",
-                    current_edition, edition
-                )
-            } else if let FutureIncompatibilityReason::EditionSemanticsChange(edition) =
-                future_incompatible.reason
-            {
-                format!("this changes meaning in Rust {}", edition)
-            } else {
-                "this was previously accepted by the compiler but is being phased out; \
-                 it will become a hard error in a future release!"
-                    .to_owned()
+            let explanation = match future_incompatible.reason {
+                FutureIncompatibilityReason::FutureReleaseError
+                | FutureIncompatibilityReason::FutureReleaseErrorReportNow => {
+                    "this was previously accepted by the compiler but is being phased out; \
+                         it will become a hard error in a future release!"
+                        .to_owned()
+                }
+                FutureIncompatibilityReason::FutureReleaseSemanticsChange => {
+                    "this will change its meaning in a future release!".to_owned()
+                }
+                FutureIncompatibilityReason::EditionError(edition) => {
+                    let current_edition = sess.edition();
+                    format!(
+                        "this is accepted in the current edition (Rust {}) but is a hard error in Rust {}!",
+                        current_edition, edition
+                    )
+                }
+                FutureIncompatibilityReason::EditionSemanticsChange(edition) => {
+                    format!("this changes meaning in Rust {}", edition)
+                }
+                FutureIncompatibilityReason::Custom(reason) => reason.to_owned(),
             };
+
             if future_incompatible.explain_reason {
                 err.warn(&explanation);
             }
@@ -388,9 +390,9 @@ pub fn struct_lint_level<'s, 'd>(
 pub fn in_external_macro(sess: &Session, span: Span) -> bool {
     let expn_data = span.ctxt().outer_expn_data();
     match expn_data.kind {
-        ExpnKind::Inlined | ExpnKind::Root | ExpnKind::Desugaring(DesugaringKind::ForLoop(_)) => {
-            false
-        }
+        ExpnKind::Inlined
+        | ExpnKind::Root
+        | ExpnKind::Desugaring(DesugaringKind::ForLoop | DesugaringKind::WhileLoop) => false,
         ExpnKind::AstPass(_) | ExpnKind::Desugaring(_) => true, // well, it's "external"
         ExpnKind::Macro(MacroKind::Bang, _) => {
             // Dummy span for the `def_site` means it's an external macro.

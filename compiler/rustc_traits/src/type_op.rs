@@ -70,7 +70,7 @@ struct AscribeUserTypeCx<'me, 'tcx> {
     fulfill_cx: &'me mut dyn TraitEngine<'tcx>,
 }
 
-impl AscribeUserTypeCx<'me, 'tcx> {
+impl<'me, 'tcx> AscribeUserTypeCx<'me, 'tcx> {
     fn normalize<T>(&mut self, value: T) -> T
     where
         T: TypeFoldable<'tcx>,
@@ -156,7 +156,8 @@ impl AscribeUserTypeCx<'me, 'tcx> {
             self.relate(self_ty, Variance::Invariant, impl_self_ty)?;
 
             self.prove_predicate(
-                ty::PredicateKind::WellFormed(impl_self_ty.into()).to_predicate(self.tcx()),
+                ty::Binder::dummy(ty::PredicateKind::WellFormed(impl_self_ty.into()))
+                    .to_predicate(self.tcx()),
                 span,
             );
         }
@@ -173,7 +174,7 @@ impl AscribeUserTypeCx<'me, 'tcx> {
         // type were ill-formed but did not appear in `ty`,
         // which...could happen with normalization...
         self.prove_predicate(
-            ty::PredicateKind::WellFormed(ty.into()).to_predicate(self.tcx()),
+            ty::Binder::dummy(ty::PredicateKind::WellFormed(ty.into())).to_predicate(self.tcx()),
             span,
         );
         Ok(())
@@ -194,7 +195,7 @@ fn type_op_eq<'tcx>(
     })
 }
 
-fn type_op_normalize<T>(
+fn type_op_normalize<'tcx, T>(
     infcx: &InferCtxt<'_, 'tcx>,
     fulfill_cx: &mut dyn TraitEngine<'tcx>,
     key: ParamEnvAnd<'tcx, Normalize<T>>,
@@ -209,28 +210,28 @@ where
     Ok(value)
 }
 
-fn type_op_normalize_ty(
+fn type_op_normalize_ty<'tcx>(
     tcx: TyCtxt<'tcx>,
     canonicalized: Canonical<'tcx, ParamEnvAnd<'tcx, Normalize<Ty<'tcx>>>>,
 ) -> Result<&'tcx Canonical<'tcx, QueryResponse<'tcx, Ty<'tcx>>>, NoSolution> {
     tcx.infer_ctxt().enter_canonical_trait_query(&canonicalized, type_op_normalize)
 }
 
-fn type_op_normalize_predicate(
+fn type_op_normalize_predicate<'tcx>(
     tcx: TyCtxt<'tcx>,
     canonicalized: Canonical<'tcx, ParamEnvAnd<'tcx, Normalize<Predicate<'tcx>>>>,
 ) -> Result<&'tcx Canonical<'tcx, QueryResponse<'tcx, Predicate<'tcx>>>, NoSolution> {
     tcx.infer_ctxt().enter_canonical_trait_query(&canonicalized, type_op_normalize)
 }
 
-fn type_op_normalize_fn_sig(
+fn type_op_normalize_fn_sig<'tcx>(
     tcx: TyCtxt<'tcx>,
     canonicalized: Canonical<'tcx, ParamEnvAnd<'tcx, Normalize<FnSig<'tcx>>>>,
 ) -> Result<&'tcx Canonical<'tcx, QueryResponse<'tcx, FnSig<'tcx>>>, NoSolution> {
     tcx.infer_ctxt().enter_canonical_trait_query(&canonicalized, type_op_normalize)
 }
 
-fn type_op_normalize_poly_fn_sig(
+fn type_op_normalize_poly_fn_sig<'tcx>(
     tcx: TyCtxt<'tcx>,
     canonicalized: Canonical<'tcx, ParamEnvAnd<'tcx, Normalize<PolyFnSig<'tcx>>>>,
 ) -> Result<&'tcx Canonical<'tcx, QueryResponse<'tcx, PolyFnSig<'tcx>>>, NoSolution> {
@@ -256,7 +257,7 @@ fn type_op_prove_predicate<'tcx>(
     canonicalized: Canonical<'tcx, ParamEnvAnd<'tcx, ProvePredicate<'tcx>>>,
 ) -> Result<&'tcx Canonical<'tcx, QueryResponse<'tcx, ()>>, NoSolution> {
     tcx.infer_ctxt().enter_canonical_trait_query(&canonicalized, |infcx, fulfill_cx, key| {
-        type_op_prove_predicate_with_span(infcx, fulfill_cx, key, None);
+        type_op_prove_predicate_with_cause(infcx, fulfill_cx, key, ObligationCause::dummy());
         Ok(())
     })
 }
@@ -264,17 +265,12 @@ fn type_op_prove_predicate<'tcx>(
 /// The core of the `type_op_prove_predicate` query: for diagnostics purposes in NLL HRTB errors,
 /// this query can be re-run to better track the span of the obligation cause, and improve the error
 /// message. Do not call directly unless you're in that very specific context.
-pub fn type_op_prove_predicate_with_span<'a, 'tcx: 'a>(
+pub fn type_op_prove_predicate_with_cause<'a, 'tcx: 'a>(
     infcx: &'a InferCtxt<'a, 'tcx>,
     fulfill_cx: &'a mut dyn TraitEngine<'tcx>,
     key: ParamEnvAnd<'tcx, ProvePredicate<'tcx>>,
-    span: Option<Span>,
+    cause: ObligationCause<'tcx>,
 ) {
-    let cause = if let Some(span) = span {
-        ObligationCause::dummy_with_span(span)
-    } else {
-        ObligationCause::dummy()
-    };
     let (param_env, ProvePredicate { predicate }) = key.into_parts();
     fulfill_cx.register_predicate_obligation(infcx, Obligation::new(cause, param_env, predicate));
 }

@@ -2,10 +2,12 @@
 #![feature(bool_to_option)]
 #![feature(box_patterns)]
 #![feature(try_blocks)]
-#![feature(in_band_lifetimes)]
+#![feature(let_else)]
+#![feature(once_cell)]
 #![feature(nll)]
 #![feature(associated_type_bounds)]
 #![recursion_limit = "256"]
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 //! This crate contains codegen code that is used by all codegen backends (LLVM and others).
 //! The backend-agnostic functions of this crate use functions defined in various traits that
@@ -24,10 +26,10 @@ use rustc_data_structures::sync::Lrc;
 use rustc_hir::def_id::CrateNum;
 use rustc_hir::LangItem;
 use rustc_middle::dep_graph::WorkProduct;
-use rustc_middle::middle::cstore::{self, CrateSource};
 use rustc_middle::middle::dependency_format::Dependencies;
-use rustc_middle::ty::query::Providers;
+use rustc_middle::ty::query::{ExternProviders, Providers};
 use rustc_session::config::{CrateType, OutputFilenames, OutputType, RUST_CGU_EXT};
+use rustc_session::cstore::{self, CrateSource};
 use rustc_session::utils::NativeLibKind;
 use rustc_span::symbol::Symbol;
 use std::path::{Path, PathBuf};
@@ -157,7 +159,7 @@ pub struct CodegenResults {
     pub modules: Vec<CompiledModule>,
     pub allocator_module: Option<CompiledModule>,
     pub metadata_module: Option<CompiledModule>,
-    pub metadata: rustc_middle::middle::cstore::EncodedMetadata,
+    pub metadata: rustc_metadata::EncodedMetadata,
     pub crate_info: CrateInfo,
 }
 
@@ -167,7 +169,7 @@ pub fn provide(providers: &mut Providers) {
     crate::target_features::provide(providers);
 }
 
-pub fn provide_extern(providers: &mut Providers) {
+pub fn provide_extern(providers: &mut ExternProviders) {
     crate::back::symbol_export::provide_extern(providers);
 }
 

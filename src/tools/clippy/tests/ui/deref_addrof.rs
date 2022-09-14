@@ -1,4 +1,5 @@
 // run-rustfix
+#![allow(clippy::return_self_not_must_use)]
 #![warn(clippy::deref_addrof)]
 
 fn get_number() -> usize {
@@ -9,7 +10,7 @@ fn get_reference(n: &usize) -> &usize {
     n
 }
 
-#[allow(clippy::many_single_char_names, clippy::double_parens)]
+#[allow(clippy::double_parens)]
 #[allow(unused_variables, unused_parens)]
 fn main() {
     let a = 10;
@@ -36,6 +37,8 @@ fn main() {
     let b = *&&a;
 
     let b = **&aref;
+
+    let _ = unsafe { *core::ptr::addr_of!(a) };
 }
 
 #[rustfmt::skip]
@@ -52,12 +55,14 @@ macro_rules! m_mut {
     };
 }
 
+#[derive(Copy, Clone)]
 pub struct S;
 impl S {
     pub fn f(&self) -> &Self {
         m!(self)
     }
-    pub fn f_mut(&self) -> &Self {
+    #[allow(unused_mut)] // mut will be unused, once the macro is fixed
+    pub fn f_mut(mut self) -> Self {
         m_mut!(self)
     }
 }

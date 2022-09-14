@@ -1,5 +1,4 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::in_macro;
 use clippy_utils::source::snippet;
 use if_chain::if_chain;
 use rustc_data_structures::fx::FxHashMap;
@@ -56,6 +55,7 @@ declare_clippy_lint! {
     /// # let y = 2;
     /// Foo { x, y };
     /// ```
+    #[clippy::version = "1.52.0"]
     pub INCONSISTENT_STRUCT_CONSTRUCTOR,
     pedantic,
     "the order of the field init shorthand is inconsistent with the order in the struct definition"
@@ -63,10 +63,10 @@ declare_clippy_lint! {
 
 declare_lint_pass!(InconsistentStructConstructor => [INCONSISTENT_STRUCT_CONSTRUCTOR]);
 
-impl LateLintPass<'_> for InconsistentStructConstructor {
+impl<'tcx> LateLintPass<'tcx> for InconsistentStructConstructor {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx hir::Expr<'_>) {
         if_chain! {
-            if !in_macro(expr.span);
+            if !expr.span.from_expansion();
             if let ExprKind::Struct(qpath, fields, base) = expr.kind;
             let ty = cx.typeck_results().expr_ty(expr);
             if let Some(adt_def) = ty.ty_adt_def();
@@ -76,7 +76,7 @@ impl LateLintPass<'_> for InconsistentStructConstructor {
             then {
                 let mut def_order_map = FxHashMap::default();
                 for (idx, field) in variant.fields.iter().enumerate() {
-                    def_order_map.insert(field.ident.name, idx);
+                    def_order_map.insert(field.name, idx);
                 }
 
                 if is_consistent_order(fields, &def_order_map) {

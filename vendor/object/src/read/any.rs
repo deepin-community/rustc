@@ -14,13 +14,13 @@ use crate::read::pe;
 use crate::read::wasm;
 use crate::read::{
     self, Architecture, BinaryFormat, CodeView, ComdatKind, CompressedData, CompressedFileRange,
-    Error, Export, FileFlags, FileKind, Import, Object, ObjectComdat, ObjectMap, ObjectSection,
-    ObjectSegment, ObjectSymbol, ObjectSymbolTable, ReadRef, Relocation, Result, SectionFlags,
-    SectionIndex, SectionKind, SymbolFlags, SymbolIndex, SymbolKind, SymbolMap, SymbolMapName,
-    SymbolScope, SymbolSection,
+    Error, Export, FileFlags, FileKind, Import, Object, ObjectComdat, ObjectKind, ObjectMap,
+    ObjectSection, ObjectSegment, ObjectSymbol, ObjectSymbolTable, ReadRef, Relocation, Result,
+    SectionFlags, SectionIndex, SectionKind, SegmentFlags, SymbolFlags, SymbolIndex, SymbolKind,
+    SymbolMap, SymbolMapName, SymbolScope, SymbolSection,
 };
 #[allow(unused_imports)]
-use crate::Endianness;
+use crate::{AddressSize, Endian, Endianness};
 
 /// Evaluate an expression on the contents of a file format enum.
 ///
@@ -220,23 +220,21 @@ impl<'data, R: ReadRef<'data>> File<'data, R> {
         Ok(File { inner })
     }
 
-    /// Parse the raw file data at an arbitrary offset inside the input data.
-    ///
-    /// Currently, this is only supported for Mach-O images.
-    /// This can be used for parsing Mach-O images inside the dyld shared cache,
-    /// where multiple images, located at different offsets, share the same address
-    /// space.
-    pub fn parse_at(data: R, offset: u64) -> Result<Self> {
-        let _inner = match FileKind::parse_at(data, offset)? {
-            #[cfg(feature = "macho")]
-            FileKind::MachO32 => FileInternal::MachO32(macho::MachOFile32::parse_at(data, offset)?),
-            #[cfg(feature = "macho")]
-            FileKind::MachO64 => FileInternal::MachO64(macho::MachOFile64::parse_at(data, offset)?),
-            #[allow(unreachable_patterns)]
+    /// Parse a Mach-O image from the dyld shared cache.
+    #[cfg(feature = "macho")]
+    pub fn parse_dyld_cache_image<'cache, E: Endian>(
+        image: &macho::DyldCacheImage<'data, 'cache, E, R>,
+    ) -> Result<Self> {
+        let inner = match image.cache.architecture().address_size() {
+            Some(AddressSize::U64) => {
+                FileInternal::MachO64(macho::MachOFile64::parse_dyld_cache_image(image)?)
+            }
+            Some(AddressSize::U32) => {
+                FileInternal::MachO32(macho::MachOFile32::parse_dyld_cache_image(image)?)
+            }
             _ => return Err(Error("Unsupported file format")),
         };
-        #[allow(unreachable_code)]
-        Ok(File { inner: _inner })
+        Ok(File { inner })
     }
 
     /// Return the file format.
@@ -286,6 +284,10 @@ where
         with_inner!(self.inner, FileInternal, |x| x.is_64())
     }
 
+    fn kind(&self) -> ObjectKind {
+        with_inner!(self.inner, FileInternal, |x| x.kind())
+    }
+
     fn segments(&'file self) -> SegmentIterator<'data, 'file, R> {
         SegmentIterator {
             inner: map_inner!(self.inner, FileInternal, SegmentIteratorInternal, |x| x
@@ -293,9 +295,9 @@ where
         }
     }
 
-    fn section_by_name(&'file self, section_name: &str) -> Option<Section<'data, 'file, R>> {
+    fn section_by_name_bytes(&'file self, section_name: &[u8]) -> Option<Section<'data, 'file, R>> {
         map_inner_option!(self.inner, FileInternal, SectionInternal, |x| x
-            .section_by_name(section_name))
+            .section_by_name_bytes(section_name))
         .map(|inner| Section { inner })
     }
 
@@ -554,8 +556,16 @@ impl<'data, 'file, R: ReadRef<'data>> ObjectSegment<'data> for Segment<'data, 'f
         with_inner!(self.inner, SegmentInternal, |x| x.data_range(address, size))
     }
 
+    fn name_bytes(&self) -> Result<Option<&[u8]>> {
+        with_inner!(self.inner, SegmentInternal, |x| x.name_bytes())
+    }
+
     fn name(&self) -> Result<Option<&str>> {
         with_inner!(self.inner, SegmentInternal, |x| x.name())
+    }
+
+    fn flags(&self) -> SegmentFlags {
+        with_inner!(self.inner, SegmentInternal, |x| x.flags())
     }
 }
 
@@ -695,8 +705,16 @@ impl<'data, 'file, R: ReadRef<'data>> ObjectSection<'data> for Section<'data, 'f
         with_inner!(self.inner, SectionInternal, |x| x.compressed_data())
     }
 
+    fn name_bytes(&self) -> Result<&[u8]> {
+        with_inner!(self.inner, SectionInternal, |x| x.name_bytes())
+    }
+
     fn name(&self) -> Result<&str> {
         with_inner!(self.inner, SectionInternal, |x| x.name())
+    }
+
+    fn segment_name_bytes(&self) -> Result<Option<&[u8]>> {
+        with_inner!(self.inner, SectionInternal, |x| x.segment_name_bytes())
     }
 
     fn segment_name(&self) -> Result<Option<&str>> {
@@ -815,6 +833,10 @@ impl<'data, 'file, R: ReadRef<'data>> ObjectComdat<'data> for Comdat<'data, 'fil
 
     fn symbol(&self) -> SymbolIndex {
         with_inner!(self.inner, ComdatInternal, |x| x.symbol())
+    }
+
+    fn name_bytes(&self) -> Result<&[u8]> {
+        with_inner!(self.inner, ComdatInternal, |x| x.name_bytes())
     }
 
     fn name(&self) -> Result<&str> {
@@ -1090,6 +1112,10 @@ impl<'data, 'file, R: ReadRef<'data>> read::private::Sealed for Symbol<'data, 'f
 impl<'data, 'file, R: ReadRef<'data>> ObjectSymbol<'data> for Symbol<'data, 'file, R> {
     fn index(&self) -> SymbolIndex {
         with_inner!(self.inner, SymbolInternal, |x| x.0.index())
+    }
+
+    fn name_bytes(&self) -> Result<&'data [u8]> {
+        with_inner!(self.inner, SymbolInternal, |x| x.0.name_bytes())
     }
 
     fn name(&self) -> Result<&'data str> {

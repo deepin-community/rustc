@@ -8,6 +8,7 @@ use std::mem;
 use std::ops;
 
 use rustc_ast::{LitKind, MetaItem, MetaItemKind, NestedMetaItem};
+use rustc_data_structures::fx::FxHashSet;
 use rustc_feature::Features;
 use rustc_session::parse::ParseSess;
 use rustc_span::symbol::{sym, Symbol};
@@ -43,11 +44,68 @@ crate struct InvalidCfgError {
 
 impl Cfg {
     /// Parses a `NestedMetaItem` into a `Cfg`.
-    fn parse_nested(nested_cfg: &NestedMetaItem) -> Result<Cfg, InvalidCfgError> {
+    fn parse_nested(
+        nested_cfg: &NestedMetaItem,
+        exclude: &FxHashSet<Cfg>,
+    ) -> Result<Option<Cfg>, InvalidCfgError> {
         match nested_cfg {
-            NestedMetaItem::MetaItem(ref cfg) => Cfg::parse(cfg),
+            NestedMetaItem::MetaItem(ref cfg) => Cfg::parse_without(cfg, exclude),
             NestedMetaItem::Literal(ref lit) => {
                 Err(InvalidCfgError { msg: "unexpected literal", span: lit.span })
+            }
+        }
+    }
+
+    crate fn parse_without(
+        cfg: &MetaItem,
+        exclude: &FxHashSet<Cfg>,
+    ) -> Result<Option<Cfg>, InvalidCfgError> {
+        let name = match cfg.ident() {
+            Some(ident) => ident.name,
+            None => {
+                return Err(InvalidCfgError {
+                    msg: "expected a single identifier",
+                    span: cfg.span,
+                });
+            }
+        };
+        match cfg.kind {
+            MetaItemKind::Word => {
+                let cfg = Cfg::Cfg(name, None);
+                if exclude.contains(&cfg) { Ok(None) } else { Ok(Some(cfg)) }
+            }
+            MetaItemKind::NameValue(ref lit) => match lit.kind {
+                LitKind::Str(value, _) => {
+                    let cfg = Cfg::Cfg(name, Some(value));
+                    if exclude.contains(&cfg) { Ok(None) } else { Ok(Some(cfg)) }
+                }
+                _ => Err(InvalidCfgError {
+                    // FIXME: if the main #[cfg] syntax decided to support non-string literals,
+                    // this should be changed as well.
+                    msg: "value of cfg option should be a string literal",
+                    span: lit.span,
+                }),
+            },
+            MetaItemKind::List(ref items) => {
+                let sub_cfgs =
+                    items.iter().filter_map(|i| Cfg::parse_nested(i, exclude).transpose());
+                let ret = match name {
+                    sym::all => sub_cfgs.fold(Ok(Cfg::True), |x, y| Ok(x? & y?)),
+                    sym::any => sub_cfgs.fold(Ok(Cfg::False), |x, y| Ok(x? | y?)),
+                    sym::not => {
+                        let mut sub_cfgs = sub_cfgs.collect::<Vec<_>>();
+                        if sub_cfgs.len() == 1 {
+                            Ok(!sub_cfgs.pop().unwrap()?)
+                        } else {
+                            Err(InvalidCfgError { msg: "expected 1 cfg-pattern", span: cfg.span })
+                        }
+                    }
+                    _ => Err(InvalidCfgError { msg: "invalid predicate", span: cfg.span }),
+                };
+                match ret {
+                    Ok(c) => Ok(Some(c)),
+                    Err(e) => Err(e),
+                }
             }
         }
     }
@@ -60,42 +118,7 @@ impl Cfg {
     /// If the content is not properly formatted, it will return an error indicating what and where
     /// the error is.
     crate fn parse(cfg: &MetaItem) -> Result<Cfg, InvalidCfgError> {
-        let name = match cfg.ident() {
-            Some(ident) => ident.name,
-            None => {
-                return Err(InvalidCfgError {
-                    msg: "expected a single identifier",
-                    span: cfg.span,
-                });
-            }
-        };
-        match cfg.kind {
-            MetaItemKind::Word => Ok(Cfg::Cfg(name, None)),
-            MetaItemKind::NameValue(ref lit) => match lit.kind {
-                LitKind::Str(value, _) => Ok(Cfg::Cfg(name, Some(value))),
-                _ => Err(InvalidCfgError {
-                    // FIXME: if the main #[cfg] syntax decided to support non-string literals,
-                    // this should be changed as well.
-                    msg: "value of cfg option should be a string literal",
-                    span: lit.span,
-                }),
-            },
-            MetaItemKind::List(ref items) => {
-                let mut sub_cfgs = items.iter().map(Cfg::parse_nested);
-                match name {
-                    sym::all => sub_cfgs.fold(Ok(Cfg::True), |x, y| Ok(x? & y?)),
-                    sym::any => sub_cfgs.fold(Ok(Cfg::False), |x, y| Ok(x? | y?)),
-                    sym::not => {
-                        if sub_cfgs.len() == 1 {
-                            Ok(!sub_cfgs.next().unwrap()?)
-                        } else {
-                            Err(InvalidCfgError { msg: "expected 1 cfg-pattern", span: cfg.span })
-                        }
-                    }
-                    _ => Err(InvalidCfgError { msg: "invalid predicate", span: cfg.span }),
-                }
-            }
-        }
+        Self::parse_without(cfg, &FxHashSet::default()).map(|ret| ret.unwrap())
     }
 
     /// Checks whether the given configuration can be matched in the current session.
@@ -466,7 +489,7 @@ impl<'a> fmt::Display for Display<'a> {
                     (sym::unix, None) => "Unix",
                     (sym::windows, None) => "Windows",
                     (sym::debug_assertions, None) => "debug-assertions enabled",
-                    (sym::target_os, Some(os)) => match &*os.as_str() {
+                    (sym::target_os, Some(os)) => match os.as_str() {
                         "android" => "Android",
                         "dragonfly" => "DragonFly BSD",
                         "emscripten" => "Emscripten",
@@ -487,10 +510,11 @@ impl<'a> fmt::Display for Display<'a> {
                         "windows" => "Windows",
                         _ => "",
                     },
-                    (sym::target_arch, Some(arch)) => match &*arch.as_str() {
+                    (sym::target_arch, Some(arch)) => match arch.as_str() {
                         "aarch64" => "AArch64",
                         "arm" => "ARM",
                         "asmjs" => "JavaScript",
+                        "m68k" => "M68k",
                         "mips" => "MIPS",
                         "mips64" => "MIPS-64",
                         "msp430" => "MSP430",
@@ -503,14 +527,14 @@ impl<'a> fmt::Display for Display<'a> {
                         "x86_64" => "x86-64",
                         _ => "",
                     },
-                    (sym::target_vendor, Some(vendor)) => match &*vendor.as_str() {
+                    (sym::target_vendor, Some(vendor)) => match vendor.as_str() {
                         "apple" => "Apple",
                         "pc" => "PC",
                         "sun" => "Sun",
                         "fortanix" => "Fortanix",
                         _ => "",
                     },
-                    (sym::target_env, Some(env)) => match &*env.as_str() {
+                    (sym::target_env, Some(env)) => match env.as_str() {
                         "gnu" => "GNU",
                         "msvc" => "MSVC",
                         "musl" => "musl",
@@ -544,14 +568,14 @@ impl<'a> fmt::Display for Display<'a> {
                         write!(
                             fmt,
                             r#"<code>{}="{}"</code>"#,
-                            Escape(&name.as_str()),
-                            Escape(&v.as_str())
+                            Escape(name.as_str()),
+                            Escape(v.as_str())
                         )
                     } else {
                         write!(fmt, r#"`{}="{}"`"#, name, v)
                     }
                 } else if self.1.is_html() {
-                    write!(fmt, "<code>{}</code>", Escape(&name.as_str()))
+                    write!(fmt, "<code>{}</code>", Escape(name.as_str()))
                 } else {
                     write!(fmt, "`{}`", name)
                 }

@@ -1,35 +1,37 @@
 /* global addClass, getNakedUrl, getSettingValue, hasOwnPropertyRustdoc, initSearch, onEach */
-/* global onEachLazy, removeClass, searchState, updateLocalStorage */
+/* global onEachLazy, removeClass, searchState, hasClass */
 
 (function() {
 // This mapping table should match the discriminants of
 // `rustdoc::html::item_type::ItemType` type in Rust.
-var itemTypes = ["mod",
-                    "externcrate",
-                    "import",
-                    "struct",
-                    "enum",
-                    "fn",
-                    "type",
-                    "static",
-                    "trait",
-                    "impl",
-                    "tymethod",
-                    "method",
-                    "structfield",
-                    "variant",
-                    "macro",
-                    "primitive",
-                    "associatedtype",
-                    "constant",
-                    "associatedconstant",
-                    "union",
-                    "foreigntype",
-                    "keyword",
-                    "existential",
-                    "attr",
-                    "derive",
-                    "traitalias"];
+var itemTypes = [
+    "mod",
+    "externcrate",
+    "import",
+    "struct",
+    "enum",
+    "fn",
+    "type",
+    "static",
+    "trait",
+    "impl",
+    "tymethod",
+    "method",
+    "structfield",
+    "variant",
+    "macro",
+    "primitive",
+    "associatedtype",
+    "constant",
+    "associatedconstant",
+    "union",
+    "foreigntype",
+    "keyword",
+    "existential",
+    "attr",
+    "derive",
+    "traitalias",
+];
 
 // used for special search precedence
 var TY_PRIMITIVE = itemTypes.indexOf("primitive");
@@ -111,7 +113,15 @@ window.initSearch = function(rawSearchIndex) {
     var INPUTS_DATA = 0;
     var OUTPUT_DATA = 1;
     var NO_TYPE_FILTER = -1;
-    var currentResults, index, searchIndex;
+    /**
+     *  @type {Array<Row>}
+     */
+    var searchIndex;
+    /**
+     *  @type {Array<string>}
+     */
+    var searchWords;
+    var currentResults;
     var ALIASES = {};
     var params = searchState.getQueryStringParams();
 
@@ -124,12 +134,48 @@ window.initSearch = function(rawSearchIndex) {
     }
 
     /**
-     * Executes the query and builds an index of results
-     * @param  {[Object]} query      [The user query]
-     * @param  {[type]} searchWords  [The list of search words to query
-     *                                against]
-     * @param  {[type]} filterCrates [Crate to search in if defined]
-     * @return {[type]}              [A search index of results]
+     * Build an URL with search parameters.
+     *
+     * @param {string} search            - The current search being performed.
+     * @param {string|null} filterCrates - The current filtering crate (if any).
+     * @return {string}
+     */
+    function buildUrl(search, filterCrates) {
+        var extra = "?search=" + encodeURIComponent(search);
+
+        if (filterCrates !== null) {
+            extra += "&filter-crate=" + encodeURIComponent(filterCrates);
+        }
+        return getNakedUrl() + extra + window.location.hash;
+    }
+
+    /**
+     * Return the filtering crate or `null` if there is none.
+     *
+     * @return {string|null}
+     */
+    function getFilterCrates() {
+        var elem = document.getElementById("crate-search");
+
+        if (elem &&
+            elem.value !== "All crates" &&
+            hasOwnPropertyRustdoc(rawSearchIndex, elem.value))
+        {
+            return elem.value;
+        }
+        return null;
+    }
+
+    /**
+     * Executes the query and returns a list of results for each results tab.
+     * @param  {Object}        query          - The user query
+     * @param  {Array<string>} searchWords    - The list of search words to query against
+     * @param  {string}        [filterCrates] - Crate to search in
+     * @return {{
+     *   in_args: Array<?>,
+     *   returned: Array<?>,
+     *   others: Array<?>
+     * }}
      */
     function execQuery(query, searchWords, filterCrates) {
         function itemTypeFromName(typename) {
@@ -150,16 +196,26 @@ window.initSearch = function(rawSearchIndex) {
         removeEmptyStringsFromArray(split);
 
         function transformResults(results) {
+            var duplicates = {};
             var out = [];
+
             for (var i = 0, len = results.length; i < len; ++i) {
-                if (results[i].id > -1) {
-                    var obj = searchIndex[results[i].id];
-                    obj.lev = results[i].lev;
+                var result = results[i];
+
+                if (result.id > -1) {
+                    var obj = searchIndex[result.id];
+                    obj.lev = result.lev;
                     var res = buildHrefAndPath(obj);
                     obj.displayPath = pathSplitter(res[0]);
                     obj.fullPath = obj.displayPath + obj.name;
                     // To be sure than it some items aren't considered as duplicate.
                     obj.fullPath += "|" + obj.ty;
+
+                    if (duplicates[obj.fullPath]) {
+                        continue;
+                    }
+                    duplicates[obj.fullPath] = true;
+
                     obj.href = res[1];
                     out.push(obj);
                     if (out.length >= MAX_RESULTS) {
@@ -174,16 +230,13 @@ window.initSearch = function(rawSearchIndex) {
             var ar = [];
             for (var entry in results) {
                 if (hasOwnPropertyRustdoc(results, entry)) {
-                    ar.push(results[entry]);
+                    var result = results[entry];
+                    result.word = searchWords[result.id];
+                    result.item = searchIndex[result.id] || {};
+                    ar.push(result);
                 }
             }
             results = ar;
-            var i, len, result;
-            for (i = 0, len = results.length; i < len; ++i) {
-                result = results[i];
-                result.word = searchWords[result.id];
-                result.item = searchIndex[result.id] || {};
-            }
             // if there are no results then return to default and fail
             if (results.length === 0) {
                 return [];
@@ -256,7 +309,7 @@ window.initSearch = function(rawSearchIndex) {
                 return 0;
             });
 
-            for (i = 0, len = results.length; i < len; ++i) {
+            for (var i = 0, len = results.length; i < len; ++i) {
                 result = results[i];
 
                 // this validation does not make sense when searching by types
@@ -299,10 +352,10 @@ window.initSearch = function(rawSearchIndex) {
                     var elems = Object.create(null);
                     var elength = obj[GENERICS_DATA].length;
                     for (var x = 0; x < elength; ++x) {
-                        if (!elems[obj[GENERICS_DATA][x]]) {
-                            elems[obj[GENERICS_DATA][x]] = 0;
+                        if (!elems[obj[GENERICS_DATA][x][NAME]]) {
+                            elems[obj[GENERICS_DATA][x][NAME]] = 0;
                         }
-                        elems[obj[GENERICS_DATA][x]] += 1;
+                        elems[obj[GENERICS_DATA][x][NAME]] += 1;
                     }
                     var total = 0;
                     var done = 0;
@@ -342,9 +395,20 @@ window.initSearch = function(rawSearchIndex) {
             return MAX_LEV_DISTANCE + 1;
         }
 
-        // Check for type name and type generics (if any).
+        /**
+          * This function checks if the object (`obj`) matches the given type (`val`) and its
+          * generics (if any).
+          *
+          * @param {Object} obj
+          * @param {string} val
+          * @param {boolean} literalSearch
+          *
+          * @return {integer} - Returns a Levenshtein distance to the best match. If there is
+          *                     no match, returns `MAX_LEV_DISTANCE + 1`.
+          */
         function checkType(obj, val, literalSearch) {
             var lev_distance = MAX_LEV_DISTANCE + 1;
+            var tmp_lev = MAX_LEV_DISTANCE + 1;
             var len, x, firstGeneric;
             if (obj[NAME] === val.name) {
                 if (literalSearch) {
@@ -354,49 +418,49 @@ window.initSearch = function(rawSearchIndex) {
                             var elems = Object.create(null);
                             len = obj[GENERICS_DATA].length;
                             for (x = 0; x < len; ++x) {
-                                if (!elems[obj[GENERICS_DATA][x]]) {
-                                    elems[obj[GENERICS_DATA][x]] = 0;
+                                if (!elems[obj[GENERICS_DATA][x][NAME]]) {
+                                    elems[obj[GENERICS_DATA][x][NAME]] = 0;
                                 }
-                                elems[obj[GENERICS_DATA][x]] += 1;
+                                elems[obj[GENERICS_DATA][x][NAME]] += 1;
                             }
 
-                            var allFound = true;
                             len = val.generics.length;
                             for (x = 0; x < len; ++x) {
                                 firstGeneric = val.generics[x];
                                 if (elems[firstGeneric]) {
                                     elems[firstGeneric] -= 1;
                                 } else {
-                                    allFound = false;
-                                    break;
+                                    // Something wasn't found and this is a literal search so
+                                    // abort and return a "failing" distance.
+                                    return MAX_LEV_DISTANCE + 1;
                                 }
                             }
-                            if (allFound) {
-                                return true;
-                            }
+                            // Everything was found, success!
+                            return 0;
                         }
-                        return false;
+                        return MAX_LEV_DISTANCE + 1;
                     }
-                    return true;
+                    return 0;
                 } else {
                     // If the type has generics but don't match, then it won't return at this point.
                     // Otherwise, `checkGenerics` will return 0 and it'll return.
                     if (obj.length > GENERICS_DATA && obj[GENERICS_DATA].length !== 0) {
-                        var tmp_lev = checkGenerics(obj, val);
+                        tmp_lev = checkGenerics(obj, val);
                         if (tmp_lev <= MAX_LEV_DISTANCE) {
                             return tmp_lev;
                         }
                     }
                 }
             } else if (literalSearch) {
+                var found = false;
                 if ((!val.generics || val.generics.length === 0) &&
                       obj.length > GENERICS_DATA && obj[GENERICS_DATA].length > 0) {
-                    return obj[GENERICS_DATA].some(
-                        function(name) {
-                            return name === val.name;
+                    found = obj[GENERICS_DATA].some(
+                        function(gen) {
+                            return gen[NAME] === val.name;
                         });
                 }
-                return false;
+                return found ? 0 : MAX_LEV_DISTANCE + 1;
             }
             lev_distance = Math.min(levenshtein(obj[NAME], val.name), lev_distance);
             if (lev_distance <= MAX_LEV_DISTANCE) {
@@ -404,19 +468,40 @@ window.initSearch = function(rawSearchIndex) {
                 // a levenshtein distance value that isn't *this* good so it goes
                 // into the search results but not too high.
                 lev_distance = Math.ceil((checkGenerics(obj, val) + lev_distance) / 2);
-            } else if (obj.length > GENERICS_DATA && obj[GENERICS_DATA].length > 0) {
+            }
+            if (obj.length > GENERICS_DATA && obj[GENERICS_DATA].length > 0) {
                 // We can check if the type we're looking for is inside the generics!
                 var olength = obj[GENERICS_DATA].length;
                 for (x = 0; x < olength; ++x) {
-                    lev_distance = Math.min(levenshtein(obj[GENERICS_DATA][x], val.name),
-                                            lev_distance);
+                    tmp_lev = Math.min(levenshtein(obj[GENERICS_DATA][x][NAME], val.name), tmp_lev);
+                }
+                if (tmp_lev !== 0) {
+                    // If we didn't find a good enough result, we go check inside the generics of
+                    // the generics.
+                    for (x = 0; x < olength && tmp_lev !== 0; ++x) {
+                        tmp_lev = Math.min(
+                            checkType(obj[GENERICS_DATA][x], val, literalSearch),
+                            tmp_lev
+                        );
+                    }
                 }
             }
             // Now whatever happens, the returned distance is "less good" so we should mark it
             // as such, and so we add 1 to the distance to make it "less good".
-            return lev_distance + 1;
+            return Math.min(lev_distance, tmp_lev) + 1;
         }
 
+        /**
+         * This function checks if the object (`obj`) has an argument with the given type (`val`).
+         *
+         * @param {Object} obj
+         * @param {string} val
+         * @param {boolean} literalSearch
+         * @param {integer} typeFilter
+         *
+         * @return {integer} - Returns a Levenshtein distance to the best match. If there is no
+         *                      match, returns `MAX_LEV_DISTANCE + 1`.
+         */
         function findArg(obj, val, literalSearch, typeFilter) {
             var lev_distance = MAX_LEV_DISTANCE + 1;
 
@@ -428,19 +513,15 @@ window.initSearch = function(rawSearchIndex) {
                         continue;
                     }
                     tmp = checkType(tmp, val, literalSearch);
-                    if (literalSearch) {
-                        if (tmp) {
-                            return true;
-                        }
+                    if (tmp === 0) {
+                        return 0;
+                    } else if (literalSearch) {
                         continue;
                     }
                     lev_distance = Math.min(tmp, lev_distance);
-                    if (lev_distance === 0) {
-                        return 0;
-                    }
                 }
             }
-            return literalSearch ? false : lev_distance;
+            return literalSearch ? MAX_LEV_DISTANCE + 1 : lev_distance;
         }
 
         function checkReturned(obj, val, literalSearch, typeFilter) {
@@ -457,19 +538,15 @@ window.initSearch = function(rawSearchIndex) {
                         continue;
                     }
                     tmp = checkType(tmp, val, literalSearch);
-                    if (literalSearch) {
-                        if (tmp) {
-                            return true;
-                        }
+                    if (tmp === 0) {
+                        return 0;
+                    } else if (literalSearch) {
                         continue;
                     }
                     lev_distance = Math.min(tmp, lev_distance);
-                    if (lev_distance === 0) {
-                        return 0;
-                    }
                 }
             }
-            return literalSearch ? false : lev_distance;
+            return literalSearch ? MAX_LEV_DISTANCE + 1 : lev_distance;
         }
 
         function checkPath(contains, lastElem, ty) {
@@ -510,11 +587,8 @@ window.initSearch = function(rawSearchIndex) {
         }
 
         function typePassesFilter(filter, type) {
-            // No filter
-            if (filter <= NO_TYPE_FILTER) return true;
-
-            // Exact match
-            if (filter === type) return true;
+            // No filter or Exact mach
+            if (filter <= NO_TYPE_FILTER || filter === type) return true;
 
             // Match related items
             var name = itemTypes[type];
@@ -551,7 +625,7 @@ window.initSearch = function(rawSearchIndex) {
             // aliases to be before the others in the displayed results.
             var aliases = [];
             var crateAliases = [];
-            if (filterCrates !== undefined) {
+            if (filterCrates !== null) {
                 if (ALIASES[filterCrates] && ALIASES[filterCrates][query.search]) {
                     var query_aliases = ALIASES[filterCrates][query.search];
                     var len = query_aliases.length;
@@ -599,6 +673,44 @@ window.initSearch = function(rawSearchIndex) {
             onEach(crateAliases, pushFunc);
         }
 
+        /**
+         * This function adds the given result into the provided `res` map if it matches the
+         * following condition:
+         *
+         * * If it is a "literal search" (`isExact`), then `lev` must be 0.
+         * * If it is not a "literal search", `lev` must be <= `MAX_LEV_DISTANCE`.
+         *
+         * The `res` map contains information which will be used to sort the search results:
+         *
+         * * `fullId` is a `string`` used as the key of the object we use for the `res` map.
+         * * `id` is the index in both `searchWords` and `searchIndex` arrays for this element.
+         * * `index` is an `integer`` used to sort by the position of the word in the item's name.
+         * * `lev` is the main metric used to sort the search results.
+         *
+         * @param {boolean} isExact
+         * @param {Object} res
+         * @param {string} fullId
+         * @param {integer} id
+         * @param {integer} index
+         * @param {integer} lev
+         */
+        function addIntoResults(isExact, res, fullId, id, index, lev) {
+            if (lev === 0 || (!isExact && lev <= MAX_LEV_DISTANCE)) {
+                if (res[fullId] !== undefined) {
+                    var result = res[fullId];
+                    if (result.dontValidate || result.lev <= lev) {
+                        return;
+                    }
+                }
+                res[fullId] = {
+                    id: id,
+                    index: index,
+                    dontValidate: isExact,
+                    lev: lev,
+                };
+            }
+        }
+
         // quoted values mean literal search
         var nSearchWords = searchWords.length;
         var i, it;
@@ -612,7 +724,7 @@ window.initSearch = function(rawSearchIndex) {
         {
             val = extractGenerics(val.substr(1, val.length - 2));
             for (i = 0; i < nSearchWords; ++i) {
-                if (filterCrates !== undefined && searchIndex[i].crate !== filterCrates) {
+                if (filterCrates !== null && searchIndex[i].crate !== filterCrates) {
                     continue;
                 }
                 in_args = findArg(searchIndex[i], val, true, typeFilter);
@@ -621,28 +733,11 @@ window.initSearch = function(rawSearchIndex) {
                 fullId = ty.id;
 
                 if (searchWords[i] === val.name
-                    && typePassesFilter(typeFilter, searchIndex[i].ty)
-                    && results[fullId] === undefined) {
-                    results[fullId] = {
-                        id: i,
-                        index: -1,
-                        dontValidate: true,
-                    };
+                    && typePassesFilter(typeFilter, searchIndex[i].ty)) {
+                    addIntoResults(true, results, fullId, i, -1, 0);
                 }
-                if (in_args && results_in_args[fullId] === undefined) {
-                    results_in_args[fullId] = {
-                        id: i,
-                        index: -1,
-                        dontValidate: true,
-                    };
-                }
-                if (returned && results_returned[fullId] === undefined) {
-                    results_returned[fullId] = {
-                        id: i,
-                        index: -1,
-                        dontValidate: true,
-                    };
-                }
+                addIntoResults(true, results_in_args, fullId, i, -1, in_args);
+                addIntoResults(true, results_returned, fullId, i, -1, returned);
             }
             query.inputs = [val];
             query.output = val;
@@ -660,7 +755,7 @@ window.initSearch = function(rawSearchIndex) {
             var output = extractGenerics(parts[1]);
 
             for (i = 0; i < nSearchWords; ++i) {
-                if (filterCrates !== undefined && searchIndex[i].crate !== filterCrates) {
+                if (filterCrates !== null && searchIndex[i].crate !== filterCrates) {
                     continue;
                 }
                 var type = searchIndex[i].type;
@@ -671,39 +766,27 @@ window.initSearch = function(rawSearchIndex) {
                 fullId = ty.id;
 
                 returned = checkReturned(ty, output, true, NO_TYPE_FILTER);
-                if (output.name === "*" || returned) {
+                if (output.name === "*" || returned === 0) {
                     in_args = false;
                     var is_module = false;
 
                     if (input === "*") {
                         is_module = true;
                     } else {
-                        var allFound = true;
-                        for (it = 0, len = inputs.length; allFound && it < len; it++) {
-                            allFound = checkType(type, inputs[it], true);
+                        var firstNonZeroDistance = 0;
+                        for (it = 0, len = inputs.length; it < len; it++) {
+                            var distance = checkType(type, inputs[it], true);
+                            if (distance > 0) {
+                                firstNonZeroDistance = distance;
+                                break;
+                            }
                         }
-                        in_args = allFound;
+                        in_args = firstNonZeroDistance;
                     }
-                    if (in_args) {
-                        results_in_args[fullId] = {
-                            id: i,
-                            index: -1,
-                            dontValidate: true,
-                        };
-                    }
-                    if (returned) {
-                        results_returned[fullId] = {
-                            id: i,
-                            index: -1,
-                            dontValidate: true,
-                        };
-                    }
+                    addIntoResults(true, results_in_args, fullId, i, -1, in_args);
+                    addIntoResults(true, results_returned, fullId, i, -1, returned);
                     if (is_module) {
-                        results[fullId] = {
-                            id: i,
-                            index: -1,
-                            dontValidate: true,
-                        };
+                        addIntoResults(true, results, fullId, i, -1, 0);
                     }
                 }
             }
@@ -728,7 +811,7 @@ window.initSearch = function(rawSearchIndex) {
             var lev, j;
             for (j = 0; j < nSearchWords; ++j) {
                 ty = searchIndex[j];
-                if (!ty || (filterCrates !== undefined && ty.crate !== filterCrates)) {
+                if (!ty || (filterCrates !== null && ty.crate !== filterCrates)) {
                     continue;
                 }
                 var lev_add = 0;
@@ -775,41 +858,14 @@ window.initSearch = function(rawSearchIndex) {
                         lev = 0;
                     }
                 }
-                if (in_args <= MAX_LEV_DISTANCE) {
-                    if (results_in_args[fullId] === undefined) {
-                        results_in_args[fullId] = {
-                            id: j,
-                            index: index,
-                            lev: in_args,
-                        };
-                    }
-                    results_in_args[fullId].lev =
-                        Math.min(results_in_args[fullId].lev, in_args);
-                }
-                if (returned <= MAX_LEV_DISTANCE) {
-                    if (results_returned[fullId] === undefined) {
-                        results_returned[fullId] = {
-                            id: j,
-                            index: index,
-                            lev: returned,
-                        };
-                    }
-                    results_returned[fullId].lev =
-                        Math.min(results_returned[fullId].lev, returned);
-                }
+                addIntoResults(false, results_in_args, fullId, j, index, in_args);
+                addIntoResults(false, results_returned, fullId, j, index, returned);
                 if (typePassesFilter(typeFilter, ty.ty) &&
                         (index !== -1 || lev <= MAX_LEV_DISTANCE)) {
                     if (index !== -1 && paths.length < 2) {
                         lev = 0;
                     }
-                    if (results[fullId] === undefined) {
-                        results[fullId] = {
-                            id: j,
-                            index: index,
-                            lev: lev,
-                        };
-                    }
-                    results[fullId].lev = Math.min(results[fullId].lev, lev);
+                    addIntoResults(false, results, fullId, j, index, lev);
                 }
             }
         }
@@ -832,11 +888,11 @@ window.initSearch = function(rawSearchIndex) {
      * This could be written functionally, but I wanted to minimise
      * functions on stack.
      *
-     * @param  {[string]} name   [The name of the result]
-     * @param  {[string]} path   [The path of the result]
-     * @param  {[string]} keys   [The keys to be used (["file", "open"])]
-     * @param  {[object]} parent [The parent of the result]
-     * @return {boolean}       [Whether the result is valid or not]
+     * @param  {string} name   - The name of the result
+     * @param  {string} path   - The path of the result
+     * @param  {string} keys   - The keys to be used (["file", "open"])
+     * @param  {Object} parent - The parent of the result
+     * @return {boolean}       - Whether the result is valid or not
      */
     function validateResult(name, path, keys, parent) {
         for (var i = 0, len = keys.length; i < len; ++i) {
@@ -857,8 +913,14 @@ window.initSearch = function(rawSearchIndex) {
         return true;
     }
 
+    /**
+     * Parse a string into a query object.
+     *
+     * @param {string} raw - The text that the user typed.
+     * @returns {ParsedQuery}
+     */
     function getQuery(raw) {
-        var matches, type, query;
+        var matches, type = "", query;
         query = raw;
 
         matches = query.match(/^(fn|mod|struct|enum|trait|type|const|macro)\s*:\s*/i);
@@ -959,6 +1021,12 @@ window.initSearch = function(rawSearchIndex) {
         return tmp;
     }
 
+    /**
+     * Render a set of search results for a single tab.
+     * @param {Array<?>}    array   - The search results for this tab
+     * @param {ParsedQuery} query
+     * @param {boolean}     display - True if this is the active tab
+     */
     function addTab(array, query, display) {
         var extraClass = "";
         if (display === true) {
@@ -966,19 +1034,11 @@ window.initSearch = function(rawSearchIndex) {
         }
 
         var output = document.createElement("div");
-        var duplicates = {};
         var length = 0;
         if (array.length > 0) {
             output.className = "search-results " + extraClass;
 
             array.forEach(function(item) {
-                if (item.is_alias !== true) {
-                    if (duplicates[item.fullPath]) {
-                        return;
-                    }
-                    duplicates[item.fullPath] = true;
-                }
-
                 var name = item.name;
                 var type = itemTypes[item.ty];
 
@@ -1055,7 +1115,7 @@ window.initSearch = function(rawSearchIndex) {
         return "<button>" + text + " <div class=\"count\">(" + nbElems + ")</div></button>";
     }
 
-    function showResults(results, go_to_first) {
+    function showResults(results, go_to_first, filterCrates) {
         var search = searchState.outputElement();
         if (go_to_first || (results.others.length === 1
             && getSettingValue("go-to-only-result") === "true"
@@ -1076,7 +1136,7 @@ window.initSearch = function(rawSearchIndex) {
 
         currentResults = query.id;
 
-        var ret_others = addTab(results.others, query);
+        var ret_others = addTab(results.others, query, true);
         var ret_in_args = addTab(results.in_args, query, false);
         var ret_returned = addTab(results.returned, query, false);
 
@@ -1096,9 +1156,19 @@ window.initSearch = function(rawSearchIndex) {
             }
         }
 
-        var output = "<h1>Results for " + escape(query.query) +
+        let crates = "";
+        if (window.ALL_CRATES.length > 1) {
+            crates = ` in <select id="crate-search"><option value="All crates">All crates</option>`;
+            for (let c of window.ALL_CRATES) {
+                crates += `<option value="${c}" ${c == filterCrates && "selected"}>${c}</option>`;
+            }
+            crates += `</select>`;
+        }
+        var output = `<div id="search-settings">
+            <h1 class="search-results-title">Results for ${escape(query.query)} ` +
             (query.type ? " (type: " + escape(query.type) + ")" : "") + "</h1>" +
-            "<div id=\"titles\">" +
+            crates +
+            `</div><div id="titles">` +
             makeTabHeader(0, "In Names", ret_others[1]) +
             makeTabHeader(1, "In Parameters", ret_in_args[1]) +
             makeTabHeader(2, "In Return Types", ret_returned[1]) +
@@ -1111,6 +1181,10 @@ window.initSearch = function(rawSearchIndex) {
         resultsElem.appendChild(ret_returned[0]);
 
         search.innerHTML = output;
+        let crateSearch = document.getElementById("crate-search");
+        if (crateSearch) {
+            crateSearch.addEventListener("input", updateCrate);
+        }
         search.appendChild(resultsElem);
         // Reset focused elements.
         searchState.focusedByTab = [null, null, null];
@@ -1123,110 +1197,19 @@ window.initSearch = function(rawSearchIndex) {
     }
 
     function execSearch(query, searchWords, filterCrates) {
-        function getSmallest(arrays, positions, notDuplicates) {
-            var start = null;
-
-            for (var it = 0, len = positions.length; it < len; ++it) {
-                if (arrays[it].length > positions[it] &&
-                    (start === null || start > arrays[it][positions[it]].lev) &&
-                    !notDuplicates[arrays[it][positions[it]].fullPath]) {
-                    start = arrays[it][positions[it]].lev;
-                }
-            }
-            return start;
-        }
-
-        function mergeArrays(arrays) {
-            var ret = [];
-            var positions = [];
-            var notDuplicates = {};
-
-            for (var x = 0, arrays_len = arrays.length; x < arrays_len; ++x) {
-                positions.push(0);
-            }
-            while (ret.length < MAX_RESULTS) {
-                var smallest = getSmallest(arrays, positions, notDuplicates);
-
-                if (smallest === null) {
-                    break;
-                }
-                for (x = 0; x < arrays_len && ret.length < MAX_RESULTS; ++x) {
-                    if (arrays[x].length > positions[x] &&
-                            arrays[x][positions[x]].lev === smallest &&
-                            !notDuplicates[arrays[x][positions[x]].fullPath]) {
-                        ret.push(arrays[x][positions[x]]);
-                        notDuplicates[arrays[x][positions[x]].fullPath] = true;
-                        positions[x] += 1;
-                    }
-                }
-            }
-            return ret;
-        }
-
-        // Split search query by ",", while respecting angle bracket nesting.
-        // Since "<" is an alias for the Ord family of traits, it also uses
-        // lookahead to distinguish "<"-as-less-than from "<"-as-angle-bracket.
-        //
-        // tokenizeQuery("A<B, C>, D") == ["A<B, C>", "D"]
-        // tokenizeQuery("A<B, C, D") == ["A<B", "C", "D"]
-        function tokenizeQuery(raw) {
-            var i, matched;
-            var l = raw.length;
-            var depth = 0;
-            var nextAngle = /(<|>)/g;
-            var ret = [];
-            var start = 0;
-            for (i = 0; i < l; ++i) {
-                switch (raw[i]) {
-                    case "<":
-                        nextAngle.lastIndex = i + 1;
-                        matched = nextAngle.exec(raw);
-                        if (matched && matched[1] === '>') {
-                            depth += 1;
-                        }
-                        break;
-                    case ">":
-                        if (depth > 0) {
-                            depth -= 1;
-                        }
-                        break;
-                    case ",":
-                        if (depth === 0) {
-                            ret.push(raw.substring(start, i));
-                            start = i + 1;
-                        }
-                        break;
-                }
-            }
-            if (start !== i) {
-                ret.push(raw.substring(start, i));
-            }
-            return ret;
-        }
-
-        var queries = tokenizeQuery(query.raw);
+        query = query.raw.trim();
         var results = {
             "in_args": [],
             "returned": [],
             "others": [],
         };
 
-        for (var i = 0, len = queries.length; i < len; ++i) {
-            query = queries[i].trim();
-            if (query.length !== 0) {
-                var tmp = execQuery(getQuery(query), searchWords, filterCrates);
+        if (query.length !== 0) {
+            var tmp = execQuery(getQuery(query), searchWords, filterCrates);
 
-                results.in_args.push(tmp.in_args);
-                results.returned.push(tmp.returned);
-                results.others.push(tmp.others);
-            }
-        }
-        if (queries.length > 1) {
-            return {
-                "in_args": mergeArrays(results.in_args),
-                "returned": mergeArrays(results.returned),
-                "others": mergeArrays(results.others),
-            };
+            results.in_args.push(tmp.in_args);
+            results.returned.push(tmp.returned);
+            results.others.push(tmp.others);
         }
         return {
             "in_args": results.in_args[0],
@@ -1235,17 +1218,12 @@ window.initSearch = function(rawSearchIndex) {
         };
     }
 
-    function getFilterCrates() {
-        var elem = document.getElementById("crate-search");
-
-        if (elem && elem.value !== "All crates" &&
-            hasOwnPropertyRustdoc(rawSearchIndex, elem.value))
-        {
-            return elem.value;
-        }
-        return undefined;
-    }
-
+    /**
+     * Perform a search based on the current state of the search input element
+     * and display the results.
+     * @param {Event}   [e]       - The event that triggered this search, if any
+     * @param {boolean} [forced]
+     */
     function search(e, forced) {
         var params = searchState.getQueryStringParams();
         var query = getQuery(searchState.input.value.trim());
@@ -1259,9 +1237,17 @@ window.initSearch = function(rawSearchIndex) {
         }
         if (!forced && query.id === currentResults) {
             if (query.query.length > 0) {
-                searchState.putBackSearch(searchState.input);
+                putBackSearch();
             }
             return;
+        }
+
+        var filterCrates = getFilterCrates();
+
+        // In case we have no information about the saved crate and there is a URL query parameter,
+        // we override it with the URL query parameter.
+        if (filterCrates === null && params["filter-crate"] !== undefined) {
+            filterCrates = params["filter-crate"];
         }
 
         // Update document title to maintain a meaningful browser history
@@ -1270,21 +1256,24 @@ window.initSearch = function(rawSearchIndex) {
         // Because searching is incremental by character, only the most
         // recent search query is added to the browser history.
         if (searchState.browserSupportsHistoryApi()) {
-            var newURL = getNakedUrl() + "?search=" + encodeURIComponent(query.raw) +
-                window.location.hash;
+            var newURL = buildUrl(query.raw, filterCrates);
+
             if (!history.state && !params.search) {
-                history.pushState(query, "", newURL);
+                history.pushState(null, "", newURL);
             } else {
-                history.replaceState(query, "", newURL);
+                history.replaceState(null, "", newURL);
             }
         }
 
-        var filterCrates = getFilterCrates();
-        showResults(execSearch(query, index, filterCrates), params.go_to_first);
+        showResults(execSearch(query, searchWords, filterCrates),
+            params["go_to_first"], filterCrates);
     }
 
     function buildIndex(rawSearchIndex) {
         searchIndex = [];
+        /**
+         * @type {Array<string>}
+         */
         var searchWords = [];
         var i, word;
         var currentIndex = 0;
@@ -1297,6 +1286,38 @@ window.initSearch = function(rawSearchIndex) {
 
             var crateSize = 0;
 
+            /**
+             * The raw search data for a given crate. `n`, `t`, `d`, and `q`, `i`, and `f`
+             * are arrays with the same length. n[i] contains the name of an item.
+             * t[i] contains the type of that item (as a small integer that represents an
+             * offset in `itemTypes`). d[i] contains the description of that item.
+             *
+             * q[i] contains the full path of the item, or an empty string indicating
+             * "same as q[i-1]".
+             *
+             * i[i], f[i] are a mystery.
+             *
+             * `a` defines aliases with an Array of pairs: [name, offset], where `offset`
+             * points into the n/t/d/q/i/f arrays.
+             *
+             * `doc` contains the description of the crate.
+             *
+             * `p` is a mystery and isn't the same length as n/t/d/q/i/f.
+             *
+             * @type {{
+             *   doc: string,
+             *   a: Object,
+             *   n: Array<string>,
+             *   t: Array<Number>,
+             *   d: Array<string>,
+             *   q: Array<string>,
+             *   i: Array<Number>,
+             *   f: Array<Array<?>>,
+             *   p: Array<Object>,
+             * }}
+             */
+            var crateCorpus = rawSearchIndex[crate];
+
             searchWords.push(crate);
             // This object should have exactly the same set of fields as the "row"
             // object defined below. Your JavaScript runtime will thank you.
@@ -1306,7 +1327,7 @@ window.initSearch = function(rawSearchIndex) {
                 ty: 1, // == ExternCrate
                 name: crate,
                 path: "",
-                desc: rawSearchIndex[crate].doc,
+                desc: crateCorpus.doc,
                 parent: undefined,
                 type: null,
                 id: id,
@@ -1317,23 +1338,23 @@ window.initSearch = function(rawSearchIndex) {
             currentIndex += 1;
 
             // an array of (Number) item types
-            var itemTypes = rawSearchIndex[crate].t;
+            var itemTypes = crateCorpus.t;
             // an array of (String) item names
-            var itemNames = rawSearchIndex[crate].n;
+            var itemNames = crateCorpus.n;
             // an array of (String) full paths (or empty string for previous path)
-            var itemPaths = rawSearchIndex[crate].q;
+            var itemPaths = crateCorpus.q;
             // an array of (String) descriptions
-            var itemDescs = rawSearchIndex[crate].d;
+            var itemDescs = crateCorpus.d;
             // an array of (Number) the parent path index + 1 to `paths`, or 0 if none
-            var itemParentIdxs = rawSearchIndex[crate].i;
+            var itemParentIdxs = crateCorpus.i;
             // an array of (Object | null) the type of the function, if any
-            var itemFunctionSearchTypes = rawSearchIndex[crate].f;
+            var itemFunctionSearchTypes = crateCorpus.f;
             // an array of [(Number) item type,
             //              (String) name]
-            var paths = rawSearchIndex[crate].p;
+            var paths = crateCorpus.p;
             // an array of [(String) alias name
             //             [Number] index to items]
-            var aliases = rawSearchIndex[crate].a;
+            var aliases = crateCorpus.a;
 
             // convert `rawPaths` entries into object form
             var len = paths.length;
@@ -1399,12 +1420,38 @@ window.initSearch = function(rawSearchIndex) {
         return searchWords;
     }
 
+    /**
+     * Callback for when the search form is submitted.
+     * @param {Event} [e] - The event that triggered this call, if any
+     */
+    function onSearchSubmit(e) {
+        e.preventDefault();
+        searchState.clearInputTimeout();
+        search();
+    }
+
+    function putBackSearch() {
+        var search_input = searchState.input;
+        if (!searchState.input) {
+            return;
+        }
+        var search = searchState.outputElement();
+        if (search_input.value !== "" && hasClass(search, "hidden")) {
+            searchState.showResults(search);
+            if (searchState.browserSupportsHistoryApi()) {
+                history.replaceState(null, "",
+                    buildUrl(search_input.value, getFilterCrates()));
+            }
+            document.title = searchState.title;
+        }
+    }
+
     function registerSearchEvents() {
         var searchAfter500ms = function() {
             searchState.clearInputTimeout();
             if (searchState.input.value.length === 0) {
                 if (searchState.browserSupportsHistoryApi()) {
-                    history.replaceState("", window.currentCrate + " - Rust",
+                    history.replaceState(null, window.currentCrate + " - Rust",
                         getNakedUrl() + window.location.hash);
                 }
                 searchState.hideResults();
@@ -1414,11 +1461,7 @@ window.initSearch = function(rawSearchIndex) {
         };
         searchState.input.onkeyup = searchAfter500ms;
         searchState.input.oninput = searchAfter500ms;
-        document.getElementsByClassName("search-form")[0].onsubmit = function(e) {
-            e.preventDefault();
-            searchState.clearInputTimeout();
-            search();
-        };
+        document.getElementsByClassName("search-form")[0].onsubmit = onSearchSubmit;
         searchState.input.onchange = function(e) {
             if (e.target !== document.activeElement) {
                 // To prevent doing anything when it's from a blur event.
@@ -1475,18 +1518,13 @@ window.initSearch = function(rawSearchIndex) {
             }
         });
 
+        searchState.input.addEventListener("focus", function() {
+            putBackSearch();
+        });
 
-        var selectCrate = document.getElementById("crate-search");
-        if (selectCrate) {
-            selectCrate.onchange = function() {
-                updateLocalStorage("rustdoc-saved-filter-crate", selectCrate.value);
-                // In case you "cut" the entry from the search input, then change the crate filter
-                // before paste back the previous search, you get the old search results without
-                // the filter. To prevent this, we need to remove the previous results.
-                currentResults = null;
-                search(undefined, true);
-            };
-        }
+        searchState.input.addEventListener("blur", function() {
+            searchState.input.placeholder = searchState.input.origPlaceholder;
+        });
 
         // Push and pop states are used to add search results to the browser
         // history.
@@ -1539,12 +1577,35 @@ window.initSearch = function(rawSearchIndex) {
         };
     }
 
-    index = buildIndex(rawSearchIndex);
-    registerSearchEvents();
-    // If there's a search term in the URL, execute the search now.
-    if (searchState.getQueryStringParams().search) {
-        search();
+    function updateCrate(ev) {
+        if (ev.target.value === "All crates") {
+            // If we don't remove it from the URL, it'll be picked up again by the search.
+            var params = searchState.getQueryStringParams();
+            var query = searchState.input.value.trim();
+            if (!history.state && !params.search) {
+                history.pushState(null, "", buildUrl(query, null));
+            } else {
+                history.replaceState(null, "", buildUrl(query, null));
+            }
+        }
+        // In case you "cut" the entry from the search input, then change the crate filter
+        // before paste back the previous search, you get the old search results without
+        // the filter. To prevent this, we need to remove the previous results.
+        currentResults = null;
+        search(undefined, true);
     }
+
+    searchWords = buildIndex(rawSearchIndex);
+    registerSearchEvents();
+
+    function runSearchIfNeeded() {
+        // If there's a search term in the URL, execute the search now.
+        if (searchState.getQueryStringParams().search) {
+            search();
+        }
+    }
+
+    runSearchIfNeeded();
 };
 
 if (window.searchIndex !== undefined) {

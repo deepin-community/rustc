@@ -16,12 +16,12 @@
 
 use crate::{passes::LateLintPassObject, LateContext, LateLintPass, LintStore};
 use rustc_ast as ast;
-use rustc_data_structures::sync::{join, par_iter, ParallelIterator};
+use rustc_data_structures::sync::join;
 use rustc_hir as hir;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::intravisit as hir_visit;
 use rustc_hir::intravisit::Visitor;
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, TyCtxt};
 use rustc_session::lint::LintPass;
 use rustc_span::symbol::Symbol;
@@ -94,13 +94,13 @@ impl<'tcx, T: LateLintPass<'tcx>> LateContextAndPass<'tcx, T> {
 }
 
 impl<'tcx, T: LateLintPass<'tcx>> hir_visit::Visitor<'tcx> for LateContextAndPass<'tcx, T> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::All;
 
     /// Because lints are scoped lexically, we want to walk nested
     /// items in the context of the outer item, so enable
     /// deep-walking.
-    fn nested_visit_map(&mut self) -> hir_visit::NestedVisitorMap<Self::Map> {
-        hir_visit::NestedVisitorMap::All(self.context.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.context.tcx.hir()
     }
 
     fn visit_nested_body(&mut self, body_id: hir::BodyId) {
@@ -430,8 +430,6 @@ pub fn late_lint_mod<'tcx, T: LateLintPass<'tcx>>(
 fn late_lint_pass_crate<'tcx, T: LateLintPass<'tcx>>(tcx: TyCtxt<'tcx>, pass: T) {
     let access_levels = &tcx.privacy_access_levels(());
 
-    let krate = tcx.hir().krate();
-
     let context = LateContext {
         tcx,
         enclosing_body: None,
@@ -450,11 +448,10 @@ fn late_lint_pass_crate<'tcx, T: LateLintPass<'tcx>>(tcx: TyCtxt<'tcx>, pass: T)
     cx.with_lint_attrs(hir::CRATE_HIR_ID, |cx| {
         // since the root module isn't visited as an item (because it isn't an
         // item), warn for it here.
-        lint_callback!(cx, check_crate, krate);
-
-        hir_visit::walk_crate(cx, krate);
-
-        lint_callback!(cx, check_crate_post, krate);
+        lint_callback!(cx, check_crate,);
+        tcx.hir().walk_toplevel_module(cx);
+        tcx.hir().walk_attributes(cx);
+        lint_callback!(cx, check_crate_post,);
     })
 }
 
@@ -502,9 +499,7 @@ pub fn check_crate<'tcx, T: LateLintPass<'tcx>>(
         || {
             tcx.sess.time("module_lints", || {
                 // Run per-module lints
-                par_iter(&tcx.hir().krate().modules).for_each(|(&module, _)| {
-                    tcx.ensure().lint_mod(module);
-                });
+                tcx.hir().par_for_each_module(|module| tcx.ensure().lint_mod(module));
             });
         },
     );

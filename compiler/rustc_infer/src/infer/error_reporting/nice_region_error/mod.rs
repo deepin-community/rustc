@@ -14,6 +14,8 @@ mod static_impl_trait;
 mod trait_impl_difference;
 mod util;
 
+pub use static_impl_trait::suggest_new_region_bound;
+
 impl<'cx, 'tcx> InferCtxt<'cx, 'tcx> {
     pub fn try_report_nice_region_error(&self, error: &RegionResolutionError<'tcx>) -> bool {
         NiceRegionError::new(self, error.clone()).try_report().is_some()
@@ -62,11 +64,11 @@ impl<'cx, 'tcx> NiceRegionError<'cx, 'tcx> {
             .or_else(|| self.try_report_mismatched_static_lifetime())
     }
 
-    pub fn regions(&self) -> Option<(Span, ty::Region<'tcx>, ty::Region<'tcx>)> {
+    pub(super) fn regions(&self) -> Option<(Span, ty::Region<'tcx>, ty::Region<'tcx>)> {
         match (&self.error, self.regions) {
-            (Some(ConcreteFailure(origin, sub, sup)), None) => Some((origin.span(), sub, sup)),
-            (Some(SubSupConflict(_, _, origin, sub, _, sup)), None) => {
-                Some((origin.span(), sub, sup))
+            (Some(ConcreteFailure(origin, sub, sup)), None) => Some((origin.span(), *sub, *sup)),
+            (Some(SubSupConflict(_, _, origin, sub, _, sup, _)), None) => {
+                Some((origin.span(), *sub, *sup))
             }
             (None, Some((span, sub, sup))) => Some((span, sub, sup)),
             _ => None,

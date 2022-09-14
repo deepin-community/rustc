@@ -62,6 +62,7 @@ macro_rules! with_api {
                 fn clone($self: &$S::TokenStream) -> $S::TokenStream;
                 fn new() -> $S::TokenStream;
                 fn is_empty($self: &$S::TokenStream) -> bool;
+                fn expand_expr($self: &$S::TokenStream) -> Result<$S::TokenStream, ()>;
                 fn from_str(src: &str) -> $S::TokenStream;
                 fn to_string($self: &$S::TokenStream) -> String;
                 fn from_token_tree(
@@ -162,6 +163,8 @@ macro_rules! with_api {
                 fn source($self: $S::Span) -> $S::Span;
                 fn start($self: $S::Span) -> LineColumn;
                 fn end($self: $S::Span) -> LineColumn;
+                fn before($self: $S::Span) -> $S::Span;
+                fn after($self: $S::Span) -> $S::Span;
                 fn join($self: $S::Span, other: $S::Span) -> Option<$S::Span>;
                 fn resolved_at($self: $S::Span, at: $S::Span) -> $S::Span;
                 fn source_text($self: $S::Span) -> Option<String>;
@@ -292,13 +295,13 @@ impl<T, M> Unmark for Marked<T, M> {
         self.value
     }
 }
-impl<T, M> Unmark for &'a Marked<T, M> {
+impl<'a, T, M> Unmark for &'a Marked<T, M> {
     type Unmarked = &'a T;
     fn unmark(self) -> Self::Unmarked {
         &self.value
     }
 }
-impl<T, M> Unmark for &'a mut Marked<T, M> {
+impl<'a, T, M> Unmark for &'a mut Marked<T, M> {
     type Unmarked = &'a mut T;
     fn unmark(self) -> Self::Unmarked {
         &mut self.value
@@ -353,8 +356,8 @@ mark_noop! {
     (),
     bool,
     char,
-    &'a [u8],
-    &'a str,
+    &'_ [u8],
+    &'_ str,
     String,
     usize,
     Delimiter,

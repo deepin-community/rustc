@@ -3,10 +3,10 @@ use clippy_utils::ty::{is_normalizable, is_type_diagnostic_item};
 use if_chain::if_chain;
 use rustc_hir::{self as hir, HirId, ItemKind, Node};
 use rustc_lint::{LateContext, LateLintPass};
+use rustc_middle::ty::layout::LayoutOf as _;
 use rustc_middle::ty::{Adt, Ty, TypeFoldable};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::sym;
-use rustc_target::abi::LayoutOf as _;
 use rustc_typeck::hir_ty_to_ty;
 
 declare_clippy_lint! {
@@ -36,6 +36,7 @@ declare_clippy_lint! {
     ///     todo!();
     /// }
     /// ```
+    #[clippy::version = "1.50.0"]
     pub ZERO_SIZED_MAP_VALUES,
     pedantic,
     "usage of map with zero-sized value type"
@@ -49,7 +50,7 @@ impl LateLintPass<'_> for ZeroSizedMapValues {
             if !hir_ty.span.from_expansion();
             if !in_trait_impl(cx, hir_ty.hir_id);
             let ty = ty_from_hir_ty(cx, hir_ty);
-            if is_type_diagnostic_item(cx, ty, sym::hashmap_type) || is_type_diagnostic_item(cx, ty, sym::BTreeMap);
+            if is_type_diagnostic_item(cx, ty, sym::HashMap) || is_type_diagnostic_item(cx, ty, sym::BTreeMap);
             if let Adt(_, substs) = ty.kind();
             let ty = substs.type_at(1);
             // Fixes https://github.com/rust-lang/rust-clippy/issues/7447 because of
@@ -68,7 +69,11 @@ impl LateLintPass<'_> for ZeroSizedMapValues {
 
 fn in_trait_impl(cx: &LateContext<'_>, hir_id: HirId) -> bool {
     let parent_id = cx.tcx.hir().get_parent_item(hir_id);
-    if let Some(Node::Item(item)) = cx.tcx.hir().find(cx.tcx.hir().get_parent_item(parent_id)) {
+    let second_parent_id = cx
+        .tcx
+        .hir()
+        .get_parent_item(cx.tcx.hir().local_def_id_to_hir_id(parent_id));
+    if let Some(Node::Item(item)) = cx.tcx.hir().find_by_def_id(second_parent_id) {
         if let ItemKind::Impl(hir::Impl { of_trait: Some(_), .. }) = item.kind {
             return true;
         }

@@ -1,3 +1,435 @@
+# 0.3.8 (Feb 4, 2022)
+
+This release adds *experimental* support for recording structured field
+values using the [`valuable`] crate to the `format::Json` formatter. In
+particular, user-defined types which are recorded using their
+[`valuable::Valuable`] implementations will be serialized as JSON objects,
+rather than using their `fmt::Debug` representation. See [this blog post][post]
+for details on `valuable`.
+
+Note that `valuable` support currently requires `--cfg tracing_unstable`. See
+the documentation for details.
+
+Additionally, this release includes a number of other smaller API improvements.
+
+### Added
+
+- **json**: Experimental support for recording [`valuable`] values as structured
+  JSON ([#1862], [#1901])
+- **filter**: `Targets::would_enable` method for testing if a `Targets` filter
+  would enable a given target ([#1903])
+- **fmt**: `map_event_format`, `map_fmt_fields`, and `map_writer` methods to
+  `fmt::Layer` and `fmt::SubscriberBuilder` ([#1871])
+
+### Changed
+
+- `tracing-core`: updated to [0.1.22][core-0.1.22]
+
+### Fixed
+
+- Set `smallvec` minimal version to 1.2.0, to fix compilation errors with `-Z
+  minimal-versions` ([#1890])
+- Minor documentation fixes ([#1902], [#1893])
+
+Thanks to @guswynn, @glts, and @lilyball for contributing to this release!
+
+[`valuable`]: https://crates.io/crates/valuable
+[`valuable::Valuable`]: https://docs.rs/valuable/latest/valuable/trait.Valuable.html
+[post]: https://tokio.rs/blog/2021-05-valuable
+[core-0.1.22]: https://github.com/tokio-rs/tracing/releases/tag/tracing-core-0.1.22
+[#1862]: https://github.com/tokio-rs/tracing/pull/1862
+[#1901]: https://github.com/tokio-rs/tracing/pull/1901
+[#1903]: https://github.com/tokio-rs/tracing/pull/1903
+[#1871]: https://github.com/tokio-rs/tracing/pull/1871
+[#1890]: https://github.com/tokio-rs/tracing/pull/1890
+[#1902]: https://github.com/tokio-rs/tracing/pull/1902
+[#1893]: https://github.com/tokio-rs/tracing/pull/1893
+
+# 0.3.7 (Jan 25, 2022)
+
+This release adds combinators for combining filters.
+
+Additionally, this release also updates the `thread-local` crate to v1.1.4,
+fixing warnings for the security advisory [RUSTSEC-2022-0006]. Note that
+previous versions of `tracing-subscriber` did not use any of the `thread-local`
+crate's APIs effected by the vulnerability. However, updating the version fixes
+warnings emitted by `cargo audit` and similar tools.
+
+### Added
+
+- **filter**: Added combinators for combining filters ([#1578])
+
+### Fixed
+
+- **registry**: Updated `thread-local` to v1.1.4 ([#1858])
+
+Thanks to new contributor @matze for contributing to this release!
+
+[RUSTSEC-2022-0006]: https://rustsec.org/advisories/RUSTSEC-2022-0006
+[#1578]: https://github.com/tokio-rs/tracing/pull/1578
+[#1858]: https://github.com/tokio-rs/tracing/pull/1858
+
+# 0.3.6 (Jan 14, 2022)
+
+This release adds configuration options to `tracing_subscriber::fmt` to log
+source code locations for events.
+### Added
+
+- **fmt**: Added `with_file` and `with_line_number`
+  configuration methods to `fmt::Format`, `fmt::SubscriberBuilder`, and
+  `fmt::Layer` ([#1773])
+
+### Fixed
+
+- **fmt**: Removed incorrect leading comma from span fields with the `Pretty`
+  formatter ([#1833])
+
+### Deprecated
+
+- **fmt**: Deprecated `Pretty::with_source_location`, as it can now be replaced
+  by the more general `Format`, `SubscriberBuilder`, and `Layer` methods
+  ([#1773])
+
+Thanks to new contributor @renecouto for contributing to this release!
+
+[#1773]: https://github.com/tokio-rs/tracing/pull/1773
+[#1833]: https://github.com/tokio-rs/tracing/pull/1833
+
+# 0.3.5 (Dec 29, 2021)
+
+This release re-enables `RUST_LOG` filtering in `tracing_subscriber::fmt`'s
+default initialization methods, and adds an `OffsetLocalTime` formatter for
+using local timestamps with the `time` crate.
+
+### Added
+
+- **fmt**: Added `OffsetLocalTime` formatter to `fmt::time` for formatting local
+  timestamps with a fixed offset ([#1772])
+
+### Fixed
+
+- **fmt**: Added a `Targets` filter to `fmt::init()` and `fmt::try_init()` when
+  the "env-filter" feature is disabled, so that `RUST_LOG` is still honored
+  ([#1781])
+
+Thanks to @marienz and @ishitatsuyuki for contributing to this release!
+
+[#1772]: https://github.com/tokio-rs/tracing/pull/1772
+[#1781]: https://github.com/tokio-rs/tracing/pull/1781
+
+# 0.3.4 (Dec 23, 2021) 
+
+This release contains bugfixes for the `fmt` module, as well as documentation
+improvements.
+
+### Fixed
+
+- **fmt**: Fixed `fmt` not emitting log lines when timestamp formatting fails
+  ([#1689])
+- **fmt**: Fixed double space before thread IDs with `Pretty` formatter
+  ([#1778])
+- Several documentation improvements ([#1608], [#1699], [#1701])
+
+[#1689]: https://github.com/tokio-rs/tracing/pull/1689
+[#1778]: https://github.com/tokio-rs/tracing/pull/1778
+[#1608]: https://github.com/tokio-rs/tracing/pull/1608
+[#1699]: https://github.com/tokio-rs/tracing/pull/1699
+[#1701]: https://github.com/tokio-rs/tracing/pull/1701
+
+Thanks to new contributors @Swatinem and @rukai for contributing to this
+release!
+
+# 0.3.3 (Nov 29, 2021)
+
+This release fixes a pair of regressions in `tracing-subscriber`'s `fmt` module.
+
+### Fixed
+
+- **fmt**: Fixed missing event fields with `Compact` formatter ([#1755])
+- **fmt**: Fixed `PrettyFields` formatter (and thus `format::Pretty` event
+  formatter) ignoring the `fmt::Layer`'s ANSI color code configuration ([#1747])
+
+[#1755]: https://github.com/tokio-rs/tracing/pull/1755
+[#1747]: https://github.com/tokio-rs/tracing/pull/1747
+
+# 0.3.2 (Nov 19, 2021)
+
+### Fixed
+
+- **fmt**: Fixed `MakeWriter` filtering not working with `BoxMakeWriter`
+  ([#1694])
+
+### Added
+
+- **fmt**: `Writer::has_ansi_escapes` method to check if an output supports ANSI
+  terminal formatting escape codes ([#1696])
+- **fmt**: Added additional ANSI terminal formatting to field formatters when
+  supported ([#1702])
+- **fmt**: Added `FmtContext::span_scope`, `FmtContext::event_scope`, and
+  `FmtContext::parent_span` methods for accessing the current span and its scope
+  when formatting an event ([#1728])
+- **fmt**: Improved documentation on implementing event formatters ([#1727])
+
+[#1694]: https://github.com/tokio-rs/tracing/pull/1694
+[#1696]: https://github.com/tokio-rs/tracing/pull/1696
+[#1702]: https://github.com/tokio-rs/tracing/pull/1702
+[#1728]: https://github.com/tokio-rs/tracing/pull/1728
+[#1727]: https://github.com/tokio-rs/tracing/pull/1727
+# 0.3.1 (Oct 25, 2021)
+
+This release fixes a few issues related to feature flagging.
+
+### Fixed
+
+- **time**: Compilation error when enabling the "time" feature flag without also
+  enabling the "local-time" feature flag ([#1685])
+- **registry**: Unused method warnings when the "std" feature is enabled but the
+  "registry" feature is disabled ([#1686])
+
+[#1685]: https://github.com/tokio-rs/tracing/pull/1685
+[#1686]: https://github.com/tokio-rs/tracing/pull/1686
+
+# 0.3.0 (Oct 22, 2021)
+
+This is a breaking release of `tracing-subscriber`. The primary breaking change
+in this release is the removal of the dependency on the [`chrono` crate], due to
+[RUSTSEC-2020-0159]. To replace `chrono`, support is added for formatting
+timestamps using the [`time` crate] instead.
+
+In addition, this release includes a number of other breaking API changes, such
+as adding (limited) support for `#![no_std]` targets, removing previously
+deprecated APIs, and more.
+
+### Breaking Changes
+
+- Removed APIs deprecated in the v0.2.x release series.
+- Renamed `Layer::new_span` to `Layer::on_new_span` ([#1674])
+- Removed `Layer` impl for `Arc<L: Layer<S>>` and `Arc<dyn Layer<S> + ...>`
+  ([#1649])
+- Replaced the [`chrono` crate] with the [`time` crate] for timestamp formatting, to
+  resolve [RUSTSEC-2020-0159] ([#1646])
+- Removed `json` and `env-filter` from default features. They must now be
+  enabled explictly ([#1647]). This means that `RUST_LOG`-based filters _will not_
+  work unless the `env-filter` feature is enabled.
+- Changed `FormatEvent::format_event` and `FormatFields::format_fields`
+  trait methods to take a `Writer` type, rather than a `&mut dyn fmt::Write`
+  trait object ([#1661])
+- Changed the signature of the `MakeWriter` trait by adding a lifetime parameter
+  ([#781])
+
+### Changed
+
+- **layer**: Renamed `Layer::new_span` to `Layer::on_new_span` ([#1674])
+- **fmt**: Changed `FormatEvent::format_event` and `FormatFields::format_fields`
+  trait methods to take a `Writer` type, rather than a `&mut dyn fmt::Write`
+  trait object ([#1661])
+- **json**, **env-filter**: `json` and `env-filter` feature flags are no longer
+  enabled by default ([#1647])
+### Removed
+
+- Removed deprecated `CurrentSpan` type ([#1320])
+- **registry**: Removed deprecated `SpanRef::parents` iterator, replaced by
+  `SpanRef::scope` in [#1431] ([#1648)])
+- **layer**: Removed deprecated `Context::scope` iterator, replaced by
+  `Context::span_scope` and `Context::event_scope` in [#1431] and [#1434]
+  ([#1648)])
+- **layer**: Removed `Layer` impl for `Arc<L: Layer<S>>` and
+   `Arc<dyn Layer<S> + ...>`. These interfere with per-layer filtering. ([#1649])
+- **fmt**: Removed deprecated `LayerBuilder` type ([#1673])
+- **fmt**: Removed `fmt::Layer::on_event` (renamed to `fmt::Layer::fmt_event`)
+  ([#1673])
+- **fmt**, **chrono**: Removed the `chrono` feature flag and APIs for using the
+  [`chrono` crate] for timestamp formatting ([#1646])
+### Added
+
+- **fmt**, **time**: `LocalTime` and `UtcTime` types for formatting timestamps
+  using the [`time` crate] ([#1646])
+- **fmt**: Added a lifetime parameter to the `MakeWriter` trait, allowing it to
+  return a borrowed writer. This enables implementations of `MakeWriter` for
+  types such as `Mutex<T: io::Write>` and `std::fs::File`. ([#781])
+- **env-filter**: Documentation improvements ([#1637])
+- Support for some APIs on `#![no_std]` targets, by disabling the `std` feature
+  flag ([#1660])
+
+Thanks to @Folyd and @nmathewson for contributing to this release!
+
+[#1320]: https://github.com/tokio-rs/tracing/pull/1320
+[#1673]: https://github.com/tokio-rs/tracing/pull/1673
+[#1674]: https://github.com/tokio-rs/tracing/pull/1674
+[#1646]: https://github.com/tokio-rs/tracing/pull/1646
+[#1647]: https://github.com/tokio-rs/tracing/pull/1647
+[#1648]: https://github.com/tokio-rs/tracing/pull/1648
+[#1649]: https://github.com/tokio-rs/tracing/pull/1649
+[#1660]: https://github.com/tokio-rs/tracing/pull/1660
+[#1661]: https://github.com/tokio-rs/tracing/pull/1661
+[#1431]: https://github.com/tokio-rs/tracing/pull/1431
+[#1434]: https://github.com/tokio-rs/tracing/pull/1434
+[#781]: https://github.com/tokio-rs/tracing/pull/781
+
+[`chrono` crate]: https://crates.io/crates/chrono
+[`time` crate]: https://crates.io/crates/time
+[RUSTSEC-2020-0159]: https://rustsec.org/advisories/RUSTSEC-2020-0159.html
+
+# 0.2.25 (October 5, 2021)
+
+This release fixes an issue where a `Layer` implementation's custom
+`downcast_raw` implementation was lost when wrapping that layer with a per-layer
+filter.
+
+### Fixed
+
+- **registry**: Forward `Filtered::downcast_raw` to wrapped `Layer` ([#1619])
+
+### Added
+
+- Documentation improvements ([#1596], [#1601])
+
+Thanks to @bryanburgers for contributing to this release!
+
+[#1619]: https://github.com/tokio-rs/tracing/pull/1619
+[#1601]: https://github.com/tokio-rs/tracing/pull/1601
+[#1596]: https://github.com/tokio-rs/tracing/pull/1596
+
+# 0.2.24 (September 19, 2021)
+
+This release contains a number of bug fixes, including a fix for
+`tracing-subscriber` failing to compile on the minimum supported Rust version of
+1.42.0. It also adds `IntoIterator` implementations for the `Targets` type.
+
+### Fixed
+
+- Fixed compilation on Rust 1.42.0 ([#1580], [#1581])
+- **registry**: Ensure per-layer filter `enabled` state is cleared when a global
+  filter short-circuits filter evaluation ([#1575])
+- **layer**: Fixed `Layer::on_layer` not being called for `Box`ed `Layer`s,
+  which broke  per-layer filtering ([#1576])
+
+### Added
+
+- **filter**: Added `Targets::iter`, returning an iterator over the set of
+  target-level pairs enabled by a `Targets` filter ([#1574])
+- **filter**:  Added `IntoIterator` implementations for `Targets` and `&Targets`
+  ([#1574])
+
+Thanks to new contributor @connec for contributing to this release!
+
+[#1580]: https://github.com/tokio-rs/tracing/pull/1580
+[#1581]: https://github.com/tokio-rs/tracing/pull/1581
+[#1575]: https://github.com/tokio-rs/tracing/pull/1575
+[#1576]: https://github.com/tokio-rs/tracing/pull/1576
+[#1574]: https://github.com/tokio-rs/tracing/pull/1574
+
+# 0.2.23 (September 16, 2021)
+
+This release fixes a few bugs in the per-layer filtering API added in v0.2.21.
+
+### Fixed
+
+- **env-filter**: Fixed excessive `EnvFilter` memory use ([#1568])
+- **filter**: Fixed a panic that may occur in debug mode when using per-layer
+  filters together with global filters ([#1569])
+- Fixed incorrect documentation formatting ([#1572])
+
+[#1568]: https://github.com/tokio-rs/tracing/pull/1568
+[#1569]: https://github.com/tokio-rs/tracing/pull/1569
+[#1572]: https://github.com/tokio-rs/tracing/pull/1572
+
+# 0.2.22 (September 13, 2021)
+
+This fixes a regression where the `filter::ParseError` type was accidentally
+renamed.
+
+### Fixed
+
+- **filter**: Fix `filter::ParseError` accidentally being renamed to
+  `filter::DirectiveParseError` ([#1558])
+
+[#1558]: https://github.com/tokio-rs/tracing/pull/1558
+
+# 0.2.21 (September 12, 2021)
+
+This release introduces the [`Filter`] trait, a new API for [per-layer
+filtering][plf]. This allows controlling which spans and events are recorded by
+various layers individually, rather than globally.
+
+In addition, it adds a new [`Targets`] filter, which provides a lighter-weight
+version of the filtering provided by [`EnvFilter`], as well as other smaller API
+improvements and fixes.
+
+### Deprecated
+
+- **registry**: `SpanRef::parent_id`, which cannot properly support per-layer
+  filtering. Use `.parent().map(SpanRef::id)` instead. ([#1523])
+
+### Fixed
+
+- **layer** `Context` methods that are provided when the `Subscriber` implements
+  `LookupSpan` no longer require the "registry" feature flag ([#1525])
+- **layer** `fmt::Debug` implementation for `Layered` no longer requires the `S`
+  type parameter to implement `Debug` ([#1528])
+
+### Added
+
+- **registry**: `Filter` trait, `Filtered` type, `Layer::with_filter` method,
+  and other APIs for per-layer filtering ([#1523])
+- **filter**: `FilterFn` and `DynFilterFn` types that implement global (`Layer`)
+  and per-layer (`Filter`) filtering for closures and function pointers
+  ([#1523])
+- **filter**: `Targets` filter, which implements a lighter-weight form of
+  `EnvFilter`-like filtering ([#1550])
+- **env-filter**: Added support for filtering on floating-point values ([#1507])
+- **layer**: `Layer::on_layer` callback, called when layering the `Layer` onto a
+`Subscriber` ([#1523])
+- **layer**: `Layer` implementations for `Box<L>` and `Arc<L>` where `L: Layer`
+  ([#1536])
+- **layer**: `Layer` implementations for `Box<dyn Layer<S> + Send + Sync + 'static>`
+  and `Arc<dyn Layer<S> + Send + Sync + 'static>` ([#1536])
+- A number of small documentation fixes and improvements ([#1553], [#1544],
+  [#1539], [#1524])
+
+Special thanks to new contributors @jsgf and @maxburke for contributing to this
+release!
+
+[`Filter`]: https://docs.rs/tracing-subscriber/0.2.21/tracing_subscriber/layer/trait.Filter.html
+[plf]: https://docs.rs/tracing-subscriber/0.2.21/tracing_subscriber/layer/index.html#per-layer-filtering
+[`Targets`]: https://docs.rs/tracing-subscriber/0.2.21/tracing_subscriber/filter/struct.Targets.html
+[`EnvFilter`]: https://docs.rs/tracing-subscriber/0.2.21/tracing_subscriber/filter/struct.EnvFilter.html
+[#1507]: https://github.com/tokio-rs/tracing/pull/1507
+[#1523]: https://github.com/tokio-rs/tracing/pull/1523
+[#1524]: https://github.com/tokio-rs/tracing/pull/1524
+[#1525]: https://github.com/tokio-rs/tracing/pull/1525
+[#1528]: https://github.com/tokio-rs/tracing/pull/1528
+[#1539]: https://github.com/tokio-rs/tracing/pull/1539
+[#1544]: https://github.com/tokio-rs/tracing/pull/1544
+[#1550]: https://github.com/tokio-rs/tracing/pull/1550
+[#1553]: https://github.com/tokio-rs/tracing/pull/1553
+
+# 0.2.20 (August 17, 2021)
+
+### Fixed
+
+- **fmt**: Fixed `fmt` printing only the first `source` for errors with a chain
+  of sources ([#1460])
+- **fmt**: Fixed missing space between level and event in the `Pretty` formatter
+  ([#1498])
+- **json**: Fixed `Json` formatter not honoring `without_time` and `with_level`
+  configurations ([#1463])
+
+### Added
+
+- **registry**: Improved panic message when cloning a span whose ID doesn't
+  exist, to aid in debugging issues with multiple subscribers ([#1483])
+- **registry**: Improved documentation on span ID generation ([#1453])
+
+[#1460]: https://github.com/tokio-rs/tracing/pull/1460
+[#1483]: https://github.com/tokio-rs/tracing/pull/1483
+[#1463]: https://github.com/tokio-rs/tracing/pull/1463
+[#1453]: https://github.com/tokio-rs/tracing/pull/1453
+[#1498]: https://github.com/tokio-rs/tracing/pull/1498
+
+Thanks to new contributors @joshtriplett and @lerouxrgd, and returning
+contributor @teozkr, for contributing to this release!
+
 # 0.2.19 (June 25, 2021)
 
 ### Deprecated
@@ -22,7 +454,7 @@
   `with_filter`, `and`, and `or_else` combinators ([#1274])
 - **fmt**: `MakeWriter` implementation for `Arc<W> where &W: io::Write`
   ([#1274])
-  
+
 Thanks to @teozkr and @Folyd for contributing to this release!
 
 [#1413]: https://github.com/tokio-rs/tracing/pull/1413

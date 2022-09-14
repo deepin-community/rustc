@@ -53,9 +53,6 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             infer::RelateObjectBound(span) => {
                 label_or_note(span, "...so that it can be closed over into an object");
             }
-            infer::CallReturn(span) => {
-                label_or_note(span, "...so that return value is valid for the call");
-            }
             infer::DataBorrowed(ty, span) => {
                 label_or_note(
                     span,
@@ -99,6 +96,15 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                     "...so that the definition in impl matches the definition from the trait",
                 );
             }
+            infer::CompareImplTypeObligation { span, .. } => {
+                label_or_note(
+                    span,
+                    "...so that the definition in impl matches the definition from the trait",
+                );
+            }
+            infer::CheckAssociatedTypeBounds { ref parent, .. } => {
+                self.note_region_origin(err, &parent);
+            }
         }
     }
 
@@ -112,7 +118,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             infer::Subtype(box trace) => {
                 let terr = TypeError::RegionsDoesNotOutlive(sup, sub);
                 let mut err = self.report_and_explain_type_error(trace, &terr);
-                match (sub, sup) {
+                match (*sub, *sup) {
                     (ty::RePlaceholder(_), ty::RePlaceholder(_)) => {}
                     (ty::RePlaceholder(_), _) => {
                         note_and_explain_region(
@@ -275,23 +281,6 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                 );
                 err
             }
-            infer::CallReturn(span) => {
-                let mut err = struct_span_err!(
-                    self.tcx.sess,
-                    span,
-                    E0482,
-                    "lifetime of return value does not outlive the function call"
-                );
-                note_and_explain_region(
-                    self.tcx,
-                    &mut err,
-                    "the return value is only valid for ",
-                    sup,
-                    "",
-                    None,
-                );
-                err
-            }
             infer::DataBorrowed(ty, span) => {
                 let mut err = struct_span_err!(
                     self.tcx.sess,
@@ -344,18 +333,70 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                 );
                 err
             }
-            infer::CompareImplMethodObligation {
-                span,
-                item_name,
-                impl_item_def_id,
-                trait_item_def_id,
-            } => self.report_extra_impl_obligation(
-                span,
-                item_name,
-                impl_item_def_id,
-                trait_item_def_id,
-                &format!("`{}: {}`", sup, sub),
-            ),
+            infer::CompareImplMethodObligation { span, impl_item_def_id, trait_item_def_id } => {
+                self.report_extra_impl_obligation(
+                    span,
+                    impl_item_def_id,
+                    trait_item_def_id,
+                    &format!("`{}: {}`", sup, sub),
+                )
+            }
+            infer::CompareImplTypeObligation { span, impl_item_def_id, trait_item_def_id } => self
+                .report_extra_impl_obligation(
+                    span,
+                    impl_item_def_id,
+                    trait_item_def_id,
+                    &format!("`{}: {}`", sup, sub),
+                ),
+            infer::CheckAssociatedTypeBounds { impl_item_def_id, trait_item_def_id, parent } => {
+                let mut err = self.report_concrete_failure(*parent, sub, sup);
+
+                let trait_item_span = self.tcx.def_span(trait_item_def_id);
+                let item_name = self.tcx.item_name(impl_item_def_id);
+                err.span_label(
+                    trait_item_span,
+                    format!("definition of `{}` from trait", item_name),
+                );
+
+                let trait_predicates = self.tcx.explicit_predicates_of(trait_item_def_id);
+                let impl_predicates = self.tcx.explicit_predicates_of(impl_item_def_id);
+
+                let impl_predicates: rustc_data_structures::stable_set::FxHashSet<_> =
+                    impl_predicates.predicates.into_iter().map(|(pred, _)| pred).collect();
+                let clauses: Vec<_> = trait_predicates
+                    .predicates
+                    .into_iter()
+                    .filter(|&(pred, _)| !impl_predicates.contains(pred))
+                    .map(|(pred, _)| format!("{}", pred))
+                    .collect();
+
+                if !clauses.is_empty() {
+                    let where_clause_span = self
+                        .tcx
+                        .hir()
+                        .get_generics(impl_item_def_id.expect_local())
+                        .unwrap()
+                        .where_clause
+                        .tail_span_for_suggestion();
+
+                    let suggestion = format!(
+                        "{} {}",
+                        if !impl_predicates.is_empty() { "," } else { " where" },
+                        clauses.join(", "),
+                    );
+                    err.span_suggestion(
+                        where_clause_span,
+                        &format!(
+                            "try copying {} from the trait",
+                            if clauses.len() > 1 { "these clauses" } else { "this clause" }
+                        ),
+                        suggestion,
+                        rustc_errors::Applicability::MaybeIncorrect,
+                    );
+                }
+
+                err
+            }
         }
     }
 
@@ -370,13 +411,13 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         match placeholder_origin {
             infer::Subtype(box ref trace)
                 if matches!(
-                    &trace.cause.code.peel_derives(),
+                    &trace.cause.code().peel_derives(),
                     ObligationCauseCode::BindingObligation(..)
                 ) =>
             {
                 // Hack to get around the borrow checker because trace.cause has an `Rc`.
                 if let ObligationCauseCode::BindingObligation(_, span) =
-                    &trace.cause.code.peel_derives()
+                    &trace.cause.code().peel_derives()
                 {
                     let span = *span;
                     let mut err = self.report_concrete_failure(placeholder_origin, sub, sup);

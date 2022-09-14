@@ -1,7 +1,10 @@
-use super::{Format, FormatEvent, FormatFields, FormatTime};
+use super::{Format, FormatEvent, FormatFields, FormatTime, Writer};
 use crate::{
     field::{RecordFields, VisitOutput},
-    fmt::fmt_layer::{FmtContext, FormattedFields},
+    fmt::{
+        fmt_layer::{FmtContext, FormattedFields},
+        writer::WriteAdaptor,
+    },
     registry::LookupSpan,
 };
 use serde::ser::{SerializeMap, Serializer as _};
@@ -9,7 +12,6 @@ use serde_json::Serializer;
 use std::{
     collections::BTreeMap,
     fmt::{self, Write},
-    io,
 };
 use tracing_core::{
     field::{self, Field},
@@ -21,13 +23,13 @@ use tracing_serde::AsSerde;
 #[cfg(feature = "tracing-log")]
 use tracing_log::NormalizeEvent;
 
-/// Marker for `Format` that indicates that the verbose json log format should be used.
+/// Marker for `Format` that indicates that the verbose JSON log format should be used.
 ///
 /// The full format includes fields from all entered spans.
 ///
 /// # Example Output
 ///
-/// ```ignore,json
+/// ```json
 /// {
 ///     "timestamp":"Feb 20 11:28:15.096",
 ///     "level":"INFO",
@@ -50,9 +52,23 @@ use tracing_log::NormalizeEvent;
 /// By default, event fields are not flattened, and both current span and span
 /// list are logged.
 ///
+/// # Valuable Support
+///
+/// Experimental support is available for using the [`valuable`] crate to record
+/// user-defined values as structured JSON. When the ["valuable" unstable
+/// feature][unstable] is enabled, types implementing [`valuable::Valuable`] will
+/// be recorded as structured JSON, rather than
+/// using their [`std::fmt::Debug`] implementations.
+///
+/// **Note**: This is an experimental feature. [Unstable features][unstable]
+/// must be enabled in order to use `valuable` support.
+///
 /// [`Json::flatten_event`]: #method.flatten_event
 /// [`Json::with_current_span`]: #method.with_current_span
 /// [`Json::with_span_list`]: #method.with_span_list
+/// [`valuable`]: https://crates.io/crates/valuable
+/// [unstable]: crate#unstable-features
+/// [`valuable::Valuable`]: https://docs.rs/valuable/latest/valuable/trait.Valuable.html
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Json {
     pub(crate) flatten_event: bool,
@@ -137,7 +153,7 @@ where
         // We should probably rework this to use a `serde_json::Value` or something
         // similar in a JSON-specific layer, but I'd (david)
         // rather have a uglier fix now rather than shipping broken JSON.
-        match serde_json::from_str::<serde_json::Value>(&data) {
+        match serde_json::from_str::<serde_json::Value>(data) {
             Ok(serde_json::Value::Object(fields)) => {
                 for field in fields {
                     serializer.serialize_entry(&field.0, &field.1)?;
@@ -186,14 +202,14 @@ where
     fn format_event(
         &self,
         ctx: &FmtContext<'_, S, N>,
-        writer: &mut dyn fmt::Write,
+        mut writer: Writer<'_>,
         event: &Event<'_>,
     ) -> fmt::Result
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         let mut timestamp = String::new();
-        self.timer.format_time(&mut timestamp)?;
+        self.timer.format_time(&mut Writer::new(&mut timestamp))?;
 
         #[cfg(feature = "tracing-log")]
         let normalized_meta = event.normalized_metadata();
@@ -203,12 +219,17 @@ where
         let meta = event.metadata();
 
         let mut visit = || {
-            let mut serializer = Serializer::new(WriteAdaptor::new(writer));
+            let mut serializer = Serializer::new(WriteAdaptor::new(&mut writer));
 
             let mut serializer = serializer.serialize_map(None)?;
 
-            serializer.serialize_entry("timestamp", &timestamp)?;
-            serializer.serialize_entry("level", &meta.level().as_serde())?;
+            if self.display_timestamp {
+                serializer.serialize_entry("timestamp", &timestamp)?;
+            }
+
+            if self.display_level {
+                serializer.serialize_entry("level", &meta.level().as_serde())?;
+            }
 
             let format_field_marker: std::marker::PhantomData<N> = std::marker::PhantomData;
 
@@ -234,6 +255,18 @@ where
 
             if self.display_target {
                 serializer.serialize_entry("target", meta.target())?;
+            }
+
+            if self.display_filename {
+                if let Some(filename) = meta.file() {
+                    serializer.serialize_entry("filename", filename)?;
+                }
+            }
+
+            if self.display_line_number {
+                if let Some(line_number) = meta.line() {
+                    serializer.serialize_entry("line_number", &line_number)?;
+                }
             }
 
             if self.format.display_current_span {
@@ -316,12 +349,8 @@ impl Default for JsonFields {
 
 impl<'a> FormatFields<'a> for JsonFields {
     /// Format the provided `fields` to the provided `writer`, returning a result.
-    fn format_fields<R: RecordFields>(
-        &self,
-        writer: &'a mut dyn fmt::Write,
-        fields: R,
-    ) -> fmt::Result {
-        let mut v = JsonVisitor::new(writer);
+    fn format_fields<R: RecordFields>(&self, mut writer: Writer<'_>, fields: R) -> fmt::Result {
+        let mut v = JsonVisitor::new(&mut writer);
         fields.record(&mut v);
         v.finish()
     }
@@ -331,37 +360,43 @@ impl<'a> FormatFields<'a> for JsonFields {
     /// By default, this appends a space to the current set of fields if it is
     /// non-empty, and then calls `self.format_fields`. If different behavior is
     /// required, the default implementation of this method can be overridden.
-    fn add_fields(&self, current: &'a mut String, fields: &Record<'_>) -> fmt::Result {
-        if !current.is_empty() {
-            // If fields were previously recorded on this span, we need to parse
-            // the current set of fields as JSON, add the new fields, and
-            // re-serialize them. Otherwise, if we just appended the new fields
-            // to a previously serialized JSON object, we would end up with
-            // malformed JSON.
-            //
-            // XXX(eliza): this is far from efficient, but unfortunately, it is
-            // necessary as long as the JSON formatter is implemented on top of
-            // an interface that stores all formatted fields as strings.
-            //
-            // We should consider reimplementing the JSON formatter as a
-            // separate layer, rather than a formatter for the `fmt` layer —
-            // then, we could store fields as JSON values, and add to them
-            // without having to parse and re-serialize.
-            let mut new = String::new();
-            let map: BTreeMap<&'_ str, serde_json::Value> =
-                serde_json::from_str(current).map_err(|_| fmt::Error)?;
-            let mut v = JsonVisitor::new(&mut new);
-            v.values = map;
-            fields.record(&mut v);
-            v.finish()?;
-            *current = new;
-        } else {
+    fn add_fields(
+        &self,
+        current: &'a mut FormattedFields<Self>,
+        fields: &Record<'_>,
+    ) -> fmt::Result {
+        if current.is_empty() {
             // If there are no previously recorded fields, we can just reuse the
             // existing string.
-            let mut v = JsonVisitor::new(current);
+            let mut writer = current.as_writer();
+            let mut v = JsonVisitor::new(&mut writer);
             fields.record(&mut v);
             v.finish()?;
+            return Ok(());
         }
+
+        // If fields were previously recorded on this span, we need to parse
+        // the current set of fields as JSON, add the new fields, and
+        // re-serialize them. Otherwise, if we just appended the new fields
+        // to a previously serialized JSON object, we would end up with
+        // malformed JSON.
+        //
+        // XXX(eliza): this is far from efficient, but unfortunately, it is
+        // necessary as long as the JSON formatter is implemented on top of
+        // an interface that stores all formatted fields as strings.
+        //
+        // We should consider reimplementing the JSON formatter as a
+        // separate layer, rather than a formatter for the `fmt` layer —
+        // then, we could store fields as JSON values, and add to them
+        // without having to parse and re-serialize.
+        let mut new = String::new();
+        let map: BTreeMap<&'_ str, serde_json::Value> =
+            serde_json::from_str(current).map_err(|_| fmt::Error)?;
+        let mut v = JsonVisitor::new(&mut new);
+        v.values = map;
+        fields.record(&mut v);
+        v.finish()?;
+        current.fields = new;
 
         Ok(())
     }
@@ -426,28 +461,54 @@ impl<'a> crate::field::VisitOutput<fmt::Result> for JsonVisitor<'a> {
 }
 
 impl<'a> field::Visit for JsonVisitor<'a> {
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    fn record_value(&mut self, field: &Field, value: valuable_crate::Value<'_>) {
+        let value = match serde_json::to_value(valuable_serde::Serializable::new(value)) {
+            Ok(value) => value,
+            Err(_e) => {
+                #[cfg(debug_assertions)]
+                unreachable!(
+                    "`valuable::Valuable` implementations should always serialize \
+                    successfully, but an error occurred: {}",
+                    _e,
+                );
+
+                #[cfg(not(debug_assertions))]
+                return;
+            }
+        };
+
+        self.values.insert(field.name(), value);
+    }
+
+    /// Visit a double precision floating point value.
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.values
+            .insert(field.name(), serde_json::Value::from(value));
+    }
+
     /// Visit a signed 64-bit integer value.
     fn record_i64(&mut self, field: &Field, value: i64) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit an unsigned 64-bit integer value.
     fn record_u64(&mut self, field: &Field, value: u64) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit a boolean value.
     fn record_bool(&mut self, field: &Field, value: bool) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit a string value.
     fn record_str(&mut self, field: &Field, value: &str) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
@@ -466,55 +527,18 @@ impl<'a> field::Visit for JsonVisitor<'a> {
         };
     }
 }
-
-/// A bridge between `fmt::Write` and `io::Write`.
-///
-/// This is needed because tracing-subscriber's FormatEvent expects a fmt::Write
-/// while serde_json's Serializer expects an io::Write.
-struct WriteAdaptor<'a> {
-    fmt_write: &'a mut dyn fmt::Write,
-}
-
-impl<'a> WriteAdaptor<'a> {
-    fn new(fmt_write: &'a mut dyn fmt::Write) -> Self {
-        Self { fmt_write }
-    }
-}
-
-impl<'a> io::Write for WriteAdaptor<'a> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let s =
-            std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-        self.fmt_write
-            .write_str(&s)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-
-        Ok(s.as_bytes().len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<'a> fmt::Debug for WriteAdaptor<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad("WriteAdaptor { .. }")
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::fmt::{format::FmtSpan, test::MockMakeWriter, time::FormatTime, SubscriberBuilder};
-    use lazy_static::lazy_static;
-    use std::{fmt, sync::Mutex};
     use tracing::{self, subscriber::with_default};
+
+    use std::fmt;
+    use std::path::Path;
 
     struct MockTime;
     impl FormatTime for MockTime {
-        fn format_time(&self, w: &mut dyn fmt::Write) -> fmt::Result {
+        fn format_time(&self, w: &mut Writer<'_>) -> fmt::Result {
             write!(w, "fake time")
         }
     }
@@ -525,17 +549,57 @@ mod test {
 
     #[test]
     fn json() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":42,\"name\":\"json_span\",\"number\":3},\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"fields\":{\"message\":\"some json test\"}}\n";
         let subscriber = subscriber()
             .flatten_event(false)
             .with_current_span(true)
             .with_span_list(true);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
+            let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
+            let _guard = span.enter();
+            tracing::info!("some json test");
+        });
+    }
+
+    #[test]
+    fn json_filename() {
+        let current_path = Path::new("tracing-subscriber")
+            .join("src")
+            .join("fmt")
+            .join("format")
+            .join("json.rs")
+            .to_str()
+            .expect("path must be valid unicode")
+            // escape windows backslashes
+            .replace('\\', "\\\\");
+        let expected =
+            &format!("{}{}{}",
+                    "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":42,\"name\":\"json_span\",\"number\":3},\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"filename\":\"",
+                    current_path,
+                    "\",\"fields\":{\"message\":\"some json test\"}}\n");
+        let subscriber = subscriber()
+            .flatten_event(false)
+            .with_current_span(true)
+            .with_file(true)
+            .with_span_list(true);
+        test_json(expected, subscriber, || {
+            let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
+            let _guard = span.enter();
+            tracing::info!("some json test");
+        });
+    }
+
+    #[test]
+    fn json_line_number() {
+        let expected =
+            "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":42,\"name\":\"json_span\",\"number\":3},\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"line_number\":42,\"fields\":{\"message\":\"some json test\"}}\n";
+        let subscriber = subscriber()
+            .flatten_event(false)
+            .with_current_span(true)
+            .with_line_number(true)
+            .with_span_list(true);
+        test_json_with_line_number(expected, subscriber, || {
             let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
             let _guard = span.enter();
             tracing::info!("some json test");
@@ -544,17 +608,14 @@ mod test {
 
     #[test]
     fn json_flattened_event() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":42,\"name\":\"json_span\",\"number\":3},\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"message\":\"some json test\"}\n";
+
         let subscriber = subscriber()
             .flatten_event(true)
             .with_current_span(true)
             .with_span_list(true);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
             let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
             let _guard = span.enter();
             tracing::info!("some json test");
@@ -563,17 +624,13 @@ mod test {
 
     #[test]
     fn json_disabled_current_span_event() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"fields\":{\"message\":\"some json test\"}}\n";
         let subscriber = subscriber()
             .flatten_event(false)
             .with_current_span(false)
             .with_span_list(true);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
             let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
             let _guard = span.enter();
             tracing::info!("some json test");
@@ -582,17 +639,13 @@ mod test {
 
     #[test]
     fn json_disabled_span_list_event() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":42,\"name\":\"json_span\",\"number\":3},\"target\":\"tracing_subscriber::fmt::format::json::test\",\"fields\":{\"message\":\"some json test\"}}\n";
         let subscriber = subscriber()
             .flatten_event(false)
             .with_current_span(true)
             .with_span_list(false);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
             let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
             let _guard = span.enter();
             tracing::info!("some json test");
@@ -601,17 +654,13 @@ mod test {
 
     #[test]
     fn json_nested_span() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"span\":{\"answer\":43,\"name\":\"nested_json_span\",\"number\":4},\"spans\":[{\"answer\":42,\"name\":\"json_span\",\"number\":3},{\"answer\":43,\"name\":\"nested_json_span\",\"number\":4}],\"target\":\"tracing_subscriber::fmt::format::json::test\",\"fields\":{\"message\":\"some json test\"}}\n";
         let subscriber = subscriber()
             .flatten_event(false)
             .with_current_span(true)
             .with_span_list(true);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
             let span = tracing::span!(tracing::Level::INFO, "json_span", answer = 42, number = 3);
             let _guard = span.enter();
             let span = tracing::span!(
@@ -627,17 +676,13 @@ mod test {
 
     #[test]
     fn json_no_span() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
         let expected =
         "{\"timestamp\":\"fake time\",\"level\":\"INFO\",\"target\":\"tracing_subscriber::fmt::format::json::test\",\"fields\":{\"message\":\"some json test\"}}\n";
         let subscriber = subscriber()
             .flatten_event(false)
             .with_current_span(true)
             .with_span_list(true);
-        test_json(expected, subscriber, &BUF, || {
+        test_json(expected, subscriber, || {
             tracing::info!("some json test");
         });
     }
@@ -646,17 +691,17 @@ mod test {
     fn record_works() {
         // This test reproduces issue #707, where using `Span::record` causes
         // any events inside the span to be ignored.
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
 
-        let buffer = MockMakeWriter::new(&BUF);
-        let subscriber = crate::fmt().json().with_writer(buffer.clone()).finish();
+        let make_writer = MockMakeWriter::default();
+        let subscriber = crate::fmt()
+            .json()
+            .with_writer(make_writer.clone())
+            .finish();
 
         with_default(subscriber, || {
             tracing::info!("an event outside the root span");
             assert_eq!(
-                parse_as_json(&buffer)["fields"]["message"],
+                parse_as_json(&make_writer)["fields"]["message"],
                 "an event outside the root span"
             );
 
@@ -666,7 +711,7 @@ mod test {
 
             tracing::info!("an event inside the root span");
             assert_eq!(
-                parse_as_json(&buffer)["fields"]["message"],
+                parse_as_json(&make_writer)["fields"]["message"],
                 "an event inside the root span"
             );
         });
@@ -674,11 +719,7 @@ mod test {
 
     #[test]
     fn json_span_event_show_correct_context() {
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
-        let buffer = MockMakeWriter::new(&BUF);
+        let buffer = MockMakeWriter::default();
         let subscriber = subscriber()
             .with_writer(buffer.clone())
             .flatten_event(false)
@@ -737,11 +778,7 @@ mod test {
     fn json_span_event_with_no_fields() {
         // Check span events serialize correctly.
         // Discussion: https://github.com/tokio-rs/tracing/issues/829#issuecomment-661984255
-        lazy_static! {
-            static ref BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-        }
-
-        let buffer = MockMakeWriter::new(&BUF);
+        let buffer = MockMakeWriter::default();
         let subscriber = subscriber()
             .with_writer(buffer.clone())
             .flatten_event(false)
@@ -765,13 +802,13 @@ mod test {
         });
     }
 
-    fn parse_as_json(buffer: &MockMakeWriter<'_>) -> serde_json::Value {
+    fn parse_as_json(buffer: &MockMakeWriter) -> serde_json::Value {
         let buf = String::from_utf8(buffer.buf().to_vec()).unwrap();
         let json = buf
             .lines()
             .last()
             .expect("expected at least one line to be written!");
-        match serde_json::from_str(&json) {
+        match serde_json::from_str(json) {
             Ok(v) => v,
             Err(e) => panic!(
                 "assertion failed: JSON shouldn't be malformed\n  error: {}\n  json: {}",
@@ -783,10 +820,9 @@ mod test {
     fn test_json<T>(
         expected: &str,
         builder: crate::fmt::SubscriberBuilder<JsonFields, Format<Json>>,
-        buf: &'static Mutex<Vec<u8>>,
         producer: impl FnOnce() -> T,
     ) {
-        let make_writer = MockMakeWriter::new(&buf);
+        let make_writer = MockMakeWriter::default();
         let subscriber = builder
             .with_writer(make_writer.clone())
             .with_timer(MockTime)
@@ -801,5 +837,35 @@ mod test {
                 .unwrap(),
             serde_json::from_str(actual).unwrap()
         );
+    }
+
+    fn test_json_with_line_number<T>(
+        expected: &str,
+        builder: crate::fmt::SubscriberBuilder<JsonFields, Format<Json>>,
+        producer: impl FnOnce() -> T,
+    ) {
+        let make_writer = MockMakeWriter::default();
+        let subscriber = builder
+            .with_writer(make_writer.clone())
+            .with_timer(MockTime)
+            .finish();
+
+        with_default(subscriber, producer);
+
+        let buf = make_writer.buf();
+        let actual = std::str::from_utf8(&buf[..]).unwrap();
+        let mut expected =
+            serde_json::from_str::<std::collections::HashMap<&str, serde_json::Value>>(expected)
+                .unwrap();
+        let expect_line_number = expected.remove("line_number").is_some();
+        let mut actual: std::collections::HashMap<&str, serde_json::Value> =
+            serde_json::from_str(actual).unwrap();
+        let line_number = actual.remove("line_number");
+        if expect_line_number {
+            assert_eq!(line_number.map(|x| x.is_number()), Some(true));
+        } else {
+            assert!(line_number.is_none());
+        }
+        assert_eq!(actual, expected);
     }
 }

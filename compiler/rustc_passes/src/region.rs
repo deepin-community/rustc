@@ -10,8 +10,8 @@ use rustc_ast::walk_list;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
-use rustc_hir::{Arm, Block, Expr, Local, Node, Pat, PatKind, Stmt};
+use rustc_hir::intravisit::{self, Visitor};
+use rustc_hir::{Arm, Block, Expr, Local, Pat, PatKind, Stmt};
 use rustc_index::vec::Idx;
 use rustc_middle::middle::region::*;
 use rustc_middle::ty::query::Providers;
@@ -334,9 +334,10 @@ fn resolve_expr<'tcx>(visitor: &mut RegionResolutionVisitor<'tcx>, expr: &'tcx h
     // properly, we can't miss any types.
 
     match expr.kind {
-        // Manually recurse over closures, because they are the only
+        // Manually recurse over closures and inline consts, because they are the only
         // case of nested bodies that share the parent environment.
-        hir::ExprKind::Closure(.., body, _, _) => {
+        hir::ExprKind::Closure(.., body, _, _)
+        | hir::ExprKind::ConstBlock(hir::AnonConst { body, .. }) => {
             let body = visitor.tcx.hir().body(body);
             visitor.visit_body(body);
         }
@@ -365,7 +366,8 @@ fn resolve_expr<'tcx>(visitor: &mut RegionResolutionVisitor<'tcx>, expr: &'tcx h
             let target_scopes = visitor.fixup_scopes.drain(start_point..);
 
             for scope in target_scopes {
-                let mut yield_data = visitor.scope_tree.yield_in_scope.get_mut(&scope).unwrap();
+                let mut yield_data =
+                    visitor.scope_tree.yield_in_scope.get_mut(&scope).unwrap().last_mut().unwrap();
                 let count = yield_data.expr_and_pat_count;
                 let span = yield_data.span;
 
@@ -420,12 +422,21 @@ fn resolve_expr<'tcx>(visitor: &mut RegionResolutionVisitor<'tcx>, expr: &'tcx h
         // Mark this expr's scope and all parent scopes as containing `yield`.
         let mut scope = Scope { id: expr.hir_id.local_id, data: ScopeData::Node };
         loop {
-            let data = YieldData {
-                span: expr.span,
-                expr_and_pat_count: visitor.expr_and_pat_count,
-                source: *source,
+            let span = match expr.kind {
+                hir::ExprKind::Yield(expr, hir::YieldSource::Await { .. }) => {
+                    expr.span.shrink_to_hi().to(expr.span)
+                }
+                _ => expr.span,
             };
-            visitor.scope_tree.yield_in_scope.insert(scope, data);
+            let data =
+                YieldData { span, expr_and_pat_count: visitor.expr_and_pat_count, source: *source };
+            match visitor.scope_tree.yield_in_scope.get_mut(&scope) {
+                Some(yields) => yields.push(data),
+                None => {
+                    visitor.scope_tree.yield_in_scope.insert(scope, vec![data]);
+                }
+            }
+
             if visitor.pessimistic_yield {
                 debug!("resolve_expr in pessimistic_yield - marking scope {:?} for fixup", scope);
                 visitor.fixup_scopes.push(scope);
@@ -717,12 +728,6 @@ impl<'tcx> RegionResolutionVisitor<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for RegionResolutionVisitor<'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
     fn visit_block(&mut self, b: &'tcx Block<'tcx>) {
         resolve_block(self, b);
     }
@@ -812,14 +817,14 @@ impl<'tcx> Visitor<'tcx> for RegionResolutionVisitor<'tcx> {
         resolve_expr(self, ex);
     }
     fn visit_local(&mut self, l: &'tcx Local<'tcx>) {
-        resolve_local(self, Some(&l.pat), l.init.as_deref());
+        resolve_local(self, Some(&l.pat), l.init);
     }
 }
 
 fn region_scope_tree(tcx: TyCtxt<'_>, def_id: DefId) -> &ScopeTree {
-    let closure_base_def_id = tcx.closure_base_def_id(def_id);
-    if closure_base_def_id != def_id {
-        return tcx.region_scope_tree(closure_base_def_id);
+    let typeck_root_def_id = tcx.typeck_root_def_id(def_id);
+    if typeck_root_def_id != def_id {
+        return tcx.region_scope_tree(typeck_root_def_id);
     }
 
     let id = tcx.hir().local_def_id_to_hir_id(def_id.expect_local());
@@ -836,19 +841,7 @@ fn region_scope_tree(tcx: TyCtxt<'_>, def_id: DefId) -> &ScopeTree {
 
         let body = tcx.hir().body(body_id);
         visitor.scope_tree.root_body = Some(body.value.hir_id);
-
-        // If the item is an associated const or a method,
-        // record its impl/trait parent, as it can also have
-        // lifetime parameters free in this body.
-        match tcx.hir().get(id) {
-            Node::ImplItem(_) | Node::TraitItem(_) => {
-                visitor.scope_tree.root_parent = Some(tcx.hir().get_parent_item(id));
-            }
-            _ => {}
-        }
-
         visitor.visit_body(body);
-
         visitor.scope_tree
     } else {
         ScopeTree::default()

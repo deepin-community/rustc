@@ -863,7 +863,7 @@ fn test_splitator_inclusive() {
     assert_eq!(xs.split_inclusive(|_| true).collect::<Vec<&[i32]>>(), splits);
 
     let xs: &[i32] = &[];
-    let splits: &[&[i32]] = &[&[]];
+    let splits: &[&[i32]] = &[];
     assert_eq!(xs.split_inclusive(|x| *x == 5).collect::<Vec<&[i32]>>(), splits);
 }
 
@@ -883,7 +883,7 @@ fn test_splitator_inclusive_reverse() {
     assert_eq!(xs.split_inclusive(|_| true).rev().collect::<Vec<_>>(), splits);
 
     let xs: &[i32] = &[];
-    let splits: &[&[i32]] = &[&[]];
+    let splits: &[&[i32]] = &[];
     assert_eq!(xs.split_inclusive(|x| *x == 5).rev().collect::<Vec<_>>(), splits);
 }
 
@@ -903,7 +903,7 @@ fn test_splitator_mut_inclusive() {
     assert_eq!(xs.split_inclusive_mut(|_| true).collect::<Vec<_>>(), splits);
 
     let xs: &mut [i32] = &mut [];
-    let splits: &[&[i32]] = &[&[]];
+    let splits: &[&[i32]] = &[];
     assert_eq!(xs.split_inclusive_mut(|x| *x == 5).collect::<Vec<_>>(), splits);
 }
 
@@ -923,7 +923,7 @@ fn test_splitator_mut_inclusive_reverse() {
     assert_eq!(xs.split_inclusive_mut(|_| true).rev().collect::<Vec<_>>(), splits);
 
     let xs: &mut [i32] = &mut [];
-    let splits: &[&[i32]] = &[&[]];
+    let splits: &[&[i32]] = &[];
     assert_eq!(xs.split_inclusive_mut(|x| *x == 5).rev().collect::<Vec<_>>(), splits);
 }
 
@@ -1783,12 +1783,11 @@ thread_local!(static SILENCE_PANIC: Cell<bool> = Cell::new(false));
 #[test]
 #[cfg_attr(target_os = "emscripten", ignore)] // no threads
 fn panic_safe() {
-    let prev = panic::take_hook();
-    panic::set_hook(Box::new(move |info| {
+    panic::update_hook(move |prev, info| {
         if !SILENCE_PANIC.with(|s| s.get()) {
             prev(info);
         }
-    }));
+    });
 
     let mut rng = thread_rng();
 

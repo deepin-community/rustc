@@ -1,10 +1,11 @@
-// min-llvm-version: 10.0.1
 // only-x86_64
 // assembly-output: emit-asm
 // compile-flags: -C llvm-args=--x86-asm-syntax=intel
 
-#![feature(asm, global_asm)]
+#![feature(asm_const)]
 #![crate_type = "rlib"]
+
+use std::arch::global_asm;
 
 // CHECK: mov eax, eax
 global_asm!("mov eax, eax");

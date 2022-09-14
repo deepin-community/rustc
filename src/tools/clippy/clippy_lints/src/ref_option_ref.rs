@@ -28,6 +28,7 @@ declare_clippy_lint! {
     /// ```rust,ignore
     /// let x: Option<&u32> = Some(&0u32);
     /// ```
+    #[clippy::version = "1.49.0"]
     pub REF_OPTION_REF,
     pedantic,
     "use `Option<&T>` instead of `&Option<&T>`"
@@ -45,7 +46,7 @@ impl<'tcx> LateLintPass<'tcx> for RefOptionRef {
             if let Some(res) = last.res;
             if let Some(def_id) = res.opt_def_id();
 
-            if cx.tcx.is_diagnostic_item(sym::option_type, def_id);
+            if cx.tcx.is_diagnostic_item(sym::Option, def_id);
             if let Some(params) = last_path_segment(qpath).args ;
             if !params.parenthesized;
             if let Some(inner_ty) = params.args.iter().find_map(|arg| match arg {

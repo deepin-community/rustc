@@ -7,11 +7,12 @@ mod prelude2021;
 pub mod probe;
 mod suggest;
 
-pub use self::suggest::{SelfSource, TraitInfo};
+pub use self::suggest::SelfSource;
 pub use self::CandidateSource::*;
 pub use self::MethodError::*;
 
 use crate::check::FnCtxt;
+use crate::ObligationCause;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::{Applicability, DiagnosticBuilder};
 use rustc_hir as hir;
@@ -21,7 +22,7 @@ use rustc_infer::infer::{self, InferOk};
 use rustc_middle::ty::subst::Subst;
 use rustc_middle::ty::subst::{InternalSubsts, SubstsRef};
 use rustc_middle::ty::GenericParamDefKind;
-use rustc_middle::ty::{self, ToPolyTraitRef, ToPredicate, Ty, TypeFoldable, WithConstness};
+use rustc_middle::ty::{self, ToPredicate, Ty, TypeFoldable};
 use rustc_span::symbol::Ident;
 use rustc_span::Span;
 use rustc_trait_selection::traits;
@@ -30,7 +31,6 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt;
 use self::probe::{IsSuggestion, ProbeScope};
 
 pub fn provide(providers: &mut ty::query::Providers) {
-    suggest::provide(providers);
     probe::provide(providers);
 }
 
@@ -71,7 +71,8 @@ pub enum MethodError<'tcx> {
 #[derive(Debug)]
 pub struct NoMatchData<'tcx> {
     pub static_candidates: Vec<CandidateSource>,
-    pub unsatisfied_predicates: Vec<(ty::Predicate<'tcx>, Option<ty::Predicate<'tcx>>)>,
+    pub unsatisfied_predicates:
+        Vec<(ty::Predicate<'tcx>, Option<ty::Predicate<'tcx>>, Option<ObligationCause<'tcx>>)>,
     pub out_of_scope_traits: Vec<DefId>,
     pub lev_candidate: Option<ty::AssocItem>,
     pub mode: probe::Mode,
@@ -80,7 +81,11 @@ pub struct NoMatchData<'tcx> {
 impl<'tcx> NoMatchData<'tcx> {
     pub fn new(
         static_candidates: Vec<CandidateSource>,
-        unsatisfied_predicates: Vec<(ty::Predicate<'tcx>, Option<ty::Predicate<'tcx>>)>,
+        unsatisfied_predicates: Vec<(
+            ty::Predicate<'tcx>,
+            Option<ty::Predicate<'tcx>>,
+            Option<ObligationCause<'tcx>>,
+        )>,
         out_of_scope_traits: Vec<DefId>,
         lev_candidate: Option<ty::AssocItem>,
         mode: probe::Mode,
@@ -141,6 +146,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         method_name: Ident,
         self_ty: Ty<'tcx>,
         call_expr: &hir::Expr<'_>,
+        span: Option<Span>,
     ) {
         let params = self
             .probe_for_name(
@@ -159,7 +165,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             .unwrap_or(0);
 
         // Account for `foo.bar<T>`;
-        let sugg_span = call_expr.span.shrink_to_hi();
+        let sugg_span = span.unwrap_or(call_expr.span).shrink_to_hi();
         let (suggestion, applicability) = (
             format!("({})", (0..params).map(|_| "_").collect::<Vec<_>>().join(", ")),
             if params > 0 { Applicability::HasPlaceholders } else { Applicability::MaybeIncorrect },
@@ -221,7 +227,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             if let ty::Ref(region, t_type, mutability) = self_ty.kind() {
                 let trait_type = self
                     .tcx
-                    .mk_ref(region, ty::TypeAndMut { ty: t_type, mutbl: mutability.invert() });
+                    .mk_ref(*region, ty::TypeAndMut { ty: *t_type, mutbl: mutability.invert() });
                 // We probe again to see if there might be a borrow mutability discrepancy.
                 match self.lookup_probe(
                     span,
@@ -289,6 +295,44 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         )
     }
 
+    pub(super) fn obligation_for_method(
+        &self,
+        span: Span,
+        trait_def_id: DefId,
+        self_ty: Ty<'tcx>,
+        opt_input_types: Option<&[Ty<'tcx>]>,
+    ) -> (traits::Obligation<'tcx, ty::Predicate<'tcx>>, &'tcx ty::List<ty::subst::GenericArg<'tcx>>)
+    {
+        // Construct a trait-reference `self_ty : Trait<input_tys>`
+        let substs = InternalSubsts::for_item(self.tcx, trait_def_id, |param, _| {
+            match param.kind {
+                GenericParamDefKind::Lifetime | GenericParamDefKind::Const { .. } => {}
+                GenericParamDefKind::Type { .. } => {
+                    if param.index == 0 {
+                        return self_ty.into();
+                    } else if let Some(input_types) = opt_input_types {
+                        return input_types[param.index as usize - 1].into();
+                    }
+                }
+            }
+            self.var_for_def(span, param)
+        });
+
+        let trait_ref = ty::TraitRef::new(trait_def_id, substs);
+
+        // Construct an obligation
+        let poly_trait_ref = ty::Binder::dummy(trait_ref);
+        (
+            traits::Obligation::misc(
+                span,
+                self.body_id,
+                self.param_env,
+                poly_trait_ref.without_const().to_predicate(self.tcx),
+            ),
+            substs,
+        )
+    }
+
     /// `lookup_method_in_trait` is used for overloaded operators.
     /// It does a very narrow slice of what the normal probe/confirm path does.
     /// In particular, it doesn't really do any probing: it simply constructs
@@ -299,7 +343,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     // code with the other method-lookup code. In particular, the second half
     // of this method is basically the same as confirmation.
     #[instrument(level = "debug", skip(self, span, opt_input_types))]
-    pub fn lookup_method_in_trait(
+    pub(super) fn lookup_method_in_trait(
         &self,
         span: Span,
         m_name: Ident,
@@ -312,42 +356,22 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             self_ty, m_name, trait_def_id, opt_input_types
         );
 
-        // Construct a trait-reference `self_ty : Trait<input_tys>`
-        let substs = InternalSubsts::for_item(self.tcx, trait_def_id, |param, _| {
-            match param.kind {
-                GenericParamDefKind::Lifetime | GenericParamDefKind::Const { .. } => {}
-                GenericParamDefKind::Type { .. } => {
-                    if param.index == 0 {
-                        return self_ty.into();
-                    } else if let Some(ref input_types) = opt_input_types {
-                        return input_types[param.index as usize - 1].into();
-                    }
-                }
-            }
-            self.var_for_def(span, param)
-        });
+        let (obligation, substs) =
+            self.obligation_for_method(span, trait_def_id, self_ty, opt_input_types);
 
-        let trait_ref = ty::TraitRef::new(trait_def_id, substs);
-
-        // Construct an obligation
-        let poly_trait_ref = trait_ref.to_poly_trait_ref();
-        let obligation = traits::Obligation::misc(
-            span,
-            self.body_id,
-            self.param_env,
-            poly_trait_ref.without_const().to_predicate(self.tcx),
-        );
+        debug!(?obligation);
 
         // Now we want to know if this can be matched
         if !self.predicate_may_hold(&obligation) {
             debug!("--> Cannot match obligation");
-            return None; // Cannot be matched, no such method resolution is possible.
+            // Cannot be matched, no such method resolution is possible.
+            return None;
         }
 
         // Trait must have a method named `m_name` and it should not have
         // type parameters or early-bound regions.
         let tcx = self.tcx;
-        let method_item = match self.associated_item(trait_def_id, m_name, Namespace::ValueNS) {
+        let method_item = match self.associated_value(trait_def_id, m_name) {
             Some(method_item) => method_item,
             None => {
                 tcx.sess.delay_span_bug(
@@ -412,10 +436,10 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         obligations.push(traits::Obligation::new(
             cause,
             self.param_env,
-            ty::PredicateKind::WellFormed(method_ty.into()).to_predicate(tcx),
+            ty::Binder::dummy(ty::PredicateKind::WellFormed(method_ty.into())).to_predicate(tcx),
         ));
 
-        let callee = MethodCallee { def_id, substs: trait_ref.substs, sig: fn_sig };
+        let callee = MethodCallee { def_id, substs, sig: fn_sig };
 
         debug!("callee = {:?}", callee);
 
@@ -460,7 +484,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 let variant_def = adt_def
                     .variants
                     .iter()
-                    .find(|vd| tcx.hygienic_eq(method_name, vd.ident, adt_def.did));
+                    .find(|vd| tcx.hygienic_eq(method_name, vd.ident(tcx), adt_def.did));
                 if let Some(variant_def) = variant_def {
                     // Braced variants generate unusable names in value namespace (reserved for
                     // possible future use), so variants resolved as associated items may refer to
@@ -516,15 +540,10 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
     /// Finds item with name `item_name` defined in impl/trait `def_id`
     /// and return it, or `None`, if no such item was defined there.
-    pub fn associated_item(
-        &self,
-        def_id: DefId,
-        item_name: Ident,
-        ns: Namespace,
-    ) -> Option<ty::AssocItem> {
+    pub fn associated_value(&self, def_id: DefId, item_name: Ident) -> Option<ty::AssocItem> {
         self.tcx
             .associated_items(def_id)
-            .find_by_name_and_namespace(self.tcx, item_name, ns, def_id)
+            .find_by_name_and_namespace(self.tcx, item_name, Namespace::ValueNS, def_id)
             .copied()
     }
 }

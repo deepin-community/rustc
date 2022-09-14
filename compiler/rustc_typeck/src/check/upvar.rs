@@ -33,12 +33,11 @@
 use super::FnCtxt;
 
 use crate::expr_use_visitor as euv;
-use rustc_data_structures::fx::FxIndexMap;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::def_id::LocalDefId;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_infer::infer::UpvarRegion;
 use rustc_middle::hir::place::{Place, PlaceBase, PlaceWithHirId, Projection, ProjectionKind};
 use rustc_middle::mir::FakeReadCause;
@@ -72,7 +71,7 @@ enum PlaceAncestryRelation {
 /// Intermediate format to store a captured `Place` and associated `ty::CaptureInfo`
 /// during capture analysis. Information in this map feeds into the minimum capture
 /// analysis pass.
-type InferredCaptureInformation<'tcx> = FxIndexMap<Place<'tcx>, ty::CaptureInfo<'tcx>>;
+type InferredCaptureInformation<'tcx> = Vec<(Place<'tcx>, ty::CaptureInfo)>;
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     pub fn closure_analyze(&self, body: &'tcx hir::Body<'tcx>) {
@@ -86,35 +85,73 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 /// Intermediate format to store the hir_id pointing to the use that resulted in the
 /// corresponding place being captured and a String which contains the captured value's
 /// name (i.e: a.b.c)
-type CapturesInfo = (Option<hir::HirId>, String);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum UpvarMigrationInfo {
+    /// We previously captured all of `x`, but now we capture some sub-path.
+    CapturingPrecise { source_expr: Option<hir::HirId>, var_name: String },
+    CapturingNothing {
+        // where the variable appears in the closure (but is not captured)
+        use_span: Span,
+    },
+}
 
-/// Intermediate format to store information needed to generate migration lint. The tuple
-/// contains the hir_id pointing to the use that resulted in the
-/// corresponding place being captured, a String which contains the captured value's
-/// name (i.e: a.b.c) and a String which contains the reason why migration is needed for that
-/// capture
-type MigrationNeededForCapture = (Option<hir::HirId>, String, String);
+/// Reasons that we might issue a migration warning.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct MigrationWarningReason {
+    /// When we used to capture `x` in its entirety, we implemented the auto-trait(s)
+    /// in this vec, but now we don't.
+    auto_traits: Vec<&'static str>,
+
+    /// When we used to capture `x` in its entirety, we would execute some destructors
+    /// at a different time.
+    drop_order: bool,
+}
+
+impl MigrationWarningReason {
+    fn migration_message(&self) -> String {
+        let base = "changes to closure capture in Rust 2021 will affect";
+        if !self.auto_traits.is_empty() && self.drop_order {
+            format!("{} drop order and which traits the closure implements", base)
+        } else if self.drop_order {
+            format!("{} drop order", base)
+        } else {
+            format!("{} which traits the closure implements", base)
+        }
+    }
+}
+
+/// Intermediate format to store information needed to generate a note in the migration lint.
+struct MigrationLintNote {
+    captures_info: UpvarMigrationInfo,
+
+    /// reasons why migration is needed for this capture
+    reason: MigrationWarningReason,
+}
 
 /// Intermediate format to store the hir id of the root variable and a HashSet containing
 /// information on why the root variable should be fully captured
-type MigrationDiagnosticInfo = (hir::HirId, Vec<MigrationNeededForCapture>);
+struct NeededMigration {
+    var_hir_id: hir::HirId,
+    diagnostics_info: Vec<MigrationLintNote>,
+}
 
 struct InferBorrowKindVisitor<'a, 'tcx> {
     fcx: &'a FnCtxt<'a, 'tcx>,
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for InferBorrowKindVisitor<'a, 'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
-        if let hir::ExprKind::Closure(cc, _, body_id, _, _) = expr.kind {
-            let body = self.fcx.tcx.hir().body(body_id);
-            self.visit_body(body);
-            self.fcx.analyze_closure(expr.hir_id, expr.span, body_id, body, cc);
+        match expr.kind {
+            hir::ExprKind::Closure(cc, _, body_id, _, _) => {
+                let body = self.fcx.tcx.hir().body(body_id);
+                self.visit_body(body);
+                self.fcx.analyze_closure(expr.hir_id, expr.span, body_id, body, cc);
+            }
+            hir::ExprKind::ConstBlock(anon_const) => {
+                let body = self.fcx.tcx.hir().body(anon_const.body);
+                self.visit_body(body);
+            }
+            _ => {}
         }
 
         intravisit::walk_expr(self, expr);
@@ -123,6 +160,7 @@ impl<'a, 'tcx> Visitor<'tcx> for InferBorrowKindVisitor<'a, 'tcx> {
 
 impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     /// Analysis starting point.
+    #[instrument(skip(self, body), level = "debug")]
     fn analyze_closure(
         &self,
         closure_hir_id: hir::HirId,
@@ -131,8 +169,6 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         body: &'tcx hir::Body<'tcx>,
         capture_clause: hir::CaptureBy,
     ) {
-        debug!("analyze_closure(id={:?}, body.id={:?})", closure_hir_id, body.id());
-
         // Extract the type of the closure.
         let ty = self.node_ty(closure_hir_id);
         let (closure_def_id, substs) = match *ty.kind() {
@@ -164,8 +200,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         assert_eq!(body_owner_def_id.to_def_id(), closure_def_id);
         let mut delegate = InferBorrowKind {
             fcx: self,
-            closure_def_id,
-            closure_span: span,
+            closure_def_id: local_def_id,
             capture_information: Default::default(),
             fake_reads: Default::default(),
         };
@@ -188,7 +223,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         let (capture_information, closure_kind, origin) = self
             .process_collected_capture_information(capture_clause, delegate.capture_information);
 
-        self.compute_min_captures(closure_def_id, capture_information);
+        self.compute_min_captures(closure_def_id, capture_information, span);
 
         let closure_hir_id = self.tcx.hir().local_def_id_to_hir_id(local_def_id);
 
@@ -209,21 +244,19 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
                     debug!("seed place {:?}", place);
 
-                    let upvar_id = ty::UpvarId::new(*var_hir_id, local_def_id);
-                    let capture_kind =
-                        self.init_capture_kind_for_place(&place, capture_clause, upvar_id, span);
+                    let capture_kind = self.init_capture_kind_for_place(&place, capture_clause);
                     let fake_info = ty::CaptureInfo {
                         capture_kind_expr_id: None,
                         path_expr_id: None,
                         capture_kind,
                     };
 
-                    capture_information.insert(place, fake_info);
+                    capture_information.push((place, fake_info));
                 }
             }
 
             // This will update the min captures based on this new fake information.
-            self.compute_min_captures(closure_def_id, capture_information);
+            self.compute_min_captures(closure_def_id, capture_information, span);
         }
 
         let before_feature_tys = self.final_upvar_tys(closure_def_id);
@@ -319,7 +352,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     captured_place.place, upvar_ty, capture, captured_place.mutability,
                 );
 
-                apply_capture_kind_on_capture_ty(self.tcx, upvar_ty, capture)
+                apply_capture_kind_on_capture_ty(self.tcx, upvar_ty, capture, captured_place.region)
             })
             .collect()
     }
@@ -344,77 +377,68 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         capture_clause: hir::CaptureBy,
         capture_information: InferredCaptureInformation<'tcx>,
     ) -> (InferredCaptureInformation<'tcx>, ty::ClosureKind, Option<(Span, Place<'tcx>)>) {
-        let mut processed: InferredCaptureInformation<'tcx> = Default::default();
-
         let mut closure_kind = ty::ClosureKind::LATTICE_BOTTOM;
         let mut origin: Option<(Span, Place<'tcx>)> = None;
 
-        for (place, mut capture_info) in capture_information {
-            // Apply rules for safety before inferring closure kind
-            let (place, capture_kind) =
-                restrict_capture_precision(place, capture_info.capture_kind);
-            capture_info.capture_kind = capture_kind;
+        let processed = capture_information
+            .into_iter()
+            .map(|(place, mut capture_info)| {
+                // Apply rules for safety before inferring closure kind
+                let (place, capture_kind) =
+                    restrict_capture_precision(place, capture_info.capture_kind);
 
-            let (place, capture_kind) =
-                truncate_capture_for_optimization(place, capture_info.capture_kind);
-            capture_info.capture_kind = capture_kind;
+                let (place, capture_kind) = truncate_capture_for_optimization(place, capture_kind);
 
-            let usage_span = if let Some(usage_expr) = capture_info.path_expr_id {
-                self.tcx.hir().span(usage_expr)
-            } else {
-                unreachable!()
-            };
+                let usage_span = if let Some(usage_expr) = capture_info.path_expr_id {
+                    self.tcx.hir().span(usage_expr)
+                } else {
+                    unreachable!()
+                };
 
-            let updated = match capture_info.capture_kind {
-                ty::UpvarCapture::ByValue(..) => match closure_kind {
-                    ty::ClosureKind::Fn | ty::ClosureKind::FnMut => {
-                        (ty::ClosureKind::FnOnce, Some((usage_span, place.clone())))
-                    }
-                    // If closure is already FnOnce, don't update
-                    ty::ClosureKind::FnOnce => (closure_kind, origin),
-                },
-
-                ty::UpvarCapture::ByRef(ty::UpvarBorrow {
-                    kind: ty::BorrowKind::MutBorrow | ty::BorrowKind::UniqueImmBorrow,
-                    ..
-                }) => {
-                    match closure_kind {
-                        ty::ClosureKind::Fn => {
-                            (ty::ClosureKind::FnMut, Some((usage_span, place.clone())))
+                let updated = match capture_kind {
+                    ty::UpvarCapture::ByValue => match closure_kind {
+                        ty::ClosureKind::Fn | ty::ClosureKind::FnMut => {
+                            (ty::ClosureKind::FnOnce, Some((usage_span, place.clone())))
                         }
-                        // Don't update the origin
-                        ty::ClosureKind::FnMut | ty::ClosureKind::FnOnce => (closure_kind, origin),
+                        // If closure is already FnOnce, don't update
+                        ty::ClosureKind::FnOnce => (closure_kind, origin.take()),
+                    },
+
+                    ty::UpvarCapture::ByRef(
+                        ty::BorrowKind::MutBorrow | ty::BorrowKind::UniqueImmBorrow,
+                    ) => {
+                        match closure_kind {
+                            ty::ClosureKind::Fn => {
+                                (ty::ClosureKind::FnMut, Some((usage_span, place.clone())))
+                            }
+                            // Don't update the origin
+                            ty::ClosureKind::FnMut | ty::ClosureKind::FnOnce => {
+                                (closure_kind, origin.take())
+                            }
+                        }
                     }
-                }
 
-                _ => (closure_kind, origin),
-            };
+                    _ => (closure_kind, origin.take()),
+                };
 
-            closure_kind = updated.0;
-            origin = updated.1;
+                closure_kind = updated.0;
+                origin = updated.1;
 
-            let (place, capture_kind) = match capture_clause {
-                hir::CaptureBy::Value => adjust_for_move_closure(place, capture_info.capture_kind),
-                hir::CaptureBy::Ref => {
-                    adjust_for_non_move_closure(place, capture_info.capture_kind)
-                }
-            };
+                let (place, capture_kind) = match capture_clause {
+                    hir::CaptureBy::Value => adjust_for_move_closure(place, capture_kind),
+                    hir::CaptureBy::Ref => adjust_for_non_move_closure(place, capture_kind),
+                };
 
-            // This restriction needs to be applied after we have handled adjustments for `move`
-            // closures. We want to make sure any adjustment that might make us move the place into
-            // the closure gets handled.
-            let (place, capture_kind) =
-                restrict_precision_for_drop_types(self, place, capture_kind, usage_span);
+                // This restriction needs to be applied after we have handled adjustments for `move`
+                // closures. We want to make sure any adjustment that might make us move the place into
+                // the closure gets handled.
+                let (place, capture_kind) =
+                    restrict_precision_for_drop_types(self, place, capture_kind, usage_span);
 
-            capture_info.capture_kind = capture_kind;
-
-            let capture_info = if let Some(existing) = processed.get(&place) {
-                determine_capture_info(*existing, capture_info)
-            } else {
-                capture_info
-            };
-            processed.insert(place, capture_info);
-        }
+                capture_info.capture_kind = capture_kind;
+                (place, capture_info)
+            })
+            .collect();
 
         (processed, closure_kind, origin)
     }
@@ -492,6 +516,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         &self,
         closure_def_id: DefId,
         capture_information: InferredCaptureInformation<'tcx>,
+        closure_span: Span,
     ) {
         if capture_information.is_empty() {
             return;
@@ -511,8 +536,12 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             let min_cap_list = match root_var_min_capture_list.get_mut(&var_hir_id) {
                 None => {
                     let mutability = self.determine_capture_mutability(&typeck_results, &place);
-                    let min_cap_list =
-                        vec![ty::CapturedPlace { place, info: capture_info, mutability }];
+                    let min_cap_list = vec![ty::CapturedPlace {
+                        place,
+                        info: capture_info,
+                        mutability,
+                        region: None,
+                    }];
                     root_var_min_capture_list.insert(var_hir_id, min_cap_list);
                     continue;
                 }
@@ -565,8 +594,18 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             if !descendant_found {
                 for possible_ancestor in min_cap_list.iter_mut() {
                     match determine_place_ancestry_relation(&place, &possible_ancestor.place) {
+                        PlaceAncestryRelation::SamePlace => {
+                            ancestor_found = true;
+                            possible_ancestor.info = determine_capture_info(
+                                possible_ancestor.info,
+                                updated_capture_info,
+                            );
+
+                            // Only one related place will be in the list.
+                            break;
+                        }
                         // current place is descendant of possible_ancestor
-                        PlaceAncestryRelation::Descendant | PlaceAncestryRelation::SamePlace => {
+                        PlaceAncestryRelation::Descendant => {
                             ancestor_found = true;
                             let backup_path_expr_id = possible_ancestor.info.path_expr_id;
 
@@ -586,7 +625,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                             // we need to keep the ancestor's `path_expr_id`
                             possible_ancestor.info.path_expr_id = backup_path_expr_id;
 
-                            // Only one ancestor of the current place will be in the list.
+                            // Only one related place will be in the list.
                             break;
                         }
                         _ => {}
@@ -597,9 +636,28 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             // Only need to insert when we don't have an ancestor in the existing min capture list
             if !ancestor_found {
                 let mutability = self.determine_capture_mutability(&typeck_results, &place);
-                let captured_place =
-                    ty::CapturedPlace { place, info: updated_capture_info, mutability };
+                let captured_place = ty::CapturedPlace {
+                    place,
+                    info: updated_capture_info,
+                    mutability,
+                    region: None,
+                };
                 min_cap_list.push(captured_place);
+            }
+        }
+
+        // For each capture that is determined to be captured by ref, add region info.
+        for (_, captures) in &mut root_var_min_capture_list {
+            for capture in captures {
+                match capture.info.capture_kind {
+                    ty::UpvarCapture::ByRef(_) => {
+                        let PlaceBase::Upvar(upvar_id) = capture.place.base else { bug!("expected upvar") };
+                        let origin = UpvarRegion(upvar_id, closure_span);
+                        let upvar_region = self.next_region_var(origin);
+                        capture.region = Some(upvar_region);
+                    }
+                    _ => (),
+                }
             }
         }
 
@@ -644,15 +702,11 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                             r
                         ),
                         (
-                            l
-                            @
-                            (ProjectionKind::Index
+                            l @ (ProjectionKind::Index
                             | ProjectionKind::Subslice
                             | ProjectionKind::Deref
                             | ProjectionKind::Field(..)),
-                            r
-                            @
-                            (ProjectionKind::Index
+                            r @ (ProjectionKind::Index
                             | ProjectionKind::Subslice
                             | ProjectionKind::Deref
                             | ProjectionKind::Field(..)),
@@ -708,47 +762,66 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                  closure_head_span,
                 |lint| {
                     let mut diagnostics_builder = lint.build(
-                        format!(
-                            "changes to closure capture in Rust 2021 will affect {}",
-                            reasons
-                        )
-                        .as_str(),
+                        &reasons.migration_message(),
                     );
-                    for (var_hir_id, diagnostics_info) in need_migrations.iter() {
+                    for NeededMigration { var_hir_id, diagnostics_info } in &need_migrations {
                         // Labels all the usage of the captured variable and why they are responsible
                         // for migration being needed
-                        for (captured_hir_id, captured_name, reasons) in diagnostics_info.iter() {
-                            if let Some(captured_hir_id) = captured_hir_id {
-                                let cause_span = self.tcx.hir().span(*captured_hir_id);
-                                diagnostics_builder.span_label(cause_span, format!("in Rust 2018, this closure captures all of `{}`, but in Rust 2021, it will only capture `{}`",
-                                    self.tcx.hir().name(*var_hir_id),
-                                    captured_name,
-                                ));
+                        for lint_note in diagnostics_info.iter() {
+                            match &lint_note.captures_info {
+                                UpvarMigrationInfo::CapturingPrecise { source_expr: Some(capture_expr_id), var_name: captured_name } => {
+                                    let cause_span = self.tcx.hir().span(*capture_expr_id);
+                                    diagnostics_builder.span_label(cause_span, format!("in Rust 2018, this closure captures all of `{}`, but in Rust 2021, it will only capture `{}`",
+                                        self.tcx.hir().name(*var_hir_id),
+                                        captured_name,
+                                    ));
+                                }
+                                UpvarMigrationInfo::CapturingNothing { use_span } => {
+                                    diagnostics_builder.span_label(*use_span, format!("in Rust 2018, this causes the closure to capture `{}`, but in Rust 2021, it has no effect",
+                                        self.tcx.hir().name(*var_hir_id),
+                                    ));
+                                }
+
+                                _ => { }
                             }
 
                             // Add a label pointing to where a captured variable affected by drop order
                             // is dropped
-                            if reasons.contains("drop order") {
+                            if lint_note.reason.drop_order {
                                 let drop_location_span = drop_location_span(self.tcx, &closure_hir_id);
 
-                                diagnostics_builder.span_label(drop_location_span, format!("in Rust 2018, `{}` is dropped here, but in Rust 2021, only `{}` will be dropped here as part of the closure",
-                                    self.tcx.hir().name(*var_hir_id),
-                                    captured_name,
-                                ));
+                                match &lint_note.captures_info {
+                                    UpvarMigrationInfo::CapturingPrecise { var_name: captured_name, .. } => {
+                                        diagnostics_builder.span_label(drop_location_span, format!("in Rust 2018, `{}` is dropped here, but in Rust 2021, only `{}` will be dropped here as part of the closure",
+                                            self.tcx.hir().name(*var_hir_id),
+                                            captured_name,
+                                        ));
+                                    }
+                                    UpvarMigrationInfo::CapturingNothing { use_span: _ } => {
+                                        diagnostics_builder.span_label(drop_location_span, format!("in Rust 2018, `{v}` is dropped here along with the closure, but in Rust 2021 `{v}` is not part of the closure",
+                                            v = self.tcx.hir().name(*var_hir_id),
+                                        ));
+                                    }
+                                }
                             }
 
                             // Add a label explaining why a closure no longer implements a trait
-                            if reasons.contains("trait implementation") {
-                                let missing_trait = &reasons[..reasons.find("trait implementation").unwrap() - 1];
+                            for &missing_trait in &lint_note.reason.auto_traits {
+                                // not capturing something anymore cannot cause a trait to fail to be implemented:
+                                match &lint_note.captures_info {
+                                    UpvarMigrationInfo::CapturingPrecise { var_name: captured_name, .. } => {
+                                        let var_name = self.tcx.hir().name(*var_hir_id);
+                                        diagnostics_builder.span_label(closure_head_span, format!("\
+                                        in Rust 2018, this closure implements {missing_trait} \
+                                        as `{var_name}` implements {missing_trait}, but in Rust 2021, \
+                                        this closure will no longer implement {missing_trait} \
+                                        because `{var_name}` is not fully captured \
+                                        and `{captured_name}` does not implement {missing_trait}"));
+                                    }
 
-                                diagnostics_builder.span_label(closure_head_span, format!("in Rust 2018, this closure implements {} as `{}` implements {}, but in Rust 2021, this closure will no longer implement {} as `{}` does not implement {}",
-                                    missing_trait,
-                                    self.tcx.hir().name(*var_hir_id),
-                                    missing_trait,
-                                    missing_trait,
-                                    captured_name,
-                                    missing_trait,
-                                ));
+                                    // Cannot happen: if we don't capture a variable, we impl strictly more traits
+                                    UpvarMigrationInfo::CapturingNothing { use_span } => span_bug!(*use_span, "missing trait from not capturing something"),
+                                }
                             }
                         }
                     }
@@ -792,7 +865,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                             // This is a multi-line closure with just a `{` on the first line,
                             // so we put the `let` on its own line.
                             // We take the indentation from the next non-empty line.
-                            let line2 = lines.filter(|line| !line.is_empty()).next().unwrap_or_default();
+                            let line2 = lines.find(|line| !line.is_empty()).unwrap_or_default();
                             let indent = line2.split_once(|c: char| !c.is_whitespace()).unwrap_or_default().0;
                             diagnostics_builder.span_suggestion(
                                 closure_body_span.with_lo(closure_body_span.lo() + BytePos::from_usize(line1.len())).shrink_to_lo(),
@@ -841,25 +914,13 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     /// Combines all the reasons for 2229 migrations
     fn compute_2229_migrations_reasons(
         &self,
-        auto_trait_reasons: FxHashSet<&str>,
-        drop_reason: bool,
-    ) -> String {
-        let mut reasons = String::new();
+        auto_trait_reasons: FxHashSet<&'static str>,
+        drop_order: bool,
+    ) -> MigrationWarningReason {
+        let mut reasons = MigrationWarningReason::default();
 
-        if auto_trait_reasons.len() > 0 {
-            reasons = format!(
-                "{} trait implementation for closure",
-                auto_trait_reasons.clone().into_iter().collect::<Vec<&str>>().join(", ")
-            );
-        }
-
-        if auto_trait_reasons.len() > 0 && drop_reason {
-            reasons = format!("{} and ", reasons);
-        }
-
-        if drop_reason {
-            reasons = format!("{}drop order", reasons);
-        }
+        reasons.auto_traits.extend(auto_trait_reasons);
+        reasons.drop_order = drop_order;
 
         reasons
     }
@@ -875,25 +936,19 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         min_captures: Option<&ty::RootVariableMinCaptureList<'tcx>>,
         var_hir_id: hir::HirId,
         closure_clause: hir::CaptureBy,
-    ) -> Option<FxHashMap<CapturesInfo, FxHashSet<&str>>> {
+    ) -> Option<FxHashMap<UpvarMigrationInfo, FxHashSet<&'static str>>> {
         let auto_traits_def_id = vec![
             self.tcx.lang_items().clone_trait(),
             self.tcx.lang_items().sync_trait(),
-            self.tcx.get_diagnostic_item(sym::send_trait),
+            self.tcx.get_diagnostic_item(sym::Send),
             self.tcx.lang_items().unpin_trait(),
             self.tcx.get_diagnostic_item(sym::unwind_safe_trait),
             self.tcx.get_diagnostic_item(sym::ref_unwind_safe_trait),
         ];
-        let auto_traits =
-            vec!["`Clone`", "`Sync`", "`Send`", "`Unpin`", "`UnwindSafe`", "`RefUnwindSafe`"];
+        const AUTO_TRAITS: [&str; 6] =
+            ["`Clone`", "`Sync`", "`Send`", "`Unpin`", "`UnwindSafe`", "`RefUnwindSafe`"];
 
-        let root_var_min_capture_list = if let Some(root_var_min_capture_list) =
-            min_captures.and_then(|m| m.get(&var_hir_id))
-        {
-            root_var_min_capture_list
-        } else {
-            return None;
-        };
+        let root_var_min_capture_list = min_captures.and_then(|m| m.get(&var_hir_id))?;
 
         let ty = self.infcx.resolve_vars_if_possible(self.node_ty(var_hir_id));
 
@@ -907,7 +962,12 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                     max_capture_info = determine_capture_info(max_capture_info, capture.info);
                 }
 
-                apply_capture_kind_on_capture_ty(self.tcx, ty, max_capture_info.capture_kind)
+                apply_capture_kind_on_capture_ty(
+                    self.tcx,
+                    ty,
+                    max_capture_info.capture_kind,
+                    Some(self.tcx.lifetimes.re_erased),
+                )
             }
         };
 
@@ -937,6 +997,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 self.tcx,
                 capture.place.ty(),
                 capture.info.capture_kind,
+                Some(self.tcx.lifetimes.re_erased),
             );
 
             // Checks if a capture implements any of the auto traits
@@ -964,18 +1025,21 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             // by the root variable but not by the capture
             for (idx, _) in obligations_should_hold.iter().enumerate() {
                 if !obligations_holds_for_capture[idx] && obligations_should_hold[idx] {
-                    capture_problems.insert(auto_traits[idx]);
+                    capture_problems.insert(AUTO_TRAITS[idx]);
                 }
             }
 
-            if capture_problems.len() > 0 {
+            if !capture_problems.is_empty() {
                 problematic_captures.insert(
-                    (capture.info.path_expr_id, capture.to_string(self.tcx)),
+                    UpvarMigrationInfo::CapturingPrecise {
+                        source_expr: capture.info.path_expr_id,
+                        var_name: capture.to_string(self.tcx),
+                    },
                     capture_problems,
                 );
             }
         }
-        if problematic_captures.len() > 0 {
+        if !problematic_captures.is_empty() {
             return Some(problematic_captures);
         }
         None
@@ -993,6 +1057,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     ///
     /// This function only returns a HashSet of CapturesInfo for significant drops. If there
     /// are no significant drops than None is returned
+    #[instrument(level = "debug", skip(self))]
     fn compute_2229_migrations_for_drop(
         &self,
         closure_def_id: DefId,
@@ -1000,29 +1065,41 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         min_captures: Option<&ty::RootVariableMinCaptureList<'tcx>>,
         closure_clause: hir::CaptureBy,
         var_hir_id: hir::HirId,
-    ) -> Option<FxHashSet<CapturesInfo>> {
+    ) -> Option<FxHashSet<UpvarMigrationInfo>> {
         let ty = self.infcx.resolve_vars_if_possible(self.node_ty(var_hir_id));
 
         if !ty.has_significant_drop(self.tcx, self.tcx.param_env(closure_def_id.expect_local())) {
+            debug!("does not have significant drop");
             return None;
         }
 
-        let root_var_min_capture_list = if let Some(root_var_min_capture_list) =
-            min_captures.and_then(|m| m.get(&var_hir_id))
-        {
-            root_var_min_capture_list
-        } else {
+        let Some(root_var_min_capture_list) = min_captures.and_then(|m| m.get(&var_hir_id)) else {
             // The upvar is mentioned within the closure but no path starting from it is
-            // used.
+            // used. This occurs when you have (e.g.)
+            //
+            // ```
+            // let x = move || {
+            //     let _ = y;
+            // });
+            // ```
+            debug!("no path starting from it is used");
+
 
             match closure_clause {
                 // Only migrate if closure is a move closure
-                hir::CaptureBy::Value => return Some(FxHashSet::default()),
+                hir::CaptureBy::Value => {
+                    let mut diagnostics_info = FxHashSet::default();
+                    let upvars = self.tcx.upvars_mentioned(closure_def_id).expect("must be an upvar");
+                    let upvar = upvars[&var_hir_id];
+                    diagnostics_info.insert(UpvarMigrationInfo::CapturingNothing { use_span: upvar.span });
+                    return Some(diagnostics_info);
+                }
                 hir::CaptureBy::Ref => {}
             }
 
             return None;
         };
+        debug!(?root_var_min_capture_list);
 
         let mut projections_list = Vec::new();
         let mut diagnostics_info = FxHashSet::default();
@@ -1030,21 +1107,26 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         for captured_place in root_var_min_capture_list.iter() {
             match captured_place.info.capture_kind {
                 // Only care about captures that are moved into the closure
-                ty::UpvarCapture::ByValue(..) => {
+                ty::UpvarCapture::ByValue => {
                     projections_list.push(captured_place.place.projections.as_slice());
-                    diagnostics_info.insert((
-                        captured_place.info.path_expr_id,
-                        captured_place.to_string(self.tcx),
-                    ));
+                    diagnostics_info.insert(UpvarMigrationInfo::CapturingPrecise {
+                        source_expr: captured_place.info.path_expr_id,
+                        var_name: captured_place.to_string(self.tcx),
+                    });
                 }
                 ty::UpvarCapture::ByRef(..) => {}
             }
         }
 
+        debug!(?projections_list);
+        debug!(?diagnostics_info);
+
         let is_moved = !projections_list.is_empty();
+        debug!(?is_moved);
 
         let is_not_completely_captured =
-            root_var_min_capture_list.iter().any(|capture| capture.place.projections.len() > 0);
+            root_var_min_capture_list.iter().any(|capture| !capture.place.projections.is_empty());
+        debug!(?is_not_completely_captured);
 
         if is_moved
             && is_not_completely_captured
@@ -1058,7 +1140,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             return Some(diagnostics_info);
         }
 
-        return None;
+        None
     }
 
     /// Figures out the list of root variables (and their types) that aren't completely
@@ -1077,17 +1159,16 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     /// Returns a tuple containing a vector of MigrationDiagnosticInfo, as well as a String
     /// containing the reason why root variables whose HirId is contained in the vector should
     /// be captured
+    #[instrument(level = "debug", skip(self))]
     fn compute_2229_migrations(
         &self,
         closure_def_id: DefId,
         closure_span: Span,
         closure_clause: hir::CaptureBy,
         min_captures: Option<&ty::RootVariableMinCaptureList<'tcx>>,
-    ) -> (Vec<MigrationDiagnosticInfo>, String) {
-        let upvars = if let Some(upvars) = self.tcx.upvars_mentioned(closure_def_id) {
-            upvars
-        } else {
-            return (Vec::new(), format!(""));
+    ) -> (Vec<NeededMigration>, MigrationWarningReason) {
+        let Some(upvars) = self.tcx.upvars_mentioned(closure_def_id) else {
+            return (Vec::new(), MigrationWarningReason::default());
         };
 
         let mut need_migrations = Vec::new();
@@ -1096,7 +1177,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
         // Perform auto-trait analysis
         for (&var_hir_id, _) in upvars.iter() {
-            let mut responsible_captured_hir_ids = Vec::new();
+            let mut diagnostics_info = Vec::new();
 
             let auto_trait_diagnostic = if let Some(diagnostics_info) =
                 self.compute_2229_migrations_for_trait(min_captures, var_hir_id, closure_clause)
@@ -1128,34 +1209,33 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 
             let mut capture_diagnostic = capture_diagnostic.into_iter().collect::<Vec<_>>();
             capture_diagnostic.sort();
-            for captured_info in capture_diagnostic.iter() {
+            for captures_info in capture_diagnostic {
                 // Get the auto trait reasons of why migration is needed because of that capture, if there are any
                 let capture_trait_reasons =
-                    if let Some(reasons) = auto_trait_diagnostic.get(captured_info) {
+                    if let Some(reasons) = auto_trait_diagnostic.get(&captures_info) {
                         reasons.clone()
                     } else {
                         FxHashSet::default()
                     };
 
                 // Check if migration is needed because of drop reorder as a result of that capture
-                let capture_drop_reorder_reason = drop_reorder_diagnostic.contains(captured_info);
+                let capture_drop_reorder_reason = drop_reorder_diagnostic.contains(&captures_info);
 
                 // Combine all the reasons of why the root variable should be captured as a result of
                 // auto trait implementation issues
                 auto_trait_migration_reasons.extend(capture_trait_reasons.clone());
 
-                responsible_captured_hir_ids.push((
-                    captured_info.0,
-                    captured_info.1.clone(),
-                    self.compute_2229_migrations_reasons(
+                diagnostics_info.push(MigrationLintNote {
+                    captures_info,
+                    reason: self.compute_2229_migrations_reasons(
                         capture_trait_reasons,
                         capture_drop_reorder_reason,
                     ),
-                ));
+                });
             }
 
-            if capture_diagnostic.len() > 0 {
-                need_migrations.push((var_hir_id, responsible_captured_hir_ids));
+            if !diagnostics_info.is_empty() {
+                need_migrations.push(NeededMigration { var_hir_id, diagnostics_info });
             }
         }
         (
@@ -1411,9 +1491,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         &self,
         place: &Place<'tcx>,
         capture_clause: hir::CaptureBy,
-        upvar_id: ty::UpvarId,
-        closure_span: Span,
-    ) -> ty::UpvarCapture<'tcx> {
+    ) -> ty::UpvarCapture {
         match capture_clause {
             // In case of a move closure if the data is accessed through a reference we
             // want to capture by ref to allow precise capture using reborrows.
@@ -1421,15 +1499,10 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
             // If the data will be moved out of this place, then the place will be truncated
             // at the first Deref in `adjust_upvar_borrow_kind_for_consume` and then moved into
             // the closure.
-            hir::CaptureBy::Value if !place.deref_tys().any(ty::TyS::is_ref) => {
-                ty::UpvarCapture::ByValue(None)
+            hir::CaptureBy::Value if !place.deref_tys().any(Ty::is_ref) => {
+                ty::UpvarCapture::ByValue
             }
-            hir::CaptureBy::Value | hir::CaptureBy::Ref => {
-                let origin = UpvarRegion(upvar_id, closure_span);
-                let upvar_region = self.next_region_var(origin);
-                let upvar_borrow = ty::UpvarBorrow { kind: ty::ImmBorrow, region: upvar_region };
-                ty::UpvarCapture::ByRef(upvar_borrow)
-            }
+            hir::CaptureBy::Value | hir::CaptureBy::Ref => ty::UpvarCapture::ByRef(ty::ImmBorrow),
         }
     }
 
@@ -1454,7 +1527,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     fn log_capture_analysis_first_pass(
         &self,
         closure_def_id: rustc_hir::def_id::DefId,
-        capture_information: &FxIndexMap<Place<'tcx>, ty::CaptureInfo<'tcx>>,
+        capture_information: &InferredCaptureInformation<'tcx>,
         closure_span: Span,
     ) {
         if self.should_log_capture_analysis(closure_def_id) {
@@ -1570,9 +1643,9 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
 fn restrict_repr_packed_field_ref_capture<'tcx>(
     tcx: TyCtxt<'tcx>,
     param_env: ty::ParamEnv<'tcx>,
-    place: &Place<'tcx>,
-    mut curr_borrow_kind: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    mut place: Place<'tcx>,
+    mut curr_borrow_kind: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let pos = place.projections.iter().enumerate().position(|(i, p)| {
         let ty = place.ty_before_projection(i);
 
@@ -1580,7 +1653,8 @@ fn restrict_repr_packed_field_ref_capture<'tcx>(
         match p.kind {
             ProjectionKind::Field(..) => match ty.kind() {
                 ty::Adt(def, _) if def.repr.packed() => {
-                    match tcx.layout_of(param_env.and(p.ty)) {
+                    // We erase regions here because they cannot be hashed
+                    match tcx.layout_of(param_env.and(tcx.erase_regions(p.ty))) {
                         Ok(layout) if layout.align.abi.bytes() == 1 => {
                             // if the alignment is 1, the type can't be further
                             // disaligned.
@@ -1603,8 +1677,6 @@ fn restrict_repr_packed_field_ref_capture<'tcx>(
         }
     });
 
-    let mut place = place.clone();
-
     if let Some(pos) = pos {
         truncate_place_to_len_and_update_capture_kind(&mut place, &mut curr_borrow_kind, pos);
     }
@@ -1613,20 +1685,22 @@ fn restrict_repr_packed_field_ref_capture<'tcx>(
 }
 
 /// Returns a Ty that applies the specified capture kind on the provided capture Ty
-fn apply_capture_kind_on_capture_ty(
+fn apply_capture_kind_on_capture_ty<'tcx>(
     tcx: TyCtxt<'tcx>,
     ty: Ty<'tcx>,
-    capture_kind: UpvarCapture<'tcx>,
+    capture_kind: UpvarCapture,
+    region: Option<ty::Region<'tcx>>,
 ) -> Ty<'tcx> {
     match capture_kind {
-        ty::UpvarCapture::ByValue(_) => ty,
-        ty::UpvarCapture::ByRef(borrow) => tcx
-            .mk_ref(borrow.region, ty::TypeAndMut { ty: ty, mutbl: borrow.kind.to_mutbl_lossy() }),
+        ty::UpvarCapture::ByValue => ty,
+        ty::UpvarCapture::ByRef(kind) => {
+            tcx.mk_ref(region.unwrap(), ty::TypeAndMut { ty: ty, mutbl: kind.to_mutbl_lossy() })
+        }
     }
 }
 
 /// Returns the Span of where the value with the provided HirId would be dropped
-fn drop_location_span(tcx: TyCtxt<'tcx>, hir_id: &hir::HirId) -> Span {
+fn drop_location_span<'tcx>(tcx: TyCtxt<'tcx>, hir_id: &hir::HirId) -> Span {
     let owner_id = tcx.hir().get_enclosing_scope(*hir_id).unwrap();
 
     let owner_node = tcx.hir().get(owner_id);
@@ -1649,9 +1723,7 @@ struct InferBorrowKind<'a, 'tcx> {
     fcx: &'a FnCtxt<'a, 'tcx>,
 
     // The def-id of the closure whose kind and upvar accesses are being inferred.
-    closure_def_id: DefId,
-
-    closure_span: Span,
+    closure_def_id: LocalDefId,
 
     /// For each Place that is captured by the closure, we track the minimal kind of
     /// access we need (ref, ref mut, move, etc) and the expression that resulted in such access.
@@ -1683,251 +1755,80 @@ struct InferBorrowKind<'a, 'tcx> {
     fake_reads: Vec<(Place<'tcx>, FakeReadCause, hir::HirId)>,
 }
 
-impl<'a, 'tcx> InferBorrowKind<'a, 'tcx> {
-    fn adjust_upvar_borrow_kind_for_consume(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-    ) {
-        debug!(
-            "adjust_upvar_borrow_kind_for_consume(place_with_id={:?}, diag_expr_id={:?})",
-            place_with_id, diag_expr_id
-        );
-        let tcx = self.fcx.tcx;
-        let upvar_id = if let PlaceBase::Upvar(upvar_id) = place_with_id.place.base {
-            upvar_id
-        } else {
-            return;
-        };
-
-        debug!("adjust_upvar_borrow_kind_for_consume: upvar={:?}", upvar_id);
-
-        let usage_span = tcx.hir().span(diag_expr_id);
-
-        let capture_info = ty::CaptureInfo {
-            capture_kind_expr_id: Some(diag_expr_id),
-            path_expr_id: Some(diag_expr_id),
-            capture_kind: ty::UpvarCapture::ByValue(Some(usage_span)),
-        };
-
-        let curr_info = self.capture_information[&place_with_id.place];
-        let updated_info = determine_capture_info(curr_info, capture_info);
-
-        self.capture_information[&place_with_id.place] = updated_info;
-    }
-
-    /// Indicates that `place_with_id` is being directly mutated (e.g., assigned
-    /// to). If the place is based on a by-ref upvar, this implies that
-    /// the upvar must be borrowed using an `&mut` borrow.
-    fn adjust_upvar_borrow_kind_for_mut(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-    ) {
-        debug!(
-            "adjust_upvar_borrow_kind_for_mut(place_with_id={:?}, diag_expr_id={:?})",
-            place_with_id, diag_expr_id
-        );
-
-        if let PlaceBase::Upvar(_) = place_with_id.place.base {
-            // Raw pointers don't inherit mutability
-            if place_with_id.place.deref_tys().any(ty::TyS::is_unsafe_ptr) {
-                return;
-            }
-            self.adjust_upvar_deref(place_with_id, diag_expr_id, ty::MutBorrow);
-        }
-    }
-
-    fn adjust_upvar_borrow_kind_for_unique(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-    ) {
-        debug!(
-            "adjust_upvar_borrow_kind_for_unique(place_with_id={:?}, diag_expr_id={:?})",
-            place_with_id, diag_expr_id
-        );
-
-        if let PlaceBase::Upvar(_) = place_with_id.place.base {
-            if place_with_id.place.deref_tys().any(ty::TyS::is_unsafe_ptr) {
-                // Raw pointers don't inherit mutability.
-                return;
-            }
-            // for a borrowed pointer to be unique, its base must be unique
-            self.adjust_upvar_deref(place_with_id, diag_expr_id, ty::UniqueImmBorrow);
-        }
-    }
-
-    fn adjust_upvar_deref(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-        borrow_kind: ty::BorrowKind,
-    ) {
-        assert!(match borrow_kind {
-            ty::MutBorrow => true,
-            ty::UniqueImmBorrow => true,
-
-            // imm borrows never require adjusting any kinds, so we don't wind up here
-            ty::ImmBorrow => false,
-        });
-
-        // if this is an implicit deref of an
-        // upvar, then we need to modify the
-        // borrow_kind of the upvar to make sure it
-        // is inferred to mutable if necessary
-        self.adjust_upvar_borrow_kind(place_with_id, diag_expr_id, borrow_kind);
-    }
-
-    /// We infer the borrow_kind with which to borrow upvars in a stack closure.
-    /// The borrow_kind basically follows a lattice of `imm < unique-imm < mut`,
-    /// moving from left to right as needed (but never right to left).
-    /// Here the argument `mutbl` is the borrow_kind that is required by
-    /// some particular use.
-    fn adjust_upvar_borrow_kind(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-        kind: ty::BorrowKind,
-    ) {
-        let curr_capture_info = self.capture_information[&place_with_id.place];
-
-        debug!(
-            "adjust_upvar_borrow_kind(place={:?}, diag_expr_id={:?}, capture_info={:?}, kind={:?})",
-            place_with_id, diag_expr_id, curr_capture_info, kind
-        );
-
-        if let ty::UpvarCapture::ByValue(_) = curr_capture_info.capture_kind {
-            // It's already captured by value, we don't need to do anything here
-            return;
-        } else if let ty::UpvarCapture::ByRef(curr_upvar_borrow) = curr_capture_info.capture_kind {
-            // Use the same region as the current capture information
-            // Doesn't matter since only one of the UpvarBorrow will be used.
-            let new_upvar_borrow = ty::UpvarBorrow { kind, region: curr_upvar_borrow.region };
-
-            let capture_info = ty::CaptureInfo {
-                capture_kind_expr_id: Some(diag_expr_id),
-                path_expr_id: Some(diag_expr_id),
-                capture_kind: ty::UpvarCapture::ByRef(new_upvar_borrow),
-            };
-            let updated_info = determine_capture_info(curr_capture_info, capture_info);
-            self.capture_information[&place_with_id.place] = updated_info;
-        };
-    }
-
-    fn init_capture_info_for_place(
-        &mut self,
-        place_with_id: &PlaceWithHirId<'tcx>,
-        diag_expr_id: hir::HirId,
-    ) {
-        if let PlaceBase::Upvar(upvar_id) = place_with_id.place.base {
-            assert_eq!(self.closure_def_id.expect_local(), upvar_id.closure_expr_id);
-
-            // Initialize to ImmBorrow
-            // We will escalate the CaptureKind based on any uses we see or in `process_collected_capture_information`.
-            let origin = UpvarRegion(upvar_id, self.closure_span);
-            let upvar_region = self.fcx.next_region_var(origin);
-            let upvar_borrow = ty::UpvarBorrow { kind: ty::ImmBorrow, region: upvar_region };
-            let capture_kind = ty::UpvarCapture::ByRef(upvar_borrow);
-
-            let expr_id = Some(diag_expr_id);
-            let capture_info = ty::CaptureInfo {
-                capture_kind_expr_id: expr_id,
-                path_expr_id: expr_id,
-                capture_kind,
-            };
-
-            debug!("Capturing new place {:?}, capture_info={:?}", place_with_id, capture_info);
-
-            self.capture_information.insert(place_with_id.place.clone(), capture_info);
-        } else {
-            debug!("Not upvar: {:?}", place_with_id);
-        }
-    }
-}
-
 impl<'a, 'tcx> euv::Delegate<'tcx> for InferBorrowKind<'a, 'tcx> {
     fn fake_read(&mut self, place: Place<'tcx>, cause: FakeReadCause, diag_expr_id: hir::HirId) {
-        if let PlaceBase::Upvar(_) = place.base {
-            // We need to restrict Fake Read precision to avoid fake reading unsafe code,
-            // such as deref of a raw pointer.
-            let dummy_capture_kind = ty::UpvarCapture::ByRef(ty::UpvarBorrow {
-                kind: ty::BorrowKind::ImmBorrow,
-                region: &ty::ReErased,
-            });
+        let PlaceBase::Upvar(_) = place.base else { return };
 
-            let (place, _) = restrict_capture_precision(place, dummy_capture_kind);
+        // We need to restrict Fake Read precision to avoid fake reading unsafe code,
+        // such as deref of a raw pointer.
+        let dummy_capture_kind = ty::UpvarCapture::ByRef(ty::BorrowKind::ImmBorrow);
 
-            let (place, _) = restrict_repr_packed_field_ref_capture(
-                self.fcx.tcx,
-                self.fcx.param_env,
-                &place,
-                dummy_capture_kind,
-            );
-            self.fake_reads.push((place, cause, diag_expr_id));
-        }
+        let (place, _) = restrict_capture_precision(place, dummy_capture_kind);
+
+        let (place, _) = restrict_repr_packed_field_ref_capture(
+            self.fcx.tcx,
+            self.fcx.param_env,
+            place,
+            dummy_capture_kind,
+        );
+        self.fake_reads.push((place, cause, diag_expr_id));
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn consume(&mut self, place_with_id: &PlaceWithHirId<'tcx>, diag_expr_id: hir::HirId) {
-        debug!("consume(place_with_id={:?}, diag_expr_id={:?})", place_with_id, diag_expr_id);
+        let PlaceBase::Upvar(upvar_id) = place_with_id.place.base else { return };
+        assert_eq!(self.closure_def_id, upvar_id.closure_expr_id);
 
-        if !self.capture_information.contains_key(&place_with_id.place) {
-            self.init_capture_info_for_place(&place_with_id, diag_expr_id);
-        }
-
-        self.adjust_upvar_borrow_kind_for_consume(&place_with_id, diag_expr_id);
+        self.capture_information.push((
+            place_with_id.place.clone(),
+            ty::CaptureInfo {
+                capture_kind_expr_id: Some(diag_expr_id),
+                path_expr_id: Some(diag_expr_id),
+                capture_kind: ty::UpvarCapture::ByValue,
+            },
+        ));
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn borrow(
         &mut self,
         place_with_id: &PlaceWithHirId<'tcx>,
         diag_expr_id: hir::HirId,
         bk: ty::BorrowKind,
     ) {
-        debug!(
-            "borrow(place_with_id={:?}, diag_expr_id={:?}, bk={:?})",
-            place_with_id, diag_expr_id, bk
-        );
+        let PlaceBase::Upvar(upvar_id) = place_with_id.place.base else { return };
+        assert_eq!(self.closure_def_id, upvar_id.closure_expr_id);
 
         // The region here will get discarded/ignored
-        let dummy_capture_kind =
-            ty::UpvarCapture::ByRef(ty::UpvarBorrow { kind: bk, region: &ty::ReErased });
+        let capture_kind = ty::UpvarCapture::ByRef(bk);
 
         // We only want repr packed restriction to be applied to reading references into a packed
         // struct, and not when the data is being moved. Therefore we call this method here instead
         // of in `restrict_capture_precision`.
-        let (place, updated_kind) = restrict_repr_packed_field_ref_capture(
+        let (place, mut capture_kind) = restrict_repr_packed_field_ref_capture(
             self.fcx.tcx,
             self.fcx.param_env,
-            &place_with_id.place,
-            dummy_capture_kind,
+            place_with_id.place.clone(),
+            capture_kind,
         );
 
-        let place_with_id = PlaceWithHirId { place, ..*place_with_id };
-
-        if !self.capture_information.contains_key(&place_with_id.place) {
-            self.init_capture_info_for_place(&place_with_id, diag_expr_id);
+        // Raw pointers don't inherit mutability
+        if place_with_id.place.deref_tys().any(Ty::is_unsafe_ptr) {
+            capture_kind = ty::UpvarCapture::ByRef(ty::BorrowKind::ImmBorrow);
         }
 
-        match updated_kind {
-            ty::UpvarCapture::ByRef(ty::UpvarBorrow { kind, .. }) => match kind {
-                ty::ImmBorrow => {}
-                ty::UniqueImmBorrow => {
-                    self.adjust_upvar_borrow_kind_for_unique(&place_with_id, diag_expr_id);
-                }
-                ty::MutBorrow => {
-                    self.adjust_upvar_borrow_kind_for_mut(&place_with_id, diag_expr_id);
-                }
+        self.capture_information.push((
+            place,
+            ty::CaptureInfo {
+                capture_kind_expr_id: Some(diag_expr_id),
+                path_expr_id: Some(diag_expr_id),
+                capture_kind,
             },
-
-            // Just truncating the place will never cause capture kind to be updated to ByValue
-            ty::UpvarCapture::ByValue(..) => unreachable!(),
-        }
+        ));
     }
 
+    #[instrument(skip(self), level = "debug")]
     fn mutate(&mut self, assignee_place: &PlaceWithHirId<'tcx>, diag_expr_id: hir::HirId) {
-        debug!("mutate(assignee_place={:?}, diag_expr_id={:?})", assignee_place, diag_expr_id);
-
         self.borrow(assignee_place, diag_expr_id, ty::BorrowKind::MutBorrow);
     }
 }
@@ -1936,12 +1837,12 @@ impl<'a, 'tcx> euv::Delegate<'tcx> for InferBorrowKind<'a, 'tcx> {
 fn restrict_precision_for_drop_types<'a, 'tcx>(
     fcx: &'a FnCtxt<'a, 'tcx>,
     mut place: Place<'tcx>,
-    mut curr_mode: ty::UpvarCapture<'tcx>,
+    mut curr_mode: ty::UpvarCapture,
     span: Span,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let is_copy_type = fcx.infcx.type_is_copy_modulo_regions(fcx.param_env, place.ty(), span);
 
-    if let (false, UpvarCapture::ByValue(..)) = (is_copy_type, curr_mode) {
+    if let (false, UpvarCapture::ByValue) = (is_copy_type, curr_mode) {
         for i in 0..place.projections.len() {
             match place.ty_before_projection(i).kind() {
                 ty::Adt(def, _) if def.destructor(fcx.tcx).is_some() => {
@@ -1960,10 +1861,10 @@ fn restrict_precision_for_drop_types<'a, 'tcx>(
 /// - No projections are applied to raw pointers, since these require unsafe blocks. We capture
 ///   them completely.
 /// - No projections are applied on top of Union ADTs, since these require unsafe blocks.
-fn restrict_precision_for_unsafe(
+fn restrict_precision_for_unsafe<'tcx>(
     mut place: Place<'tcx>,
-    mut curr_mode: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    mut curr_mode: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     if place.base_ty.is_unsafe_ptr() {
         truncate_place_to_len_and_update_capture_kind(&mut place, &mut curr_mode, 0);
     }
@@ -1995,8 +1896,8 @@ fn restrict_precision_for_unsafe(
 /// Returns the truncated place and updated cature mode.
 fn restrict_capture_precision<'tcx>(
     place: Place<'tcx>,
-    curr_mode: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    curr_mode: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let (mut place, mut curr_mode) = restrict_precision_for_unsafe(place, curr_mode);
 
     if place.projections.is_empty() {
@@ -2017,36 +1918,34 @@ fn restrict_capture_precision<'tcx>(
         }
     }
 
-    return (place, curr_mode);
+    (place, curr_mode)
 }
 
 /// Truncate deref of any reference.
 fn adjust_for_move_closure<'tcx>(
     mut place: Place<'tcx>,
-    mut kind: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    mut kind: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let first_deref = place.projections.iter().position(|proj| proj.kind == ProjectionKind::Deref);
 
     if let Some(idx) = first_deref {
         truncate_place_to_len_and_update_capture_kind(&mut place, &mut kind, idx);
     }
 
-    // AMAN: I think we don't need the span inside the ByValue anymore
-    //       we have more detailed span in CaptureInfo
-    (place, ty::UpvarCapture::ByValue(None))
+    (place, ty::UpvarCapture::ByValue)
 }
 
 /// Adjust closure capture just that if taking ownership of data, only move data
 /// from enclosing stack frame.
 fn adjust_for_non_move_closure<'tcx>(
     mut place: Place<'tcx>,
-    mut kind: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    mut kind: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let contains_deref =
         place.projections.iter().position(|proj| proj.kind == ProjectionKind::Deref);
 
     match kind {
-        ty::UpvarCapture::ByValue(..) => {
+        ty::UpvarCapture::ByValue => {
             if let Some(idx) = contains_deref {
                 truncate_place_to_len_and_update_capture_kind(&mut place, &mut kind, idx);
             }
@@ -2058,7 +1957,7 @@ fn adjust_for_non_move_closure<'tcx>(
     (place, kind)
 }
 
-fn construct_place_string(tcx: TyCtxt<'_>, place: &Place<'tcx>) -> String {
+fn construct_place_string<'tcx>(tcx: TyCtxt<'_>, place: &Place<'tcx>) -> String {
     let variable_name = match place.base {
         PlaceBase::Upvar(upvar_id) => var_name(tcx, upvar_id.var_path.hir_id).to_string(),
         _ => bug!("Capture_information should only contain upvars"),
@@ -2081,37 +1980,37 @@ fn construct_place_string(tcx: TyCtxt<'_>, place: &Place<'tcx>) -> String {
     format!("{}[{}]", variable_name, projections_str)
 }
 
-fn construct_capture_kind_reason_string(
+fn construct_capture_kind_reason_string<'tcx>(
     tcx: TyCtxt<'_>,
     place: &Place<'tcx>,
-    capture_info: &ty::CaptureInfo<'tcx>,
+    capture_info: &ty::CaptureInfo,
 ) -> String {
-    let place_str = construct_place_string(tcx, &place);
+    let place_str = construct_place_string(tcx, place);
 
     let capture_kind_str = match capture_info.capture_kind {
-        ty::UpvarCapture::ByValue(_) => "ByValue".into(),
-        ty::UpvarCapture::ByRef(borrow) => format!("{:?}", borrow.kind),
+        ty::UpvarCapture::ByValue => "ByValue".into(),
+        ty::UpvarCapture::ByRef(kind) => format!("{:?}", kind),
     };
 
     format!("{} captured as {} here", place_str, capture_kind_str)
 }
 
-fn construct_path_string(tcx: TyCtxt<'_>, place: &Place<'tcx>) -> String {
-    let place_str = construct_place_string(tcx, &place);
+fn construct_path_string<'tcx>(tcx: TyCtxt<'_>, place: &Place<'tcx>) -> String {
+    let place_str = construct_place_string(tcx, place);
 
     format!("{} used here", place_str)
 }
 
-fn construct_capture_info_string(
+fn construct_capture_info_string<'tcx>(
     tcx: TyCtxt<'_>,
     place: &Place<'tcx>,
-    capture_info: &ty::CaptureInfo<'tcx>,
+    capture_info: &ty::CaptureInfo,
 ) -> String {
-    let place_str = construct_place_string(tcx, &place);
+    let place_str = construct_place_string(tcx, place);
 
     let capture_kind_str = match capture_info.capture_kind {
-        ty::UpvarCapture::ByValue(_) => "ByValue".into(),
-        ty::UpvarCapture::ByRef(borrow) => format!("{:?}", borrow.kind),
+        ty::UpvarCapture::ByValue => "ByValue".into(),
+        ty::UpvarCapture::ByRef(kind) => format!("{:?}", kind),
     };
     format!("{} -> {}", place_str, capture_kind_str)
 }
@@ -2120,6 +2019,7 @@ fn var_name(tcx: TyCtxt<'_>, var_hir_id: hir::HirId) -> Symbol {
     tcx.hir().name(var_hir_id)
 }
 
+#[instrument(level = "debug", skip(tcx))]
 fn should_do_rust_2021_incompatible_closure_captures_analysis(
     tcx: TyCtxt<'_>,
     closure_id: hir::HirId,
@@ -2135,10 +2035,12 @@ fn should_do_rust_2021_incompatible_closure_captures_analysis(
 /// - s2: Comma separated names of the variables being migrated.
 fn migration_suggestion_for_2229(
     tcx: TyCtxt<'_>,
-    need_migrations: &Vec<MigrationDiagnosticInfo>,
+    need_migrations: &Vec<NeededMigration>,
 ) -> (String, String) {
-    let need_migrations_variables =
-        need_migrations.iter().map(|(v, _)| var_name(tcx, *v)).collect::<Vec<_>>();
+    let need_migrations_variables = need_migrations
+        .iter()
+        .map(|NeededMigration { var_hir_id: v, .. }| var_name(tcx, *v))
+        .collect::<Vec<_>>();
 
     let migration_ref_concat =
         need_migrations_variables.iter().map(|v| format!("&{}", v)).collect::<Vec<_>>().join(", ");
@@ -2192,24 +2094,15 @@ fn migration_suggestion_for_2229(
 /// Calling `determine_capture_info(existing_info_e1, current_info_e2)` will return
 /// `existing_info_e1` in this case, allowing us to point to `E1` in case of diagnostics.
 fn determine_capture_info(
-    capture_info_a: ty::CaptureInfo<'tcx>,
-    capture_info_b: ty::CaptureInfo<'tcx>,
-) -> ty::CaptureInfo<'tcx> {
+    capture_info_a: ty::CaptureInfo,
+    capture_info_b: ty::CaptureInfo,
+) -> ty::CaptureInfo {
     // If the capture kind is equivalent then, we don't need to escalate and can compare the
     // expressions.
     let eq_capture_kind = match (capture_info_a.capture_kind, capture_info_b.capture_kind) {
-        (ty::UpvarCapture::ByValue(_), ty::UpvarCapture::ByValue(_)) => {
-            // We don't need to worry about the spans being ignored here.
-            //
-            // The expr_id in capture_info corresponds to the span that is stored within
-            // ByValue(span) and therefore it gets handled with priortizing based on
-            // expressions below.
-            true
-        }
-        (ty::UpvarCapture::ByRef(ref_a), ty::UpvarCapture::ByRef(ref_b)) => {
-            ref_a.kind == ref_b.kind
-        }
-        (ty::UpvarCapture::ByValue(_), _) | (ty::UpvarCapture::ByRef(_), _) => false,
+        (ty::UpvarCapture::ByValue, ty::UpvarCapture::ByValue) => true,
+        (ty::UpvarCapture::ByRef(ref_a), ty::UpvarCapture::ByRef(ref_b)) => ref_a == ref_b,
+        (ty::UpvarCapture::ByValue, _) | (ty::UpvarCapture::ByRef(_), _) => false,
     };
 
     if eq_capture_kind {
@@ -2221,10 +2114,10 @@ fn determine_capture_info(
         // We select the CaptureKind which ranks higher based the following priority order:
         // ByValue > MutBorrow > UniqueImmBorrow > ImmBorrow
         match (capture_info_a.capture_kind, capture_info_b.capture_kind) {
-            (ty::UpvarCapture::ByValue(_), _) => capture_info_a,
-            (_, ty::UpvarCapture::ByValue(_)) => capture_info_b,
+            (ty::UpvarCapture::ByValue, _) => capture_info_a,
+            (_, ty::UpvarCapture::ByValue) => capture_info_b,
             (ty::UpvarCapture::ByRef(ref_a), ty::UpvarCapture::ByRef(ref_b)) => {
-                match (ref_a.kind, ref_b.kind) {
+                match (ref_a, ref_b) {
                     // Take LHS:
                     (ty::UniqueImmBorrow | ty::MutBorrow, ty::ImmBorrow)
                     | (ty::MutBorrow, ty::UniqueImmBorrow) => capture_info_a,
@@ -2250,9 +2143,9 @@ fn determine_capture_info(
 ///
 /// Note: Capture kind changes from `MutBorrow` to `UniqueImmBorrow` if the truncated part of the `place`
 /// contained `Deref` of `&mut`.
-fn truncate_place_to_len_and_update_capture_kind(
+fn truncate_place_to_len_and_update_capture_kind<'tcx>(
     place: &mut Place<'tcx>,
-    curr_mode: &mut ty::UpvarCapture<'tcx>,
+    curr_mode: &mut ty::UpvarCapture,
     len: usize,
 ) {
     let is_mut_ref = |ty: Ty<'_>| matches!(ty.kind(), ty::Ref(.., hir::Mutability::Mut));
@@ -2262,22 +2155,19 @@ fn truncate_place_to_len_and_update_capture_kind(
     // Note that if the place contained Deref of a raw pointer it would've not been MutBorrow, so
     // we don't need to worry about that case here.
     match curr_mode {
-        ty::UpvarCapture::ByRef(ty::UpvarBorrow { kind: ty::BorrowKind::MutBorrow, region }) => {
+        ty::UpvarCapture::ByRef(ty::BorrowKind::MutBorrow) => {
             for i in len..place.projections.len() {
                 if place.projections[i].kind == ProjectionKind::Deref
                     && is_mut_ref(place.ty_before_projection(i))
                 {
-                    *curr_mode = ty::UpvarCapture::ByRef(ty::UpvarBorrow {
-                        kind: ty::BorrowKind::UniqueImmBorrow,
-                        region,
-                    });
+                    *curr_mode = ty::UpvarCapture::ByRef(ty::BorrowKind::UniqueImmBorrow);
                     break;
                 }
             }
         }
 
         ty::UpvarCapture::ByRef(..) => {}
-        ty::UpvarCapture::ByValue(..) => {}
+        ty::UpvarCapture::ByValue => {}
     }
 
     place.projections.truncate(len);
@@ -2288,7 +2178,7 @@ fn truncate_place_to_len_and_update_capture_kind(
 /// `PlaceAncestryRelation::Ancestor` implies Place A is ancestor of Place B
 /// `PlaceAncestryRelation::Descendant` implies Place A is descendant of Place B
 /// `PlaceAncestryRelation::Divergent` implies neither of them is the ancestor of the other.
-fn determine_place_ancestry_relation(
+fn determine_place_ancestry_relation<'tcx>(
     place_a: &Place<'tcx>,
     place_b: &Place<'tcx>,
 ) -> PlaceAncestryRelation {
@@ -2348,8 +2238,8 @@ fn determine_place_ancestry_relation(
 /// ```
 fn truncate_capture_for_optimization<'tcx>(
     mut place: Place<'tcx>,
-    mut curr_mode: ty::UpvarCapture<'tcx>,
-) -> (Place<'tcx>, ty::UpvarCapture<'tcx>) {
+    mut curr_mode: ty::UpvarCapture,
+) -> (Place<'tcx>, ty::UpvarCapture) {
     let is_shared_ref = |ty: Ty<'_>| matches!(ty.kind(), ty::Ref(.., hir::Mutability::Not));
 
     // Find the right-most deref (if any). All the projections that come after this

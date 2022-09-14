@@ -68,6 +68,12 @@ changelog-seen = 2
 # Indicates whether the LLVM assertions are enabled or not
 #assertions = false
 
+# Indicates whether the LLVM testsuite is enabled in the build or not. Does
+# not execute the tests as part of the build as part of x.py build et al,
+# just makes it possible to do `ninja check-llvm` in the staged LLVM build
+# directory when doing LLVM development as part of Rust development.
+#tests = false
+
 # Indicates whether the LLVM plugin is enabled or not
 #plugins = false
 
@@ -103,7 +109,7 @@ changelog-seen = 2
 # the same format as above, but since these targets are experimental, they are
 # not built by default and the experimental Rust compilation targets that depend
 # on them will not work unless the user opts in to building them.
-#experimental-targets = "AVR"
+#experimental-targets = "AVR;M68k"
 
 # Cap the number of parallel linker invocations when compiling LLVM.
 # This can be useful when building LLVM with debug info, which significantly
@@ -150,6 +156,9 @@ changelog-seen = 2
 
 # Whether to build the clang compiler.
 #clang = false
+
+# Custom CMake defines to set when building LLVM.
+#build-config = {}
 
 # =============================================================================
 # General build configuration options
@@ -202,15 +211,15 @@ changelog-seen = 2
 # You can use "$ROOT" to indicate the root of the git repository.
 #build-dir = "build"
 
-# Instead of downloading the src/stage0.txt version of Cargo specified, use
+# Instead of downloading the src/stage0.json version of Cargo specified, use
 # this Cargo binary instead to build all Rust code
 #cargo = "/path/to/cargo"
 
-# Instead of downloading the src/stage0.txt version of the compiler
+# Instead of downloading the src/stage0.json version of the compiler
 # specified, use this rustc binary instead as the stage0 snapshot compiler.
 #rustc = "/path/to/rustc"
 
-# Instead of download the src/stage0.txt version of rustfmt specified,
+# Instead of download the src/stage0.json version of rustfmt specified,
 # use this rustfmt binary instead as the stage0 snapshot rustfmt.
 #rustfmt = "/path/to/rustfmt"
 
@@ -283,7 +292,7 @@ changelog-seen = 2
 #sanitizers = false
 
 # Build the profiler runtime (required when compiling with options that depend
-# on this runtime, such as `-C profile-generate` or `-Z instrument-coverage`).
+# on this runtime, such as `-C profile-generate` or `-C instrument-coverage`).
 #profiler = false
 
 # Indicates whether the native libraries linked into Cargo will be statically
@@ -312,6 +321,12 @@ changelog-seen = 2
 # captures, what platforms it supports, the format of its associated output, and
 # this setting's very existence, are all subject to change.)
 #print-step-rusage = false
+
+# Always patch binaries for usage with Nix toolchains. If `true` then binaries
+# will be patched unconditionally. If `false` or unset, binaries will be patched
+# only if the current distribution is NixOS. This option is useful when using
+# a Nix toolchain on non-NixOS distributions.
+#patch-binaries-for-nix = false
 
 # =============================================================================
 # General install configuration options
@@ -417,6 +432,18 @@ changelog-seen = 2
 # set this value to `true`.
 #debug-logging = rust.debug-assertions (boolean)
 
+# Whether or not overflow checks are enabled for the compiler and standard
+# library.
+#
+# Defaults to rust.debug value
+#overflow-checks = rust.debug (boolean)
+
+# Whether or not overflow checks are enabled for the standard library.
+# Overrides the `overflow-checks` option, if defined.
+#
+# Defaults to rust.overflow-checks value
+#overflow-checks-std = rust.overflow-checks (boolean)
+
 # Debuginfo level for most of Rust code, corresponds to the `-C debuginfo=N` option of `rustc`.
 # `0` - no debug info
 # `1` - line tables only - sufficient to generate backtraces that include line
@@ -464,9 +491,12 @@ changelog-seen = 2
 # FIXME(#75760): Some UI tests fail when this option is enabled.
 #parallel-compiler = false
 
-# The default linker that will be hard-coded into the generated compiler for
-# targets that don't specify linker explicitly in their target specifications.
-# Note that this is not the linker used to link said compiler.
+# The default linker that will be hard-coded into the generated
+# compiler for targets that don't specify a default linker explicitly
+# in their target specifications.  Note that this is not the linker
+# used to link said compiler. It can also be set per-target (via the
+# `[target.<triple>]` block), which may be useful in a cross-compilation
+# setting.
 #
 # See https://doc.rust-lang.org/rustc/codegen-options/index.html#linker for more information.
 #default-linker = <none> (path)
@@ -585,7 +615,11 @@ changelog-seen = 2
 
 # Enable symbol-mangling-version v0. This can be helpful when profiling rustc,
 # as generics will be preserved in symbols (rather than erased into opaque T).
-#new-symbol-mangling = false
+# When no setting is given, the new scheme will be used when compiling the
+# compiler and its tools and the legacy scheme will be used when compiling the
+# standard library.
+# If an explicit setting is given, it will be used for all parts of the codebase.
+#new-symbol-mangling = true|false (see comment)
 
 # =============================================================================
 # Options for specific targets
@@ -640,7 +674,7 @@ changelog-seen = 2
 #sanitizers = build.sanitizers (bool)
 
 # Build the profiler runtime for this target(required when compiling with options that depend
-# on this runtime, such as `-C profile-generate` or `-Z instrument-coverage`).
+# on this runtime, such as `-C profile-generate` or `-C instrument-coverage`).
 # This option will override the same option under [build] section.
 #profiler = build.profiler (bool)
 

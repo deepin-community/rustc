@@ -5,7 +5,7 @@
 
 A collection of lints to catch common mistakes and improve your [Rust](https://github.com/rust-lang/rust) code.
 
-[There are over 450 lints included in this crate!](https://rust-lang.github.io/rust-clippy/master/index.html)
+[There are over 500 lints included in this crate!](https://rust-lang.github.io/rust-clippy/master/index.html)
 
 Lints are divided into categories, each with a default [lint level](https://doc.rust-lang.org/rustc/lints/levels.html).
 You can choose how much Clippy is supposed to ~~annoy~~ help you by changing the lint level by category.
@@ -18,7 +18,7 @@ You can choose how much Clippy is supposed to ~~annoy~~ help you by changing the
 | `clippy::style`       | code that should be written in a more idiomatic way                                 | **warn**      |
 | `clippy::complexity`  | code that does something simple but in a complex way                                | **warn**      |
 | `clippy::perf`        | code that can be written to run faster                                              | **warn**      |
-| `clippy::pedantic`    | lints which are rather strict or might have false positives                         | allow         |
+| `clippy::pedantic`    | lints which are rather strict or have occasional false positives                    | allow         |
 | `clippy::nursery`     | new lints that are still under development                                          | allow         |
 | `clippy::cargo`       | lints for the cargo manifest                                                        | allow         |
 
@@ -37,21 +37,21 @@ Table of contents:
 
 ## Usage
 
-Below are instructions on how to use Clippy as a subcommand, compiled from source
-or in Travis CI.
+Below are instructions on how to use Clippy as a cargo subcommand,
+in projects that do not use cargo, or in Travis CI.
 
 ### As a cargo subcommand (`cargo clippy`)
 
 One way to use Clippy is by installing Clippy through rustup as a cargo
 subcommand.
 
-#### Step 1: Install rustup
+#### Step 1: Install Rustup
 
-You can install [rustup](https://rustup.rs/) on supported platforms. This will help
+You can install [Rustup](https://rustup.rs/) on supported platforms. This will help
 us install Clippy and its dependencies.
 
-If you already have rustup installed, update to ensure you have the latest
-rustup and compiler:
+If you already have Rustup installed, update to ensure you have the latest
+Rustup and compiler:
 
 ```terminal
 rustup update
@@ -98,22 +98,18 @@ If you want to run Clippy **only** on the given crate, use the `--no-deps` optio
 cargo clippy -p example -- --no-deps
 ```
 
-### As a rustc replacement (`clippy-driver`)
+### Using `clippy-driver`
 
-Clippy can also be used in projects that do not use cargo. To do so, you will need to replace
-your `rustc` compilation commands with `clippy-driver`. For example, if your project runs:
-
-```terminal
-rustc --edition 2018 -Cpanic=abort foo.rs
-```
-
-Then, to enable Clippy, you will need to call:
+Clippy can also be used in projects that do not use cargo. To do so, run `clippy-driver`
+with the same arguments you use for `rustc`. For example:
 
 ```terminal
 clippy-driver --edition 2018 -Cpanic=abort foo.rs
 ```
 
-Note that `rustc` will still run, i.e. it will still emit the output files it normally does.
+Note that `clippy-driver` is designed for running Clippy only and should not be used as a general
+replacement for `rustc`. `clippy-driver` may produce artifacts that are not optimized as expected,
+for example.
 
 ### Travis CI
 
@@ -144,7 +140,7 @@ line. (You can swap `clippy::all` with the specific lint category you are target
 ## Configuration
 
 Some lints can be configured in a TOML file named `clippy.toml` or `.clippy.toml`. It contains a basic `variable =
-value` mapping eg.
+value` mapping e.g.
 
 ```toml
 avoid-breaking-exported-api = false
@@ -155,6 +151,10 @@ cognitive-complexity-threshold = 30
 See the [list of lints](https://rust-lang.github.io/rust-clippy/master/index.html) for more information about which
 lints can be configured and the meaning of the variables.
 
+Note that configuration changes will not apply for code that has already been compiled and cached under `./target/`;
+for example, adding a new string to `doc-valid-idents` may still result in Clippy flagging that string. To be sure that
+any configuration changes are applied, you may want to run `cargo clean` and re-compile your crate from scratch.
+
 To deactivate the “for further information visit *lint-link*” message you can
 define the `CLIPPY_DISABLE_DOCS_LINKS` environment variable.
 
@@ -162,7 +162,8 @@ define the `CLIPPY_DISABLE_DOCS_LINKS` environment variable.
 
 You can add options to your code to `allow`/`warn`/`deny` Clippy lints:
 
-*   the whole set of `Warn` lints using the `clippy` lint group (`#![deny(clippy::all)]`)
+*   the whole set of `Warn` lints using the `clippy` lint group (`#![deny(clippy::all)]`).
+    Note that `rustc` has additional [lint groups](https://doc.rust-lang.org/rustc/lints/groups.html).
 
 *   all lints using both the `clippy` and `clippy::pedantic` lint groups (`#![deny(clippy::all)]`,
     `#![deny(clippy::pedantic)]`). Note that `clippy::pedantic` contains some very aggressive
@@ -192,7 +193,7 @@ And to warn on `lint_name`, run
 cargo clippy -- -W clippy::lint_name
 ```
 
-This also works with lint groups. For example you
+This also works with lint groups. For example, you
 can run Clippy with warnings for all lints enabled:
 ```terminal
 cargo clippy -- -W clippy::pedantic
@@ -227,7 +228,7 @@ fn main() {
 You can also omit the patch version when specifying the MSRV, so `msrv = 1.30`
 is equivalent to `msrv = 1.30.0`.
 
-Note: `custom_inner_attributes` is an unstable feature so it has to be enabled explicitly.
+Note: `custom_inner_attributes` is an unstable feature, so it has to be enabled explicitly.
 
 Lints that recognize this configuration option can be found [here](https://rust-lang.github.io/rust-clippy/master/index.html#msrv)
 
@@ -237,7 +238,7 @@ If you want to contribute to Clippy, you can find more information in [CONTRIBUT
 
 ## License
 
-Copyright 2014-2021 The Rust Project Developers
+Copyright 2014-2022 The Rust Project Developers
 
 Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 [https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)> or the MIT license

@@ -6,10 +6,12 @@ use smallvec::SmallVec;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::subst::{GenericArg, Subst, SubstsRef};
-use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable, WithConstness};
+use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable};
 
 use super::{Normalized, Obligation, ObligationCause, PredicateObligation, SelectionContext};
-pub use rustc_infer::traits::util::*;
+pub use rustc_infer::traits::{self, util::*};
+
+use std::iter;
 
 ///////////////////////////////////////////////////////////////////////////
 // `TraitAliasExpander` iterator
@@ -124,8 +126,8 @@ impl<'tcx> TraitAliasExpander<'tcx> {
 
         let items = predicates.predicates.iter().rev().filter_map(|(pred, span)| {
             pred.subst_supertrait(tcx, &trait_ref)
-                .to_opt_poly_trait_ref()
-                .map(|trait_ref| item.clone_and_push(trait_ref.value, *span))
+                .to_opt_poly_trait_pred()
+                .map(|trait_ref| item.clone_and_push(trait_ref.map_bound(|t| t.trait_ref), *span))
         });
         debug!("expand_trait_aliases: items={:?}", items.clone());
 
@@ -170,7 +172,7 @@ pub fn supertrait_def_ids(tcx: TyCtxt<'_>, trait_def_id: DefId) -> SupertraitDef
     }
 }
 
-impl Iterator for SupertraitDefIds<'tcx> {
+impl Iterator for SupertraitDefIds<'_> {
     type Item = DefId;
 
     fn next(&mut self) -> Option<DefId> {
@@ -181,8 +183,8 @@ impl Iterator for SupertraitDefIds<'tcx> {
             predicates
                 .predicates
                 .iter()
-                .filter_map(|(pred, _)| pred.to_opt_poly_trait_ref())
-                .map(|trait_ref| trait_ref.value.def_id())
+                .filter_map(|(pred, _)| pred.to_opt_poly_trait_pred())
+                .map(|trait_ref| trait_ref.def_id())
                 .filter(|&super_def_id| visited.insert(super_def_id)),
         );
         Some(def_id)
@@ -229,11 +231,16 @@ pub fn predicates_for_generics<'tcx>(
 ) -> impl Iterator<Item = PredicateObligation<'tcx>> {
     debug!("predicates_for_generics(generic_bounds={:?})", generic_bounds);
 
-    generic_bounds.predicates.into_iter().map(move |predicate| Obligation {
-        cause: cause.clone(),
-        recursion_depth,
-        param_env,
-        predicate,
+    iter::zip(generic_bounds.predicates, generic_bounds.spans).map(move |(predicate, span)| {
+        let cause = match *cause.code() {
+            traits::ItemObligation(def_id) if !span.is_dummy() => traits::ObligationCause::new(
+                cause.span,
+                cause.body_id,
+                traits::BindingObligation(def_id, span),
+            ),
+            _ => cause.clone(),
+        };
+        Obligation { cause, recursion_depth, param_env, predicate }
     })
 }
 
@@ -248,11 +255,11 @@ pub fn predicate_for_trait_ref<'tcx>(
         cause,
         param_env,
         recursion_depth,
-        predicate: trait_ref.without_const().to_predicate(tcx),
+        predicate: ty::Binder::dummy(trait_ref).without_const().to_predicate(tcx),
     }
 }
 
-pub fn predicate_for_trait_def(
+pub fn predicate_for_trait_def<'tcx>(
     tcx: TyCtxt<'tcx>,
     param_env: ty::ParamEnv<'tcx>,
     cause: ObligationCause<'tcx>,
@@ -269,7 +276,7 @@ pub fn predicate_for_trait_def(
 /// Casts a trait reference into a reference to one of its super
 /// traits; returns `None` if `target_trait_def_id` is not a
 /// supertrait.
-pub fn upcast_choices(
+pub fn upcast_choices<'tcx>(
     tcx: TyCtxt<'tcx>,
     source_trait_ref: ty::PolyTraitRef<'tcx>,
     target_trait_def_id: DefId,
@@ -284,45 +291,42 @@ pub fn upcast_choices(
 /// Given a trait `trait_ref`, returns the number of vtable entries
 /// that come from `trait_ref`, excluding its supertraits. Used in
 /// computing the vtable base for an upcast trait of a trait object.
-pub fn count_own_vtable_entries(tcx: TyCtxt<'tcx>, trait_ref: ty::PolyTraitRef<'tcx>) -> usize {
-    let mut entries = 0;
-    // Count number of methods and add them to the total offset.
-    // Skip over associated types and constants.
-    for trait_item in tcx.associated_items(trait_ref.def_id()).in_definition_order() {
-        if trait_item.kind == ty::AssocKind::Fn {
-            entries += 1;
-        }
-    }
-    entries
+pub fn count_own_vtable_entries<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    trait_ref: ty::PolyTraitRef<'tcx>,
+) -> usize {
+    let existential_trait_ref =
+        trait_ref.map_bound(|trait_ref| ty::ExistentialTraitRef::erase_self_ty(tcx, trait_ref));
+    let existential_trait_ref = tcx.erase_regions(existential_trait_ref);
+    tcx.own_existential_vtable_entries(existential_trait_ref).len()
 }
 
 /// Given an upcast trait object described by `object`, returns the
 /// index of the method `method_def_id` (which should be part of
 /// `object.upcast_trait_ref`) within the vtable for `object`.
-pub fn get_vtable_index_of_object_method<N>(
+pub fn get_vtable_index_of_object_method<'tcx, N>(
     tcx: TyCtxt<'tcx>,
     object: &super::ImplSourceObjectData<'tcx, N>,
     method_def_id: DefId,
 ) -> usize {
+    let existential_trait_ref = object
+        .upcast_trait_ref
+        .map_bound(|trait_ref| ty::ExistentialTraitRef::erase_self_ty(tcx, trait_ref));
+    let existential_trait_ref = tcx.erase_regions(existential_trait_ref);
     // Count number of methods preceding the one we are selecting and
     // add them to the total offset.
-    // Skip over associated types and constants, as those aren't stored in the vtable.
-    let mut entries = object.vtable_base;
-    for trait_item in tcx.associated_items(object.upcast_trait_ref.def_id()).in_definition_order() {
-        if trait_item.def_id == method_def_id {
-            // The item with the ID we were given really ought to be a method.
-            assert_eq!(trait_item.kind, ty::AssocKind::Fn);
-            return entries;
-        }
-        if trait_item.kind == ty::AssocKind::Fn {
-            entries += 1;
-        }
-    }
-
-    bug!("get_vtable_index_of_object_method: {:?} was not found", method_def_id);
+    let index = tcx
+        .own_existential_vtable_entries(existential_trait_ref)
+        .iter()
+        .copied()
+        .position(|def_id| def_id == method_def_id)
+        .unwrap_or_else(|| {
+            bug!("get_vtable_index_of_object_method: {:?} was not found", method_def_id);
+        });
+    object.vtable_base + index
 }
 
-pub fn closure_trait_ref_and_return_type(
+pub fn closure_trait_ref_and_return_type<'tcx>(
     tcx: TyCtxt<'tcx>,
     fn_trait_def_id: DefId,
     self_ty: Ty<'tcx>,
@@ -341,7 +345,7 @@ pub fn closure_trait_ref_and_return_type(
     sig.map_bound(|sig| (trait_ref, sig.output()))
 }
 
-pub fn generator_trait_ref_and_outputs(
+pub fn generator_trait_ref_and_outputs<'tcx>(
     tcx: TyCtxt<'tcx>,
     fn_trait_def_id: DefId,
     self_ty: Ty<'tcx>,

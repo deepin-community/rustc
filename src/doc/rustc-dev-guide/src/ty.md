@@ -40,7 +40,7 @@ different [`Span`s][span] (locations).
 [span]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_span/struct.Span.html
 
 **Example: `fn foo(x: &u32) -> &u32`** In addition, HIR might have information left out. This type
-`&u32` is incomplete, since in the full rust type there is actually a lifetime, but we didn’t need
+`&u32` is incomplete, since in the full Rust type there is actually a lifetime, but we didn’t need
 to write those lifetimes. There are also some elision rules that insert information. The result may
 look like  `fn foo<'a>(x: &'a u32) -> &'a u32`.
 
@@ -312,7 +312,7 @@ delaying a redundant span bug.
 
 Recall that we represent a generic struct with `(AdtDef, substs)`. So why bother with this scheme?
 
-Well, the alternate way we could have choosen to represent types would be to always create a new,
+Well, the alternate way we could have chosen to represent types would be to always create a new,
 fully-substituted form of the `AdtDef` where all the types are already substituted. This seems like
 less of a hassle. However, the `(AdtDef, substs)` scheme has some advantages over this.
 

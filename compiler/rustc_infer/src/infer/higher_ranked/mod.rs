@@ -9,6 +9,7 @@ use rustc_middle::ty::relate::{Relate, RelateResult, TypeRelation};
 use rustc_middle::ty::{self, Binder, TypeFoldable};
 
 impl<'a, 'tcx> CombineFields<'a, 'tcx> {
+    #[instrument(skip(self), level = "debug")]
     pub fn higher_ranked_sub<T>(
         &mut self,
         a: Binder<'tcx, T>,
@@ -18,8 +19,6 @@ impl<'a, 'tcx> CombineFields<'a, 'tcx> {
     where
         T: Relate<'tcx>,
     {
-        debug!("higher_ranked_sub(a={:?}, b={:?})", a, b);
-
         // Rather than checking the subtype relationship between `a` and `b`
         // as-is, we need to do some extra work here in order to make sure
         // that function subtyping works correctly with respect to regions
@@ -95,7 +94,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         };
 
         let fld_c = |bound_var: ty::BoundVar, ty| {
-            self.tcx.mk_const(ty::Const {
+            self.tcx.mk_const(ty::ConstS {
                 val: ty::ConstKind::Placeholder(ty::PlaceholderConst {
                     universe: next_universe,
                     name: ty::BoundConst { var: bound_var, ty },

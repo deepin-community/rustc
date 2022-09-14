@@ -1,18 +1,18 @@
 mod builtin_type_shadow;
 mod double_neg;
+mod literal_suffix;
 mod mixed_case_hex_literals;
 mod redundant_pattern;
 mod unneeded_field_pattern;
 mod unneeded_wildcard_pattern;
-mod unseparated_literal_suffix;
 mod zero_prefixed_literal;
 
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::source::snippet_opt;
-use rustc_ast::ast::{Expr, Generics, Lit, LitFloatType, LitIntType, LitKind, NodeId, Pat, PatKind};
+use rustc_ast::ast::{Expr, ExprKind, Generics, Lit, LitFloatType, LitIntType, LitKind, NodeId, Pat, PatKind};
 use rustc_ast::visit::FnKind;
 use rustc_data_structures::fx::FxHashMap;
-use rustc_lint::{EarlyContext, EarlyLintPass};
+use rustc_lint::{EarlyContext, EarlyLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::Span;
@@ -46,6 +46,7 @@ declare_clippy_lint! {
     ///     Foo { .. } => {},
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub UNNEEDED_FIELD_PATTERN,
     restriction,
     "struct fields bound to a wildcard instead of using `..`"
@@ -67,6 +68,7 @@ declare_clippy_lint! {
     /// // Good
     /// fn bar(a: i32, _b: i32) {}
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DUPLICATE_UNDERSCORE_ARGUMENT,
     style,
     "function arguments having names which only differ by an underscore"
@@ -85,6 +87,7 @@ declare_clippy_lint! {
     /// let mut x = 3;
     /// --x;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DOUBLE_NEG,
     style,
     "`--x`, which is a double negation of `x` and not a pre-decrement as in C/C++"
@@ -106,6 +109,7 @@ declare_clippy_lint! {
     /// // Good
     /// let y = 0x1A9BACD;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub MIXED_CASE_HEX_LITERALS,
     style,
     "hex literals whose letter digits are not consistently upper- or lowercased"
@@ -115,9 +119,11 @@ declare_clippy_lint! {
     /// ### What it does
     /// Warns if literal suffixes are not separated by an
     /// underscore.
+    /// To enforce unseparated literal suffix style,
+    /// see the `separated_literal_suffix` lint.
     ///
     /// ### Why is this bad?
-    /// It is much less readable.
+    /// Suffix style should be consistent.
     ///
     /// ### Example
     /// ```rust
@@ -127,9 +133,33 @@ declare_clippy_lint! {
     /// // Good
     /// let y = 123832_i32;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub UNSEPARATED_LITERAL_SUFFIX,
-    pedantic,
+    restriction,
     "literals whose suffix is not separated by an underscore"
+}
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Warns if literal suffixes are separated by an underscore.
+    /// To enforce separated literal suffix style,
+    /// see the `unseparated_literal_suffix` lint.
+    ///
+    /// ### Why is this bad?
+    /// Suffix style should be consistent.
+    ///
+    /// ### Example
+    /// ```rust
+    /// // Bad
+    /// let y = 123832_i32;
+    ///
+    /// // Good
+    /// let y = 123832i32;
+    /// ```
+    #[clippy::version = "1.58.0"]
+    pub SEPARATED_LITERAL_SUFFIX,
+    restriction,
+    "literals whose suffix is separated by an underscore"
 }
 
 declare_clippy_lint! {
@@ -165,6 +195,7 @@ declare_clippy_lint! {
     /// ```
     ///
     /// prints `83` (as `83 == 0o123` while `123 == 0o173`).
+    #[clippy::version = "pre 1.29.0"]
     pub ZERO_PREFIXED_LITERAL,
     complexity,
     "integer literals starting with `0`"
@@ -186,6 +217,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub BUILTIN_TYPE_SHADOW,
     style,
     "shadowing a builtin type"
@@ -215,6 +247,7 @@ declare_clippy_lint! {
     ///     y => (),
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub REDUNDANT_PATTERN,
     style,
     "using `name @ _` in a pattern"
@@ -249,6 +282,7 @@ declare_clippy_lint! {
     ///     _ => (),
     /// }
     /// ```
+    #[clippy::version = "1.40.0"]
     pub UNNEEDED_WILDCARD_PATTERN,
     complexity,
     "tuple patterns with a wildcard pattern (`_`) is next to a rest pattern (`..`)"
@@ -260,6 +294,7 @@ declare_lint_pass!(MiscEarlyLints => [
     DOUBLE_NEG,
     MIXED_CASE_HEX_LITERALS,
     UNSEPARATED_LITERAL_SUFFIX,
+    SEPARATED_LITERAL_SUFFIX,
     ZERO_PREFIXED_LITERAL,
     BUILTIN_TYPE_SHADOW,
     REDUNDANT_PATTERN,
@@ -307,8 +342,12 @@ impl EarlyLintPass for MiscEarlyLints {
     }
 
     fn check_expr(&mut self, cx: &EarlyContext<'_>, expr: &Expr) {
-        if in_external_macro(cx.sess, expr.span) {
+        if in_external_macro(cx.sess(), expr.span) {
             return;
+        }
+
+        if let ExprKind::Lit(ref lit) = expr.kind {
+            MiscEarlyLints::check_lit(cx, lit);
         }
         double_neg::check(cx, expr);
     }
@@ -332,7 +371,7 @@ impl MiscEarlyLints {
                 LitIntType::Unsigned(ty) => ty.name_str(),
                 LitIntType::Unsuffixed => "",
             };
-            unseparated_literal_suffix::check(cx, lit, &lit_snip, suffix, "integer");
+            literal_suffix::check(cx, lit, &lit_snip, suffix, "integer");
             if lit_snip.starts_with("0x") {
                 mixed_case_hex_literals::check(cx, lit, suffix, &lit_snip);
             } else if lit_snip.starts_with("0b") || lit_snip.starts_with("0o") {
@@ -342,7 +381,7 @@ impl MiscEarlyLints {
             }
         } else if let LitKind::Float(_, LitFloatType::Suffixed(float_ty)) = lit.kind {
             let suffix = float_ty.name_str();
-            unseparated_literal_suffix::check(cx, lit, &lit_snip, suffix, "float");
+            literal_suffix::check(cx, lit, &lit_snip, suffix, "float");
         }
     }
 }

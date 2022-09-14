@@ -1,3 +1,5 @@
+//! Strip all private items from the output. Additionally implies strip_priv_imports.
+//! Basically, the goal is to remove items that are not relevant for public documentation.
 use crate::clean::{self, ItemIdSet};
 use crate::core::DocContext;
 use crate::fold::DocFolder;
@@ -27,6 +29,6 @@ crate fn strip_private(mut krate: clean::Crate, cx: &mut DocContext<'_>) -> clea
     }
 
     // strip all impls referencing private items
-    let mut stripper = ImplStripper { retained: &retained };
+    let mut stripper = ImplStripper { retained: &retained, cache: &cx.cache };
     stripper.fold_crate(krate)
 }

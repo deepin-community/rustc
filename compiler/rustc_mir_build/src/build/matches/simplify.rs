@@ -176,17 +176,22 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 Ok(())
             }
 
-            PatKind::Binding { name, mutability, mode, var, ty, ref subpattern, is_primary: _ } => {
+            PatKind::Binding {
+                name: _,
+                mutability: _,
+                mode,
+                var,
+                ty: _,
+                ref subpattern,
+                is_primary: _,
+            } => {
                 if let Ok(place_resolved) =
                     match_pair.place.clone().try_upvars_resolved(self.tcx, self.typeck_results)
                 {
                     candidate.bindings.push(Binding {
-                        name,
-                        mutability,
                         span: match_pair.pattern.span,
                         source: place_resolved.into_place(self.tcx, self.typeck_results),
                         var_id: var,
-                        var_ty: ty,
                         binding_mode: mode,
                     });
                 }
@@ -205,7 +210,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
             }
 
             PatKind::Range(PatRange { lo, hi, end }) => {
-                let (range, bias) = match *lo.ty.kind() {
+                let (range, bias) = match *lo.ty().kind() {
                     ty::Char => {
                         (Some(('\u{0000}' as u128, '\u{10FFFF}' as u128, Size::from_bits(32))), 0)
                     }
@@ -223,7 +228,9 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     _ => (None, 0),
                 };
                 if let Some((min, max, sz)) = range {
-                    if let (Some(lo), Some(hi)) = (lo.val.try_to_bits(sz), hi.val.try_to_bits(sz)) {
+                    if let (Some(lo), Some(hi)) =
+                        (lo.val().try_to_bits(sz), hi.val().try_to_bits(sz))
+                    {
                         // We want to compare ranges numerically, but the order of the bitwise
                         // representation of signed integers does not match their numeric order.
                         // Thus, to correct the ordering, we need to shift the range of signed

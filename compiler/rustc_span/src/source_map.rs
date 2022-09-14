@@ -474,11 +474,12 @@ impl SourceMap {
         f.lookup_line(sp.lo()) != f.lookup_line(sp.hi())
     }
 
+    #[instrument(skip(self), level = "trace")]
     pub fn is_valid_span(&self, sp: Span) -> Result<(Loc, Loc), SpanLinesError> {
         let lo = self.lookup_char_pos(sp.lo());
-        debug!("span_to_lines: lo={:?}", lo);
+        trace!(?lo);
         let hi = self.lookup_char_pos(sp.hi());
-        debug!("span_to_lines: hi={:?}", hi);
+        trace!(?hi);
         if lo.file.start_pos != hi.file.start_pos {
             return Err(SpanLinesError::DistinctSources(DistinctSources {
                 begin: (lo.file.name.clone(), lo.file.start_pos),
@@ -592,14 +593,19 @@ impl SourceMap {
     }
 
     pub fn span_to_margin(&self, sp: Span) -> Option<usize> {
-        match self.span_to_prev_source(sp) {
-            Err(_) => None,
-            Ok(source) => {
-                let last_line = source.rsplit_once('\n').unwrap_or(("", &source)).1;
+        Some(self.indentation_before(sp)?.len())
+    }
 
-                Some(last_line.len() - last_line.trim_start().len())
-            }
-        }
+    pub fn indentation_before(&self, sp: Span) -> Option<String> {
+        self.span_to_source(sp, |src, start_index, _| {
+            let before = &src[..start_index];
+            let last_line = before.rsplit_once('\n').map_or(before, |(_, last)| last);
+            Ok(last_line
+                .split_once(|c: char| !c.is_whitespace())
+                .map_or(last_line, |(indent, _)| indent)
+                .to_string())
+        })
+        .ok()
     }
 
     /// Returns the source snippet as `String` before the given `Span`.
@@ -623,32 +629,59 @@ impl SourceMap {
     }
 
     /// Extends the given `Span` to just after the previous occurrence of `pat` when surrounded by
-    /// whitespace. Returns the same span if no character could be found or if an error occurred
-    /// while retrieving the code snippet.
-    pub fn span_extend_to_prev_str(&self, sp: Span, pat: &str, accept_newlines: bool) -> Span {
+    /// whitespace. Returns None if the pattern could not be found or if an error occurred while
+    /// retrieving the code snippet.
+    pub fn span_extend_to_prev_str(
+        &self,
+        sp: Span,
+        pat: &str,
+        accept_newlines: bool,
+        include_whitespace: bool,
+    ) -> Option<Span> {
         // assure that the pattern is delimited, to avoid the following
         //     fn my_fn()
         //           ^^^^ returned span without the check
         //     ---------- correct span
+        let prev_source = self.span_to_prev_source(sp).ok()?;
         for ws in &[" ", "\t", "\n"] {
             let pat = pat.to_owned() + ws;
-            if let Ok(prev_source) = self.span_to_prev_source(sp) {
-                let prev_source = prev_source.rsplit(&pat).next().unwrap_or("").trim_start();
-                if prev_source.is_empty() && sp.lo().0 != 0 {
-                    return sp.with_lo(BytePos(sp.lo().0 - 1));
-                } else if accept_newlines || !prev_source.contains('\n') {
-                    return sp.with_lo(BytePos(sp.lo().0 - prev_source.len() as u32));
+            if let Some(pat_pos) = prev_source.rfind(&pat) {
+                let just_after_pat_pos = pat_pos + pat.len() - 1;
+                let just_after_pat_plus_ws = if include_whitespace {
+                    just_after_pat_pos
+                        + prev_source[just_after_pat_pos..]
+                            .find(|c: char| !c.is_whitespace())
+                            .unwrap_or(0)
+                } else {
+                    just_after_pat_pos
+                };
+                let len = prev_source.len() - just_after_pat_plus_ws;
+                let prev_source = &prev_source[just_after_pat_plus_ws..];
+                if accept_newlines || !prev_source.trim_start().contains('\n') {
+                    return Some(sp.with_lo(BytePos(sp.lo().0 - len as u32)));
                 }
             }
         }
 
-        sp
+        None
     }
 
     /// Returns the source snippet as `String` after the given `Span`.
     pub fn span_to_next_source(&self, sp: Span) -> Result<String, SpanSnippetError> {
         self.span_to_source(sp, |src, _, end_index| {
             src.get(end_index..).map(|s| s.to_string()).ok_or(SpanSnippetError::IllFormedSpan(sp))
+        })
+    }
+
+    /// Extends the given `Span` while the next character matches the predicate
+    pub fn span_extend_while(
+        &self,
+        span: Span,
+        f: impl Fn(char) -> bool,
+    ) -> Result<Span, SpanSnippetError> {
+        self.span_to_source(span, |s, _start, end| {
+            let n = s[end..].char_indices().find(|&(_, c)| !f(c)).map_or(s.len() - end, |(i, _)| i);
+            Ok(span.with_hi(span.hi() + BytePos(n as u32)))
         })
     }
 
@@ -794,7 +827,7 @@ impl SourceMap {
             start_of_next_point.checked_add(width - 1).unwrap_or(start_of_next_point);
 
         let end_of_next_point = BytePos(cmp::max(sp.lo().0 + 1, end_of_next_point));
-        Span::new(BytePos(start_of_next_point), end_of_next_point, sp.ctxt())
+        Span::new(BytePos(start_of_next_point), end_of_next_point, sp.ctxt(), None)
     }
 
     /// Finds the width of the character, either before or after the end of provided span,
@@ -909,7 +942,7 @@ impl SourceMap {
     }
 
     pub fn generate_fn_name_span(&self, span: Span) -> Option<Span> {
-        let prev_span = self.span_extend_to_prev_str(span, "fn", true);
+        let prev_span = self.span_extend_to_prev_str(span, "fn", true, true).unwrap_or(span);
         if let Ok(snippet) = self.span_to_snippet(prev_span) {
             debug!(
                 "generate_fn_name_span: span={:?}, prev_span={:?}, snippet={:?}",
@@ -950,8 +983,7 @@ impl SourceMap {
     pub fn generate_local_type_param_snippet(&self, span: Span) -> Option<(Span, String)> {
         // Try to extend the span to the previous "fn" keyword to retrieve the function
         // signature.
-        let sugg_span = self.span_extend_to_prev_str(span, "fn", false);
-        if sugg_span != span {
+        if let Some(sugg_span) = self.span_extend_to_prev_str(span, "fn", false, true) {
             if let Ok(snippet) = self.span_to_snippet(sugg_span) {
                 // Consume the function name.
                 let mut offset = snippet
@@ -1011,6 +1043,32 @@ impl SourceMap {
         let source_file_index = self.lookup_source_file_idx(sp.lo());
         let source_file = &self.files()[source_file_index];
         source_file.is_imported()
+    }
+
+    /// Gets the span of a statement. If the statement is a macro expansion, the
+    /// span in the context of the block span is found. The trailing semicolon is included
+    /// on a best-effort basis.
+    pub fn stmt_span(&self, stmt_span: Span, block_span: Span) -> Span {
+        if !stmt_span.from_expansion() {
+            return stmt_span;
+        }
+        let mac_call = original_sp(stmt_span, block_span);
+        self.mac_call_stmt_semi_span(mac_call).map_or(mac_call, |s| mac_call.with_hi(s.hi()))
+    }
+
+    /// Tries to find the span of the semicolon of a macro call statement.
+    /// The input must be the *call site* span of a statement from macro expansion.
+    ///
+    ///           v output
+    ///     mac!();
+    ///     ^^^^^^ input
+    pub fn mac_call_stmt_semi_span(&self, mac_call: Span) -> Option<Span> {
+        let span = self.span_extend_while(mac_call, char::is_whitespace).ok()?;
+        let span = span.shrink_to_hi().with_hi(BytePos(span.hi().0.checked_add(1)?));
+        if self.span_to_snippet(span).as_deref() != Ok(";") {
+            return None;
+        }
+        Some(span)
     }
 }
 

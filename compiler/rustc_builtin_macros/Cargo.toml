@@ -1,7 +1,7 @@
 [package]
 name = "rustc_builtin_macros"
 version = "0.0.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 doctest = false
@@ -15,6 +15,7 @@ rustc_data_structures = { path = "../rustc_data_structures" }
 rustc_errors = { path = "../rustc_errors" }
 rustc_feature = { path = "../rustc_feature" }
 rustc_lexer = { path = "../rustc_lexer" }
+rustc_lint_defs = { path = "../rustc_lint_defs" }
 rustc_parse = { path = "../rustc_parse" }
 rustc_target = { path = "../rustc_target" }
 rustc_session = { path = "../rustc_session" }

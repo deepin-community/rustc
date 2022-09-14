@@ -38,6 +38,7 @@ declare_clippy_lint! {
     ///     ptr.add(offset);
     /// }
     /// ```
+    #[clippy::version = "1.30.0"]
     pub PTR_OFFSET_WITH_CAST,
     complexity,
     "unneeded pointer offset cast"
@@ -92,13 +93,13 @@ fn expr_as_ptr_offset_call<'tcx>(
     cx: &LateContext<'tcx>,
     expr: &'tcx Expr<'_>,
 ) -> Option<(&'tcx Expr<'tcx>, &'tcx Expr<'tcx>, Method)> {
-    if let ExprKind::MethodCall(path_segment, _, args, _) = expr.kind {
-        if is_expr_ty_raw_ptr(cx, &args[0]) {
+    if let ExprKind::MethodCall(path_segment, [arg_0, arg_1, ..], _) = &expr.kind {
+        if is_expr_ty_raw_ptr(cx, arg_0) {
             if path_segment.ident.name == sym::offset {
-                return Some((&args[0], &args[1], Method::Offset));
+                return Some((arg_0, arg_1, Method::Offset));
             }
             if path_segment.ident.name == sym!(wrapping_offset) {
-                return Some((&args[0], &args[1], Method::WrappingOffset));
+                return Some((arg_0, arg_1, Method::WrappingOffset));
             }
         }
     }

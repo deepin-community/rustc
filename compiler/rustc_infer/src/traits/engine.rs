@@ -1,8 +1,8 @@
 use crate::infer::InferCtxt;
 use crate::traits::Obligation;
-use rustc_hir as hir;
+use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, ToPredicate, Ty, WithConstness};
+use rustc_middle::ty::{self, ToPredicate, Ty};
 
 use super::FulfillmentError;
 use super::{ObligationCause, PredicateObligation};
@@ -34,7 +34,7 @@ pub trait TraitEngine<'tcx>: 'tcx {
                 cause,
                 recursion_depth: 0,
                 param_env,
-                predicate: trait_ref.without_const().to_predicate(infcx.tcx),
+                predicate: ty::Binder::dummy(trait_ref).without_const().to_predicate(infcx.tcx),
             },
         );
     }
@@ -45,34 +45,14 @@ pub trait TraitEngine<'tcx>: 'tcx {
         obligation: PredicateObligation<'tcx>,
     );
 
-    fn select_all_or_error(
-        &mut self,
-        infcx: &InferCtxt<'_, 'tcx>,
-    ) -> Result<(), Vec<FulfillmentError<'tcx>>>;
+    fn select_all_or_error(&mut self, infcx: &InferCtxt<'_, 'tcx>) -> Vec<FulfillmentError<'tcx>>;
 
-    fn select_all_with_constness_or_error(
-        &mut self,
-        infcx: &InferCtxt<'_, 'tcx>,
-        _constness: hir::Constness,
-    ) -> Result<(), Vec<FulfillmentError<'tcx>>> {
-        self.select_all_or_error(infcx)
-    }
-
-    fn select_where_possible(
-        &mut self,
-        infcx: &InferCtxt<'_, 'tcx>,
-    ) -> Result<(), Vec<FulfillmentError<'tcx>>>;
-
-    // FIXME(fee1-dead) this should not provide a default body for chalk as chalk should be updated
-    fn select_with_constness_where_possible(
-        &mut self,
-        infcx: &InferCtxt<'_, 'tcx>,
-        _constness: hir::Constness,
-    ) -> Result<(), Vec<FulfillmentError<'tcx>>> {
-        self.select_where_possible(infcx)
-    }
+    fn select_where_possible(&mut self, infcx: &InferCtxt<'_, 'tcx>)
+    -> Vec<FulfillmentError<'tcx>>;
 
     fn pending_obligations(&self) -> Vec<PredicateObligation<'tcx>>;
+
+    fn relationships(&mut self) -> &mut FxHashMap<ty::TyVid, ty::FoundRelationships>;
 }
 
 pub trait TraitEngineExt<'tcx> {
@@ -83,7 +63,7 @@ pub trait TraitEngineExt<'tcx> {
     );
 }
 
-impl<T: ?Sized + TraitEngine<'tcx>> TraitEngineExt<'tcx> for T {
+impl<'tcx, T: ?Sized + TraitEngine<'tcx>> TraitEngineExt<'tcx> for T {
     fn register_predicate_obligations(
         &mut self,
         infcx: &InferCtxt<'_, 'tcx>,

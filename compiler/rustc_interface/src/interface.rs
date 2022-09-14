@@ -2,7 +2,7 @@ pub use crate::passes::BoxedResolver;
 use crate::util;
 
 use rustc_ast::token;
-use rustc_ast::{self as ast, MetaItemKind};
+use rustc_ast::{self as ast, LitKind, MetaItemKind};
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::sync::Lrc;
@@ -11,17 +11,17 @@ use rustc_errors::registry::Registry;
 use rustc_errors::{ErrorReported, Handler};
 use rustc_lint::LintStore;
 use rustc_middle::ty;
-use rustc_parse::new_parser_from_source_str;
+use rustc_parse::maybe_new_parser_from_source_str;
 use rustc_query_impl::QueryCtxt;
-use rustc_session::config::{self, ErrorOutputType, Input, OutputFilenames};
+use rustc_session::config::{self, CheckCfg, ErrorOutputType, Input, OutputFilenames};
 use rustc_session::early_error;
 use rustc_session::lint;
 use rustc_session::parse::{CrateConfig, ParseSess};
 use rustc_session::{DiagnosticOutput, Session};
 use rustc_span::source_map::{FileLoader, FileName};
+use rustc_span::symbol::sym;
 use std::path::PathBuf;
 use std::result;
-use std::sync::{Arc, Mutex};
 
 pub type Result<T> = result::Result<T, ErrorReported>;
 
@@ -36,9 +36,10 @@ pub struct Compiler {
     pub(crate) input_path: Option<PathBuf>,
     pub(crate) output_dir: Option<PathBuf>,
     pub(crate) output_file: Option<PathBuf>,
+    pub(crate) temps_dir: Option<PathBuf>,
     pub(crate) register_lints: Option<Box<dyn Fn(&Session, &mut LintStore) + Send + Sync>>,
     pub(crate) override_queries:
-        Option<fn(&Session, &mut ty::query::Providers, &mut ty::query::Providers)>,
+        Option<fn(&Session, &mut ty::query::Providers, &mut ty::query::ExternProviders)>,
 }
 
 impl Compiler {
@@ -57,6 +58,9 @@ impl Compiler {
     pub fn output_file(&self) -> &Option<PathBuf> {
         &self.output_file
     }
+    pub fn temps_dir(&self) -> &Option<PathBuf> {
+        &self.temps_dir
+    }
     pub fn register_lints(&self) -> &Option<Box<dyn Fn(&Session, &mut LintStore) + Send + Sync>> {
         &self.register_lints
     }
@@ -69,8 +73,9 @@ impl Compiler {
             &self.input,
             &self.output_dir,
             &self.output_file,
-            &attrs,
-            &sess,
+            &self.temps_dir,
+            attrs,
+            sess,
         )
     }
 }
@@ -81,9 +86,11 @@ pub fn parse_cfgspecs(cfgspecs: Vec<String>) -> FxHashSet<(String, Option<String
         let cfg = cfgspecs
             .into_iter()
             .map(|s| {
-                let sess = ParseSess::with_silent_emitter();
+                let sess = ParseSess::with_silent_emitter(Some(format!(
+                    "this error occurred on the command line: `--cfg={}`",
+                    s
+                )));
                 let filename = FileName::cfg_spec_source_code(&s);
-                let mut parser = new_parser_from_source_str(&sess, filename, s.to_string());
 
                 macro_rules! error {
                     ($reason: expr) => {
@@ -94,32 +101,126 @@ pub fn parse_cfgspecs(cfgspecs: Vec<String>) -> FxHashSet<(String, Option<String
                     };
                 }
 
-                match &mut parser.parse_meta_item() {
-                    Ok(meta_item) if parser.token == token::Eof => {
-                        if meta_item.path.segments.len() != 1 {
-                            error!("argument key must be an identifier");
+                match maybe_new_parser_from_source_str(&sess, filename, s.to_string()) {
+                    Ok(mut parser) => match &mut parser.parse_meta_item() {
+                        Ok(meta_item) if parser.token == token::Eof => {
+                            if meta_item.path.segments.len() != 1 {
+                                error!("argument key must be an identifier");
+                            }
+                            match &meta_item.kind {
+                                MetaItemKind::List(..) => {}
+                                MetaItemKind::NameValue(lit) if !lit.kind.is_str() => {
+                                    error!("argument value must be a string");
+                                }
+                                MetaItemKind::NameValue(..) | MetaItemKind::Word => {
+                                    let ident = meta_item.ident().expect("multi-segment cfg key");
+                                    return (ident.name, meta_item.value_str());
+                                }
+                            }
                         }
-                        match &meta_item.kind {
-                            MetaItemKind::List(..) => {
-                                error!(r#"expected `key` or `key="value"`"#);
-                            }
-                            MetaItemKind::NameValue(lit) if !lit.kind.is_str() => {
-                                error!("argument value must be a string");
-                            }
-                            MetaItemKind::NameValue(..) | MetaItemKind::Word => {
-                                let ident = meta_item.ident().expect("multi-segment cfg key");
-                                return (ident.name, meta_item.value_str());
+                        Ok(..) => {}
+                        Err(err) => err.cancel(),
+                    },
+                    Err(errs) => errs.into_iter().for_each(|mut err| err.cancel()),
+                }
+
+                // If the user tried to use a key="value" flag, but is missing the quotes, provide
+                // a hint about how to resolve this.
+                if s.contains('=') && !s.contains("=\"") && !s.ends_with('"') {
+                    error!(concat!(
+                        r#"expected `key` or `key="value"`, ensure escaping is appropriate"#,
+                        r#" for your shell, try 'key="value"' or key=\"value\""#
+                    ));
+                } else {
+                    error!(r#"expected `key` or `key="value"`"#);
+                }
+            })
+            .collect::<CrateConfig>();
+        cfg.into_iter().map(|(a, b)| (a.to_string(), b.map(|b| b.to_string()))).collect()
+    })
+}
+
+/// Converts strings provided as `--check-cfg [specs]` into a `CheckCfg`.
+pub fn parse_check_cfg(specs: Vec<String>) -> CheckCfg {
+    rustc_span::create_default_session_if_not_set_then(move |_| {
+        let mut cfg = CheckCfg::default();
+
+        'specs: for s in specs {
+            let sess = ParseSess::with_silent_emitter(Some(format!(
+                "this error occurred on the command line: `--check-cfg={}`",
+                s
+            )));
+            let filename = FileName::cfg_spec_source_code(&s);
+
+            macro_rules! error {
+                ($reason: expr) => {
+                    early_error(
+                        ErrorOutputType::default(),
+                        &format!(
+                            concat!("invalid `--check-cfg` argument: `{}` (", $reason, ")"),
+                            s
+                        ),
+                    );
+                };
+            }
+
+            match maybe_new_parser_from_source_str(&sess, filename, s.to_string()) {
+                Ok(mut parser) => match &mut parser.parse_meta_item() {
+                    Ok(meta_item) if parser.token == token::Eof => {
+                        if let Some(args) = meta_item.meta_item_list() {
+                            if meta_item.has_name(sym::names) {
+                                cfg.names_checked = true;
+                                for arg in args {
+                                    if arg.is_word() && arg.ident().is_some() {
+                                        let ident = arg.ident().expect("multi-segment cfg key");
+                                        cfg.names_valid.insert(ident.name.to_string());
+                                    } else {
+                                        error!("`names()` arguments must be simple identifers");
+                                    }
+                                }
+                                continue 'specs;
+                            } else if meta_item.has_name(sym::values) {
+                                if let Some((name, values)) = args.split_first() {
+                                    if name.is_word() && name.ident().is_some() {
+                                        let ident = name.ident().expect("multi-segment cfg key");
+                                        cfg.values_checked.insert(ident.to_string());
+                                        for val in values {
+                                            if let Some(LitKind::Str(s, _)) =
+                                                val.literal().map(|lit| &lit.kind)
+                                            {
+                                                cfg.values_valid
+                                                    .insert((ident.to_string(), s.to_string()));
+                                            } else {
+                                                error!(
+                                                    "`values()` arguments must be string literals"
+                                                );
+                                            }
+                                        }
+
+                                        continue 'specs;
+                                    } else {
+                                        error!(
+                                            "`values()` first argument must be a simple identifer"
+                                        );
+                                    }
+                                }
                             }
                         }
                     }
                     Ok(..) => {}
                     Err(err) => err.cancel(),
-                }
+                },
+                Err(errs) => errs.into_iter().for_each(|mut err| err.cancel()),
+            }
 
-                error!(r#"expected `key` or `key="value"`"#);
-            })
-            .collect::<CrateConfig>();
-        cfg.into_iter().map(|(a, b)| (a.to_string(), b.map(|b| b.to_string()))).collect()
+            error!(
+                "expected `names(name1, name2, ... nameN)` or \
+                `values(name, \"value1\", \"value2\", ... \"valueN\")`"
+            );
+        }
+
+        cfg.names_valid.extend(cfg.values_checked.iter().cloned());
+        cfg
     })
 }
 
@@ -130,6 +231,7 @@ pub struct Config {
 
     /// cfg! configuration in addition to the default ones
     pub crate_cfg: FxHashSet<(String, Option<String>)>,
+    pub crate_check_cfg: CheckCfg,
 
     pub input: Input,
     pub input_path: Option<PathBuf>,
@@ -137,9 +239,6 @@ pub struct Config {
     pub output_file: Option<PathBuf>,
     pub file_loader: Option<Box<dyn FileLoader + Send + Sync>>,
     pub diagnostic_output: DiagnosticOutput,
-
-    /// Set to capture stderr output during compiler execution
-    pub stderr: Option<Arc<Mutex<Vec<u8>>>>,
 
     pub lint_caps: FxHashMap<lint::LintId, lint::Level>,
 
@@ -158,7 +257,7 @@ pub struct Config {
     ///
     /// The second parameter is local providers and the third parameter is external providers.
     pub override_queries:
-        Option<fn(&Session, &mut ty::query::Providers, &mut ty::query::Providers)>,
+        Option<fn(&Session, &mut ty::query::Providers, &mut ty::query::ExternProviders)>,
 
     /// This is a callback from the driver that is called to create a codegen backend.
     pub make_codegen_backend:
@@ -169,10 +268,13 @@ pub struct Config {
 }
 
 pub fn create_compiler_and_run<R>(config: Config, f: impl FnOnce(&Compiler) -> R) -> R {
+    crate::callbacks::setup_callbacks();
+
     let registry = &config.registry;
     let (mut sess, codegen_backend) = util::create_session(
         config.opts,
         config.crate_cfg,
+        config.crate_check_cfg,
         config.diagnostic_output,
         config.file_loader,
         config.input_path.clone(),
@@ -189,6 +291,8 @@ pub fn create_compiler_and_run<R>(config: Config, f: impl FnOnce(&Compiler) -> R
         );
     }
 
+    let temps_dir = sess.opts.debugging_opts.temps_dir.as_ref().map(|o| PathBuf::from(&o));
+
     let compiler = Compiler {
         sess,
         codegen_backend,
@@ -196,6 +300,7 @@ pub fn create_compiler_and_run<R>(config: Config, f: impl FnOnce(&Compiler) -> R
         input_path: config.input_path,
         output_dir: config.output_dir,
         output_file: config.output_file,
+        temps_dir,
         register_lints: config.register_lints,
         override_queries: config.override_queries,
     };
@@ -215,13 +320,11 @@ pub fn create_compiler_and_run<R>(config: Config, f: impl FnOnce(&Compiler) -> R
     })
 }
 
-pub fn run_compiler<R: Send>(mut config: Config, f: impl FnOnce(&Compiler) -> R + Send) -> R {
+pub fn run_compiler<R: Send>(config: Config, f: impl FnOnce(&Compiler) -> R + Send) -> R {
     tracing::trace!("run_compiler");
-    let stderr = config.stderr.take();
-    util::setup_callbacks_and_run_in_thread_pool_with_globals(
+    util::run_in_thread_pool_with_globals(
         config.opts.edition,
         config.opts.debugging_opts.threads,
-        &stderr,
         || create_compiler_and_run(config, f),
     )
 }

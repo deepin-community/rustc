@@ -8,6 +8,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+/// rustdoc format-version.
+pub const FORMAT_VERSION: u32 = 10;
+
 /// A `Crate` is the root of the emitted JSON blob. It contains all type/documentation information
 /// about the language items in the local crate, as well as info about external items to allow
 /// tools to find or link to them.
@@ -148,7 +151,7 @@ pub struct TypeBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TypeBindingKind {
-    Equality(Type),
+    Equality(Term),
     Constraint(Vec<GenericBound>),
 }
 
@@ -220,6 +223,8 @@ pub enum ItemEnum {
     /// Declarative macro_rules! macro
     Macro(String),
     ProcMacro(ProcMacro),
+
+    PrimitiveType(String),
 
     AssocConst {
         #[serde(rename = "type")]
@@ -323,7 +328,7 @@ pub struct GenericParamDef {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum GenericParamDefKind {
-    Lifetime,
+    Lifetime { outlives: Vec<String> },
     Type { bounds: Vec<GenericBound>, default: Option<Type> },
     Const { ty: Type, default: Option<String> },
 }
@@ -333,7 +338,7 @@ pub enum GenericParamDefKind {
 pub enum WherePredicate {
     BoundPredicate { ty: Type, bounds: Vec<GenericBound> },
     RegionPredicate { lifetime: String, bounds: Vec<GenericBound> },
-    EqPredicate { lhs: Type, rhs: Type },
+    EqPredicate { lhs: Type, rhs: Term },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -355,6 +360,13 @@ pub enum TraitBoundModifier {
     None,
     Maybe,
     MaybeConst,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Term {
+    Type(Type),
+    Constant(Constant),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -386,8 +398,6 @@ pub enum Type {
     },
     /// `impl TraitA + TraitB + ...`
     ImplTrait(Vec<GenericBound>),
-    /// `!`
-    Never,
     /// `_`
     Infer,
     /// `*mut u32`, `*u8`, etc.

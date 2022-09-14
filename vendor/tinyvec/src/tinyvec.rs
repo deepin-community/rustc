@@ -107,8 +107,8 @@ where
   #[inline]
   fn clone(&self) -> Self {
     match self {
-      Self::Heap(v) => Self::Heap(v.clone()),
-      Self::Inline(v) => Self::Inline(v.clone()),
+      TinyVec::Heap(v) => TinyVec::Heap(v.clone()),
+      TinyVec::Inline(v) => TinyVec::Inline(v.clone()),
     }
   }
 
@@ -169,6 +169,21 @@ impl<A: Array, I: SliceIndex<[A::Item]>> IndexMut<I> for TinyVec<A> {
   #[must_use]
   fn index_mut(&mut self, index: I) -> &mut Self::Output {
     &mut self.deref_mut()[index]
+  }
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(docs_rs, doc(cfg(feature = "std")))]
+impl<A: Array<Item = u8>> std::io::Write for TinyVec<A> {
+  #[inline(always)]
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    self.extend_from_slice(buf);
+    Ok(buf.len())
+  }
+
+  #[inline(always)]
+  fn flush(&mut self) -> std::io::Result<()> {
+    Ok(())
   }
 }
 

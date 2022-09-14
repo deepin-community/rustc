@@ -59,6 +59,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.50.0"]
     pub SUSPICIOUS_OPERATION_GROUPINGS,
     nursery,
     "groupings of binary operations that look suspiciously like typos"
@@ -354,7 +355,7 @@ struct BinaryOp<'exprs> {
     right: &'exprs Expr,
 }
 
-impl BinaryOp<'exprs> {
+impl<'exprs> BinaryOp<'exprs> {
     fn new(op: BinOpKind, span: Span, (left, right): (&'exprs Expr, &'exprs Expr)) -> Self {
         Self { op, span, left, right }
     }
@@ -418,7 +419,7 @@ fn chained_binops(kind: &ExprKind) -> Option<Vec<BinaryOp<'_>>> {
     }
 }
 
-fn chained_binops_helper(left_outer: &'expr Expr, right_outer: &'expr Expr) -> Option<Vec<BinaryOp<'expr>>> {
+fn chained_binops_helper<'expr>(left_outer: &'expr Expr, right_outer: &'expr Expr) -> Option<Vec<BinaryOp<'expr>>> {
     match (&left_outer.kind, &right_outer.kind) {
         (
             ExprKind::Paren(ref left_e) | ExprKind::Unary(_, ref left_e),
@@ -566,7 +567,6 @@ fn ident_difference_expr_with_base_location(
         | (Repeat(_, _), Repeat(_, _))
         | (Struct(_), Struct(_))
         | (MacCall(_), MacCall(_))
-        | (LlvmInlineAsm(_), LlvmInlineAsm(_))
         | (InlineAsm(_), InlineAsm(_))
         | (Ret(_), Ret(_))
         | (Continue(_), Continue(_))
@@ -678,7 +678,7 @@ fn suggestion_with_swapped_ident(
         Some(format!(
             "{}{}{}",
             snippet_with_applicability(cx, expr.span.with_hi(current_ident.span.lo()), "..", applicability),
-            new_ident.to_string(),
+            new_ident,
             snippet_with_applicability(cx, expr.span.with_lo(current_ident.span.hi()), "..", applicability),
         ))
     })

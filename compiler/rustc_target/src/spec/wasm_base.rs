@@ -120,13 +120,19 @@ pub fn options() -> TargetOptions {
         // When the atomics feature is activated then these two keys matter,
         // otherwise they're basically ignored by the standard library. In this
         // mode, however, the `#[thread_local]` attribute works (i.e.
-        // `has_elf_tls`) and we need to get it to work by specifying
+        // `has_thread_local`) and we need to get it to work by specifying
         // `local-exec` as that's all that's implemented in LLVM today for wasm.
-        has_elf_tls: true,
+        has_thread_local: true,
         tls_model: TlsModel::LocalExec,
 
         // gdb scripts don't work on wasm blobs
         emit_debug_gdb_scripts: false,
+
+        // There's more discussion of this at
+        // https://bugs.llvm.org/show_bug.cgi?id=52442 but the general result is
+        // that this isn't useful for wasm and has tricky issues with
+        // representation, so this is disabled.
+        generate_arange_section: false,
 
         ..Default::default()
     }

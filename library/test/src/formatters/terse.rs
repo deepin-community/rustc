@@ -54,10 +54,6 @@ impl<T: Write> TerseFormatter<T> {
         self.write_short_result("i", term::color::YELLOW)
     }
 
-    pub fn write_allowed_fail(&mut self) -> io::Result<()> {
-        self.write_short_result("a", term::color::YELLOW)
-    }
-
     pub fn write_bench(&mut self) -> io::Result<()> {
         self.write_pretty("bench", term::color::CYAN)
     }
@@ -170,10 +166,15 @@ impl<T: Write> TerseFormatter<T> {
 }
 
 impl<T: Write> OutputFormatter for TerseFormatter<T> {
-    fn write_run_start(&mut self, test_count: usize) -> io::Result<()> {
+    fn write_run_start(&mut self, test_count: usize, shuffle_seed: Option<u64>) -> io::Result<()> {
         self.total_test_count = test_count;
         let noun = if test_count != 1 { "tests" } else { "test" };
-        self.write_plain(&format!("\nrunning {} {}\n", test_count, noun))
+        let shuffle_seed_msg = if let Some(shuffle_seed) = shuffle_seed {
+            format!(" (shuffle seed: {})", shuffle_seed)
+        } else {
+            String::new()
+        };
+        self.write_plain(&format!("\nrunning {} {}{}\n", test_count, noun, shuffle_seed_msg))
     }
 
     fn write_test_start(&mut self, desc: &TestDesc) -> io::Result<()> {
@@ -202,7 +203,6 @@ impl<T: Write> OutputFormatter for TerseFormatter<T> {
                 self.write_failed()
             }
             TestResult::TrIgnored => self.write_ignored(),
-            TestResult::TrAllowedFail => self.write_allowed_fail(),
             TestResult::TrBench(ref bs) => {
                 if self.is_multithreaded {
                     self.write_test_name(desc)?;
@@ -239,22 +239,10 @@ impl<T: Write> OutputFormatter for TerseFormatter<T> {
             self.write_pretty("FAILED", term::color::RED)?;
         }
 
-        let s = if state.allowed_fail > 0 {
-            format!(
-                ". {} passed; {} failed ({} allowed); {} ignored; {} measured; {} filtered out",
-                state.passed,
-                state.failed + state.allowed_fail,
-                state.allowed_fail,
-                state.ignored,
-                state.measured,
-                state.filtered_out
-            )
-        } else {
-            format!(
-                ". {} passed; {} failed; {} ignored; {} measured; {} filtered out",
-                state.passed, state.failed, state.ignored, state.measured, state.filtered_out
-            )
-        };
+        let s = format!(
+            ". {} passed; {} failed; {} ignored; {} measured; {} filtered out",
+            state.passed, state.failed, state.ignored, state.measured, state.filtered_out
+        );
 
         self.write_plain(&s)?;
 

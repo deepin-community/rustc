@@ -15,7 +15,7 @@ use rustc_span::{MultiSpan, SourceFile, Span};
 use crate::snippet::{Annotation, AnnotationType, Line, MultilineAnnotation, Style, StyledString};
 use crate::styled_buffer::StyledBuffer;
 use crate::{
-    CodeSuggestion, Diagnostic, DiagnosticId, Level, SubDiagnostic, SubstitutionHighlight,
+    CodeSuggestion, Diagnostic, DiagnosticId, Handler, Level, SubDiagnostic, SubstitutionHighlight,
     SuggestionStyle,
 };
 
@@ -214,7 +214,7 @@ pub trait Emitter {
 
     /// Formats the substitutions of the primary_span
     ///
-    /// The are a lot of conditions to this method, but in short:
+    /// There are a lot of conditions to this method, but in short:
     ///
     /// * If the current `Diagnostic` has only one visible `CodeSuggestion`,
     ///   we format the `help` suggestion depending on the content of the
@@ -227,7 +227,8 @@ pub trait Emitter {
         diag: &'a Diagnostic,
     ) -> (MultiSpan, &'a [CodeSuggestion]) {
         let mut primary_span = diag.span.clone();
-        if let Some((sugg, rest)) = diag.suggestions.split_first() {
+        let suggestions = diag.suggestions.as_ref().map_or(&[][..], |suggestions| &suggestions[..]);
+        if let Some((sugg, rest)) = suggestions.split_first() {
             if rest.is_empty() &&
                // ^ if there is only one suggestion
                // don't display multi-suggestions as labels
@@ -282,10 +283,10 @@ pub trait Emitter {
                 // to be consistent. We could try to figure out if we can
                 // make one (or the first one) inline, but that would give
                 // undue importance to a semi-random suggestion
-                (primary_span, &diag.suggestions)
+                (primary_span, suggestions)
             }
         } else {
-            (primary_span, &diag.suggestions)
+            (primary_span, suggestions)
         }
     }
 
@@ -449,11 +450,7 @@ pub trait Emitter {
         span: &mut MultiSpan,
         children: &mut Vec<SubDiagnostic>,
     ) {
-        let source_map = if let Some(ref sm) = source_map {
-            sm
-        } else {
-            return;
-        };
+        let Some(source_map) = source_map else { return };
         debug!("fix_multispans_in_extern_macros: before: span={:?} children={:?}", span, children);
         self.fix_multispan_in_extern_macros(source_map, span);
         for child in children.iter_mut() {
@@ -527,14 +524,27 @@ impl Emitter for EmitterWriter {
     }
 }
 
-/// An emitter that does nothing when emitting a diagnostic.
-pub struct SilentEmitter;
+/// An emitter that does nothing when emitting a non-fatal diagnostic.
+/// Fatal diagnostics are forwarded to `fatal_handler` to avoid silent
+/// failures of rustc, as witnessed e.g. in issue #89358.
+pub struct SilentEmitter {
+    pub fatal_handler: Handler,
+    pub fatal_note: Option<String>,
+}
 
 impl Emitter for SilentEmitter {
     fn source_map(&self) -> Option<&Lrc<SourceMap>> {
         None
     }
-    fn emit_diagnostic(&mut self, _: &Diagnostic) {}
+    fn emit_diagnostic(&mut self, d: &Diagnostic) {
+        if d.level == Level::Fatal {
+            let mut d = d.clone();
+            if let Some(ref note) = self.fatal_note {
+                d.note(note);
+            }
+            self.fatal_handler.emit_diagnostic(&d);
+        }
+    }
 }
 
 /// Maximum number of lines we will print for a multiline suggestion; arbitrary.
@@ -721,13 +731,15 @@ impl EmitterWriter {
         }
 
         let source_string = match file.get_line(line.line_index - 1) {
-            Some(s) => replace_tabs(&*s),
+            Some(s) => normalize_whitespace(&*s),
             None => return Vec::new(),
         };
 
         let line_offset = buffer.num_lines();
 
-        let left = margin.left(source_string.len()); // Left trim
+        // Left trim
+        let left = margin.left(source_string.len());
+
         // Account for unicode characters of width !=0 that were removed.
         let left = source_string
             .chars()
@@ -1257,22 +1269,37 @@ impl EmitterWriter {
             }
             self.msg_to_buffer(&mut buffer, msg, max_line_num_len, "note", None);
         } else {
+            let mut label_width = 0;
             // The failure note level itself does not provide any useful diagnostic information
             if *level != Level::FailureNote {
                 buffer.append(0, level.to_str(), Style::Level(*level));
+                label_width += level.to_str().len();
             }
             // only render error codes, not lint codes
             if let Some(DiagnosticId::Error(ref code)) = *code {
                 buffer.append(0, "[", Style::Level(*level));
                 buffer.append(0, &code, Style::Level(*level));
                 buffer.append(0, "]", Style::Level(*level));
+                label_width += 2 + code.len();
             }
             let header_style = if is_secondary { Style::HeaderMsg } else { Style::MainHeaderMsg };
             if *level != Level::FailureNote {
                 buffer.append(0, ": ", header_style);
+                label_width += 2;
             }
             for &(ref text, _) in msg.iter() {
-                buffer.append(0, &replace_tabs(text), header_style);
+                // Account for newlines to align output to its label.
+                for (line, text) in normalize_whitespace(text).lines().enumerate() {
+                    buffer.append(
+                        0 + line,
+                        &format!(
+                            "{}{}",
+                            if line == 0 { String::new() } else { " ".repeat(label_width) },
+                            text
+                        ),
+                        header_style,
+                    );
+                }
             }
         }
 
@@ -1526,7 +1553,7 @@ impl EmitterWriter {
 
                             self.draw_line(
                                 &mut buffer,
-                                &replace_tabs(&unannotated_line),
+                                &normalize_whitespace(&unannotated_line),
                                 annotated_file.lines[line_idx + 1].line_index - 1,
                                 last_buffer_line_num,
                                 width_offset,
@@ -1599,18 +1626,27 @@ impl EmitterWriter {
             suggestions.iter().take(MAX_SUGGESTIONS)
         {
             notice_capitalization |= only_capitalization;
-            // Only show underline if the suggestion spans a single line and doesn't cover the
-            // entirety of the code output. If you have multiple replacements in the same line
-            // of code, show the underline.
-            let show_underline = !(parts.len() == 1 && parts[0].snippet.trim() == complete.trim())
-                && complete.lines().count() == 1;
 
             let has_deletion = parts.iter().any(|p| p.is_deletion());
             let is_multiline = complete.lines().count() > 1;
 
-            let show_diff = has_deletion && !is_multiline;
+            enum DisplaySuggestion {
+                Underline,
+                Diff,
+                None,
+            }
 
-            if show_diff {
+            let show_code_change = if has_deletion && !is_multiline {
+                DisplaySuggestion::Diff
+            } else if (parts.len() != 1 || parts[0].snippet.trim() != complete.trim())
+                && !is_multiline
+            {
+                DisplaySuggestion::Underline
+            } else {
+                DisplaySuggestion::None
+            };
+
+            if let DisplaySuggestion::Diff = show_code_change {
                 row_num += 1;
             }
 
@@ -1633,7 +1669,7 @@ impl EmitterWriter {
                     &self.maybe_anonymized(line_start + line_pos),
                     Style::LineNumber,
                 );
-                if show_diff {
+                if let DisplaySuggestion::Diff = show_code_change {
                     // Add the line number for both addition and removal to drive the point home.
                     //
                     // N - fn foo<A: T>(bar: A) {
@@ -1648,7 +1684,7 @@ impl EmitterWriter {
                     buffer.puts(
                         row_num - 1,
                         max_line_num_len + 3,
-                        &replace_tabs(
+                        &normalize_whitespace(
                             &*file_lines
                                 .file
                                 .get_line(file_lines.lines[line_pos].line_index)
@@ -1674,7 +1710,7 @@ impl EmitterWriter {
                 }
 
                 // print the suggestion
-                buffer.append(row_num, &replace_tabs(line), Style::NoStyle);
+                buffer.append(row_num, &normalize_whitespace(line), Style::NoStyle);
 
                 // Colorize addition/replacements with green.
                 for &SubstitutionHighlight { start, end } in highlight_parts {
@@ -1703,7 +1739,7 @@ impl EmitterWriter {
             let mut offsets: Vec<(usize, isize)> = Vec::new();
             // Only show an underline in the suggestions if the suggestion is not the
             // entirety of the code being shown and the displayed code is not multiline.
-            if show_underline {
+            if let DisplaySuggestion::Diff | DisplaySuggestion::Underline = show_code_change {
                 draw_col_separator(&mut buffer, row_num, max_line_num_len + 1);
                 for part in parts {
                     let span_start_pos = sm.lookup_char_pos(part.span.lo()).col_display;
@@ -1731,7 +1767,7 @@ impl EmitterWriter {
                     assert!(underline_start >= 0 && underline_end >= 0);
                     let padding: usize = max_line_num_len + 3;
                     for p in underline_start..underline_end {
-                        if !show_diff {
+                        if let DisplaySuggestion::Underline = show_code_change {
                             // If this is a replacement, underline with `^`, if this is an addition
                             // underline with `+`.
                             buffer.putc(
@@ -1742,7 +1778,7 @@ impl EmitterWriter {
                             );
                         }
                     }
-                    if show_diff {
+                    if let DisplaySuggestion::Diff = show_code_change {
                         // Colorize removal with red in diff format.
                         buffer.set_style_range(
                             row_num - 2,
@@ -1773,7 +1809,7 @@ impl EmitterWriter {
             // if we elided some lines, add an ellipsis
             if lines.next().is_some() {
                 buffer.puts(row_num, max_line_num_len - 1, "...", Style::LineNumber);
-            } else if !show_underline {
+            } else if let DisplaySuggestion::None = show_code_change {
                 draw_col_separator_no_space(&mut buffer, row_num, max_line_num_len + 1);
                 row_num += 1;
             }
@@ -2054,8 +2090,27 @@ fn num_decimal_digits(num: usize) -> usize {
     MAX_DIGITS
 }
 
-fn replace_tabs(str: &str) -> String {
-    str.replace('\t', "    ")
+// We replace some characters so the CLI output is always consistent and underlines aligned.
+const OUTPUT_REPLACEMENTS: &[(char, &str)] = &[
+    ('\t', "    "),   // We do our own tab replacement
+    ('\u{200D}', ""), // Replace ZWJ with nothing for consistent terminal output of grapheme clusters.
+    ('\u{202A}', ""), // The following unicode text flow control characters are inconsistently
+    ('\u{202B}', ""), // supported across CLIs and can cause confusion due to the bytes on disk
+    ('\u{202D}', ""), // not corresponding to the visible source code, so we replace them always.
+    ('\u{202E}', ""),
+    ('\u{2066}', ""),
+    ('\u{2067}', ""),
+    ('\u{2068}', ""),
+    ('\u{202C}', ""),
+    ('\u{2069}', ""),
+];
+
+fn normalize_whitespace(str: &str) -> String {
+    let mut s = str.to_string();
+    for (c, replacement) in OUTPUT_REPLACEMENTS {
+        s = s.replace(*c, replacement);
+    }
+    s
 }
 
 fn draw_col_separator(buffer: &mut StyledBuffer, line: usize, col: usize) {
@@ -2308,7 +2363,7 @@ pub fn is_case_difference(sm: &SourceMap, suggested: &str, sp: Span) -> bool {
     let found = match sm.span_to_snippet(sp) {
         Ok(snippet) => snippet,
         Err(e) => {
-            warn!("Invalid span {:?}. Err={:?}", sp, e);
+            warn!(error = ?e, "Invalid span {:?}", sp);
             return false;
         }
     };

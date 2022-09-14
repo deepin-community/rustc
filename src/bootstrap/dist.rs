@@ -16,7 +16,7 @@ use std::process::Command;
 
 use build_helper::{output, t};
 
-use crate::builder::{Builder, RunConfig, ShouldRun, Step};
+use crate::builder::{Builder, Kind, RunConfig, ShouldRun, Step};
 use crate::cache::{Interned, INTERNER};
 use crate::compile;
 use crate::config::TargetSelection;
@@ -24,7 +24,6 @@ use crate::tarball::{GeneratedTarball, OverlayKind, Tarball};
 use crate::tool::{self, Tool};
 use crate::util::{exe, is_dylib, timeit};
 use crate::{Compiler, DependencyType, Mode, LLVM_TOOLS};
-use time::{self, Timespec};
 
 pub fn pkgname(builder: &Builder<'_>, component: &str) -> String {
     format!("{}-{}", component, builder.rust_package_vers())
@@ -64,7 +63,7 @@ impl Step for Docs {
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
         let default = run.builder.config.docs;
-        run.path("src/doc").default_condition(default)
+        run.path("rust-docs").default_condition(default)
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -96,7 +95,8 @@ impl Step for RustcDocs {
     const DEFAULT: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/librustc")
+        let builder = run.builder;
+        run.path("rustc-docs").default_condition(builder.config.compiler_docs)
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -106,9 +106,6 @@ impl Step for RustcDocs {
     /// Builds the `rustc-docs` installer component.
     fn run(self, builder: &Builder<'_>) -> Option<GeneratedTarball> {
         let host = self.host;
-        if !builder.config.compiler_docs {
-            return None;
-        }
         builder.default_doc(&[]);
 
         let mut tarball = Tarball::new(builder, "rustc-docs", &host.triple);
@@ -277,7 +274,7 @@ impl Step for Mingw {
     const DEFAULT: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.never()
+        run.path("rust-mingw")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -318,7 +315,7 @@ impl Step for Rustc {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/librustc")
+        run.path("rustc")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -400,12 +397,12 @@ impl Step for Rustc {
             // component for now.
             maybe_install_llvm_runtime(builder, host, image);
 
-            let src_dir = builder.sysroot_libdir(compiler, host).parent().unwrap().join("bin");
             let dst_dir = image.join("lib/rustlib").join(&*host.triple).join("bin");
             t!(fs::create_dir_all(&dst_dir));
 
             // Copy over lld if it's there
             if builder.config.lld_enabled {
+                let src_dir = builder.sysroot_libdir(compiler, host).parent().unwrap().join("bin");
                 let rust_lld = exe("rust-lld", compiler.host);
                 builder.copy(&src_dir.join(&rust_lld), &dst_dir.join(&rust_lld));
                 // for `-Z gcc-ld=lld`
@@ -419,42 +416,20 @@ impl Step for Rustc {
                 }
             }
 
-            // Copy over llvm-dwp if it's there
-            let exe = exe("rust-llvm-dwp", compiler.host);
-            builder.copy(&src_dir.join(&exe), &dst_dir.join(&exe));
-
             // Man pages
             t!(fs::create_dir_all(image.join("share/man/man1")));
             let man_src = builder.src.join("src/doc/man");
             let man_dst = image.join("share/man/man1");
 
-            // Reproducible builds: If SOURCE_DATE_EPOCH is set, use that as the time.
-            let time = env::var("SOURCE_DATE_EPOCH")
-                .map(|timestamp| {
-                    let epoch = timestamp
-                        .parse()
-                        .map_err(|err| format!("could not parse SOURCE_DATE_EPOCH: {}", err))
-                        .unwrap();
-
-                    time::at(Timespec::new(epoch, 0))
-                })
-                .unwrap_or_else(|_| time::now());
-
-            let month_year = t!(time::strftime("%B %Y", &time));
             // don't use our `bootstrap::util::{copy, cp_r}`, because those try
             // to hardlink, and we don't want to edit the source templates
             for file_entry in builder.read_dir(&man_src) {
                 let page_src = file_entry.path();
                 let page_dst = man_dst.join(file_entry.file_name());
+                let src_text = t!(std::fs::read_to_string(&page_src));
+                let new_text = src_text.replace("<INSERT VERSION HERE>", &builder.version);
+                t!(std::fs::write(&page_dst, &new_text));
                 t!(fs::copy(&page_src, &page_dst));
-                // template in month/year and version number
-                builder.replace_in_file(
-                    &page_dst,
-                    &[
-                        ("<INSERT DATE HERE>", &month_year),
-                        ("<INSERT VERSION HERE>", &builder.version),
-                    ],
-                );
             }
 
             // Debugger scripts
@@ -574,7 +549,7 @@ impl Step for Std {
     const DEFAULT: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("library/std")
+        run.path("rust-std")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -688,7 +663,7 @@ impl Step for Analysis {
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
         let default = should_build_extended_tool(&run.builder, "analysis");
-        run.path("analysis").default_condition(default)
+        run.path("rust-analysis").default_condition(default)
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -759,6 +734,8 @@ fn copy_src_dirs(
             "llvm-project\\llvm",
             "llvm-project/compiler-rt",
             "llvm-project\\compiler-rt",
+            "llvm-project/cmake",
+            "llvm-project\\cmake",
         ];
         if spath.contains("llvm-project")
             && !spath.ends_with("llvm-project")
@@ -823,7 +800,7 @@ impl Step for Src {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src")
+        run.path("rust-src")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -876,7 +853,7 @@ impl Step for PlainSourceTarball {
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
         let builder = run.builder;
-        run.path("src").default_condition(builder.config.rust_dist_src)
+        run.path("rustc-src").default_condition(builder.config.rust_dist_src)
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -1046,6 +1023,12 @@ impl Step for Rls {
         let rls = builder
             .ensure(tool::Rls { compiler, target, extra_features: Vec::new() })
             .or_else(|| {
+                if builder.config.rustc_parallel {
+                    // FIXME: Disable RLS on parallel builds, cannot build due
+                    // to upstream trouble. See
+                    // https://github.com/racer-rust/racer/pull/1177.
+                    return None;
+                }
                 missing_tool("RLS", builder.build.config.missing_tools);
                 None
             })?;
@@ -1374,7 +1357,7 @@ impl Step for Extended {
         let mut built_tools = HashSet::new();
         macro_rules! add_component {
             ($name:expr => $step:expr) => {
-                if let Some(tarball) = builder.ensure_if_default($step) {
+                if let Some(tarball) = builder.ensure_if_default($step, Kind::Dist) {
                     tarballs.push(tarball);
                     built_tools.insert($name);
                 }
@@ -1489,11 +1472,10 @@ impl Step for Extended {
             };
             prepare("rustc");
             prepare("cargo");
-            prepare("rust-docs");
             prepare("rust-std");
             prepare("rust-analysis");
             prepare("clippy");
-            for tool in &["rust-demangler", "rls", "rust-analyzer", "miri"] {
+            for tool in &["rust-docs", "rust-demangler", "rls", "rust-analyzer", "miri"] {
                 if built_tools.contains(tool) {
                     prepare(tool);
                 }
@@ -1566,7 +1548,9 @@ impl Step for Extended {
             builder.install(&etc.join("gfx/rust-logo.ico"), &exe, 0o644);
 
             // Generate msi installer
-            let wix = PathBuf::from(env::var_os("WIX").unwrap());
+            let wix_path = env::var_os("WIX")
+                .expect("`WIX` environment variable must be set for generating MSI installer(s).");
+            let wix = PathBuf::from(wix_path);
             let heat = wix.join("bin/heat.exe");
             let candle = wix.join("bin/candle.exe");
             let light = wix.join("bin/light.exe");
@@ -1899,12 +1883,6 @@ fn add_env(builder: &Builder<'_>, cmd: &mut Command, target: TargetSelection) {
     } else {
         cmd.env("CFG_MINGW", "0").env("CFG_ABI", "MSVC");
     }
-
-    if target.contains("x86_64") {
-        cmd.env("CFG_PLATFORM", "x64");
-    } else {
-        cmd.env("CFG_PLATFORM", "x86");
-    }
 }
 
 /// Maybe add LLVM object files to the given destination lib-dir. Allows either static or dynamic linking.
@@ -2087,6 +2065,13 @@ impl Step for RustDev {
         ] {
             tarball.add_file(src_bindir.join(exe(bin, target)), "bin", 0o755);
         }
+
+        // We don't build LLD on some platforms, so only add it if it exists
+        let lld_path = builder.lld_out(target).join("bin").join(exe("lld", target));
+        if lld_path.exists() {
+            tarball.add_file(lld_path, "bin", 0o755);
+        }
+
         tarball.add_file(&builder.llvm_filecheck(target), "bin", 0o755);
 
         // Copy the include directory as well; needed mostly to build
@@ -2122,7 +2107,7 @@ impl Step for BuildManifest {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/tools/build-manifest")
+        run.path("build-manifest")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -2154,7 +2139,7 @@ impl Step for ReproducibleArtifacts {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("reproducible")
+        run.path("reproducible-artifacts")
     }
 
     fn make_run(run: RunConfig<'_>) {

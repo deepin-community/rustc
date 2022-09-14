@@ -32,6 +32,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.55.0"]
     pub SELF_NAMED_CONSTRUCTORS,
     style,
     "method should not have the same name as the type it is implemented for"
@@ -62,10 +63,10 @@ impl<'tcx> LateLintPass<'tcx> for SelfNamedConstructors {
 
         // Ensure method is constructor-like
         if let Some(self_adt) = self_ty.ty_adt_def() {
-            if !contains_adt_constructor(cx.tcx, ret_ty, self_adt) {
+            if !contains_adt_constructor(ret_ty, self_adt) {
                 return;
             }
-        } else if !contains_ty(cx.tcx, ret_ty, self_ty) {
+        } else if !contains_ty(ret_ty, self_ty) {
             return;
         }
 
@@ -75,7 +76,7 @@ impl<'tcx> LateLintPass<'tcx> for SelfNamedConstructors {
             let self_id = cx.tcx.hir().local_def_id_to_hir_id(self_local_did);
             if let Some(Node::Item(x)) = cx.tcx.hir().find(self_id);
             let type_name = x.ident.name.as_str().to_lowercase();
-            if impl_item.ident.name.as_str() == type_name || impl_item.ident.name.as_str().replace("_", "") == type_name;
+            if impl_item.ident.name.as_str() == type_name || impl_item.ident.name.as_str().replace('_', "") == type_name;
 
             then {
                 span_lint(

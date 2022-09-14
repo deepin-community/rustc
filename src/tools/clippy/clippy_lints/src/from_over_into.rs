@@ -2,7 +2,7 @@ use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::{meets_msrv, msrvs};
 use if_chain::if_chain;
 use rustc_hir as hir;
-use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_lint::{LateContext, LateLintPass};
 use rustc_semver::RustcVersion;
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::symbol::sym;
@@ -34,6 +34,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.51.0"]
     pub FROM_OVER_INTO,
     style,
     "Warns on implementations of `Into<..>` to use `From<..>`"
@@ -52,7 +53,7 @@ impl FromOverInto {
 
 impl_lint_pass!(FromOverInto => [FROM_OVER_INTO]);
 
-impl LateLintPass<'_> for FromOverInto {
+impl<'tcx> LateLintPass<'tcx> for FromOverInto {
     fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx hir::Item<'_>) {
         if !meets_msrv(self.msrv.as_ref(), &msrvs::RE_REBALANCING_COHERENCE) {
             return;
@@ -61,7 +62,7 @@ impl LateLintPass<'_> for FromOverInto {
         if_chain! {
             if let hir::ItemKind::Impl{ .. } = &item.kind;
             if let Some(impl_trait_ref) = cx.tcx.impl_trait_ref(item.def_id);
-            if cx.tcx.is_diagnostic_item(sym::into_trait, impl_trait_ref.def_id);
+            if cx.tcx.is_diagnostic_item(sym::Into, impl_trait_ref.def_id);
 
             then {
                 span_lint_and_help(

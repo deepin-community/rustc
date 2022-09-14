@@ -8,7 +8,7 @@ use rustc_errors::{pluralize, struct_span_err, DiagnosticBuilder, ErrorReported}
 use rustc_macros::HashStable;
 use rustc_session::CtfeBacktrace;
 use rustc_span::def_id::DefId;
-use rustc_target::abi::{Align, Size};
+use rustc_target::abi::{call, Align, Size};
 use std::{any::Any, backtrace::Backtrace, fmt};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, HashStable, TyEncodable, TyDecodable)]
@@ -63,7 +63,7 @@ impl fmt::Display for InterpErrorInfo<'_> {
     }
 }
 
-impl InterpErrorInfo<'tcx> {
+impl<'tcx> InterpErrorInfo<'tcx> {
     pub fn print_backtrace(&self) {
         if let Some(backtrace) = self.0.backtrace.as_ref() {
             print_backtrace(backtrace);
@@ -141,6 +141,10 @@ pub enum InvalidProgramInfo<'tcx> {
     AlreadyReported(ErrorReported),
     /// An error occurred during layout computation.
     Layout(layout::LayoutError<'tcx>),
+    /// An error occurred during FnAbi computation: the passed --target lacks FFI support
+    /// (which unfortunately typeck does not reject).
+    /// Not using `FnAbiError` as that contains a nested `LayoutError`.
+    FnAbiAdjustForForeignAbi(call::AdjustForForeignAbiError),
     /// An invalid transmute happened.
     TransmuteSizeDiff(Ty<'tcx>, Ty<'tcx>),
     /// SizeOf of unsized type was requested.
@@ -157,6 +161,7 @@ impl fmt::Display for InvalidProgramInfo<'_> {
                 write!(f, "encountered constants with type errors, stopping evaluation")
             }
             Layout(ref err) => write!(f, "{}", err),
+            FnAbiAdjustForForeignAbi(ref err) => write!(f, "{}", err),
             TransmuteSizeDiff(from_ty, to_ty) => write!(
                 f,
                 "transmuting `{}` to `{}` is not possible, because these types do not have the same size",
@@ -287,6 +292,8 @@ pub enum UndefinedBehaviorInfo<'tcx> {
         target_size: u64,
         data_size: u64,
     },
+    /// A discriminant of an uninhabited enum variant is written.
+    UninhabitedEnumVariantWritten,
 }
 
 impl fmt::Display for UndefinedBehaviorInfo<'_> {
@@ -391,6 +398,9 @@ impl fmt::Display for UndefinedBehaviorInfo<'_> {
                 "scalar size mismatch: expected {} bytes but got {} bytes instead",
                 target_size, data_size
             ),
+            UninhabitedEnumVariantWritten => {
+                write!(f, "writing discriminant of an uninhabited enum")
+            }
         }
     }
 }
@@ -487,9 +497,6 @@ impl dyn MachineStopType {
     }
 }
 
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(InterpError<'_>, 64);
-
 pub enum InterpError<'tcx> {
     /// The program caused undefined behavior.
     UndefinedBehavior(UndefinedBehaviorInfo<'tcx>),
@@ -533,12 +540,12 @@ impl InterpError<'_> {
     /// To avoid performance issues, there are places where we want to be sure to never raise these formatting errors,
     /// so this method lets us detect them and `bug!` on unexpected errors.
     pub fn formatted_string(&self) -> bool {
-        match self {
+        matches!(
+            self,
             InterpError::Unsupported(UnsupportedOpInfo::Unsupported(_))
-            | InterpError::UndefinedBehavior(UndefinedBehaviorInfo::ValidationFailure { .. })
-            | InterpError::UndefinedBehavior(UndefinedBehaviorInfo::Ub(_)) => true,
-            _ => false,
-        }
+                | InterpError::UndefinedBehavior(UndefinedBehaviorInfo::ValidationFailure { .. })
+                | InterpError::UndefinedBehavior(UndefinedBehaviorInfo::Ub(_))
+        )
     }
 
     /// Should this error be reported as a hard error, preventing compilation, or a soft error,

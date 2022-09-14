@@ -2,7 +2,7 @@ use crate::ffi::{CStr, CString, OsString};
 use crate::fmt;
 use crate::hash::{Hash, Hasher};
 use crate::io::{self, Error, ErrorKind};
-use crate::io::{IoSlice, IoSliceMut, SeekFrom};
+use crate::io::{IoSlice, IoSliceMut, ReadBuf, SeekFrom};
 use crate::os::unix::ffi::OsStrExt;
 use crate::path::{Path, PathBuf};
 use crate::sys::cvt;
@@ -226,7 +226,7 @@ impl OpenOptions {
             (false, _, true) => Ok(O_WRONLY | O_APPEND),
             (true, _, true) => Ok(O_RDWR | O_APPEND),
             (false, false, false) => {
-                Err(io::Error::new_const(ErrorKind::InvalidInput, &"invalid access mode"))
+                Err(io::const_io_error!(ErrorKind::InvalidInput, "invalid access mode"))
             }
         }
     }
@@ -236,17 +236,17 @@ impl OpenOptions {
             (true, false) => {}
             (false, false) => {
                 if self.truncate || self.create || self.create_new {
-                    return Err(io::Error::new_const(
+                    return Err(io::const_io_error!(
                         ErrorKind::InvalidInput,
-                        &"invalid creation mode",
+                        "invalid creation mode",
                     ));
                 }
             }
             (_, true) => {
                 if self.truncate && !self.create_new {
-                    return Err(io::Error::new_const(
+                    return Err(io::const_io_error!(
                         ErrorKind::InvalidInput,
-                        &"invalid creation mode",
+                        "invalid creation mode",
                     ));
                 }
             }
@@ -310,6 +310,10 @@ impl File {
     #[inline]
     pub fn is_read_vectored(&self) -> bool {
         false
+    }
+
+    pub fn read_buf(&self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        crate::io::default_read_buf(|buf| self.read(buf), buf)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {

@@ -1,9 +1,11 @@
 use clippy_utils::diagnostics::{span_lint_hir, span_lint_hir_and_then};
+use clippy_utils::is_lint_allowed;
+use clippy_utils::peel_blocks;
 use clippy_utils::source::snippet_opt;
 use clippy_utils::ty::has_drop;
 use rustc_errors::Applicability;
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::{is_range_literal, BinOpKind, BlockCheckMode, Expr, ExprKind, Stmt, StmtKind, UnsafeSource};
+use rustc_hir::{is_range_literal, BinOpKind, BlockCheckMode, Expr, ExprKind, PatKind, Stmt, StmtKind, UnsafeSource};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use std::ops::Deref;
@@ -13,7 +15,7 @@ declare_clippy_lint! {
     /// Checks for statements which have no effect.
     ///
     /// ### Why is this bad?
-    /// Similar to dead code, these statements are actually
+    /// Unlike dead code, these statements are actually
     /// executed. However, as they have no effect, all they do is make the code less
     /// readable.
     ///
@@ -21,9 +23,33 @@ declare_clippy_lint! {
     /// ```rust
     /// 0;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub NO_EFFECT,
     complexity,
     "statements with no effect"
+}
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Checks for binding to underscore prefixed variable without side-effects.
+    ///
+    /// ### Why is this bad?
+    /// Unlike dead code, these bindings are actually
+    /// executed. However, as they have no effect and shouldn't be used further on, all they
+    /// do is make the code less readable.
+    ///
+    /// ### Known problems
+    /// Further usage of this variable is not checked, which can lead to false positives if it is
+    /// used later in the code.
+    ///
+    /// ### Example
+    /// ```rust,ignore
+    /// let _i_serve_no_purpose = 1;
+    /// ```
+    #[clippy::version = "1.58.0"]
+    pub NO_EFFECT_UNDERSCORE_BINDING,
+    pedantic,
+    "binding to `_` prefixed variable with no side-effect"
 }
 
 declare_clippy_lint! {
@@ -39,16 +65,57 @@ declare_clippy_lint! {
     /// ```rust,ignore
     /// compute_array()[0];
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub UNNECESSARY_OPERATION,
     complexity,
     "outer expressions with no effect"
+}
+
+declare_lint_pass!(NoEffect => [NO_EFFECT, UNNECESSARY_OPERATION, NO_EFFECT_UNDERSCORE_BINDING]);
+
+impl<'tcx> LateLintPass<'tcx> for NoEffect {
+    fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
+        if check_no_effect(cx, stmt) {
+            return;
+        }
+        check_unnecessary_operation(cx, stmt);
+    }
+}
+
+fn check_no_effect(cx: &LateContext<'_>, stmt: &Stmt<'_>) -> bool {
+    if let StmtKind::Semi(expr) = stmt.kind {
+        if has_no_effect(cx, expr) {
+            span_lint_hir(cx, NO_EFFECT, expr.hir_id, stmt.span, "statement with no effect");
+            return true;
+        }
+    } else if let StmtKind::Local(local) = stmt.kind {
+        if_chain! {
+            if !is_lint_allowed(cx, NO_EFFECT_UNDERSCORE_BINDING, local.hir_id);
+            if let Some(init) = local.init;
+            if !local.pat.span.from_expansion();
+            if has_no_effect(cx, init);
+            if let PatKind::Binding(_, _, ident, _) = local.pat.kind;
+            if ident.name.to_ident_string().starts_with('_');
+            then {
+                span_lint_hir(
+                    cx,
+                    NO_EFFECT_UNDERSCORE_BINDING,
+                    init.hir_id,
+                    stmt.span,
+                    "binding to `_` prefixed variable with no side-effect"
+                );
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn has_no_effect(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     if expr.span.from_expansion() {
         return false;
     }
-    match expr.kind {
+    match peel_blocks(expr).kind {
         ExprKind::Lit(..) | ExprKind::Closure(..) => true,
         ExprKind::Path(..) => !has_drop(cx, cx.typeck_results().expr_ty(expr)),
         ExprKind::Index(a, b) | ExprKind::Binary(_, a, b) => has_no_effect(cx, a) && has_no_effect(cx, b),
@@ -67,9 +134,12 @@ fn has_no_effect(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         },
         ExprKind::Call(callee, args) => {
             if let ExprKind::Path(ref qpath) = callee.kind {
-                let res = cx.qpath_res(qpath, callee.hir_id);
+                if cx.typeck_results().type_dependent_def(expr.hir_id).is_some() {
+                    // type-dependent function call like `impl FnOnce for X`
+                    return false;
+                }
                 let def_matched = matches!(
-                    res,
+                    cx.qpath_res(qpath, callee.hir_id),
                     Res::Def(DefKind::Struct | DefKind::Variant | DefKind::Ctor(..), ..)
                 );
                 if def_matched || is_range_literal(expr) {
@@ -81,26 +151,42 @@ fn has_no_effect(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
                 false
             }
         },
-        ExprKind::Block(block, _) => {
-            block.stmts.is_empty() && block.expr.as_ref().map_or(false, |expr| has_no_effect(cx, expr))
-        },
         _ => false,
     }
 }
 
-declare_lint_pass!(NoEffect => [NO_EFFECT, UNNECESSARY_OPERATION]);
-
-impl<'tcx> LateLintPass<'tcx> for NoEffect {
-    fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &'tcx Stmt<'_>) {
-        if let StmtKind::Semi(expr) = stmt.kind {
-            if has_no_effect(cx, expr) {
-                span_lint_hir(cx, NO_EFFECT, expr.hir_id, stmt.span, "statement with no effect");
-            } else if let Some(reduced) = reduce_expression(cx, expr) {
+fn check_unnecessary_operation(cx: &LateContext<'_>, stmt: &Stmt<'_>) {
+    if_chain! {
+        if let StmtKind::Semi(expr) = stmt.kind;
+        if let Some(reduced) = reduce_expression(cx, expr);
+        if !&reduced.iter().any(|e| e.span.from_expansion());
+        then {
+            if let ExprKind::Index(..) = &expr.kind {
+                let snippet = if let (Some(arr), Some(func)) =
+                    (snippet_opt(cx, reduced[0].span), snippet_opt(cx, reduced[1].span))
+                {
+                    format!("assert!({}.len() > {});", &arr, &func)
+                } else {
+                    return;
+                };
+                span_lint_hir_and_then(
+                    cx,
+                    UNNECESSARY_OPERATION,
+                    expr.hir_id,
+                    stmt.span,
+                    "unnecessary operation",
+                    |diag| {
+                        diag.span_suggestion(
+                            stmt.span,
+                            "statement can be written as",
+                            snippet,
+                            Applicability::MaybeIncorrect,
+                        );
+                    },
+                );
+            } else {
                 let mut snippet = String::new();
                 for e in reduced {
-                    if e.span.from_expansion() {
-                        return;
-                    }
                     if let Some(snip) = snippet_opt(cx, e.span) {
                         snippet.push_str(&snip);
                         snippet.push(';');
@@ -113,9 +199,14 @@ impl<'tcx> LateLintPass<'tcx> for NoEffect {
                     UNNECESSARY_OPERATION,
                     expr.hir_id,
                     stmt.span,
-                    "statement can be reduced",
+                    "unnecessary operation",
                     |diag| {
-                        diag.span_suggestion(stmt.span, "replace it with", snippet, Applicability::MachineApplicable);
+                        diag.span_suggestion(
+                            stmt.span,
+                            "statement can be reduced to",
+                            snippet,
+                            Applicability::MachineApplicable,
+                        );
                     },
                 );
             }
@@ -149,6 +240,10 @@ fn reduce_expression<'a>(cx: &LateContext<'_>, expr: &'a Expr<'a>) -> Option<Vec
         },
         ExprKind::Call(callee, args) => {
             if let ExprKind::Path(ref qpath) = callee.kind {
+                if cx.typeck_results().type_dependent_def(expr.hir_id).is_some() {
+                    // type-dependent function call like `impl FnOnce for X`
+                    return None;
+                }
                 let res = cx.qpath_res(qpath, callee.hir_id);
                 match res {
                     Res::Def(DefKind::Struct | DefKind::Variant | DefKind::Ctor(..), ..)

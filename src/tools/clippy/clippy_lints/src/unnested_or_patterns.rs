@@ -39,6 +39,7 @@ declare_clippy_lint! {
     ///     if let Some(0 | 2) = Some(0) {}
     /// }
     /// ```
+    #[clippy::version = "1.46.0"]
     pub UNNESTED_OR_PATTERNS,
     pedantic,
     "unnested or-patterns, e.g., `Foo(Bar) | Foo(Baz) instead of `Foo(Bar | Baz)`"
@@ -290,7 +291,7 @@ fn transform_with_focus_on_idx(alternatives: &mut Vec<P<Pat>>, focus_idx: usize)
 fn extend_with_struct_pat(
     qself1: &Option<ast::QSelf>,
     path1: &ast::Path,
-    fps1: &mut Vec<ast::PatField>,
+    fps1: &mut [ast::PatField],
     rest1: bool,
     start: usize,
     alternatives: &mut Vec<P<Pat>>,
@@ -331,7 +332,7 @@ fn extend_with_struct_pat(
 /// while also requiring `ps1[..n] ~ ps2[..n]` (pre) and `ps1[n + 1..] ~ ps2[n + 1..]` (post),
 /// where `~` denotes semantic equality.
 fn extend_with_matching_product(
-    targets: &mut Vec<P<Pat>>,
+    targets: &mut [P<Pat>],
     start: usize,
     alternatives: &mut Vec<P<Pat>>,
     predicate: impl Fn(&PatKind, &[P<Pat>], usize) -> bool,

@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::parse_quote;
+use syn::spanned::Spanned;
 
 pub fn type_decodable_derive(mut s: synstructure::Structure<'_>) -> proc_macro2::TokenStream {
     let decoder_ty = quote! { __D };
@@ -46,7 +47,7 @@ fn decodable_body(
             quote! {
                 ::rustc_serialize::Decoder::read_struct(
                     __decoder,
-                    |__decoder| { ::std::result::Result::Ok(#construct) },
+                    |__decoder| { #construct },
                 )
             }
         }
@@ -56,7 +57,7 @@ fn decodable_body(
                 .enumerate()
                 .map(|(idx, vi)| {
                     let construct = vi.construct(|field, index| decode_field(field, index, false));
-                    quote! { #idx => { ::std::result::Result::Ok(#construct) } }
+                    quote! { #idx => { #construct } }
                 })
                 .collect();
             let names: TokenStream = variants
@@ -81,8 +82,7 @@ fn decodable_body(
                             |__decoder, __variant_idx| {
                                 match __variant_idx {
                                     #match_inner
-                                    _ => return ::std::result::Result::Err(
-                                        ::rustc_serialize::Decoder::error(__decoder, #message)),
+                                    _ => panic!(#message),
                                 }
                             })
                     }
@@ -94,9 +94,7 @@ fn decodable_body(
     s.bound_impl(
         quote!(::rustc_serialize::Decodable<#decoder_ty>),
         quote! {
-            fn decode(
-                __decoder: &mut #decoder_ty,
-            ) -> ::std::result::Result<Self, <#decoder_ty as ::rustc_serialize::Decoder>::Error> {
+            fn decode(__decoder: &mut #decoder_ty) -> Self {
                 #decode_body
             }
         },
@@ -104,6 +102,8 @@ fn decodable_body(
 }
 
 fn decode_field(field: &syn::Field, index: usize, is_struct: bool) -> proc_macro2::TokenStream {
+    let field_span = field.ident.as_ref().map_or(field.ty.span(), |ident| ident.span());
+
     let decode_inner_method = if let syn::Type::Reference(_) = field.ty {
         quote! { ::rustc_middle::ty::codec::RefDecodable::decode }
     } else {
@@ -111,24 +111,20 @@ fn decode_field(field: &syn::Field, index: usize, is_struct: bool) -> proc_macro
     };
     let (decode_method, opt_field_name) = if is_struct {
         let field_name = field.ident.as_ref().map_or_else(|| index.to_string(), |i| i.to_string());
-        (
-            proc_macro2::Ident::new("read_struct_field", proc_macro2::Span::call_site()),
-            quote! { #field_name, },
-        )
+        (proc_macro2::Ident::new("read_struct_field", field_span), quote! { #field_name, })
     } else {
-        (
-            proc_macro2::Ident::new("read_enum_variant_arg", proc_macro2::Span::call_site()),
-            quote! {},
-        )
+        (proc_macro2::Ident::new("read_enum_variant_arg", field_span), quote! {})
     };
 
-    quote! {
-        match ::rustc_serialize::Decoder::#decode_method(
-            __decoder, #opt_field_name #decode_inner_method) {
-            ::std::result::Result::Ok(__res) => __res,
-            ::std::result::Result::Err(__err) => return ::std::result::Result::Err(__err),
-        }
-    }
+    let __decoder = quote! { __decoder };
+    // Use the span of the field for the method call, so
+    // that backtraces will point to the field.
+    let decode_call = quote_spanned! {field_span=>
+        ::rustc_serialize::Decoder::#decode_method(
+                #__decoder, #opt_field_name #decode_inner_method)
+    };
+
+    quote! { #decode_call }
 }
 
 pub fn type_encodable_derive(mut s: synstructure::Structure<'_>) -> proc_macro2::TokenStream {
@@ -247,13 +243,24 @@ fn encodable_body(
                     })
                     .collect();
 
-                let result = quote! { ::rustc_serialize::Encoder::emit_enum_variant(
-                    __encoder,
-                   #variant_name,
-                   #variant_idx,
-                   #field_idx,
-                   |__encoder| { ::std::result::Result::Ok({ #encode_fields }) }
-                ) };
+                let result = if field_idx != 0 {
+                    quote! {
+                        ::rustc_serialize::Encoder::emit_enum_variant(
+                            __encoder,
+                            #variant_name,
+                            #variant_idx,
+                            #field_idx,
+                            |__encoder| { ::std::result::Result::Ok({ #encode_fields }) }
+                        )
+                    }
+                } else {
+                    quote! {
+                        ::rustc_serialize::Encoder::emit_fieldless_enum_variant::<#variant_idx>(
+                            __encoder,
+                            #variant_name,
+                        )
+                    }
+                };
                 variant_idx += 1;
                 result
             });

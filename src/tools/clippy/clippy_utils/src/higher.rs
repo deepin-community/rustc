@@ -1,44 +1,50 @@
-//! This module contains functions that retrieves specifiec elements.
+//! This module contains functions that retrieve specific elements.
 
 #![deny(clippy::missing_docs_in_private_items)]
 
+use crate::ty::is_type_diagnostic_item;
 use crate::{is_expn_of, match_def_path, paths};
 use if_chain::if_chain;
 use rustc_ast::ast::{self, LitKind};
 use rustc_hir as hir;
-use rustc_hir::{Block, BorrowKind, Expr, ExprKind, LoopSource, Node, Pat, StmtKind, UnOp};
+use rustc_hir::{Arm, Block, Expr, ExprKind, HirId, LoopSource, MatchSource, Node, Pat, QPath};
 use rustc_lint::LateContext;
-use rustc_span::{sym, ExpnKind, Span, Symbol};
+use rustc_span::{sym, symbol, Span};
 
 /// The essential nodes of a desugared for loop as well as the entire span:
 /// `for pat in arg { body }` becomes `(pat, arg, body)`. Return `(pat, arg, body, span)`.
 pub struct ForLoop<'tcx> {
+    /// `for` loop item
     pub pat: &'tcx hir::Pat<'tcx>,
+    /// `IntoIterator` argument
     pub arg: &'tcx hir::Expr<'tcx>,
+    /// `for` loop body
     pub body: &'tcx hir::Expr<'tcx>,
+    /// Compare this against `hir::Destination.target`
+    pub loop_id: HirId,
+    /// entire `for` loop span
     pub span: Span,
 }
 
 impl<'tcx> ForLoop<'tcx> {
-    #[inline]
+    /// Parses a desugared `for` loop
     pub fn hir(expr: &Expr<'tcx>) -> Option<Self> {
         if_chain! {
-            if let hir::ExprKind::Match(ref iterexpr, ref arms, hir::MatchSource::ForLoopDesugar) = expr.kind;
-            if let Some(first_arm) = arms.get(0);
-            if let hir::ExprKind::Call(_, ref iterargs) = iterexpr.kind;
-            if let Some(first_arg) = iterargs.get(0);
-            if iterargs.len() == 1 && arms.len() == 1 && first_arm.guard.is_none();
-            if let hir::ExprKind::Loop(ref block, ..) = first_arm.body.kind;
-            if block.expr.is_none();
-            if let [ _, _, ref let_stmt, ref body ] = *block.stmts;
-            if let hir::StmtKind::Local(ref local) = let_stmt.kind;
-            if let hir::StmtKind::Expr(ref body_expr) = body.kind;
+            if let hir::ExprKind::DropTemps(e) = expr.kind;
+            if let hir::ExprKind::Match(iterexpr, [arm], hir::MatchSource::ForLoopDesugar) = e.kind;
+            if let hir::ExprKind::Call(_, [arg]) = iterexpr.kind;
+            if let hir::ExprKind::Loop(block, ..) = arm.body.kind;
+            if let [stmt] = &*block.stmts;
+            if let hir::StmtKind::Expr(e) = stmt.kind;
+            if let hir::ExprKind::Match(_, [_, some_arm], _) = e.kind;
+            if let hir::PatKind::Struct(_, [field], _) = some_arm.pat.kind;
             then {
                 return Some(Self {
-                    pat: &*local.pat,
-                    arg: first_arg,
-                    body: body_expr,
-                    span: first_arm.span
+                    pat: field.pat,
+                    arg,
+                    body: some_arm.body,
+                    loop_id: arm.body.hir_id,
+                    span: expr.span.ctxt().outer_expn_data().call_site,
                 });
             }
         }
@@ -46,14 +52,19 @@ impl<'tcx> ForLoop<'tcx> {
     }
 }
 
+/// An `if` expression without `DropTemps`
 pub struct If<'hir> {
+    /// `if` condition
     pub cond: &'hir Expr<'hir>,
-    pub r#else: Option<&'hir Expr<'hir>>,
+    /// `if` then expression
     pub then: &'hir Expr<'hir>,
+    /// `else` expression
+    pub r#else: Option<&'hir Expr<'hir>>,
 }
 
 impl<'hir> If<'hir> {
     #[inline]
+    /// Parses an `if` expression
     pub const fn hir(expr: &Expr<'hir>) -> Option<Self> {
         if let ExprKind::If(
             Expr {
@@ -64,35 +75,52 @@ impl<'hir> If<'hir> {
             r#else,
         ) = expr.kind
         {
-            Some(Self { cond, r#else, then })
+            Some(Self { cond, then, r#else })
         } else {
             None
         }
     }
 }
 
+/// An `if let` expression
 pub struct IfLet<'hir> {
+    /// `if let` pattern
     pub let_pat: &'hir Pat<'hir>,
+    /// `if let` scrutinee
     pub let_expr: &'hir Expr<'hir>,
+    /// `if let` then expression
     pub if_then: &'hir Expr<'hir>,
+    /// `if let` else expression
     pub if_else: Option<&'hir Expr<'hir>>,
 }
 
 impl<'hir> IfLet<'hir> {
+    /// Parses an `if let` expression
     pub fn hir(cx: &LateContext<'_>, expr: &Expr<'hir>) -> Option<Self> {
         if let ExprKind::If(
             Expr {
-                kind: ExprKind::Let(let_pat, let_expr, _),
+                kind:
+                    ExprKind::Let(hir::Let {
+                        pat: let_pat,
+                        init: let_expr,
+                        ..
+                    }),
                 ..
             },
             if_then,
             if_else,
         ) = expr.kind
         {
-            let hir = cx.tcx.hir();
-            let mut iter = hir.parent_iter(expr.hir_id);
+            let mut iter = cx.tcx.hir().parent_iter(expr.hir_id);
             if let Some((_, Node::Block(Block { stmts: [], .. }))) = iter.next() {
-                if let Some((_, Node::Expr(Expr { kind: ExprKind::Loop(_, _, LoopSource::While, _), .. }))) = iter.next() {
+                if let Some((
+                    _,
+                    Node::Expr(Expr {
+                        kind: ExprKind::Loop(_, _, LoopSource::While, _),
+                        ..
+                    }),
+                )) = iter.next()
+                {
                     // while loop desugar
                     return None;
                 }
@@ -108,14 +136,49 @@ impl<'hir> IfLet<'hir> {
     }
 }
 
+/// An `if let` or `match` expression. Useful for lints that trigger on one or the other.
+pub enum IfLetOrMatch<'hir> {
+    /// Any `match` expression
+    Match(&'hir Expr<'hir>, &'hir [Arm<'hir>], MatchSource),
+    /// scrutinee, pattern, then block, else block
+    IfLet(
+        &'hir Expr<'hir>,
+        &'hir Pat<'hir>,
+        &'hir Expr<'hir>,
+        Option<&'hir Expr<'hir>>,
+    ),
+}
+
+impl<'hir> IfLetOrMatch<'hir> {
+    /// Parses an `if let` or `match` expression
+    pub fn parse(cx: &LateContext<'_>, expr: &Expr<'hir>) -> Option<Self> {
+        match expr.kind {
+            ExprKind::Match(expr, arms, source) => Some(Self::Match(expr, arms, source)),
+            _ => IfLet::hir(cx, expr).map(
+                |IfLet {
+                     let_expr,
+                     let_pat,
+                     if_then,
+                     if_else,
+                 }| { Self::IfLet(let_expr, let_pat, if_then, if_else) },
+            ),
+        }
+    }
+}
+
+/// An `if` or `if let` expression
 pub struct IfOrIfLet<'hir> {
+    /// `if` condition that is maybe a `let` expression
     pub cond: &'hir Expr<'hir>,
-    pub r#else: Option<&'hir Expr<'hir>>,
+    /// `if` then expression
     pub then: &'hir Expr<'hir>,
+    /// `else` expression
+    pub r#else: Option<&'hir Expr<'hir>>,
 }
 
 impl<'hir> IfOrIfLet<'hir> {
     #[inline]
+    /// Parses an `if` or `if let` expression
     pub const fn hir(expr: &Expr<'hir>) -> Option<Self> {
         if let ExprKind::If(cond, then, r#else) = expr.kind {
             if let ExprKind::DropTemps(new_cond) = cond.kind {
@@ -126,7 +189,7 @@ impl<'hir> IfOrIfLet<'hir> {
                 });
             }
             if let ExprKind::Let(..) = cond.kind {
-                return Some(Self { cond, r#else, then });
+                return Some(Self { cond, then, r#else });
             }
         }
         None
@@ -155,10 +218,10 @@ impl<'a> Range<'a> {
         }
 
         match expr.kind {
-            hir::ExprKind::Call(ref path, ref args)
+            hir::ExprKind::Call(path, args)
                 if matches!(
                     path.kind,
-                    hir::ExprKind::Path(hir::QPath::LangItem(hir::LangItem::RangeInclusiveNew, _))
+                    hir::ExprKind::Path(hir::QPath::LangItem(hir::LangItem::RangeInclusiveNew, ..))
                 ) =>
             {
                 Some(Range {
@@ -167,28 +230,28 @@ impl<'a> Range<'a> {
                     limits: ast::RangeLimits::Closed,
                 })
             },
-            hir::ExprKind::Struct(ref path, ref fields, None) => match path {
-                hir::QPath::LangItem(hir::LangItem::RangeFull, _) => Some(Range {
+            hir::ExprKind::Struct(path, fields, None) => match &path {
+                hir::QPath::LangItem(hir::LangItem::RangeFull, ..) => Some(Range {
                     start: None,
                     end: None,
                     limits: ast::RangeLimits::HalfOpen,
                 }),
-                hir::QPath::LangItem(hir::LangItem::RangeFrom, _) => Some(Range {
+                hir::QPath::LangItem(hir::LangItem::RangeFrom, ..) => Some(Range {
                     start: Some(get_field("start", fields)?),
                     end: None,
                     limits: ast::RangeLimits::HalfOpen,
                 }),
-                hir::QPath::LangItem(hir::LangItem::Range, _) => Some(Range {
+                hir::QPath::LangItem(hir::LangItem::Range, ..) => Some(Range {
                     start: Some(get_field("start", fields)?),
                     end: Some(get_field("end", fields)?),
                     limits: ast::RangeLimits::HalfOpen,
                 }),
-                hir::QPath::LangItem(hir::LangItem::RangeToInclusive, _) => Some(Range {
+                hir::QPath::LangItem(hir::LangItem::RangeToInclusive, ..) => Some(Range {
                     start: None,
                     end: Some(get_field("end", fields)?),
                     limits: ast::RangeLimits::Closed,
                 }),
-                hir::QPath::LangItem(hir::LangItem::RangeTo, _) => Some(Range {
+                hir::QPath::LangItem(hir::LangItem::RangeTo, ..) => Some(Range {
                     start: None,
                     end: Some(get_field("end", fields)?),
                     limits: ast::RangeLimits::HalfOpen,
@@ -213,7 +276,7 @@ impl<'a> VecArgs<'a> {
     /// from `vec!`.
     pub fn hir(cx: &LateContext<'_>, expr: &'a hir::Expr<'_>) -> Option<VecArgs<'a>> {
         if_chain! {
-            if let hir::ExprKind::Call(ref fun, ref args) = expr.kind;
+            if let hir::ExprKind::Call(fun, args) = expr.kind;
             if let hir::ExprKind::Path(ref qpath) = fun.kind;
             if is_expn_of(fun.span, "vec").is_some();
             if let Some(fun_def_id) = cx.qpath_res(qpath, fun.hir_id).opt_def_id();
@@ -221,23 +284,20 @@ impl<'a> VecArgs<'a> {
                 return if match_def_path(cx, fun_def_id, &paths::VEC_FROM_ELEM) && args.len() == 2 {
                     // `vec![elem; size]` case
                     Some(VecArgs::Repeat(&args[0], &args[1]))
-                }
-                else if match_def_path(cx, fun_def_id, &paths::SLICE_INTO_VEC) && args.len() == 1 {
+                } else if match_def_path(cx, fun_def_id, &paths::SLICE_INTO_VEC) && args.len() == 1 {
                     // `vec![a, b, c]` case
                     if_chain! {
-                        if let hir::ExprKind::Box(ref boxed) = args[0].kind;
-                        if let hir::ExprKind::Array(ref args) = boxed.kind;
+                        if let hir::ExprKind::Box(boxed) = args[0].kind;
+                        if let hir::ExprKind::Array(args) = boxed.kind;
                         then {
-                            return Some(VecArgs::Vec(&*args));
+                            return Some(VecArgs::Vec(args));
                         }
                     }
 
                     None
-                }
-                else if match_def_path(cx, fun_def_id, &paths::VEC_NEW) && args.is_empty() {
+                } else if match_def_path(cx, fun_def_id, &paths::VEC_NEW) && args.is_empty() {
                     Some(VecArgs::Vec(&[]))
-                }
-                else {
+                } else {
                     None
                 };
             }
@@ -247,14 +307,17 @@ impl<'a> VecArgs<'a> {
     }
 }
 
+/// A desugared `while` loop
 pub struct While<'hir> {
-    pub if_cond: &'hir Expr<'hir>,
-    pub if_then: &'hir Expr<'hir>,
-    pub if_else: Option<&'hir Expr<'hir>>,
+    /// `while` loop condition
+    pub condition: &'hir Expr<'hir>,
+    /// `while` loop body
+    pub body: &'hir Expr<'hir>,
 }
 
 impl<'hir> While<'hir> {
     #[inline]
+    /// Parses a desugared `while` loop
     pub const fn hir(expr: &Expr<'hir>) -> Option<Self> {
         if let ExprKind::Loop(
             Block {
@@ -263,11 +326,11 @@ impl<'hir> While<'hir> {
                         kind:
                             ExprKind::If(
                                 Expr {
-                                    kind: ExprKind::DropTemps(if_cond),
+                                    kind: ExprKind::DropTemps(condition),
                                     ..
                                 },
-                                if_then,
-                                if_else_ref,
+                                body,
+                                _,
                             ),
                         ..
                     }),
@@ -278,59 +341,58 @@ impl<'hir> While<'hir> {
             _,
         ) = expr.kind
         {
-            let if_else = *if_else_ref;
-            return Some(Self {
-                if_cond,
-                if_then,
-                if_else,
-            });
+            return Some(Self { condition, body });
         }
         None
     }
 }
 
+/// A desugared `while let` loop
 pub struct WhileLet<'hir> {
-    pub if_expr: &'hir Expr<'hir>,
+    /// `while let` loop item pattern
     pub let_pat: &'hir Pat<'hir>,
+    /// `while let` loop scrutinee
     pub let_expr: &'hir Expr<'hir>,
+    /// `while let` loop body
     pub if_then: &'hir Expr<'hir>,
-    pub if_else: Option<&'hir Expr<'hir>>,
 }
 
 impl<'hir> WhileLet<'hir> {
     #[inline]
+    /// Parses a desugared `while let` loop
     pub const fn hir(expr: &Expr<'hir>) -> Option<Self> {
         if let ExprKind::Loop(
             Block {
-                expr: Some(if_expr), ..
+                expr:
+                    Some(Expr {
+                        kind:
+                            ExprKind::If(
+                                Expr {
+                                    kind:
+                                        ExprKind::Let(hir::Let {
+                                            pat: let_pat,
+                                            init: let_expr,
+                                            ..
+                                        }),
+                                    ..
+                                },
+                                if_then,
+                                _,
+                            ),
+                        ..
+                    }),
+                ..
             },
             _,
             LoopSource::While,
             _,
         ) = expr.kind
         {
-            if let Expr {
-                kind:
-                    ExprKind::If(
-                        Expr {
-                            kind: ExprKind::Let(let_pat, let_expr, _),
-                            ..
-                        },
-                        if_then,
-                        if_else_ref,
-                    ),
-                ..
-            } = if_expr
-            {
-                let if_else = *if_else_ref;
-                return Some(Self {
-                    if_expr,
-                    let_pat,
-                    let_expr,
-                    if_then,
-                    if_else,
-                });
-            }
+            return Some(Self {
+                let_pat,
+                let_expr,
+                if_then,
+            });
         }
         None
     }
@@ -361,195 +423,50 @@ pub fn binop(op: hir::BinOpKind) -> ast::BinOpKind {
     }
 }
 
-/// Extract args from an assert-like macro.
-/// Currently working with:
-/// - `assert!`, `assert_eq!` and `assert_ne!`
-/// - `debug_assert!`, `debug_assert_eq!` and `debug_assert_ne!`
-/// For example:
-/// `assert!(expr)` will return `Some([expr])`
-/// `debug_assert_eq!(a, b)` will return `Some([a, b])`
-pub fn extract_assert_macro_args<'tcx>(e: &'tcx Expr<'tcx>) -> Option<Vec<&'tcx Expr<'tcx>>> {
-    /// Try to match the AST for a pattern that contains a match, for example when two args are
-    /// compared
-    fn ast_matchblock(matchblock_expr: &'tcx Expr<'tcx>) -> Option<Vec<&Expr<'_>>> {
-        if_chain! {
-            if let ExprKind::Match(headerexpr, _, _) = &matchblock_expr.kind;
-            if let ExprKind::Tup([lhs, rhs]) = &headerexpr.kind;
-            if let ExprKind::AddrOf(BorrowKind::Ref, _, lhs) = lhs.kind;
-            if let ExprKind::AddrOf(BorrowKind::Ref, _, rhs) = rhs.kind;
-            then {
-                return Some(vec![lhs, rhs]);
-            }
-        }
-        None
-    }
+/// A parsed `Vec` initialization expression
+#[derive(Clone, Copy)]
+pub enum VecInitKind {
+    /// `Vec::new()`
+    New,
+    /// `Vec::default()` or `Default::default()`
+    Default,
+    /// `Vec::with_capacity(123)`
+    WithLiteralCapacity(u64),
+    /// `Vec::with_capacity(slice.len())`
+    WithExprCapacity(HirId),
+}
 
-    if let ExprKind::Block(block, _) = e.kind {
-        if block.stmts.len() == 1 {
-            if let StmtKind::Semi(matchexpr) = block.stmts.get(0)?.kind {
-                // macros with unique arg: `{debug_}assert!` (e.g., `debug_assert!(some_condition)`)
-                if_chain! {
-                    if let Some(If { cond, .. }) = If::hir(matchexpr);
-                    if let ExprKind::Unary(UnOp::Not, condition) = cond.kind;
-                    then {
-                        return Some(vec![condition]);
+/// Checks if given expression is an initialization of `Vec` and returns its kind.
+pub fn get_vec_init_kind<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Option<VecInitKind> {
+    if let ExprKind::Call(func, args) = expr.kind {
+        match func.kind {
+            ExprKind::Path(QPath::TypeRelative(ty, name))
+                if is_type_diagnostic_item(cx, cx.typeck_results().node_type(ty.hir_id), sym::Vec) =>
+            {
+                if name.ident.name == sym::new {
+                    return Some(VecInitKind::New);
+                } else if name.ident.name == symbol::kw::Default {
+                    return Some(VecInitKind::Default);
+                } else if name.ident.name.as_str() == "with_capacity" {
+                    let arg = args.get(0)?;
+                    if_chain! {
+                        if let ExprKind::Lit(lit) = &arg.kind;
+                        if let LitKind::Int(num, _) = lit.node;
+                        then {
+                            return Some(VecInitKind::WithLiteralCapacity(num.try_into().ok()?));
+                        }
                     }
+                    return Some(VecInitKind::WithExprCapacity(arg.hir_id));
                 }
-
-                // debug macros with two args: `debug_assert_{ne, eq}` (e.g., `assert_ne!(a, b)`)
-                if_chain! {
-                    if let ExprKind::Block(matchblock,_) = matchexpr.kind;
-                    if let Some(matchblock_expr) = matchblock.expr;
-                    then {
-                        return ast_matchblock(matchblock_expr);
-                    }
-                }
-            }
-        } else if let Some(matchblock_expr) = block.expr {
-            // macros with two args: `assert_{ne, eq}` (e.g., `assert_ne!(a, b)`)
-            return ast_matchblock(matchblock_expr);
+            },
+            ExprKind::Path(QPath::Resolved(_, path))
+                if match_def_path(cx, path.res.opt_def_id()?, &paths::DEFAULT_TRAIT_METHOD)
+                    && is_type_diagnostic_item(cx, cx.typeck_results().expr_ty(expr), sym::Vec) =>
+            {
+                return Some(VecInitKind::Default);
+            },
+            _ => (),
         }
     }
     None
-}
-
-/// A parsed `format!` expansion
-pub struct FormatExpn<'tcx> {
-    /// Span of `format!(..)`
-    pub call_site: Span,
-    /// Inner `format_args!` expansion
-    pub format_args: FormatArgsExpn<'tcx>,
-}
-
-impl FormatExpn<'tcx> {
-    /// Parses an expanded `format!` invocation
-    pub fn parse(expr: &'tcx Expr<'tcx>) -> Option<Self> {
-        if_chain! {
-            if let ExprKind::Block(block, _) = expr.kind;
-            if let [stmt] = block.stmts;
-            if let StmtKind::Local(local) = stmt.kind;
-            if let Some(init) = local.init;
-            if let ExprKind::Call(_, [format_args]) = init.kind;
-            let expn_data = expr.span.ctxt().outer_expn_data();
-            if let ExpnKind::Macro(_, sym::format) = expn_data.kind;
-            if let Some(format_args) = FormatArgsExpn::parse(format_args);
-            then {
-                Some(FormatExpn {
-                    call_site: expn_data.call_site,
-                    format_args,
-                })
-            } else {
-                None
-            }
-        }
-    }
-}
-
-/// A parsed `format_args!` expansion
-pub struct FormatArgsExpn<'tcx> {
-    /// Span of the first argument, the format string
-    pub format_string_span: Span,
-    /// Values passed after the format string
-    pub value_args: Vec<&'tcx Expr<'tcx>>,
-
-    /// String literal expressions which represent the format string split by "{}"
-    pub format_string_parts: &'tcx [Expr<'tcx>],
-    /// Symbols corresponding to [`Self::format_string_parts`]
-    pub format_string_symbols: Vec<Symbol>,
-    /// Expressions like `ArgumentV1::new(arg0, Debug::fmt)`
-    pub args: &'tcx [Expr<'tcx>],
-    /// The final argument passed to `Arguments::new_v1_formatted`, if applicable
-    pub fmt_expr: Option<&'tcx Expr<'tcx>>,
-}
-
-impl FormatArgsExpn<'tcx> {
-    /// Parses an expanded `format_args!` or `format_args_nl!` invocation
-    pub fn parse(expr: &'tcx Expr<'tcx>) -> Option<Self> {
-        if_chain! {
-            if let ExpnKind::Macro(_, name) = expr.span.ctxt().outer_expn_data().kind;
-            let name = name.as_str();
-            if name.ends_with("format_args") || name.ends_with("format_args_nl");
-
-            if let ExprKind::Match(inner_match, [arm], _) = expr.kind;
-
-            // `match match`, if you will
-            if let ExprKind::Match(args, [inner_arm], _) = inner_match.kind;
-            if let ExprKind::Tup(value_args) = args.kind;
-            if let Some(value_args) = value_args
-                .iter()
-                .map(|e| match e.kind {
-                    ExprKind::AddrOf(_, _, e) => Some(e),
-                    _ => None,
-                })
-                .collect();
-            if let ExprKind::Array(args) = inner_arm.body.kind;
-
-            if let ExprKind::Block(Block { stmts: [], expr: Some(expr), .. }, _) = arm.body.kind;
-            if let ExprKind::Call(_, call_args) = expr.kind;
-            if let Some((strs_ref, fmt_expr)) = match call_args {
-                // Arguments::new_v1
-                [strs_ref, _] => Some((strs_ref, None)),
-                // Arguments::new_v1_formatted
-                [strs_ref, _, fmt_expr] => Some((strs_ref, Some(fmt_expr))),
-                _ => None,
-            };
-            if let ExprKind::AddrOf(BorrowKind::Ref, _, strs_arr) = strs_ref.kind;
-            if let ExprKind::Array(format_string_parts) = strs_arr.kind;
-            if let Some(format_string_symbols) = format_string_parts
-                .iter()
-                .map(|e| {
-                    if let ExprKind::Lit(lit) = &e.kind {
-                        if let LitKind::Str(symbol, _style) = lit.node {
-                            return Some(symbol);
-                        }
-                    }
-                    None
-                })
-                .collect();
-            then {
-                Some(FormatArgsExpn {
-                    format_string_span: strs_ref.span,
-                    value_args,
-                    format_string_parts,
-                    format_string_symbols,
-                    args,
-                    fmt_expr,
-                })
-            } else {
-                None
-            }
-        }
-    }
-}
-
-/// Checks if a `let` statement is from a `for` loop desugaring.
-pub fn is_from_for_desugar(local: &hir::Local<'_>) -> bool {
-    // This will detect plain for-loops without an actual variable binding:
-    //
-    // ```
-    // for x in some_vec {
-    //     // do stuff
-    // }
-    // ```
-    if_chain! {
-        if let Some(ref expr) = local.init;
-        if let hir::ExprKind::Match(_, _, hir::MatchSource::ForLoopDesugar) = expr.kind;
-        then {
-            return true;
-        }
-    }
-
-    // This detects a variable binding in for loop to avoid `let_unit_value`
-    // lint (see issue #1964).
-    //
-    // ```
-    // for _ in vec![()] {
-    //     // anything
-    // }
-    // ```
-    if let hir::LocalSource::ForLoopDesugar = local.source {
-        return true;
-    }
-
-    false
 }

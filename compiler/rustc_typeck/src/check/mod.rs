@@ -271,22 +271,22 @@ fn primary_body_of(
 ) -> Option<(hir::BodyId, Option<&hir::Ty<'_>>, Option<&hir::FnSig<'_>>)> {
     match tcx.hir().get(id) {
         Node::Item(item) => match item.kind {
-            hir::ItemKind::Const(ref ty, body) | hir::ItemKind::Static(ref ty, _, body) => {
+            hir::ItemKind::Const(ty, body) | hir::ItemKind::Static(ty, _, body) => {
                 Some((body, Some(ty), None))
             }
-            hir::ItemKind::Fn(ref sig, .., body) => Some((body, None, Some(&sig))),
+            hir::ItemKind::Fn(ref sig, .., body) => Some((body, None, Some(sig))),
             _ => None,
         },
         Node::TraitItem(item) => match item.kind {
-            hir::TraitItemKind::Const(ref ty, Some(body)) => Some((body, Some(ty), None)),
+            hir::TraitItemKind::Const(ty, Some(body)) => Some((body, Some(ty), None)),
             hir::TraitItemKind::Fn(ref sig, hir::TraitFn::Provided(body)) => {
-                Some((body, None, Some(&sig)))
+                Some((body, None, Some(sig)))
             }
             _ => None,
         },
         Node::ImplItem(item) => match item.kind {
-            hir::ImplItemKind::Const(ref ty, body) => Some((body, Some(ty), None)),
-            hir::ImplItemKind::Fn(ref sig, body) => Some((body, None, Some(&sig))),
+            hir::ImplItemKind::Const(ty, body) => Some((body, Some(ty), None)),
+            hir::ImplItemKind::Fn(ref sig, body) => Some((body, None, Some(sig))),
             _ => None,
         },
         Node::AnonConst(constant) => Some((constant.body, None, None)),
@@ -297,9 +297,9 @@ fn primary_body_of(
 fn has_typeck_results(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
     // Closures' typeck results come from their outermost function,
     // as they are part of the same "inference environment".
-    let outer_def_id = tcx.closure_base_def_id(def_id);
-    if outer_def_id != def_id {
-        return tcx.has_typeck_results(outer_def_id);
+    let typeck_root_def_id = tcx.typeck_root_def_id(def_id);
+    if typeck_root_def_id != def_id {
+        return tcx.has_typeck_results(typeck_root_def_id);
     }
 
     if let Some(def_id) = def_id.as_local() {
@@ -348,9 +348,9 @@ fn typeck_with_fallback<'tcx>(
 ) -> &'tcx ty::TypeckResults<'tcx> {
     // Closures' typeck results come from their outermost function,
     // as they are part of the same "inference environment".
-    let outer_def_id = tcx.closure_base_def_id(def_id.to_def_id()).expect_local();
-    if outer_def_id != def_id {
-        return tcx.typeck(outer_def_id);
+    let typeck_root_def_id = tcx.typeck_root_def_id(def_id.to_def_id()).expect_local();
+    if typeck_root_def_id != def_id {
+        return tcx.typeck(typeck_root_def_id);
     }
 
     let id = tcx.hir().local_def_id_to_hir_id(def_id);
@@ -388,10 +388,9 @@ fn typeck_with_fallback<'tcx>(
             // from normalization. We could just discard these, but to align with
             // compare_method and elsewhere, we just add implied bounds for
             // these types.
-            let mut wf_tys = vec![];
+            let mut wf_tys = FxHashSet::default();
             // Compute the fty from point of view of inside the fn.
             let fn_sig = tcx.liberate_late_bound_regions(def_id.to_def_id(), fn_sig);
-            wf_tys.extend(fn_sig.inputs_and_output.iter());
             let fn_sig = inh.normalize_associated_types_in(
                 body.value.span,
                 body_id.hir_id,
@@ -451,7 +450,7 @@ fn typeck_with_fallback<'tcx>(
 
             fcx.write_ty(id, expected_type);
 
-            (fcx, vec![])
+            (fcx, FxHashSet::default())
         };
 
         let fallback_has_occurred = fcx.type_inference_fallback();
@@ -475,7 +474,7 @@ fn typeck_with_fallback<'tcx>(
         fcx.select_all_obligations_or_error();
 
         if fn_sig.is_some() {
-            fcx.regionck_fn(id, body, span, &wf_tys);
+            fcx.regionck_fn(id, body, span, wf_tys);
         } else {
             fcx.regionck_expr(body);
         }
@@ -509,22 +508,18 @@ struct GeneratorTypes<'tcx> {
 
 /// Given a `DefId` for an opaque type in return position, find its parent item's return
 /// expressions.
-fn get_owner_return_paths(
+fn get_owner_return_paths<'tcx>(
     tcx: TyCtxt<'tcx>,
     def_id: LocalDefId,
-) -> Option<(hir::HirId, ReturnsVisitor<'tcx>)> {
+) -> Option<(LocalDefId, ReturnsVisitor<'tcx>)> {
     let hir_id = tcx.hir().local_def_id_to_hir_id(def_id);
-    let id = tcx.hir().get_parent_item(hir_id);
-    tcx.hir()
-        .find(id)
-        .map(|n| (id, n))
-        .and_then(|(hir_id, node)| node.body_id().map(|b| (hir_id, b)))
-        .map(|(hir_id, body_id)| {
-            let body = tcx.hir().body(body_id);
-            let mut visitor = ReturnsVisitor::default();
-            visitor.visit_body(body);
-            (hir_id, visitor)
-        })
+    let parent_id = tcx.hir().get_parent_item(hir_id);
+    tcx.hir().find_by_def_id(parent_id).and_then(|node| node.body_id()).map(|body_id| {
+        let body = tcx.hir().body(body_id);
+        let mut visitor = ReturnsVisitor::default();
+        visitor.visit_body(body);
+        (parent_id, visitor)
+    })
 }
 
 // Forbid defining intrinsics in Rust code,
@@ -536,8 +531,8 @@ fn fn_maybe_err(tcx: TyCtxt<'_>, sp: Span, abi: Abi) {
 }
 
 fn maybe_check_static_with_link_section(tcx: TyCtxt<'_>, id: LocalDefId, span: Span) {
-    // Only restricted on wasm32 target for now
-    if !tcx.sess.opts.target_triple.triple().starts_with("wasm32") {
+    // Only restricted on wasm target for now
+    if !tcx.sess.target.is_like_wasm {
         return;
     }
 
@@ -555,22 +550,19 @@ fn maybe_check_static_with_link_section(tcx: TyCtxt<'_>, id: LocalDefId, span: S
     // `#[link_section]` may contain arbitrary, or even undefined bytes, but it is
     // the consumer's responsibility to ensure all bytes that have been read
     // have defined values.
-    match tcx.eval_static_initializer(id.to_def_id()) {
-        Ok(alloc) => {
-            if alloc.relocations().len() != 0 {
-                let msg = "statics with a custom `#[link_section]` must be a \
+    if let Ok(alloc) = tcx.eval_static_initializer(id.to_def_id()) {
+        if alloc.relocations().len() != 0 {
+            let msg = "statics with a custom `#[link_section]` must be a \
                            simple list of bytes on the wasm target with no \
                            extra levels of indirection such as references";
-                tcx.sess.span_err(span, msg);
-            }
+            tcx.sess.span_err(span, msg);
         }
-        Err(_) => {}
     }
 }
 
 fn report_forbidden_specialization(
     tcx: TyCtxt<'_>,
-    impl_item: &hir::ImplItem<'_>,
+    impl_item: &hir::ImplItemRef,
     parent_impl: DefId,
 ) {
     let mut err = struct_span_err!(
@@ -602,12 +594,12 @@ fn report_forbidden_specialization(
 fn missing_items_err(
     tcx: TyCtxt<'_>,
     impl_span: Span,
-    missing_items: &[ty::AssocItem],
+    missing_items: &[&ty::AssocItem],
     full_impl_span: Span,
 ) {
     let missing_items_msg = missing_items
         .iter()
-        .map(|trait_item| trait_item.ident.to_string())
+        .map(|trait_item| trait_item.name.to_string())
         .collect::<Vec<_>>()
         .join("`, `");
 
@@ -631,17 +623,42 @@ fn missing_items_err(
     let padding: String = " ".repeat(indentation);
 
     for trait_item in missing_items {
-        let snippet = suggestion_signature(&trait_item, tcx);
+        let snippet = suggestion_signature(trait_item, tcx);
         let code = format!("{}{}\n{}", padding, snippet, padding);
         let msg = format!("implement the missing item: `{}`", snippet);
         let appl = Applicability::HasPlaceholders;
         if let Some(span) = tcx.hir().span_if_local(trait_item.def_id) {
-            err.span_label(span, format!("`{}` from trait", trait_item.ident));
+            err.span_label(span, format!("`{}` from trait", trait_item.name));
             err.tool_only_span_suggestion(sugg_sp, &msg, code, appl);
         } else {
             err.span_suggestion_hidden(sugg_sp, &msg, code, appl);
         }
     }
+    err.emit();
+}
+
+fn missing_items_must_implement_one_of_err(
+    tcx: TyCtxt<'_>,
+    impl_span: Span,
+    missing_items: &[Ident],
+    annotation_span: Option<Span>,
+) {
+    let missing_items_msg =
+        missing_items.iter().map(Ident::to_string).collect::<Vec<_>>().join("`, `");
+
+    let mut err = struct_span_err!(
+        tcx.sess,
+        impl_span,
+        E0046,
+        "not all trait items implemented, missing one of: `{}`",
+        missing_items_msg
+    );
+    err.span_label(impl_span, format!("missing one of `{}` in implementation", missing_items_msg));
+
+    if let Some(annotation_span) = annotation_span {
+        err.span_note(annotation_span, "required because of this annotation");
+    }
+
     err.emit();
 }
 
@@ -690,9 +707,8 @@ fn bounds_from_generic_predicates<'tcx>(
     };
     let mut where_clauses = vec![];
     for (ty, bounds) in types {
-        for bound in &bounds {
-            where_clauses.push(format!("{}: {}", ty, tcx.def_path_str(*bound)));
-        }
+        where_clauses
+            .extend(bounds.into_iter().map(|bound| format!("{}: {}", ty, tcx.def_path_str(bound))));
     }
     for projection in &projections {
         let p = projection.skip_binder();
@@ -700,7 +716,11 @@ fn bounds_from_generic_predicates<'tcx>(
         // insert the associated types where they correspond, but for now let's be "lazy" and
         // propose this instead of the following valid resugaring:
         // `T: Trait, Trait::Assoc = K` → `T: Trait<Assoc = K>`
-        where_clauses.push(format!("{} = {}", tcx.def_path_str(p.projection_ty.item_def_id), p.ty));
+        where_clauses.push(format!(
+            "{} = {}",
+            tcx.def_path_str(p.projection_ty.item_def_id),
+            p.term,
+        ));
     }
     let where_clauses = if where_clauses.is_empty() {
         String::new()
@@ -785,16 +805,16 @@ fn suggestion_signature(assoc: &ty::AssocItem, tcx: TyCtxt<'_>) -> String {
             fn_sig_suggestion(
                 tcx,
                 tcx.fn_sig(assoc.def_id).skip_binder(),
-                assoc.ident,
+                assoc.ident(tcx),
                 tcx.predicates_of(assoc.def_id),
                 assoc,
             )
         }
-        ty::AssocKind::Type => format!("type {} = Type;", assoc.ident),
+        ty::AssocKind::Type => format!("type {} = Type;", assoc.name),
         ty::AssocKind::Const => {
             let ty = tcx.type_of(assoc.def_id);
             let val = expr::ty_kind_suggestion(ty).unwrap_or("value");
-            format!("const {}: {} = {};", assoc.ident, ty, val)
+            format!("const {}: {} = {};", assoc.name, ty, val)
         }
     }
 }
@@ -911,7 +931,7 @@ struct CheckItemTypesVisitor<'tcx> {
     tcx: TyCtxt<'tcx>,
 }
 
-impl ItemLikeVisitor<'tcx> for CheckItemTypesVisitor<'tcx> {
+impl<'tcx> ItemLikeVisitor<'tcx> for CheckItemTypesVisitor<'tcx> {
     fn visit_item(&mut self, i: &'tcx hir::Item<'tcx>) {
         check_item_type(self.tcx, i);
     }
@@ -921,9 +941,7 @@ impl ItemLikeVisitor<'tcx> for CheckItemTypesVisitor<'tcx> {
 }
 
 fn typeck_item_bodies(tcx: TyCtxt<'_>, (): ()) {
-    tcx.par_body_owners(|body_owner_def_id| {
-        tcx.ensure().typeck(body_owner_def_id);
-    });
+    tcx.hir().par_body_owners(|body_owner_def_id| tcx.ensure().typeck(body_owner_def_id));
 }
 
 fn fatally_break_rust(sess: &Session) {

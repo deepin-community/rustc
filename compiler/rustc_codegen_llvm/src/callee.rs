@@ -4,7 +4,7 @@
 //! and methods are represented as just a fn ptr and not a full
 //! closure.
 
-use crate::abi::{FnAbi, FnAbiLlvmExt};
+use crate::abi::FnAbiLlvmExt;
 use crate::attributes;
 use crate::context::CodegenCx;
 use crate::llvm;
@@ -12,7 +12,7 @@ use crate::value::Value;
 use rustc_codegen_ssa::traits::*;
 use tracing::debug;
 
-use rustc_middle::ty::layout::{FnAbiExt, HasTyCtxt};
+use rustc_middle::ty::layout::{FnAbiOf, HasTyCtxt};
 use rustc_middle::ty::{self, Instance, TypeFoldable};
 
 /// Codegens a reference to a fn/method item, monomorphizing and
@@ -22,7 +22,7 @@ use rustc_middle::ty::{self, Instance, TypeFoldable};
 ///
 /// - `cx`: the crate context
 /// - `instance`: the instance to be instantiated
-pub fn get_fn(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> &'ll Value {
+pub fn get_fn<'ll, 'tcx>(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> &'ll Value {
     let tcx = cx.tcx();
 
     debug!("get_fn(instance={:?})", instance);
@@ -42,9 +42,9 @@ pub fn get_fn(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> &'ll Value
         sym
     );
 
-    let fn_abi = FnAbi::of_instance(cx, instance, &[]);
+    let fn_abi = cx.fn_abi_of_instance(instance, ty::List::empty());
 
-    let llfn = if let Some(llfn) = cx.get_declared_value(&sym) {
+    let llfn = if let Some(llfn) = cx.get_declared_value(sym) {
         // Create a fn pointer with the new signature.
         let llptrty = fn_abi.ptr_to_llvm_type(cx);
 
@@ -79,7 +79,7 @@ pub fn get_fn(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> &'ll Value
             llfn
         }
     } else {
-        let llfn = cx.declare_fn(&sym, &fn_abi);
+        let llfn = cx.declare_fn(sym, fn_abi);
         debug!("get_fn: not casting pointer!");
 
         attributes::from_fn_attrs(cx, llfn, instance);
@@ -175,7 +175,7 @@ pub fn get_fn(cx: &CodegenCx<'ll, 'tcx>, instance: Instance<'tcx>) -> &'ll Value
             // should use dllimport for functions.
             if cx.use_dll_storage_attrs
                 && tcx.is_dllimport_foreign_item(instance_def_id)
-                && tcx.sess.target.env != "gnu"
+                && !matches!(tcx.sess.target.env.as_ref(), "gnu" | "uclibc")
             {
                 llvm::LLVMSetDLLStorageClass(llfn, llvm::DLLStorageClass::DllImport);
             }

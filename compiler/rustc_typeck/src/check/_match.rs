@@ -4,9 +4,8 @@ use rustc_errors::{Applicability, DiagnosticBuilder};
 use rustc_hir::{self as hir, ExprKind};
 use rustc_infer::infer::type_variable::{TypeVariableOrigin, TypeVariableOriginKind};
 use rustc_infer::traits::Obligation;
-use rustc_middle::ty::{self, ToPredicate, Ty, TyS};
+use rustc_middle::ty::{self, ToPredicate, Ty};
 use rustc_span::{MultiSpan, Span};
-use rustc_trait_selection::opaque_types::InferCtxtExt as _;
 use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt;
 use rustc_trait_selection::traits::{
     IfExpressionCause, MatchExpressionArmCause, ObligationCause, ObligationCauseCode,
@@ -506,7 +505,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     pub(crate) fn opt_suggest_box_span(
         &self,
         span: Span,
-        outer_ty: &'tcx TyS<'tcx>,
+        outer_ty: Ty<'tcx>,
         orig_expected: Expectation<'tcx>,
     ) -> Option<Span> {
         match (orig_expected, self.ret_coercion_impl_trait.map(|ty| (self.body_id.owner, ty))) {
@@ -524,13 +523,15 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
                 for o in obligations {
                     match o.predicate.kind().skip_binder() {
                         ty::PredicateKind::Trait(t) => {
-                            let pred = ty::PredicateKind::Trait(ty::TraitPredicate {
-                                trait_ref: ty::TraitRef {
-                                    def_id: t.def_id(),
-                                    substs: self.infcx.tcx.mk_substs_trait(outer_ty, &[]),
-                                },
-                                constness: t.constness,
-                            });
+                            let pred =
+                                ty::Binder::dummy(ty::PredicateKind::Trait(ty::TraitPredicate {
+                                    trait_ref: ty::TraitRef {
+                                        def_id: t.def_id(),
+                                        substs: self.infcx.tcx.mk_substs_trait(outer_ty, &[]),
+                                    },
+                                    constness: t.constness,
+                                    polarity: t.polarity,
+                                }));
                             let obl = Obligation::new(
                                 o.cause.clone(),
                                 self.param_env,
@@ -556,7 +557,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     }
 }
 
-fn arms_contain_ref_bindings(arms: &'tcx [hir::Arm<'tcx>]) -> Option<hir::Mutability> {
+fn arms_contain_ref_bindings<'tcx>(arms: &'tcx [hir::Arm<'tcx>]) -> Option<hir::Mutability> {
     arms.iter().filter_map(|a| a.pat.contains_explicit_ref_binding()).max_by_key(|m| match *m {
         hir::Mutability::Mut => 1,
         hir::Mutability::Not => 0,

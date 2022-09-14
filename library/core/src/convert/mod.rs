@@ -91,7 +91,7 @@ pub use num::FloatToInt;
 /// ```rust
 /// use std::convert::identity;
 ///
-/// let iter = vec![Some(1), None, Some(3)].into_iter();
+/// let iter = [Some(1), None, Some(3)].into_iter();
 /// let filtered = iter.filter_map(identity).collect::<Vec<_>>();
 /// assert_eq!(vec![1, 3], filtered);
 /// ```
@@ -269,10 +269,11 @@ pub trait AsMut<T: ?Sized> {
 ///
 /// [`String`]: ../../std/string/struct.String.html
 /// [`Vec`]: ../../std/vec/struct.Vec.html
-#[rustc_diagnostic_item = "into_trait"]
+#[rustc_diagnostic_item = "Into"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub trait Into<T>: Sized {
     /// Performs the conversion.
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     fn into(self) -> T;
 }
@@ -358,7 +359,7 @@ pub trait Into<T>: Sized {
 /// [`String`]: ../../std/string/struct.String.html
 /// [`from`]: From::from
 /// [book]: ../../book/ch09-00-error-handling.html
-#[rustc_diagnostic_item = "from_trait"]
+#[rustc_diagnostic_item = "From"]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[rustc_on_unimplemented(on(
     all(_Self = "&str", T = "std::string::String"),
@@ -367,6 +368,7 @@ pub trait Into<T>: Sized {
 pub trait From<T>: Sized {
     /// Performs the conversion.
     #[lang = "from"]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     fn from(_: T) -> Self;
 }
@@ -385,7 +387,7 @@ pub trait From<T>: Sized {
 ///
 /// This suffers the same restrictions and reasoning as implementing
 /// [`Into`], see there for details.
-#[rustc_diagnostic_item = "try_into_trait"]
+#[rustc_diagnostic_item = "TryInto"]
 #[stable(feature = "try_from", since = "1.34.0")]
 pub trait TryInto<T>: Sized {
     /// The type returned in the event of a conversion error.
@@ -424,8 +426,6 @@ pub trait TryInto<T>: Sized {
 /// `TryFrom<T>` can be implemented as follows:
 ///
 /// ```
-/// use std::convert::TryFrom;
-///
 /// struct GreaterThanZero(i32);
 ///
 /// impl TryFrom<i32> for GreaterThanZero {
@@ -446,8 +446,6 @@ pub trait TryInto<T>: Sized {
 /// As described, [`i32`] implements `TryFrom<`[`i64`]`>`:
 ///
 /// ```
-/// use std::convert::TryFrom;
-///
 /// let big_number = 1_000_000_000_000i64;
 /// // Silently truncates `big_number`, requires detecting
 /// // and handling the truncation after the fact.
@@ -465,7 +463,7 @@ pub trait TryInto<T>: Sized {
 /// ```
 ///
 /// [`try_from`]: TryFrom::try_from
-#[rustc_diagnostic_item = "try_from_trait"]
+#[rustc_diagnostic_item = "TryFrom"]
 #[stable(feature = "try_from", since = "1.34.0")]
 pub trait TryFrom<T>: Sized {
     /// The type returned in the event of a conversion error.
@@ -483,9 +481,10 @@ pub trait TryFrom<T>: Sized {
 
 // As lifts over &
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized, U: ?Sized> AsRef<U> for &T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T: ?Sized, U: ?Sized> const AsRef<U> for &T
 where
-    T: AsRef<U>,
+    T: ~const AsRef<U>,
 {
     fn as_ref(&self) -> &U {
         <T as AsRef<U>>::as_ref(*self)
@@ -494,9 +493,10 @@ where
 
 // As lifts over &mut
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized, U: ?Sized> AsRef<U> for &mut T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T: ?Sized, U: ?Sized> const AsRef<U> for &mut T
 where
-    T: AsRef<U>,
+    T: ~const AsRef<U>,
 {
     fn as_ref(&self) -> &U {
         <T as AsRef<U>>::as_ref(*self)
@@ -513,9 +513,10 @@ where
 
 // AsMut lifts over &mut
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: ?Sized, U: ?Sized> AsMut<U> for &mut T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T: ?Sized, U: ?Sized> const AsMut<U> for &mut T
 where
-    T: AsMut<U>,
+    T: ~const AsMut<U>,
 {
     fn as_mut(&mut self) -> &mut U {
         (*self).as_mut()
@@ -532,10 +533,15 @@ where
 
 // From implies Into
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T, U> Into<U> for T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T, U> const Into<U> for T
 where
-    U: From<T>,
+    U: ~const From<T>,
 {
+    /// Calls `U::from(self)`.
+    ///
+    /// That is, this conversion is whatever the implementation of
+    /// <code>[From]&lt;T&gt; for U</code> chooses to do.
     fn into(self) -> U {
         U::from(self)
     }
@@ -543,7 +549,9 @@ where
 
 // From (and thus Into) is reflexive
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> From<T> for T {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<T> for T {
+    /// Returns the argument unchanged.
     fn from(t: T) -> T {
         t
     }
@@ -558,7 +566,8 @@ impl<T> From<T> for T {
 #[allow(unused_attributes)] // FIXME(#58633): do a principled fix instead.
 #[rustc_reservation_impl = "permitting this impl would forbid us from adding \
                             `impl<T> From<!> for T` later; see rust-lang/rust#64715 for details"]
-impl<T> From<!> for T {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<!> for T {
     fn from(t: !) -> T {
         t
     }
@@ -566,9 +575,10 @@ impl<T> From<!> for T {
 
 // TryFrom implies TryInto
 #[stable(feature = "try_from", since = "1.34.0")]
-impl<T, U> TryInto<U> for T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T, U> const TryInto<U> for T
 where
-    U: TryFrom<T>,
+    U: ~const TryFrom<T>,
 {
     type Error = U::Error;
 
@@ -580,9 +590,10 @@ where
 // Infallible conversions are semantically equivalent to fallible conversions
 // with an uninhabited error type.
 #[stable(feature = "try_from", since = "1.34.0")]
-impl<T, U> TryFrom<U> for T
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T, U> const TryFrom<U> for T
 where
-    U: Into<T>,
+    U: ~const Into<T>,
 {
     type Error = Infallible;
 
@@ -662,7 +673,7 @@ impl AsMut<str> for str {
 ///
 /// However there is one case where `!` syntax can be used
 /// before `!` is stabilized as a full-fledged type: in the position of a function’s return type.
-/// Specifically, it is possible implementations for two different function pointer types:
+/// Specifically, it is possible to have implementations for two different function pointer types:
 ///
 /// ```
 /// trait MyTrait {}
@@ -724,7 +735,8 @@ impl Ord for Infallible {
 }
 
 #[stable(feature = "convert_infallible", since = "1.34.0")]
-impl From<!> for Infallible {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl const From<!> for Infallible {
     fn from(x: !) -> Self {
         x
     }

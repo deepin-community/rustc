@@ -8,7 +8,7 @@ use std::{
     sync::Mutex,
     time::Instant,
 };
-use tracing::{
+use tracing_core::{
     field::{Field, Visit},
     span::{Attributes, Id},
     Event, Subscriber,
@@ -18,7 +18,7 @@ use tracing_log::NormalizeEvent;
 use tracing_subscriber::{
     fmt::MakeWriter,
     layer::{Context, Layer},
-    registry::LookupSpan,
+    registry::{self, LookupSpan},
 };
 
 pub(crate) struct Data {
@@ -27,7 +27,7 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn new(attrs: &tracing::span::Attributes<'_>) -> Self {
+    pub fn new(attrs: &Attributes<'_>) -> Self {
         let mut span = Self {
             start: Instant::now(),
             kvs: Vec::new(),
@@ -44,9 +44,9 @@ impl Visit for Data {
 }
 
 #[derive(Debug)]
-pub struct HierarchicalLayer<W = fn() -> io::Stdout>
+pub struct HierarchicalLayer<W = fn() -> io::Stderr>
 where
-    W: MakeWriter + 'static,
+    W: for<'writer> MakeWriter<'writer> + 'static,
 {
     make_writer: W,
     bufs: Mutex<Buffers>,
@@ -59,16 +59,16 @@ impl Default for HierarchicalLayer {
     }
 }
 
-impl HierarchicalLayer<fn() -> io::Stdout> {
+impl HierarchicalLayer<fn() -> io::Stderr> {
     pub fn new(indent_amount: usize) -> Self {
-        let ansi = atty::is(atty::Stream::Stdout);
+        let ansi = atty::is(atty::Stream::Stderr);
         let config = Config {
             ansi,
             indent_amount,
             ..Default::default()
         };
         Self {
-            make_writer: io::stdout,
+            make_writer: io::stderr,
             bufs: Mutex::new(Buffers::new()),
             config,
         }
@@ -77,7 +77,7 @@ impl HierarchicalLayer<fn() -> io::Stdout> {
 
 impl<W> HierarchicalLayer<W>
 where
-    W: MakeWriter + 'static,
+    W: for<'writer> MakeWriter<'writer> + 'static,
 {
     /// Enables terminal colors, boldness and italics.
     pub fn with_ansi(self, ansi: bool) -> Self {
@@ -89,7 +89,7 @@ where
 
     pub fn with_writer<W2>(self, make_writer: W2) -> HierarchicalLayer<W2>
     where
-        W2: MakeWriter + 'static,
+        W2: for<'writer> MakeWriter<'writer>,
     {
         HierarchicalLayer {
             make_writer,
@@ -207,14 +207,12 @@ where
         Ok(())
     }
 
-    fn write_span_info<S: Subscriber + for<'span> LookupSpan<'span> + fmt::Debug>(
-        &self,
-        id: &tracing::Id,
-        ctx: &Context<S>,
-        style: SpanMode,
-    ) {
+    fn write_span_info<S>(&self, id: &Id, ctx: &Context<S>, style: SpanMode)
+    where
+        S: Subscriber + for<'span> LookupSpan<'span> + fmt::Debug,
+    {
         let span = ctx
-            .span(&id)
+            .span(id)
             .expect("in on_enter/on_exit but span does not exist");
         let ext = span.extensions();
         let data = ext.get::<Data>().expect("span does not have data");
@@ -223,7 +221,14 @@ where
         let bufs = &mut *guard;
         let mut current_buf = &mut bufs.current_buf;
 
-        let indent = ctx.scope().count();
+        let indent = ctx
+            .lookup_current()
+            .as_ref()
+            .map(registry::SpanRef::scope)
+            .map(registry::Scope::from_root)
+            .into_iter()
+            .flatten()
+            .count();
 
         if self.config.verbose_entry || matches!(style, SpanMode::Open { .. } | SpanMode::Event) {
             if self.config.targets {
@@ -273,17 +278,18 @@ where
 impl<S, W> Layer<S> for HierarchicalLayer<W>
 where
     S: Subscriber + for<'span> LookupSpan<'span> + fmt::Debug,
-    W: MakeWriter + 'static,
+    W: for<'writer> MakeWriter<'writer> + 'static,
 {
-    fn new_span(&self, attrs: &Attributes, id: &Id, ctx: Context<S>) {
+    fn on_new_span(&self, attrs: &Attributes, id: &Id, ctx: Context<S>) {
         let data = Data::new(attrs);
         let span = ctx.span(id).expect("in new_span but span does not exist");
         span.extensions_mut().insert(data);
         if self.config.verbose_exit {
-            if let Some(span) = ctx.scope().last() {
+            if let Some(span) = span.parent() {
                 self.write_span_info(&span.id(), &ctx, SpanMode::PreOpen);
             }
         }
+
         self.write_span_info(
             id,
             &ctx,
@@ -295,13 +301,15 @@ where
 
     fn on_event(&self, event: &Event<'_>, ctx: Context<S>) {
         let mut guard = self.bufs.lock().unwrap();
-        let mut bufs = &mut *guard;
+        let bufs = &mut *guard;
         let mut event_buf = &mut bufs.current_buf;
 
         // printing the indentation
         let indent = if ctx.current_span().id().is_some() {
             // size hint isn't implemented on Scope.
-            ctx.scope().count()
+            ctx.event_scope(event)
+                .expect("Unable to get span scope; this is a bug")
+                .count()
         } else {
             0
         };
@@ -358,10 +366,7 @@ where
             .expect("Unable to write to buffer");
         }
 
-        let mut visitor = FmtEvent {
-            comma: false,
-            bufs: &mut bufs,
-        };
+        let mut visitor = FmtEvent { comma: false, bufs };
         event.record(&mut visitor);
         visitor
             .bufs
@@ -378,8 +383,9 @@ where
                 verbose: self.config.verbose_exit,
             },
         );
+
         if self.config.verbose_exit {
-            if let Some(span) = ctx.scope().last() {
+            if let Some(span) = ctx.span(&id).and_then(|span| span.parent()) {
                 self.write_span_info(&span.id(), &ctx, SpanMode::PostClose);
             }
         }

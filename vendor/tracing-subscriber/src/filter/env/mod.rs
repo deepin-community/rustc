@@ -4,10 +4,7 @@
 // these are publicly re-exported, but the compiler doesn't realize
 // that for some reason.
 #[allow(unreachable_pub)]
-pub use self::{
-    directive::{Directive, ParseError},
-    field::BadName as BadFieldName,
-};
+pub use self::{directive::Directive, field::BadName as BadFieldName};
 mod directive;
 mod field;
 
@@ -16,6 +13,7 @@ use crate::{
     layer::{Context, Layer},
     sync::RwLock,
 };
+use directive::ParseError;
 use std::{cell::RefCell, collections::HashMap, env, error::Error, fmt, str::FromStr};
 use tracing_core::{
     callsite,
@@ -30,7 +28,7 @@ use tracing_core::{
 ///
 /// # Directives
 ///
-/// A filter consists of one or more directives which match on [`Span`]s and [`Event`]s.
+/// A filter consists of one or more comma-separated directives which match on [`Span`]s and [`Event`]s.
 /// Each directive may have a corresponding maximum verbosity [`level`] which
 /// enables (e.g., _selects for_) spans and events that match. Like `log`,
 /// `tracing` considers less exclusive levels (like `trace` or `info`) to be more
@@ -79,6 +77,9 @@ use tracing_core::{
 /// - `tokio::net=info` will enable all spans or events that:
 ///    - have the `tokio::net` target,
 ///    - at the level `info` or above.
+/// - `warn,tokio::net=info` will enable all spans and events that:
+///    - are at the level `warn` or above, *or*
+///    - have the `tokio::net` target at the level `info` or above.
 /// - `my_crate[span_a]=trace` will enable all spans and events that:
 ///    - are within the `span_a` span or named `span_a` _if_ `span_a` has the target `my_crate`,
 ///    - at the level `trace` or above.
@@ -88,15 +89,19 @@ use tracing_core::{
 ///    - which has a field named `name` with value `bob`,
 ///    - at _any_ level.
 ///
-/// [`Layer`]: ../layer/trait.Layer.html
-/// [`env_logger`]: https://docs.rs/env_logger/0.7.1/env_logger/#enabling-logging
-/// [`Span`]: https://docs.rs/tracing-core/latest/tracing_core/span/index.html
-/// [fields]: https://docs.rs/tracing-core/latest/tracing_core/struct.Field.html
-/// [`Event`]: https://docs.rs/tracing-core/latest/tracing_core/struct.Event.html
-/// [`level`]: https://docs.rs/tracing-core/latest/tracing_core/struct.Level.html
-/// [`Metadata`]: https://docs.rs/tracing-core/latest/tracing_core/struct.Metadata.html
-#[cfg(feature = "env-filter")]
-#[cfg_attr(docsrs, doc(cfg(feature = "env-filter")))]
+/// The [`Targets`] type implements a similar form of filtering, but without the
+/// ability to dynamically enable events based on the current span context, and
+/// without filtering on field values. When these features are not required,
+/// [`Targets`] provides a lighter-weight alternative to [`EnvFilter`].
+///
+/// [`Span`]: tracing_core::span
+/// [fields]: tracing_core::Field
+/// [`Event`]: tracing_core::Event
+/// [`level`]: tracing_core::Level
+/// [`Metadata`]: tracing_core::Metadata
+/// [`Targets`]: crate::filter::Targets
+/// [`env_logger`]: https://crates.io/crates/env_logger
+#[cfg_attr(docsrs, doc(cfg(all(feature = "env-filter", feature = "std"))))]
 #[derive(Debug)]
 pub struct EnvFilter {
     statics: directive::Statics,
@@ -112,13 +117,9 @@ thread_local! {
 
 type FieldMap<T> = HashMap<Field, T>;
 
-#[cfg(feature = "smallvec")]
-type FilterVec<T> = smallvec::SmallVec<[T; 8]>;
-#[cfg(not(feature = "smallvec"))]
-type FilterVec<T> = Vec<T>;
-
 /// Indicates that an error occurred while parsing a `EnvFilter` from an
 /// environment variable.
+#[cfg_attr(docsrs, doc(cfg(all(feature = "env-filter", feature = "std"))))]
 #[derive(Debug)]
 pub struct FromEnvError {
     kind: ErrorKind,
@@ -165,7 +166,7 @@ impl EnvFilter {
 
     /// Returns a new `EnvFilter` from the directives in the given string,
     /// or an error if any are invalid.
-    pub fn try_new<S: AsRef<str>>(dirs: S) -> Result<Self, ParseError> {
+    pub fn try_new<S: AsRef<str>>(dirs: S) -> Result<Self, directive::ParseError> {
         let directives = dirs
             .as_ref()
             .split(',')
@@ -261,7 +262,7 @@ impl EnvFilter {
             #[cfg(feature = "ansi_term")]
             use ansi_term::{Color, Style};
             // NOTE: We can't use a configured `MakeWriter` because the EnvFilter
-            // has no knowledge of any underlying subscriber or collector, which
+            // has no knowledge of any underlying subscriber or subscriber, which
             // may or may not use a `MakeWriter`.
             let warn = |msg: &str| {
                 #[cfg(not(feature = "ansi_term"))]
@@ -443,7 +444,7 @@ impl<S: Subscriber> Layer<S> for EnvFilter {
         false
     }
 
-    fn new_span(&self, attrs: &span::Attributes<'_>, id: &span::Id, _: Context<'_, S>) {
+    fn on_new_span(&self, attrs: &span::Attributes<'_>, id: &span::Id, _: Context<'_, S>) {
         let by_cs = try_lock!(self.by_cs.read());
         if let Some(cs) = by_cs.get(&attrs.metadata().callsite()) {
             let span = cs.to_span_match(attrs);
@@ -484,7 +485,7 @@ impl<S: Subscriber> Layer<S> for EnvFilter {
 }
 
 impl FromStr for EnvFilter {
-    type Err = ParseError;
+    type Err = directive::ParseError;
 
     fn from_str(spec: &str) -> Result<Self, Self::Err> {
         Self::try_new(spec)
@@ -535,8 +536,8 @@ impl fmt::Display for EnvFilter {
 
 // ===== impl FromEnvError =====
 
-impl From<ParseError> for FromEnvError {
-    fn from(p: ParseError) -> Self {
+impl From<directive::ParseError> for FromEnvError {
+    fn from(p: directive::ParseError) -> Self {
         Self {
             kind: ErrorKind::Parse(p),
         }
@@ -636,7 +637,7 @@ mod tests {
             Kind::SPAN,
         );
 
-        let interest = filter.register_callsite(&META);
+        let interest = filter.register_callsite(META);
         assert!(interest.is_never());
     }
 
@@ -654,7 +655,7 @@ mod tests {
             Kind::SPAN,
         );
 
-        let interest = filter.register_callsite(&META);
+        let interest = filter.register_callsite(META);
         assert!(interest.is_always());
     }
 
@@ -673,7 +674,7 @@ mod tests {
             Kind::SPAN,
         );
 
-        let interest = filter.register_callsite(&META);
+        let interest = filter.register_callsite(META);
         assert!(interest.is_always());
     }
 
@@ -692,7 +693,7 @@ mod tests {
             Kind::SPAN,
         );
 
-        let interest = filter.register_callsite(&META);
+        let interest = filter.register_callsite(META);
         assert!(interest.is_never());
     }
 
@@ -705,5 +706,34 @@ mod tests {
         let f2: EnvFilter = format!("{}", f1).parse().unwrap();
         assert_eq!(f1.statics, f2.statics);
         assert_eq!(f1.dynamics, f2.dynamics);
+    }
+
+    #[test]
+    fn size_of_filters() {
+        fn print_sz(s: &str) {
+            let filter = s.parse::<EnvFilter>().expect("filter should parse");
+            println!(
+                "size_of_val({:?})\n -> {}B",
+                s,
+                std::mem::size_of_val(&filter)
+            );
+        }
+
+        print_sz("info");
+
+        print_sz("foo=debug");
+
+        print_sz(
+            "crate1::mod1=error,crate1::mod2=warn,crate1::mod2::mod3=info,\
+            crate2=debug,crate3=trace,crate3::mod2::mod1=off",
+        );
+
+        print_sz("[span1{foo=1}]=error,[span2{bar=2 baz=false}],crate2[{quux=\"quuux\"}]=debug");
+
+        print_sz(
+            "crate1::mod1=error,crate1::mod2=warn,crate1::mod2::mod3=info,\
+            crate2=debug,crate3=trace,crate3::mod2::mod1=off,[span1{foo=1}]=error,\
+            [span2{bar=2 baz=false}],crate2[{quux=\"quuux\"}]=debug",
+        );
     }
 }

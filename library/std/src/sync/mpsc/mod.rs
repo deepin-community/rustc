@@ -429,12 +429,13 @@ pub struct TryIter<'a, T: 'a> {
 }
 
 /// An owning iterator over messages on a [`Receiver`],
-/// created by **Receiver::into_iter**.
+/// created by [`into_iter`].
 ///
 /// This iterator will block whenever [`next`]
 /// is called, waiting for a new message, and [`None`] will be
 /// returned if the corresponding channel has hung up.
 ///
+/// [`into_iter`]: Receiver::into_iter
 /// [`next`]: Iterator::next
 ///
 /// # Examples
@@ -707,6 +708,7 @@ impl<T> UnsafeFlavor<T> for Receiver<T> {
 /// // Let's see what that answer was
 /// println!("{:?}", receiver.recv().unwrap());
 /// ```
+#[must_use]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let a = Arc::new(oneshot::Packet::new());
@@ -755,6 +757,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 /// assert_eq!(receiver.recv().unwrap(), 1);
 /// assert_eq!(receiver.recv().unwrap(), 2);
 /// ```
+#[must_use]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn sync_channel<T>(bound: usize) -> (SyncSender<T>, Receiver<T>) {
     let a = Arc::new(sync::Packet::new(bound));

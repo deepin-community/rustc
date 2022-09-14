@@ -124,6 +124,7 @@ impl<'a, T> Iter<'a, T> {
     /// // Now `as_slice` returns "[2, 3]":
     /// println!("{:?}", iter.as_slice());
     /// ```
+    #[must_use]
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
     pub fn as_slice(&self) -> &'a [T] {
         self.make_slice()
@@ -220,7 +221,7 @@ impl<'a, T> IterMut<'a, T> {
         // the length, to also allows for the fast `ptr == end` check.
         //
         // See the `next_unchecked!` and `is_empty!` macros as well as the
-        // `post_inc_start` method for more informations.
+        // `post_inc_start` method for more information.
         unsafe {
             assume(!ptr.is_null());
 
@@ -267,6 +268,7 @@ impl<'a, T> IterMut<'a, T> {
     /// // Now slice is "[2, 2, 3]":
     /// println!("{:?}", slice);
     /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
     pub fn into_slice(self) -> &'a mut [T] {
         // SAFETY: the iterator was created from a mutable slice with pointer
@@ -297,6 +299,7 @@ impl<'a, T> IterMut<'a, T> {
     /// // Now `as_slice` returns "[2, 3]":
     /// assert_eq!(iter.as_slice(), &[2, 3]);
     /// ```
+    #[must_use]
     #[stable(feature = "slice_iter_mut_as_slice", since = "1.53.0")]
     pub fn as_slice(&self) -> &[T] {
         self.make_slice()
@@ -478,7 +481,8 @@ where
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitInclusive<'a, T, P> {
     #[inline]
     pub(super) fn new(slice: &'a [T], pred: P) -> Self {
-        Self { v: slice, pred, finished: false }
+        let finished = slice.is_empty();
+        Self { v: slice, pred, finished }
     }
 }
 
@@ -726,7 +730,8 @@ where
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitInclusiveMut<'a, T, P> {
     #[inline]
     pub(super) fn new(slice: &'a mut [T], pred: P) -> Self {
-        Self { v: slice, pred, finished: false }
+        let finished = slice.is_empty();
+        Self { v: slice, pred, finished }
     }
 }
 
@@ -836,7 +841,6 @@ impl<T, P> FusedIterator for SplitInclusiveMut<'_, T, P> where P: FnMut(&T) -> b
 /// [`rsplit`]: slice::rsplit
 /// [slices]: slice
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-#[derive(Clone)] // Is this correct, or does it incorrectly require `T: Clone`?
 pub struct RSplit<'a, T: 'a, P>
 where
     P: FnMut(&T) -> bool,
@@ -861,6 +865,17 @@ where
             .field("v", &self.inner.v)
             .field("finished", &self.inner.finished)
             .finish()
+    }
+}
+
+// FIXME(#26925) Remove in favor of `#[derive(Clone)]`
+#[stable(feature = "slice_rsplit", since = "1.27.0")]
+impl<T, P> Clone for RSplit<'_, T, P>
+where
+    P: Clone + FnMut(&T) -> bool,
+{
+    fn clone(&self) -> Self {
+        RSplit { inner: self.inner.clone() }
     }
 }
 
@@ -1461,7 +1476,21 @@ impl<'a, T> DoubleEndedIterator for Chunks<'a, T> {
         } else {
             let remainder = self.v.len() % self.chunk_size;
             let chunksz = if remainder != 0 { remainder } else { self.chunk_size };
-            let (fst, snd) = self.v.split_at(self.v.len() - chunksz);
+            // SAFETY: split_at_unchecked requires the argument be less than or
+            // equal to the length. This is guaranteed, but subtle: `chunksz`
+            // will always either be `self.v.len() % self.chunk_size`, which
+            // will always evaluate to strictly less than `self.v.len()` (or
+            // panic, in the case that `self.chunk_size` is zero), or it can be
+            // `self.chunk_size`, in the case that the length is exactly
+            // divisible by the chunk size.
+            //
+            // While it seems like using `self.chunk_size` in this case could
+            // lead to a value greater than `self.v.len()`, it cannot: if
+            // `self.chunk_size` were greater than `self.v.len()`, then
+            // `self.v.len() % self.chunk_size` would return nonzero (note that
+            // in this branch of the `if`, we already know that `self.v` is
+            // non-empty).
+            let (fst, snd) = unsafe { self.v.split_at_unchecked(self.v.len() - chunksz) };
             self.v = fst;
             Some(snd)
         }
@@ -1626,7 +1655,8 @@ impl<'a, T> DoubleEndedIterator for ChunksMut<'a, T> {
             let sz = if remainder != 0 { remainder } else { self.chunk_size };
             let tmp = mem::replace(&mut self.v, &mut []);
             let tmp_len = tmp.len();
-            let (head, tail) = tmp.split_at_mut(tmp_len - sz);
+            // SAFETY: Similar to `Chunks::next_back`
+            let (head, tail) = unsafe { tmp.split_at_mut_unchecked(tmp_len - sz) };
             self.v = head;
             Some(tail)
         }
@@ -1711,6 +1741,7 @@ impl<'a, T> ChunksExact<'a, T> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `chunk_size-1`
     /// elements.
+    #[must_use]
     #[stable(feature = "chunks_exact", since = "1.31.0")]
     pub fn remainder(&self) -> &'a [T] {
         self.rem
@@ -1869,6 +1900,7 @@ impl<'a, T> ChunksExactMut<'a, T> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `chunk_size-1`
     /// elements.
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "chunks_exact", since = "1.31.0")]
     pub fn into_remainder(self) -> &'a mut [T] {
         self.rem
@@ -2139,6 +2171,7 @@ impl<'a, T, const N: usize> ArrayChunks<'a, T, N> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `N-1`
     /// elements.
+    #[must_use]
     #[unstable(feature = "array_chunks", issue = "74985")]
     pub fn remainder(&self) -> &'a [T] {
         self.rem
@@ -2264,6 +2297,7 @@ impl<'a, T, const N: usize> ArrayChunksMut<'a, T, N> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `N-1`
     /// elements.
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[unstable(feature = "array_chunks", issue = "74985")]
     pub fn into_remainder(self) -> &'a mut [T] {
         self.rem
@@ -2391,8 +2425,14 @@ impl<'a, T> Iterator for RChunks<'a, T> {
         if self.v.is_empty() {
             None
         } else {
-            let chunksz = cmp::min(self.v.len(), self.chunk_size);
-            let (fst, snd) = self.v.split_at(self.v.len() - chunksz);
+            let len = self.v.len();
+            let chunksz = cmp::min(len, self.chunk_size);
+            // SAFETY: split_at_unchecked just requires the argument be less
+            // than the length. This could only happen if the expression `len -
+            // chunksz` overflows. This could only happen if `chunksz > len`,
+            // which is impossible as we initialize it as the `min` of `len` and
+            // `self.chunk_size`.
+            let (fst, snd) = unsafe { self.v.split_at_unchecked(len - chunksz) };
             self.v = fst;
             Some(snd)
         }
@@ -2466,7 +2506,8 @@ impl<'a, T> DoubleEndedIterator for RChunks<'a, T> {
         } else {
             let remainder = self.v.len() % self.chunk_size;
             let chunksz = if remainder != 0 { remainder } else { self.chunk_size };
-            let (fst, snd) = self.v.split_at(chunksz);
+            // SAFETY: similar to Chunks::next_back
+            let (fst, snd) = unsafe { self.v.split_at_unchecked(chunksz) };
             self.v = snd;
             Some(fst)
         }
@@ -2552,7 +2593,12 @@ impl<'a, T> Iterator for RChunksMut<'a, T> {
             let sz = cmp::min(self.v.len(), self.chunk_size);
             let tmp = mem::replace(&mut self.v, &mut []);
             let tmp_len = tmp.len();
-            let (head, tail) = tmp.split_at_mut(tmp_len - sz);
+            // SAFETY: split_at_mut_unchecked just requires the argument be less
+            // than the length. This could only happen if the expression
+            // `tmp_len - sz` overflows. This could only happen if `sz >
+            // tmp_len`, which is impossible as we initialize it as the `min` of
+            // `self.v.len()` (e.g. `tmp_len`) and `self.chunk_size`.
+            let (head, tail) = unsafe { tmp.split_at_mut_unchecked(tmp_len - sz) };
             self.v = head;
             Some(tail)
         }
@@ -2630,7 +2676,8 @@ impl<'a, T> DoubleEndedIterator for RChunksMut<'a, T> {
             let remainder = self.v.len() % self.chunk_size;
             let sz = if remainder != 0 { remainder } else { self.chunk_size };
             let tmp = mem::replace(&mut self.v, &mut []);
-            let (head, tail) = tmp.split_at_mut(sz);
+            // SAFETY: Similar to `Chunks::next_back`
+            let (head, tail) = unsafe { tmp.split_at_mut_unchecked(sz) };
             self.v = tail;
             Some(head)
         }
@@ -2713,6 +2760,7 @@ impl<'a, T> RChunksExact<'a, T> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `chunk_size-1`
     /// elements.
+    #[must_use]
     #[stable(feature = "rchunks", since = "1.31.0")]
     pub fn remainder(&self) -> &'a [T] {
         self.rem
@@ -2875,6 +2923,7 @@ impl<'a, T> RChunksExactMut<'a, T> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `chunk_size-1`
     /// elements.
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "rchunks", since = "1.31.0")]
     pub fn into_remainder(self) -> &'a mut [T] {
         self.rem

@@ -14,15 +14,21 @@ use rustc_codegen_ssa::traits::*;
 use rustc_data_structures::base_n;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::small_c_str::SmallCStr;
-use rustc_middle::bug;
 use rustc_middle::mir::mono::CodegenUnit;
-use rustc_middle::ty::layout::{HasParamEnv, LayoutError, TyAndLayout};
+use rustc_middle::ty::layout::{
+    FnAbiError, FnAbiOfHelpers, FnAbiRequest, HasParamEnv, LayoutError, LayoutOfHelpers,
+    TyAndLayout,
+};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
-use rustc_session::config::{CFGuard, CrateType, DebugInfo};
+use rustc_middle::{bug, span_bug};
+use rustc_session::config::{BranchProtection, CFGuard, CFProtection};
+use rustc_session::config::{CrateType, DebugInfo, PAuthKey, PacRet};
 use rustc_session::Session;
-use rustc_span::source_map::{Span, DUMMY_SP};
+use rustc_span::source_map::Span;
 use rustc_span::symbol::Symbol;
-use rustc_target::abi::{HasDataLayout, LayoutOf, PointeeInfo, Size, TargetDataLayout, VariantIdx};
+use rustc_target::abi::{
+    call::FnAbi, HasDataLayout, PointeeInfo, Size, TargetDataLayout, VariantIdx,
+};
 use rustc_target::spec::{HasTargetSpec, RelocModel, Target, TlsModel};
 use smallvec::SmallVec;
 
@@ -119,7 +125,7 @@ fn to_llvm_tls_model(tls_model: TlsModel) -> llvm::ThreadLocalMode {
     }
 }
 
-pub unsafe fn create_module(
+pub unsafe fn create_module<'ll>(
     tcx: TyCtxt<'_>,
     llcx: &'ll llvm::Context,
     mod_name: &str,
@@ -129,10 +135,8 @@ pub unsafe fn create_module(
     let llmod = llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), llcx);
 
     let mut target_data_layout = sess.target.data_layout.clone();
-    if llvm_util::get_version() < (12, 0, 0) && sess.target.arch == "powerpc64" {
-        target_data_layout = target_data_layout.replace("-v256:256:256-v512:512:512", "");
-    }
-    if llvm_util::get_version() < (13, 0, 0) {
+    let llvm_version = llvm_util::get_version();
+    if llvm_version < (13, 0, 0) {
         if sess.target.arch == "powerpc64" {
             target_data_layout = target_data_layout.replace("-S128", "");
         }
@@ -141,6 +145,18 @@ pub unsafe fn create_module(
         }
         if sess.target.arch == "wasm64" {
             target_data_layout = "e-m:e-p:64:64-i64:64-n32:64-S128".to_string();
+        }
+    }
+    if llvm_version < (14, 0, 0) {
+        if sess.target.llvm_target == "i686-pc-windows-msvc"
+            || sess.target.llvm_target == "i586-pc-windows-msvc"
+        {
+            target_data_layout =
+                "e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:32-n8:16:32-a:0:32-S32"
+                    .to_string();
+        }
+        if sess.target.arch == "wasm32" {
+            target_data_layout = target_data_layout.replace("-p10:8:8-p20:8:8", "");
         }
     }
 
@@ -190,11 +206,14 @@ pub unsafe fn create_module(
     let llvm_target = SmallCStr::new(&sess.target.llvm_target);
     llvm::LLVMRustSetNormalizedTarget(llmod, llvm_target.as_ptr());
 
-    if sess.relocation_model() == RelocModel::Pic {
+    let reloc_model = sess.relocation_model();
+    if matches!(reloc_model, RelocModel::Pic | RelocModel::Pie) {
         llvm::LLVMRustSetModulePICLevel(llmod);
         // PIE is potentially more effective than PIC, but can only be used in executables.
         // If all our outputs are executables, then we can relax PIC to PIE.
-        if sess.crate_types().iter().all(|ty| *ty == CrateType::Executable) {
+        if reloc_model == RelocModel::Pie
+            || sess.crate_types().iter().all(|ty| *ty == CrateType::Executable)
+        {
             llvm::LLVMRustSetModulePIELevel(llmod);
         }
     }
@@ -210,7 +229,19 @@ pub unsafe fn create_module(
     // to ensure intrinsic calls don't use it.
     if !sess.needs_plt() {
         let avoid_plt = "RtLibUseGOT\0".as_ptr().cast();
-        llvm::LLVMRustAddModuleFlag(llmod, avoid_plt, 1);
+        llvm::LLVMRustAddModuleFlag(llmod, llvm::LLVMModFlagBehavior::Warning, avoid_plt, 1);
+    }
+
+    if sess.is_sanitizer_cfi_enabled() {
+        // FIXME(rcvalle): Add support for non canonical jump tables.
+        let canonical_jump_tables = "CFI Canonical Jump Tables\0".as_ptr().cast();
+        // FIXME(rcvalle): Add it with Override behavior flag.
+        llvm::LLVMRustAddModuleFlag(
+            llmod,
+            llvm::LLVMModFlagBehavior::Warning,
+            canonical_jump_tables,
+            1,
+        );
     }
 
     // Control Flow Guard is currently only supported by the MSVC linker on Windows.
@@ -219,13 +250,73 @@ pub unsafe fn create_module(
             CFGuard::Disabled => {}
             CFGuard::NoChecks => {
                 // Set `cfguard=1` module flag to emit metadata only.
-                llvm::LLVMRustAddModuleFlag(llmod, "cfguard\0".as_ptr() as *const _, 1)
+                llvm::LLVMRustAddModuleFlag(
+                    llmod,
+                    llvm::LLVMModFlagBehavior::Warning,
+                    "cfguard\0".as_ptr() as *const _,
+                    1,
+                )
             }
             CFGuard::Checks => {
                 // Set `cfguard=2` module flag to emit metadata and checks.
-                llvm::LLVMRustAddModuleFlag(llmod, "cfguard\0".as_ptr() as *const _, 2)
+                llvm::LLVMRustAddModuleFlag(
+                    llmod,
+                    llvm::LLVMModFlagBehavior::Warning,
+                    "cfguard\0".as_ptr() as *const _,
+                    2,
+                )
             }
         }
+    }
+
+    if let Some(BranchProtection { bti, pac_ret }) = sess.opts.debugging_opts.branch_protection {
+        if sess.target.arch != "aarch64" {
+            sess.err("-Zbranch-protection is only supported on aarch64");
+        } else {
+            llvm::LLVMRustAddModuleFlag(
+                llmod,
+                llvm::LLVMModFlagBehavior::Error,
+                "branch-target-enforcement\0".as_ptr().cast(),
+                bti.into(),
+            );
+            llvm::LLVMRustAddModuleFlag(
+                llmod,
+                llvm::LLVMModFlagBehavior::Error,
+                "sign-return-address\0".as_ptr().cast(),
+                pac_ret.is_some().into(),
+            );
+            let pac_opts = pac_ret.unwrap_or(PacRet { leaf: false, key: PAuthKey::A });
+            llvm::LLVMRustAddModuleFlag(
+                llmod,
+                llvm::LLVMModFlagBehavior::Error,
+                "sign-return-address-all\0".as_ptr().cast(),
+                pac_opts.leaf.into(),
+            );
+            llvm::LLVMRustAddModuleFlag(
+                llmod,
+                llvm::LLVMModFlagBehavior::Error,
+                "sign-return-address-with-bkey\0".as_ptr().cast(),
+                u32::from(pac_opts.key == PAuthKey::B),
+            );
+        }
+    }
+
+    // Pass on the control-flow protection flags to LLVM (equivalent to `-fcf-protection` in Clang).
+    if let CFProtection::Branch | CFProtection::Full = sess.opts.debugging_opts.cf_protection {
+        llvm::LLVMRustAddModuleFlag(
+            llmod,
+            llvm::LLVMModFlagBehavior::Override,
+            "cf-protection-branch\0".as_ptr().cast(),
+            1,
+        )
+    }
+    if let CFProtection::Return | CFProtection::Full = sess.opts.debugging_opts.cf_protection {
+        llvm::LLVMRustAddModuleFlag(
+            llmod,
+            llvm::LLVMModFlagBehavior::Override,
+            "cf-protection-return\0".as_ptr().cast(),
+            1,
+        )
     }
 
     llmod
@@ -306,7 +397,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
 
         let dbg_cx = if tcx.sess.opts.debuginfo != DebugInfo::None {
             let dctx = debuginfo::CrateDebugContext::new(llmod);
-            debuginfo::metadata::compile_unit_metadata(tcx, &codegen_unit.name().as_str(), &dctx);
+            debuginfo::metadata::compile_unit_metadata(tcx, codegen_unit.name().as_str(), &dctx);
             Some(dctx)
         } else {
             None
@@ -349,13 +440,13 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     }
 
     #[inline]
-    pub fn coverage_context(&'a self) -> Option<&'a coverageinfo::CrateCoverageContext<'ll, 'tcx>> {
+    pub fn coverage_context(&self) -> Option<&coverageinfo::CrateCoverageContext<'ll, 'tcx>> {
         self.coverage_cx.as_ref()
     }
 
     fn create_used_variable_impl(&self, name: &'static CStr, values: &[&'ll Value]) {
         let section = cstr!("llvm.metadata");
-        let array = self.const_array(&self.type_ptr_to(self.type_i8()), values);
+        let array = self.const_array(self.type_ptr_to(self.type_i8()), values);
 
         unsafe {
             let g = llvm::LLVMAddGlobal(self.llmod, self.val_ty(array), name.as_ptr());
@@ -366,7 +457,7 @@ impl<'ll, 'tcx> CodegenCx<'ll, 'tcx> {
     }
 }
 
-impl MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'ll, 'tcx> MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn vtables(
         &self,
     ) -> &RefCell<FxHashMap<(Ty<'tcx>, Option<ty::PolyExistentialTraitRef<'tcx>>), &'ll Value>>
@@ -439,7 +530,7 @@ impl MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 
     fn sess(&self) -> &Session {
-        &self.tcx.sess
+        self.tcx.sess
     }
 
     fn check_overflow(&self) -> bool {
@@ -490,8 +581,8 @@ impl MiscMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     }
 }
 
-impl CodegenCx<'b, 'tcx> {
-    crate fn get_intrinsic(&self, key: &str) -> (&'b Type, &'b Value) {
+impl<'ll> CodegenCx<'ll, '_> {
+    crate fn get_intrinsic(&self, key: &str) -> (&'ll Type, &'ll Value) {
         if let Some(v) = self.intrinsics.borrow().get(key).cloned() {
             return v;
         }
@@ -502,9 +593,9 @@ impl CodegenCx<'b, 'tcx> {
     fn insert_intrinsic(
         &self,
         name: &'static str,
-        args: Option<&[&'b llvm::Type]>,
-        ret: &'b llvm::Type,
-    ) -> (&'b llvm::Type, &'b llvm::Value) {
+        args: Option<&[&'ll llvm::Type]>,
+        ret: &'ll llvm::Type,
+    ) -> (&'ll llvm::Type, &'ll llvm::Value) {
         let fn_ty = if let Some(args) = args {
             self.type_func(args, ret)
         } else {
@@ -515,7 +606,7 @@ impl CodegenCx<'b, 'tcx> {
         (fn_ty, f)
     }
 
-    fn declare_intrinsic(&self, key: &str) -> Option<(&'b Type, &'b Value)> {
+    fn declare_intrinsic(&self, key: &str) -> Option<(&'ll Type, &'ll Value)> {
         macro_rules! ifn {
             ($name:expr, fn() -> $ret:expr) => (
                 if key == $name {
@@ -583,7 +674,6 @@ impl CodegenCx<'b, 'tcx> {
         ifn!("llvm.trap", fn() -> void);
         ifn!("llvm.debugtrap", fn() -> void);
         ifn!("llvm.frameaddress", fn(t_i32) -> i8p);
-        ifn!("llvm.sideeffect", fn() -> void);
 
         ifn!("llvm.powi.f32", fn(t_f32, t_i32) -> t_f32);
         ifn!("llvm.powi.f64", fn(t_f64, t_i32) -> t_f64);
@@ -771,6 +861,8 @@ impl CodegenCx<'b, 'tcx> {
             ifn!("llvm.instrprof.increment", fn(i8p, t_i64, t_i32, t_i32) -> void);
         }
 
+        ifn!("llvm.type.test", fn(i8p, self.type_metadata()) -> i1);
+
         if self.sess().opts.debuginfo != DebugInfo::None {
             ifn!("llvm.dbg.declare", fn(self.type_metadata(), self.type_metadata()) -> void);
             ifn!("llvm.dbg.value", fn(self.type_metadata(), t_i64, self.type_metadata()) -> void);
@@ -778,7 +870,7 @@ impl CodegenCx<'b, 'tcx> {
         None
     }
 
-    crate fn eh_catch_typeinfo(&self) -> &'b Value {
+    crate fn eh_catch_typeinfo(&self) -> &'ll Value {
         if let Some(eh_catch_typeinfo) = self.eh_catch_typeinfo.get() {
             return eh_catch_typeinfo;
         }
@@ -798,7 +890,7 @@ impl CodegenCx<'b, 'tcx> {
     }
 }
 
-impl<'b, 'tcx> CodegenCx<'b, 'tcx> {
+impl CodegenCx<'_, '_> {
     /// Generates a new symbol name with the given prefix. This symbol name must
     /// only be used for definitions with `internal` or `private` linkage.
     pub fn generate_local_symbol_name(&self, prefix: &str) -> String {
@@ -814,48 +906,79 @@ impl<'b, 'tcx> CodegenCx<'b, 'tcx> {
     }
 }
 
-impl HasDataLayout for CodegenCx<'ll, 'tcx> {
+impl HasDataLayout for CodegenCx<'_, '_> {
     #[inline]
     fn data_layout(&self) -> &TargetDataLayout {
         &self.tcx.data_layout
     }
 }
 
-impl HasTargetSpec for CodegenCx<'ll, 'tcx> {
+impl HasTargetSpec for CodegenCx<'_, '_> {
     #[inline]
     fn target_spec(&self) -> &Target {
         &self.tcx.sess.target
     }
 }
 
-impl ty::layout::HasTyCtxt<'tcx> for CodegenCx<'ll, 'tcx> {
+impl<'tcx> ty::layout::HasTyCtxt<'tcx> for CodegenCx<'_, 'tcx> {
     #[inline]
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.tcx
     }
 }
 
-impl LayoutOf<'tcx> for CodegenCx<'ll, 'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = TyAndLayout<'tcx>;
-
-    fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyAndLayout {
-        self.spanned_layout_of(ty, DUMMY_SP)
-    }
-
-    fn spanned_layout_of(&self, ty: Ty<'tcx>, span: Span) -> Self::TyAndLayout {
-        self.tcx.layout_of(ty::ParamEnv::reveal_all().and(ty)).unwrap_or_else(|e| {
-            if let LayoutError::SizeOverflow(_) = e {
-                self.sess().span_fatal(span, &e.to_string())
-            } else {
-                bug!("failed to get layout for `{}`: {}", ty, e)
-            }
-        })
-    }
-}
-
 impl<'tcx, 'll> HasParamEnv<'tcx> for CodegenCx<'ll, 'tcx> {
     fn param_env(&self) -> ty::ParamEnv<'tcx> {
         ty::ParamEnv::reveal_all()
+    }
+}
+
+impl<'tcx> LayoutOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
+    type LayoutOfResult = TyAndLayout<'tcx>;
+
+    #[inline]
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
+        if let LayoutError::SizeOverflow(_) = err {
+            self.sess().span_fatal(span, &err.to_string())
+        } else {
+            span_bug!(span, "failed to get layout for `{}`: {}", ty, err)
+        }
+    }
+}
+
+impl<'tcx> FnAbiOfHelpers<'tcx> for CodegenCx<'_, 'tcx> {
+    type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
+
+    #[inline]
+    fn handle_fn_abi_err(
+        &self,
+        err: FnAbiError<'tcx>,
+        span: Span,
+        fn_abi_request: FnAbiRequest<'tcx>,
+    ) -> ! {
+        if let FnAbiError::Layout(LayoutError::SizeOverflow(_)) = err {
+            self.sess().span_fatal(span, &err.to_string())
+        } else {
+            match fn_abi_request {
+                FnAbiRequest::OfFnPtr { sig, extra_args } => {
+                    span_bug!(
+                        span,
+                        "`fn_abi_of_fn_ptr({}, {:?})` failed: {}",
+                        sig,
+                        extra_args,
+                        err
+                    );
+                }
+                FnAbiRequest::OfInstance { instance, extra_args } => {
+                    span_bug!(
+                        span,
+                        "`fn_abi_of_instance({}, {:?})` failed: {}",
+                        instance,
+                        extra_args,
+                        err
+                    );
+                }
+            }
+        }
     }
 }

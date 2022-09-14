@@ -17,9 +17,8 @@ use rustc_span::Span;
 
 /// On-demand query: yields a map containing all types mapped to their inherent impls.
 pub fn crate_inherent_impls(tcx: TyCtxt<'_>, (): ()) -> CrateInherentImpls {
-    let krate = tcx.hir().krate();
     let mut collect = InherentCollect { tcx, impls_map: Default::default() };
-    krate.visit_all_item_likes(&mut collect);
+    tcx.hir().visit_all_item_likes(&mut collect);
     collect.impls_map
 }
 
@@ -39,7 +38,7 @@ struct InherentCollect<'tcx> {
     impls_map: CrateInherentImpls,
 }
 
-impl ItemLikeVisitor<'v> for InherentCollect<'tcx> {
+impl<'tcx> ItemLikeVisitor<'_> for InherentCollect<'tcx> {
     fn visit_item(&mut self, item: &hir::Item<'_>) {
         let (ty, assoc_items) = match item.kind {
             hir::ItemKind::Impl(hir::Impl { of_trait: None, ref self_ty, items, .. }) => {
@@ -57,7 +56,7 @@ impl ItemLikeVisitor<'v> for InherentCollect<'tcx> {
             ty::Foreign(did) => {
                 self.check_def_id(item, did);
             }
-            ty::Dynamic(ref data, ..) if data.principal_def_id().is_some() => {
+            ty::Dynamic(data, ..) if data.principal_def_id().is_some() => {
                 self.check_def_id(item, data.principal_def_id().unwrap());
             }
             ty::Dynamic(..) => {
@@ -371,7 +370,7 @@ impl ItemLikeVisitor<'v> for InherentCollect<'tcx> {
     fn visit_foreign_item(&mut self, _foreign_item: &hir::ForeignItem<'_>) {}
 }
 
-impl InherentCollect<'tcx> {
+impl<'tcx> InherentCollect<'tcx> {
     fn check_def_id(&mut self, item: &hir::Item<'_>, def_id: DefId) {
         if let Some(def_id) = def_id.as_local() {
             // Add the implementation to the mapping from implementation to base
@@ -401,7 +400,7 @@ impl InherentCollect<'tcx> {
         lang: &str,
         ty: &str,
         span: Span,
-        assoc_items: &[hir::ImplItemRef<'_>],
+        assoc_items: &[hir::ImplItemRef],
     ) {
         match (lang_def_id, lang_def_id2) {
             (Some(lang_def_id), _) if lang_def_id == impl_def_id.to_def_id() => {
@@ -411,7 +410,7 @@ impl InherentCollect<'tcx> {
                 // OK
             }
             _ => {
-                let to_implement = if assoc_items.len() == 0 {
+                let to_implement = if assoc_items.is_empty() {
                     String::new()
                 } else {
                     let plural = assoc_items.len() > 1;

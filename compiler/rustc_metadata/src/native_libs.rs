@@ -3,8 +3,8 @@ use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::struct_span_err;
 use rustc_hir as hir;
 use rustc_hir::itemlikevisit::ItemLikeVisitor;
-use rustc_middle::middle::cstore::{DllCallingConvention, DllImport, NativeLib};
 use rustc_middle::ty::{List, ParamEnv, ParamEnvAnd, Ty, TyCtxt};
+use rustc_session::cstore::{DllCallingConvention, DllImport, NativeLib};
 use rustc_session::parse::feature_err;
 use rustc_session::utils::NativeLibKind;
 use rustc_session::Session;
@@ -14,7 +14,7 @@ use rustc_target::spec::abi::Abi;
 
 crate fn collect(tcx: TyCtxt<'_>) -> Vec<NativeLib> {
     let mut collector = Collector { tcx, libs: Vec::new() };
-    tcx.hir().krate().visit_all_item_likes(&mut collector);
+    tcx.hir().visit_all_item_likes(&mut collector);
     collector.process_command_line();
     collector.libs
 }
@@ -31,7 +31,7 @@ struct Collector<'tcx> {
     libs: Vec<NativeLib>,
 }
 
-impl ItemLikeVisitor<'tcx> for Collector<'tcx> {
+impl<'tcx> ItemLikeVisitor<'tcx> for Collector<'tcx> {
     fn visit_item(&mut self, it: &'tcx hir::Item<'tcx>) {
         let (abi, foreign_mod_items) = match it.kind {
             hir::ItemKind::ForeignMod { abi, items } => (abi, items),
@@ -67,7 +67,7 @@ impl ItemLikeVisitor<'tcx> for Collector<'tcx> {
                         Some(name) => name,
                         None => continue, // skip like historical compilers
                     };
-                    lib.kind = match &*kind.as_str() {
+                    lib.kind = match kind.as_str() {
                         "static" => NativeLibKind::Static { bundle: None, whole_archive: None },
                         "static-nobundle" => {
                             sess.struct_span_warn(
@@ -132,7 +132,7 @@ impl ItemLikeVisitor<'tcx> for Collector<'tcx> {
                 if let Some(modifiers) = item.value_str() {
                     let span = item.name_value_literal_span().unwrap();
                     for modifier in modifiers.as_str().split(',') {
-                        let (modifier, value) = match modifier.strip_prefix(&['+', '-'][..]) {
+                        let (modifier, value) = match modifier.strip_prefix(&['+', '-']) {
                             Some(m) => (m, modifier.starts_with('+')),
                             None => {
                                 sess.span_err(
@@ -223,7 +223,7 @@ impl ItemLikeVisitor<'tcx> for Collector<'tcx> {
     fn visit_foreign_item(&mut self, _it: &'tcx hir::ForeignItem<'tcx>) {}
 }
 
-impl Collector<'tcx> {
+impl Collector<'_> {
     fn register_native_lib(&mut self, span: Option<Span>, lib: NativeLib) {
         if lib.name.as_ref().map_or(false, |&s| s == kw::Empty) {
             match span {
@@ -274,11 +274,6 @@ impl Collector<'tcx> {
                     span,
                     "`#[link(...)]` with `kind = \"raw-dylib\"` only supported on Windows",
                 );
-            } else if !self.tcx.sess.target.options.is_like_msvc {
-                self.tcx.sess.span_warn(
-                    span,
-                    "`#[link(...)]` with `kind = \"raw-dylib\"` not supported on windows-gnu",
-                );
             }
 
             if lib_name.as_str().contains('\0') {
@@ -309,7 +304,7 @@ impl Collector<'tcx> {
                     .libs
                     .iter()
                     .filter_map(|lib| lib.name.as_ref())
-                    .any(|n| &n.as_str() == &lib.name);
+                    .any(|n| n.as_str() == lib.name);
                 if new_name.is_empty() {
                     self.tcx.sess.err(&format!(
                         "an empty renaming target was specified for library `{}`",
@@ -319,13 +314,13 @@ impl Collector<'tcx> {
                     self.tcx.sess.err(&format!(
                         "renaming of the library `{}` was specified, \
                                                 however this crate contains no `#[link(...)]` \
-                                                attributes referencing this library.",
+                                                attributes referencing this library",
                         lib.name
                     ));
                 } else if !renames.insert(&lib.name) {
                     self.tcx.sess.err(&format!(
                         "multiple renamings were \
-                                                specified for library `{}` .",
+                                                specified for library `{}`",
                         lib.name
                     ));
                 }
@@ -363,7 +358,7 @@ impl Collector<'tcx> {
                 .collect::<Vec<_>>();
             if existing.is_empty() {
                 // Add if not found
-                let new_name = passed_lib.new_name.as_ref().map(|s| &**s); // &Option<String> -> Option<&str>
+                let new_name: Option<&str> = passed_lib.new_name.as_deref();
                 let lib = NativeLib {
                     name: Some(Symbol::intern(new_name.unwrap_or(&passed_lib.name))),
                     kind: passed_lib.kind,
@@ -382,7 +377,7 @@ impl Collector<'tcx> {
         }
     }
 
-    fn i686_arg_list_size(&self, item: &hir::ForeignItemRef<'_>) -> usize {
+    fn i686_arg_list_size(&self, item: &hir::ForeignItemRef) -> usize {
         let argument_types: &List<Ty<'_>> = self.tcx.erase_late_bound_regions(
             self.tcx
                 .type_of(item.id.def_id)
@@ -406,14 +401,16 @@ impl Collector<'tcx> {
             .sum()
     }
 
-    fn build_dll_import(&self, abi: Abi, item: &hir::ForeignItemRef<'_>) -> DllImport {
+    fn build_dll_import(&self, abi: Abi, item: &hir::ForeignItemRef) -> DllImport {
         let calling_convention = if self.tcx.sess.target.arch == "x86" {
             match abi {
-                Abi::C { .. } | Abi::Cdecl => DllCallingConvention::C,
+                Abi::C { .. } | Abi::Cdecl { .. } => DllCallingConvention::C,
                 Abi::Stdcall { .. } | Abi::System { .. } => {
                     DllCallingConvention::Stdcall(self.i686_arg_list_size(item))
                 }
-                Abi::Fastcall => DllCallingConvention::Fastcall(self.i686_arg_list_size(item)),
+                Abi::Fastcall { .. } => {
+                    DllCallingConvention::Fastcall(self.i686_arg_list_size(item))
+                }
                 // Vectorcall is intentionally not supported at this time.
                 _ => {
                     self.tcx.sess.span_fatal(
@@ -424,7 +421,7 @@ impl Collector<'tcx> {
             }
         } else {
             match abi {
-                Abi::C { .. } | Abi::Win64 | Abi::System { .. } => DllCallingConvention::C,
+                Abi::C { .. } | Abi::Win64 { .. } | Abi::System { .. } => DllCallingConvention::C,
                 _ => {
                     self.tcx.sess.span_fatal(
                         item.span,
@@ -433,6 +430,12 @@ impl Collector<'tcx> {
                 }
             }
         };
-        DllImport { name: item.ident.name, ordinal: None, calling_convention, span: item.span }
+
+        DllImport {
+            name: item.ident.name,
+            ordinal: self.tcx.codegen_fn_attrs(item.id.def_id).link_ordinal,
+            calling_convention,
+            span: item.span,
+        }
     }
 }

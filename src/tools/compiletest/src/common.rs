@@ -349,11 +349,15 @@ pub struct Config {
     /// The current Rust channel
     pub channel: String,
 
+    /// The default Rust edition
+    pub edition: Option<String>,
+
     // Configuration for various run-make tests frobbing things like C compilers
     // or querying about various LLVM component information.
     pub cc: String,
     pub cxx: String,
     pub cflags: String,
+    pub cxxflags: String,
     pub ar: String,
     pub linker: Option<String>,
     pub llvm_components: String,
@@ -458,4 +462,10 @@ pub fn output_base_dir(config: &Config, testpaths: &TestPaths, revision: Option<
 ///   /path/to/build/host-triple/test/ui/relative/testname.revision.mode/testname
 pub fn output_base_name(config: &Config, testpaths: &TestPaths, revision: Option<&str>) -> PathBuf {
     output_base_dir(config, testpaths, revision).join(testpaths.file.file_stem().unwrap())
+}
+
+/// Absolute path to the directory to use for incremental compilation. Example:
+///   /path/to/build/host-triple/test/ui/relative/testname.mode/testname.inc
+pub fn incremental_dir(config: &Config, testpaths: &TestPaths) -> PathBuf {
+    output_base_name(config, testpaths, None).with_extension("inc")
 }

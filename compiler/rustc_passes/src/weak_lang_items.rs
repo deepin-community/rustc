@@ -1,10 +1,9 @@
 //! Validity checking for weak lang items
 
-use rustc_ast::Attribute;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_errors::struct_span_err;
 use rustc_hir as hir;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::lang_items::{self, LangItem};
 use rustc_hir::weak_lang_items::WEAK_ITEMS_REFS;
 use rustc_middle::middle::lang_items::required;
@@ -33,7 +32,7 @@ pub fn check_crate<'tcx>(tcx: TyCtxt<'tcx>, items: &mut lang_items::LanguageItem
 
     {
         let mut cx = Context { tcx, items };
-        tcx.hir().krate().visit_all_item_likes(&mut cx.as_deep_visitor());
+        tcx.hir().visit_all_item_likes(&mut cx.as_deep_visitor());
     }
     verify(tcx, items);
 }
@@ -66,11 +65,17 @@ fn verify<'tcx>(tcx: TyCtxt<'tcx>, items: &lang_items::LanguageItems) {
                 tcx.sess.err("`#[panic_handler]` function required, but not found");
             } else if item == LangItem::Oom {
                 if !tcx.features().default_alloc_error_handler {
-                    tcx.sess.err("`#[alloc_error_handler]` function required, but not found.");
-                    tcx.sess.note_without_error("Use `#![feature(default_alloc_error_handler)]` for a default error handler.");
+                    tcx.sess.err("`#[alloc_error_handler]` function required, but not found");
+                    tcx.sess.note_without_error("use `#![feature(default_alloc_error_handler)]` for a default error handler");
                 }
             } else {
-                tcx.sess.err(&format!("language item required, but not found: `{}`", name));
+                tcx
+                    .sess
+                    .diagnostic()
+                    .struct_err(&format!("language item required, but not found: `{}`", name))
+                    .note(&format!("this can occur when a binary crate with `#![no_std]` is compiled for a target where `{}` is defined in the standard library", name))
+                    .help(&format!("you may be able to compile for a target that doesn't need `{}`, specify a target with `--target` or in `.cargo/config`", name))
+                    .emit();
             }
         }
     }
@@ -90,16 +95,9 @@ impl<'a, 'tcx> Context<'a, 'tcx> {
 }
 
 impl<'a, 'tcx, 'v> Visitor<'v> for Context<'a, 'tcx> {
-    type Map = intravisit::ErasedMap<'v>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
     fn visit_foreign_item(&mut self, i: &hir::ForeignItem<'_>) {
-        let check_name = |attr: &Attribute, sym| attr.has_name(sym);
         let attrs = self.tcx.hir().attrs(i.hir_id());
-        if let Some((lang_item, _)) = lang_items::extract(check_name, attrs) {
+        if let Some((lang_item, _)) = lang_items::extract(attrs) {
             self.register(lang_item, i.span);
         }
         intravisit::walk_foreign_item(self, i)

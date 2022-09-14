@@ -14,13 +14,19 @@
     - [Distribution artifacts](./building/build-install-distribution-artifacts.md)
     - [Documenting Compiler](./building/compiler-documenting.md)
     - [Rustdoc overview](./rustdoc.md)
-    - [ctags](./building/ctags.md)
     - [Adding a new target](./building/new-target.md)
-- [The compiler testing framework](./tests/intro.md)
+- [Testing the compiler](./tests/intro.md)
     - [Running tests](./tests/running.md)
+        - [Testing with Docker](./tests/docker.md)
+        - [Testing with CI](./tests/ci.md)
     - [Adding new tests](./tests/adding.md)
-    - [Using `compiletest` commands to control test execution](./compiletest.md)
+    - [Compiletest](./tests/compiletest.md)
+        - [UI tests](./tests/ui.md)
+        - [Test headers](./tests/headers.md)
+    - [Performance testing](./tests/perf.md)
+    - [Crater](./tests/crater.md)
 - [Debugging the Compiler](./compiler-debugging.md)
+    - [Using the tracing/logging instrumentation](./tracing.md)
 - [Profiling the compiler](./profiling.md)
     - [with the linux perf tool](./profiling/with_perf.md)
     - [with Windows Performance Analyzer](./profiling/wpa_profiling.md)
@@ -91,6 +97,7 @@
     - [MIR passes: getting the MIR for a function](./mir/passes.md)
 - [Identifiers in the Compiler](./identifiers.md)
 - [Closure expansion](./closure.md)
+- [Inline assembly](./asm.md)
 
 # Analysis
 
@@ -99,6 +106,7 @@
     - [Generics and substitutions](./generics.md)
     - [`TypeFolder` and `TypeFoldable`](./ty-fold.md)
     - [Generic arguments](./generic_arguments.md)
+    - [Constants in the type system](./constants.md)
 - [Type inference](./type-inference.md)
 - [Trait solving](./traits/resolution.md)
     - [Early and Late Bound Parameters](./early-late-bound.md)
@@ -115,6 +123,7 @@
     - [Opaque Types](./opaque-types-type-alias-impl-trait.md)
 - [Pattern and Exhaustiveness Checking](./pat-exhaustive-checking.md)
 - [MIR dataflow](./mir/dataflow.md)
+- [Drop elaboration](./mir/drop-elaboration.md)
 - [The borrow checker](./borrow_check.md)
     - [Tracking moves and initialization](./borrow_check/moves_and_initialization.md)
         - [Move paths](./borrow_check/moves_and_initialization/move_paths.md)
@@ -132,6 +141,7 @@
     - [Creating Errors With SessionDiagnostic](./diagnostics/sessiondiagnostic.md)
     - [`LintStore`](./diagnostics/lintstore.md)
     - [Diagnostic Codes](./diagnostics/diagnostic-codes.md)
+    - [Diagnostic Items](./diagnostics/diagnostic-items.md)
 
 # MIR to Binaries
 

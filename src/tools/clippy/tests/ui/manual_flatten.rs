@@ -26,8 +26,6 @@ fn main() {
     }
 
     // Test for loop over an implicit reference
-    // Note: if `clippy::manual_flatten` is made autofixable, this case will
-    // lead to a follow-up lint `clippy::into_iter_on_ref`
     let z = &y;
     for n in z {
         if let Ok(n) = n {
@@ -88,6 +86,19 @@ fn main() {
     for n in slice_of_ref {
         if let Some(n) = n {
             println!("{:?}", n);
+        }
+    }
+
+    struct Test {
+        a: usize,
+    }
+
+    let mut vec_of_struct = [Some(Test { a: 1 }), None];
+
+    // Usage of `if let` expression should not trigger lint
+    for n in vec_of_struct.iter_mut() {
+        if let Some(z) = n {
+            *n = None;
         }
     }
 

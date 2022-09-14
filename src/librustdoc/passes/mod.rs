@@ -33,8 +33,8 @@ crate use self::propagate_doc_cfg::PROPAGATE_DOC_CFG;
 crate mod collect_intra_doc_links;
 crate use self::collect_intra_doc_links::COLLECT_INTRA_DOC_LINKS;
 
-mod doc_test_lints;
-crate use self::doc_test_lints::CHECK_PRIVATE_ITEMS_DOC_TESTS;
+mod check_doc_test_visibility;
+crate use self::check_doc_test_visibility::CHECK_DOC_TEST_VISIBILITY;
 
 mod collect_trait_impls;
 crate use self::collect_trait_impls::COLLECT_TRAIT_IMPLS;
@@ -79,7 +79,7 @@ crate enum Condition {
 
 /// The full list of passes.
 crate const PASSES: &[Pass] = &[
-    CHECK_PRIVATE_ITEMS_DOC_TESTS,
+    CHECK_DOC_TEST_VISIBILITY,
     STRIP_HIDDEN,
     UNINDENT_COMMENTS,
     STRIP_PRIVATE,
@@ -97,7 +97,7 @@ crate const PASSES: &[Pass] = &[
 crate const DEFAULT_PASSES: &[ConditionalPass] = &[
     ConditionalPass::always(COLLECT_TRAIT_IMPLS),
     ConditionalPass::always(UNINDENT_COMMENTS),
-    ConditionalPass::always(CHECK_PRIVATE_ITEMS_DOC_TESTS),
+    ConditionalPass::always(CHECK_DOC_TEST_VISIBILITY),
     ConditionalPass::new(STRIP_HIDDEN, WhenNotDocumentHidden),
     ConditionalPass::new(STRIP_PRIVATE, WhenNotDocumentPrivate),
     ConditionalPass::new(STRIP_PRIV_IMPORTS, WhenDocumentPrivate),
@@ -125,27 +125,9 @@ impl ConditionalPass {
     }
 }
 
-/// A shorthand way to refer to which set of passes to use, based on the presence of
-/// `--no-defaults` and `--show-coverage`.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-crate enum DefaultPassOption {
-    Default,
-    Coverage,
-    None,
-}
-
 /// Returns the given default set of passes.
-crate fn defaults(default_set: DefaultPassOption) -> &'static [ConditionalPass] {
-    match default_set {
-        DefaultPassOption::Default => DEFAULT_PASSES,
-        DefaultPassOption::Coverage => COVERAGE_PASSES,
-        DefaultPassOption::None => &[],
-    }
-}
-
-/// If the given name matches a known pass, returns its information.
-crate fn find_pass(pass_name: &str) -> Option<Pass> {
-    PASSES.iter().find(|p| p.name == pass_name).copied()
+crate fn defaults(show_coverage: bool) -> &'static [ConditionalPass] {
+    if show_coverage { COVERAGE_PASSES } else { DEFAULT_PASSES }
 }
 
 /// Returns a span encompassing all the given attributes.

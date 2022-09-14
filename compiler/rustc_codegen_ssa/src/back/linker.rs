@@ -15,7 +15,6 @@ use rustc_middle::middle::dependency_format::Linkage;
 use rustc_middle::ty::TyCtxt;
 use rustc_serialize::{json, Encoder};
 use rustc_session::config::{self, CrateType, DebugInfo, LinkerPluginLto, Lto, OptLevel, Strip};
-use rustc_session::search_paths::PathKind;
 use rustc_session::Session;
 use rustc_span::symbol::Symbol;
 use rustc_target::spec::{LinkOutputKind, LinkerFlavor, LldFlavor};
@@ -101,7 +100,7 @@ pub fn get_linker<'a>(
 
     // The compiler's sysroot often has some bundled tools, so add it to the
     // PATH for the child.
-    let mut new_path = sess.host_filesearch(PathKind::All).get_tools_search_paths(self_contained);
+    let mut new_path = sess.get_tools_search_paths(self_contained);
     let mut msvc_changed_path = false;
     if sess.target.is_like_msvc {
         if let Some(ref tool) = msvc_tool {
@@ -127,7 +126,6 @@ pub fn get_linker<'a>(
     // FIXME: Move `/LIBPATH` addition for uwp targets from the linker construction
     // to the linker args construction.
     assert!(cmd.get_args().is_empty() || sess.target.vendor == "uwp");
-
     match flavor {
         LinkerFlavor::Lld(LldFlavor::Link) | LinkerFlavor::Msvc => {
             Box::new(MsvcLinker { cmd, sess }) as Box<dyn Linker>
@@ -150,6 +148,8 @@ pub fn get_linker<'a>(
         LinkerFlavor::PtxLinker => Box::new(PtxLinker { cmd, sess }) as Box<dyn Linker>,
 
         LinkerFlavor::BpfLinker => Box::new(BpfLinker { cmd, sess }) as Box<dyn Linker>,
+
+        LinkerFlavor::L4Bender => Box::new(L4Bender::new(cmd, sess)) as Box<dyn Linker>,
     }
 }
 
@@ -220,19 +220,36 @@ pub struct GccLinker<'a> {
 }
 
 impl<'a> GccLinker<'a> {
-    /// Argument that must be passed *directly* to the linker
+    /// Passes an argument directly to the linker.
     ///
-    /// These arguments need to be prepended with `-Wl`, when a GCC-style linker is used.
-    fn linker_arg<S>(&mut self, arg: S) -> &mut Self
-    where
-        S: AsRef<OsStr>,
-    {
-        if !self.is_ld {
-            let mut os = OsString::from("-Wl,");
-            os.push(arg.as_ref());
-            self.cmd.arg(os);
+    /// When the linker is not ld-like such as when using a compiler as a linker, the argument is
+    /// prepended by `-Wl,`.
+    fn linker_arg(&mut self, arg: impl AsRef<OsStr>) -> &mut Self {
+        self.linker_args(&[arg]);
+        self
+    }
+
+    /// Passes a series of arguments directly to the linker.
+    ///
+    /// When the linker is ld-like, the arguments are simply appended to the command. When the
+    /// linker is not ld-like such as when using a compiler as a linker, the arguments are joined by
+    /// commas to form an argument that is then prepended with `-Wl`. In this situation, only a
+    /// single argument is appended to the command to ensure that the order of the arguments is
+    /// preserved by the compiler.
+    fn linker_args(&mut self, args: &[impl AsRef<OsStr>]) -> &mut Self {
+        if self.is_ld {
+            args.into_iter().for_each(|a| {
+                self.cmd.arg(a);
+            });
         } else {
-            self.cmd.arg(arg);
+            if !args.is_empty() {
+                let mut s = OsString::from("-Wl");
+                for a in args {
+                    s.push(",");
+                    s.push(a);
+                }
+                self.cmd.arg(s);
+            }
         }
         self
     }
@@ -287,14 +304,22 @@ impl<'a> GccLinker<'a> {
             config::OptLevel::Aggressive => "O3",
         };
 
-        self.linker_arg(&format!("-plugin-opt={}", opt_level));
-        self.linker_arg(&format!("-plugin-opt=mcpu={}", self.target_cpu));
+        if let Some(path) = &self.sess.opts.debugging_opts.profile_sample_use {
+            self.linker_arg(&format!("-plugin-opt=sample-profile={}", path.display()));
+        };
+        self.linker_args(&[
+            &format!("-plugin-opt={}", opt_level),
+            &format!("-plugin-opt=mcpu={}", self.target_cpu),
+        ]);
     }
 
     fn build_dylib(&mut self, out_filename: &Path) {
         // On mac we need to tell the linker to let this library be rpathed
         if self.sess.target.is_like_osx {
-            self.cmd.arg("-dynamiclib");
+            if !self.is_ld {
+                self.cmd.arg("-dynamiclib");
+            }
+
             self.linker_arg("-dylib");
 
             // Note that the `osx_rpath_install_name` option here is a hack
@@ -302,10 +327,9 @@ impl<'a> GccLinker<'a> {
             // principled solution at some point to force the compiler to pass
             // the right `-Wl,-install_name` with an `@rpath` in it.
             if self.sess.opts.cg.rpath || self.sess.opts.debugging_opts.osx_rpath_install_name {
-                self.linker_arg("-install_name");
-                let mut v = OsString::from("@rpath/");
-                v.push(out_filename.file_name().unwrap());
-                self.linker_arg(&v);
+                let mut rpath = OsString::from("@rpath/");
+                rpath.push(out_filename.file_name().unwrap());
+                self.linker_args(&[OsString::from("-install_name"), rpath]);
             }
         } else {
             self.cmd.arg("-shared");
@@ -379,8 +403,7 @@ impl<'a> Linker for GccLinker<'a> {
                 self.build_dylib(out_filename);
             }
             LinkOutputKind::WasiReactorExe => {
-                self.linker_arg("--entry");
-                self.linker_arg("_initialize");
+                self.linker_args(&["--entry", "_initialize"]);
             }
         }
         // VxWorks compiler driver introduced `--static-crt` flag specifically for rustc,
@@ -452,8 +475,7 @@ impl<'a> Linker for GccLinker<'a> {
         self.cmd.arg(path);
     }
     fn full_relro(&mut self) {
-        self.linker_arg("-zrelro");
-        self.linker_arg("-znow");
+        self.linker_args(&["-zrelro", "-znow"]);
     }
     fn partial_relro(&mut self) {
         self.linker_arg("-zrelro");
@@ -637,7 +659,6 @@ impl<'a> Linker for GccLinker<'a> {
         }
 
         let is_windows = self.sess.target.is_like_windows;
-        let mut arg = OsString::new();
         let path = tmpdir.join(if is_windows { "list.def" } else { "list" });
 
         debug!("EXPORTED SYMBOLS:");
@@ -689,27 +710,18 @@ impl<'a> Linker for GccLinker<'a> {
         }
 
         if self.sess.target.is_like_osx {
-            if !self.is_ld {
-                arg.push("-Wl,")
-            }
-            arg.push("-exported_symbols_list,");
+            self.linker_args(&[OsString::from("-exported_symbols_list"), path.into()]);
         } else if self.sess.target.is_like_solaris {
-            if !self.is_ld {
-                arg.push("-Wl,")
-            }
-            arg.push("-M,");
+            self.linker_args(&[OsString::from("-M"), path.into()]);
         } else {
-            if !self.is_ld {
-                arg.push("-Wl,")
-            }
-            // Both LD and LLD accept export list in *.def file form, there are no flags required
-            if !is_windows {
-                arg.push("--version-script=")
+            if is_windows {
+                self.linker_arg(path);
+            } else {
+                let mut arg = OsString::from("--version-script=");
+                arg.push(path);
+                self.linker_arg(arg);
             }
         }
-
-        arg.push(&path);
-        self.cmd.arg(arg);
     }
 
     fn subsystem(&mut self, subsystem: &str) {
@@ -767,8 +779,7 @@ impl<'a> Linker for GccLinker<'a> {
             self.linker_arg("--as-needed");
         } else if self.sess.target.is_like_solaris {
             // -z ignore is the Solaris equivalent to the GNU ld --as-needed option
-            self.linker_arg("-z");
-            self.linker_arg("ignore");
+            self.linker_args(&["-z", "ignore"]);
         }
     }
 }
@@ -1342,6 +1353,157 @@ impl<'a> Linker for WasmLd<'a> {
 
     fn linker_plugin_lto(&mut self) {
         // Do nothing for now
+    }
+}
+
+/// Linker shepherd script for L4Re (Fiasco)
+pub struct L4Bender<'a> {
+    cmd: Command,
+    sess: &'a Session,
+    hinted_static: bool,
+}
+
+impl<'a> Linker for L4Bender<'a> {
+    fn link_dylib(&mut self, _lib: Symbol, _verbatim: bool, _as_needed: bool) {
+        bug!("dylibs are not supported on L4Re");
+    }
+    fn link_staticlib(&mut self, lib: Symbol, _verbatim: bool) {
+        self.hint_static();
+        self.cmd.arg(format!("-PC{}", lib));
+    }
+    fn link_rlib(&mut self, lib: &Path) {
+        self.hint_static();
+        self.cmd.arg(lib);
+    }
+    fn include_path(&mut self, path: &Path) {
+        self.cmd.arg("-L").arg(path);
+    }
+    fn framework_path(&mut self, _: &Path) {
+        bug!("frameworks are not supported on L4Re");
+    }
+    fn output_filename(&mut self, path: &Path) {
+        self.cmd.arg("-o").arg(path);
+    }
+
+    fn add_object(&mut self, path: &Path) {
+        self.cmd.arg(path);
+    }
+
+    fn full_relro(&mut self) {
+        self.cmd.arg("-zrelro");
+        self.cmd.arg("-znow");
+    }
+
+    fn partial_relro(&mut self) {
+        self.cmd.arg("-zrelro");
+    }
+
+    fn no_relro(&mut self) {
+        self.cmd.arg("-znorelro");
+    }
+
+    fn cmd(&mut self) -> &mut Command {
+        &mut self.cmd
+    }
+
+    fn set_output_kind(&mut self, _output_kind: LinkOutputKind, _out_filename: &Path) {}
+
+    fn link_rust_dylib(&mut self, _: Symbol, _: &Path) {
+        panic!("Rust dylibs not supported");
+    }
+
+    fn link_framework(&mut self, _framework: Symbol, _as_needed: bool) {
+        bug!("frameworks not supported on L4Re");
+    }
+
+    fn link_whole_staticlib(&mut self, lib: Symbol, _verbatim: bool, _search_path: &[PathBuf]) {
+        self.hint_static();
+        self.cmd.arg("--whole-archive").arg(format!("-l{}", lib));
+        self.cmd.arg("--no-whole-archive");
+    }
+
+    fn link_whole_rlib(&mut self, lib: &Path) {
+        self.hint_static();
+        self.cmd.arg("--whole-archive").arg(lib).arg("--no-whole-archive");
+    }
+
+    fn gc_sections(&mut self, keep_metadata: bool) {
+        if !keep_metadata {
+            self.cmd.arg("--gc-sections");
+        }
+    }
+
+    fn no_gc_sections(&mut self) {
+        self.cmd.arg("--no-gc-sections");
+    }
+
+    fn optimize(&mut self) {
+        // GNU-style linkers support optimization with -O. GNU ld doesn't
+        // need a numeric argument, but other linkers do.
+        if self.sess.opts.optimize == config::OptLevel::Default
+            || self.sess.opts.optimize == config::OptLevel::Aggressive
+        {
+            self.cmd.arg("-O1");
+        }
+    }
+
+    fn pgo_gen(&mut self) {}
+
+    fn debuginfo(&mut self, strip: Strip) {
+        match strip {
+            Strip::None => {}
+            Strip::Debuginfo => {
+                self.cmd().arg("--strip-debug");
+            }
+            Strip::Symbols => {
+                self.cmd().arg("--strip-all");
+            }
+        }
+    }
+
+    fn no_default_libraries(&mut self) {
+        self.cmd.arg("-nostdlib");
+    }
+
+    fn export_symbols(&mut self, _: &Path, _: CrateType, _: &[String]) {
+        // ToDo, not implemented, copy from GCC
+        self.sess.warn("exporting symbols not implemented yet for L4Bender");
+        return;
+    }
+
+    fn subsystem(&mut self, subsystem: &str) {
+        self.cmd.arg(&format!("--subsystem {}", subsystem));
+    }
+
+    fn reset_per_library_state(&mut self) {
+        self.hint_static(); // Reset to default before returning the composed command line.
+    }
+
+    fn group_start(&mut self) {
+        self.cmd.arg("--start-group");
+    }
+
+    fn group_end(&mut self) {
+        self.cmd.arg("--end-group");
+    }
+
+    fn linker_plugin_lto(&mut self) {}
+
+    fn control_flow_guard(&mut self) {}
+
+    fn no_crt_objects(&mut self) {}
+}
+
+impl<'a> L4Bender<'a> {
+    pub fn new(cmd: Command, sess: &'a Session) -> L4Bender<'a> {
+        L4Bender { cmd: cmd, sess: sess, hinted_static: false }
+    }
+
+    fn hint_static(&mut self) {
+        if !self.hinted_static {
+            self.cmd.arg("-static");
+            self.hinted_static = true;
+        }
     }
 }
 

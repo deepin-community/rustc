@@ -6,14 +6,13 @@
 //!
 //! [rustc dev guide]: https://rustc-dev-guide.rust-lang.org/borrow_check.html
 
-use crate::ich::{NodeIdHashingMode, StableHashingContext};
 use crate::ty::TyCtxt;
-use rustc_hir as hir;
-use rustc_hir::Node;
-
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
+use rustc_hir as hir;
+use rustc_hir::Node;
 use rustc_macros::HashStable;
+use rustc_query_system::ich::{NodeIdHashingMode, StableHashingContext};
 use rustc_span::{Span, DUMMY_SP};
 
 use std::fmt;
@@ -210,11 +209,6 @@ pub struct ScopeTree {
     /// If not empty, this body is the root of this region hierarchy.
     pub root_body: Option<hir::HirId>,
 
-    /// The parent of the root body owner, if the latter is an
-    /// an associated const or method, as impls/traits can also
-    /// have lifetime parameters free in this body.
-    pub root_parent: Option<hir::HirId>,
-
     /// Maps from a scope ID to the enclosing scope id;
     /// this is usually corresponding to the lexical nesting, though
     /// in the case of closures the parent scope is the innermost
@@ -257,7 +251,8 @@ pub struct ScopeTree {
     /// ```
     ///
     /// With the HIR tree (calls numbered for expository purposes)
-    /// ```
+    ///
+    /// ```text
     ///     Call#0(foo, [Call#1(f), Yield(y), Call#2(bar, Call#3(g))])
     /// ```
     ///
@@ -313,7 +308,7 @@ pub struct ScopeTree {
     /// The reason is that semantically, until the `box` expression returns,
     /// the values are still owned by their containing expressions. So
     /// we'll see that `&x`.
-    pub yield_in_scope: FxHashMap<Scope, YieldData>,
+    pub yield_in_scope: FxHashMap<Scope, Vec<YieldData>>,
 
     /// The number of visit_expr and visit_pat calls done in the body.
     /// Used to sanity check visit_expr/visit_pat call count when
@@ -428,8 +423,8 @@ impl ScopeTree {
 
     /// Checks whether the given scope contains a `yield`. If so,
     /// returns `Some(YieldData)`. If not, returns `None`.
-    pub fn yield_in_scope(&self, scope: Scope) -> Option<YieldData> {
-        self.yield_in_scope.get(&scope).cloned()
+    pub fn yield_in_scope(&self, scope: Scope) -> Option<&Vec<YieldData>> {
+        self.yield_in_scope.get(&scope)
     }
 
     /// Gives the number of expressions visited in a body.
@@ -444,7 +439,6 @@ impl<'a> HashStable<StableHashingContext<'a>> for ScopeTree {
     fn hash_stable(&self, hcx: &mut StableHashingContext<'a>, hasher: &mut StableHasher) {
         let ScopeTree {
             root_body,
-            root_parent,
             ref body_expr_count,
             ref parent_map,
             ref var_map,
@@ -454,8 +448,7 @@ impl<'a> HashStable<StableHashingContext<'a>> for ScopeTree {
         } = *self;
 
         hcx.with_node_id_hashing_mode(NodeIdHashingMode::HashDefPath, |hcx| {
-            root_body.hash_stable(hcx, hasher);
-            root_parent.hash_stable(hcx, hasher);
+            root_body.hash_stable(hcx, hasher)
         });
 
         body_expr_count.hash_stable(hcx, hasher);

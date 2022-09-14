@@ -90,17 +90,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 };
 
                 let join_block = this.cfg.start_new_block();
-                this.cfg.terminate(
-                    then_blk,
-                    source_info,
-                    TerminatorKind::Goto { target: join_block },
-                );
-                this.cfg.terminate(
-                    else_blk,
-                    source_info,
-                    TerminatorKind::Goto { target: join_block },
-                );
-
+                this.cfg.goto(then_blk, source_info, join_block);
+                this.cfg.goto(else_blk, source_info, join_block);
                 join_block.unit()
             }
             ExprKind::Let { expr, ref pat } => {
@@ -108,8 +99,6 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 let (true_block, false_block) = this.in_if_then_scope(scope, |this| {
                     this.lower_let_expr(block, &this.thir[expr], pat, scope, expr_span)
                 });
-
-                let join_block = this.cfg.start_new_block();
 
                 this.cfg.push_assign_constant(
                     true_block,
@@ -133,6 +122,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     },
                 );
 
+                let join_block = this.cfg.start_new_block();
                 this.cfg.goto(true_block, source_info, join_block);
                 this.cfg.goto(false_block, source_info, join_block);
                 join_block.unit()
@@ -326,10 +316,16 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 let fields_map: FxHashMap<_, _> = fields
                     .into_iter()
                     .map(|f| {
+                        let local_info = Box::new(LocalInfo::AggregateTemp);
                         (
                             f.name,
                             unpack!(
-                                block = this.as_operand(block, Some(scope), &this.thir[f.expr])
+                                block = this.as_operand(
+                                    block,
+                                    Some(scope),
+                                    &this.thir[f.expr],
+                                    Some(local_info)
+                                )
                             ),
                         )
                     })
@@ -352,7 +348,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                                 let place_builder = place_builder.clone();
                                 this.consume_by_copy_or_move(
                                     place_builder
-                                        .field(n, ty)
+                                        .field(n, *ty)
                                         .into_place(this.tcx, this.typeck_results),
                                 )
                             }
@@ -371,7 +367,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     })
                 });
                 let adt = Box::new(AggregateKind::Adt(
-                    adt_def,
+                    adt_def.did,
                     variant_index,
                     substs,
                     user_ty,
@@ -443,8 +439,11 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     })
                     .collect();
 
-                let destination = this.cfg.start_new_block();
+                if !options.contains(InlineAsmOptions::NORETURN) {
+                    this.cfg.push_assign_unit(block, source_info, destination, this.tcx);
+                }
 
+                let destination_block = this.cfg.start_new_block();
                 this.cfg.terminate(
                     block,
                     source_info,
@@ -456,17 +455,19 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                         destination: if options.contains(InlineAsmOptions::NORETURN) {
                             None
                         } else {
-                            Some(destination)
+                            Some(destination_block)
                         },
+                        cleanup: None,
                     },
                 );
-                destination.unit()
+                if options.contains(InlineAsmOptions::MAY_UNWIND) {
+                    this.diverge_from(block);
+                }
+                destination_block.unit()
             }
 
             // These cases don't actually need a destination
-            ExprKind::Assign { .. }
-            | ExprKind::AssignOp { .. }
-            | ExprKind::LlvmInlineAsm { .. } => {
+            ExprKind::Assign { .. } | ExprKind::AssignOp { .. } => {
                 unpack!(block = this.stmt_expr(block, expr, None));
                 this.cfg.push_assign_unit(block, source_info, destination, this.tcx);
                 block.unit()
@@ -508,7 +509,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
             ExprKind::Yield { value } => {
                 let scope = this.local_scope();
-                let value = unpack!(block = this.as_operand(block, Some(scope), &this.thir[value]));
+                let value =
+                    unpack!(block = this.as_operand(block, Some(scope), &this.thir[value], None));
                 let resume = this.cfg.start_new_block();
                 this.cfg.terminate(
                     block,

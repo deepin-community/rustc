@@ -68,7 +68,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let arg_tys = sig.inputs();
         let ret_ty = sig.output();
         let name = bx.tcx().item_name(def_id);
-        let name_str = &*name.as_str();
+        let name_str = name.as_str();
 
         let llret_ty = bx.backend_type(bx.layout_of(ret_ty));
         let result = PlaceRef::new_sized(llresult, fn_abi.ret.layout);
@@ -104,7 +104,6 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 }
             }
             sym::pref_align_of
-            | sym::min_align_of
             | sym::needs_drop
             | sym::type_id
             | sym::type_name
@@ -370,13 +369,23 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
                 }
             }
 
+            sym::const_allocate => {
+                // returns a null pointer at runtime.
+                bx.const_null(bx.type_i8p())
+            }
+
+            sym::const_deallocate => {
+                // nop at runtime.
+                return;
+            }
+
             // This requires that atomic intrinsics follow a specific naming pattern:
             // "atomic_<operation>[_<ordering>]", and no ordering means SeqCst
             name if name_str.starts_with("atomic_") => {
                 use crate::common::AtomicOrdering::*;
                 use crate::common::{AtomicRmwBinOp, SynchronizationScope};
 
-                let split: Vec<&str> = name_str.split('_').collect();
+                let split: Vec<_> = name_str.split('_').collect();
 
                 let is_cxchg = split[1] == "cxchg" || split[1] == "cxchgweak";
                 let (order, failorder) = match split.len() {

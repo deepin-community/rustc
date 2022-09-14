@@ -44,7 +44,7 @@ use crate::intrinsics;
 /// ```
 #[inline]
 #[stable(feature = "unreachable", since = "1.27.0")]
-#[rustc_const_unstable(feature = "const_unreachable_unchecked", issue = "53188")]
+#[rustc_const_stable(feature = "const_unreachable_unchecked", since = "1.57.0")]
 pub const unsafe fn unreachable_unchecked() -> ! {
     // SAFETY: the safety contract for `intrinsics::unreachable` must
     // be upheld by the caller.
@@ -123,6 +123,21 @@ pub fn spin_loop() {
         }
     }
 
+    // RISC-V platform spin loop hint implementation
+    {
+        // RISC-V RV32 and RV64 share the same PAUSE instruction, but they are located in different
+        // modules in `core::arch`.
+        // In this case, here we call `pause` function in each core arch module.
+        #[cfg(target_arch = "riscv32")]
+        {
+            crate::arch::riscv32::pause();
+        }
+        #[cfg(target_arch = "riscv64")]
+        {
+            crate::arch::riscv64::pause();
+        }
+    }
+
     #[cfg(any(target_arch = "aarch64", all(target_arch = "arm", target_feature = "v6")))]
     {
         #[cfg(target_arch = "aarch64")]
@@ -154,18 +169,7 @@ pub fn spin_loop() {
 /// [`std::convert::identity`]: crate::convert::identity
 #[inline]
 #[unstable(feature = "bench_black_box", issue = "64102")]
-#[cfg_attr(not(bootstrap), allow(unused_mut))]
-#[cfg_attr(bootstrap, allow(deprecated))]
-pub fn black_box<T>(mut dummy: T) -> T {
-    #[cfg(bootstrap)]
-    // SAFETY: the inline assembly is a no-op.
-    unsafe {
-        llvm_asm!("" : : "r"(&mut dummy) : "memory" : "volatile");
-        dummy
-    }
-
-    #[cfg(not(bootstrap))]
-    {
-        crate::intrinsics::black_box(dummy)
-    }
+#[rustc_const_unstable(feature = "const_black_box", issue = "none")]
+pub const fn black_box<T>(dummy: T) -> T {
+    crate::intrinsics::black_box(dummy)
 }

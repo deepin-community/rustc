@@ -5,10 +5,9 @@ use clippy_utils::{get_enclosing_block, is_expr_path_def_path, path_to_local, pa
 use if_chain::if_chain;
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
-use rustc_hir::intravisit::{walk_block, walk_expr, walk_stmt, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{walk_block, walk_expr, walk_stmt, Visitor};
 use rustc_hir::{BindingAnnotation, Block, Expr, ExprKind, HirId, PatKind, QPath, Stmt, StmtKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::symbol::sym;
 
@@ -36,6 +35,7 @@ declare_clippy_lint! {
     /// let mut vec1 = vec![0; len];
     /// let mut vec2 = vec![0; len];
     /// ```
+    #[clippy::version = "1.32.0"]
     pub SLOW_VECTOR_INITIALIZATION,
     perf,
     "slow vector initialization"
@@ -120,7 +120,7 @@ impl SlowVectorInit {
             if let ExprKind::Call(func, [arg]) = expr.kind;
             if let ExprKind::Path(QPath::TypeRelative(ty, name)) = func.kind;
             if name.ident.as_str() == "with_capacity";
-            if is_type_diagnostic_item(cx, cx.typeck_results().node_type(ty.hir_id), sym::vec_type);
+            if is_type_diagnostic_item(cx, cx.typeck_results().node_type(ty.hir_id), sym::Vec);
             then {
                 Some(arg)
             } else {
@@ -197,7 +197,7 @@ impl<'a, 'tcx> VectorInitializationVisitor<'a, 'tcx> {
     fn search_slow_extend_filling(&mut self, expr: &'tcx Expr<'_>) {
         if_chain! {
             if self.initialization_found;
-            if let ExprKind::MethodCall(path, _, [self_arg, extend_arg], _) = expr.kind;
+            if let ExprKind::MethodCall(path, [self_arg, extend_arg], _) = expr.kind;
             if path_to_local_id(self_arg, self.vec_alloc.local_id);
             if path.ident.name == sym!(extend);
             if self.is_repeat_take(extend_arg);
@@ -212,7 +212,7 @@ impl<'a, 'tcx> VectorInitializationVisitor<'a, 'tcx> {
     fn search_slow_resize_filling(&mut self, expr: &'tcx Expr<'_>) {
         if_chain! {
             if self.initialization_found;
-            if let ExprKind::MethodCall(path, _, [self_arg, len_arg, fill_arg], _) = expr.kind;
+            if let ExprKind::MethodCall(path, [self_arg, len_arg, fill_arg], _) = expr.kind;
             if path_to_local_id(self_arg, self.vec_alloc.local_id);
             if path.ident.name == sym!(resize);
 
@@ -232,7 +232,7 @@ impl<'a, 'tcx> VectorInitializationVisitor<'a, 'tcx> {
     /// Returns `true` if give expression is `repeat(0).take(...)`
     fn is_repeat_take(&self, expr: &Expr<'_>) -> bool {
         if_chain! {
-            if let ExprKind::MethodCall(take_path, _, take_args, _) = expr.kind;
+            if let ExprKind::MethodCall(take_path, take_args, _) = expr.kind;
             if take_path.ident.name == sym!(take);
 
             // Check that take is applied to `repeat(0)`
@@ -269,8 +269,6 @@ impl<'a, 'tcx> VectorInitializationVisitor<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for VectorInitializationVisitor<'a, 'tcx> {
-    type Map = Map<'tcx>;
-
     fn visit_stmt(&mut self, stmt: &'tcx Stmt<'_>) {
         if self.initialization_found {
             match stmt.kind {
@@ -306,9 +304,5 @@ impl<'a, 'tcx> Visitor<'tcx> for VectorInitializationVisitor<'a, 'tcx> {
         }
 
         walk_expr(self, expr);
-    }
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
     }
 }

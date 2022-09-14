@@ -9,15 +9,13 @@ use crate::{BindingKey, ModuleKind, ResolutionError, Resolver, Segment};
 use crate::{CrateLint, Module, ModuleOrUniformRoot, ParentScope, PerNS, ScopeSet, Weak};
 use crate::{NameBinding, NameBindingKind, PathResult, PrivacyError, ToNameBinding};
 
-use rustc_ast::unwrap_or;
 use rustc_ast::NodeId;
-use rustc_ast_lowering::ResolverAstLowering;
 use rustc_data_structures::fx::FxHashSet;
-use rustc_data_structures::ptr_key::PtrKey;
+use rustc_data_structures::intern::Interned;
 use rustc_errors::{pluralize, struct_span_err, Applicability};
 use rustc_hir::def::{self, PartialRes};
 use rustc_hir::def_id::DefId;
-use rustc_middle::hir::exports::Export;
+use rustc_middle::metadata::ModChild;
 use rustc_middle::span_bug;
 use rustc_middle::ty;
 use rustc_session::lint::builtin::{PUB_USE_OF_PRIVATE_EXTERN_CRATE, UNUSED_IMPORTS};
@@ -50,6 +48,9 @@ pub enum ImportKind<'a> {
         type_ns_only: bool,
         /// Did this import result from a nested import? ie. `use foo::{bar, baz};`
         nested: bool,
+        /// Additional `NodeId`s allocated to a `ast::UseTree` for automatically generated `use` statement
+        /// (eg. implicit struct constructors)
+        additional_ids: (NodeId, NodeId),
     },
     Glob {
         is_prelude: bool,
@@ -133,7 +134,7 @@ impl<'a> Import<'a> {
 pub struct NameResolution<'a> {
     /// Single imports that may define the name in the namespace.
     /// Imports are arena-allocated, so it's ok to use pointers as keys.
-    single_imports: FxHashSet<PtrKey<'a, Import<'a>>>,
+    single_imports: FxHashSet<Interned<'a, Import<'a>>>,
     /// The least shadowable known binding for this name, or None if there are no known bindings.
     pub binding: Option<&'a NameBinding<'a>>,
     shadowed_glob: Option<&'a NameBinding<'a>>,
@@ -152,7 +153,7 @@ impl<'a> NameResolution<'a> {
     }
 
     crate fn add_single_import(&mut self, import: &'a Import<'a>) {
-        self.single_imports.insert(PtrKey(import));
+        self.single_imports.insert(Interned::new_unchecked(import));
     }
 }
 
@@ -166,7 +167,7 @@ fn pub_use_of_private_extern_crate_hack(import: &Import<'_>, binding: &NameBindi
                 import: Import { kind: ImportKind::ExternCrate { .. }, .. },
                 ..
             },
-        ) => import.vis.get() == ty::Visibility::Public,
+        ) => import.vis.get().is_public(),
         _ => false,
     }
 }
@@ -350,10 +351,10 @@ impl<'a> Resolver<'a> {
             if !self.is_accessible_from(single_import.vis.get(), parent_scope.module) {
                 continue;
             }
-            let module = unwrap_or!(
-                single_import.imported_module.get(),
-                return Err((Undetermined, Weak::No))
-            );
+            let module = match single_import.imported_module.get() {
+                Some(x) => x,
+                None => return Err((Undetermined, Weak::No)),
+            };
             let ident = match single_import.kind {
                 ImportKind::Single { source, .. } => source,
                 _ => unreachable!(),
@@ -428,7 +429,7 @@ impl<'a> Resolver<'a> {
             match ident.span.glob_adjust(module.expansion, glob_import.span) {
                 Some(Some(def)) => {
                     tmp_parent_scope =
-                        ParentScope { module: self.macro_def_scope(def), ..*parent_scope };
+                        ParentScope { module: self.expn_def_scope(def), ..*parent_scope };
                     adjusted_parent_scope = &tmp_parent_scope;
                 }
                 Some(None) => {}
@@ -586,7 +587,7 @@ impl<'a> Resolver<'a> {
         for import in module.glob_importers.borrow_mut().iter() {
             let mut ident = key.ident;
             let scope = match ident.span.reverse_glob_adjust(module.expansion, import.span) {
-                Some(Some(def)) => self.macro_def_scope(def),
+                Some(Some(def)) => self.expn_def_scope(def),
                 Some(None) => import.parent_scope.module,
                 None => continue,
             };
@@ -836,7 +837,6 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
                         import.span,
                     );
                     import.vis.set(orig_vis);
-
                     source_bindings[ns].set(binding);
                 } else {
                     return;
@@ -850,7 +850,7 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
                     Err(Determined) => {
                         let key = this.new_key(target, ns);
                         this.update_resolution(parent, key, |_, resolution| {
-                            resolution.single_imports.remove(&PtrKey(import));
+                            resolution.single_imports.remove(&Interned::new_unchecked(import));
                         });
                     }
                     Ok(binding) if !binding.is_importable() => {
@@ -980,7 +980,7 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
                     // HACK(eddyb) `lint_if_path_starts_with_module` needs at least
                     // 2 segments, so the `resolve_path` above won't trigger it.
                     let mut full_path = import.module_path.clone();
-                    full_path.push(Segment::from_ident(Ident::invalid()));
+                    full_path.push(Segment::from_ident(Ident::empty()));
                     self.r.lint_if_path_starts_with_module(
                         import.crate_lint(),
                         &full_path,
@@ -990,7 +990,7 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
                 }
 
                 if let ModuleOrUniformRoot::Module(module) = module {
-                    if module.def_id() == import.parent_scope.module.def_id() {
+                    if ptr::eq(module, import.parent_scope.module) {
                         // Importing a module into itself is not allowed.
                         return Some(UnresolvedImportError {
                             span: import.span,
@@ -1182,11 +1182,17 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
 
         let mut reexport_error = None;
         let mut any_successful_reexport = false;
+        let mut crate_private_reexport = false;
         self.r.per_ns(|this, ns| {
             if let Ok(binding) = source_bindings[ns].get() {
                 let vis = import.vis.get();
                 if !binding.vis.is_at_least(vis, &*this) {
                     reexport_error = Some((ns, binding));
+                    if let ty::Visibility::Restricted(binding_def_id) = binding.vis {
+                        if binding_def_id.is_top_level_module() {
+                            crate_private_reexport = true;
+                        }
+                    }
                 } else {
                     any_successful_reexport = true;
                 }
@@ -1209,24 +1215,34 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
                     import.span,
                     &msg,
                 );
-            } else if ns == TypeNS {
-                struct_span_err!(
-                    self.r.session,
-                    import.span,
-                    E0365,
-                    "`{}` is private, and cannot be re-exported",
-                    ident
-                )
-                .span_label(import.span, format!("re-export of private `{}`", ident))
-                .note(&format!("consider declaring type or module `{}` with `pub`", ident))
-                .emit();
             } else {
-                let msg = format!("`{}` is private, and cannot be re-exported", ident);
-                let note_msg =
-                    format!("consider marking `{}` as `pub` in the imported module", ident,);
-                struct_span_err!(self.r.session, import.span, E0364, "{}", &msg)
-                    .span_note(import.span, &note_msg)
-                    .emit();
+                let error_msg = if crate_private_reexport {
+                    format!(
+                        "`{}` is only public within the crate, and cannot be re-exported outside",
+                        ident
+                    )
+                } else {
+                    format!("`{}` is private, and cannot be re-exported", ident)
+                };
+
+                if ns == TypeNS {
+                    let label_msg = if crate_private_reexport {
+                        format!("re-export of crate public `{}`", ident)
+                    } else {
+                        format!("re-export of private `{}`", ident)
+                    };
+
+                    struct_span_err!(self.r.session, import.span, E0365, "{}", error_msg)
+                        .span_label(import.span, label_msg)
+                        .note(&format!("consider declaring type or module `{}` with `pub`", ident))
+                        .emit();
+                } else {
+                    let note_msg =
+                        format!("consider marking `{}` as `pub` in the imported module", ident);
+                    struct_span_err!(self.r.session, import.span, E0364, "{}", error_msg)
+                        .span_note(import.span, &note_msg)
+                        .emit();
+                }
             }
         }
 
@@ -1340,9 +1356,9 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
         };
 
         if module.is_trait() {
-            self.r.session.span_err(import.span, "items in traits are not importable.");
+            self.r.session.span_err(import.span, "items in traits are not importable");
             return;
-        } else if module.def_id() == import.parent_scope.module.def_id() {
+        } else if ptr::eq(module, import.parent_scope.module) {
             return;
         } else if let ImportKind::Glob { is_prelude: true, .. } = import.kind {
             self.r.prelude = Some(module);
@@ -1365,7 +1381,7 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
             .collect::<Vec<_>>();
         for (mut key, binding) in bindings {
             let scope = match key.ident.span.reverse_glob_adjust(module.expansion, import.span) {
-                Some(Some(def)) => self.r.macro_def_scope(def),
+                Some(Some(def)) => self.r.expn_def_scope(def),
                 Some(None) => import.parent_scope.module,
                 None => continue,
             };
@@ -1387,24 +1403,24 @@ impl<'a, 'b> ImportResolver<'a, 'b> {
 
         let mut reexports = Vec::new();
 
-        module.for_each_child(self.r, |this, ident, _, binding| {
+        module.for_each_child(self.r, |_, ident, _, binding| {
             // Filter away ambiguous imports and anything that has def-site hygiene.
             // FIXME: Implement actual cross-crate hygiene.
             let is_good_import =
                 binding.is_import() && !binding.is_ambiguity() && !ident.span.from_expansion();
             if is_good_import || binding.is_macro_def() {
-                let res = binding.res().map_id(|id| this.local_def_id(id));
+                let res = binding.res().expect_non_local();
                 if res != def::Res::Err {
-                    reexports.push(Export { ident, res, span: binding.span, vis: binding.vis });
+                    reexports.push(ModChild { ident, res, vis: binding.vis, span: binding.span });
                 }
             }
         });
 
         if !reexports.is_empty() {
-            if let Some(def_id) = module.def_id() {
+            if let Some(def_id) = module.opt_def_id() {
                 // Call to `expect_local` should be fine because current
                 // code is only called for local modules.
-                self.r.export_map.insert(def_id.expect_local(), reexports);
+                self.r.reexport_map.insert(def_id.expect_local(), reexports);
             }
         }
     }

@@ -100,16 +100,16 @@ impl Thread {
     }
 }
 
-pub fn available_concurrency() -> io::Result<NonZeroUsize> {
+pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     let res = unsafe {
         let mut sysinfo: c::SYSTEM_INFO = crate::mem::zeroed();
         c::GetSystemInfo(&mut sysinfo);
         sysinfo.dwNumberOfProcessors as usize
     };
     match res {
-        0 => Err(io::Error::new_const(
+        0 => Err(io::const_io_error!(
             io::ErrorKind::NotFound,
-            &"The number of hardware threads is not known for the target platform",
+            "The number of hardware threads is not known for the target platform",
         )),
         cpus => Ok(unsafe { NonZeroUsize::new_unchecked(cpus) }),
     }

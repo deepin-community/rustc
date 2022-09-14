@@ -12,7 +12,7 @@ use crate::slice::{self, Split as SliceSplit};
 use super::from_utf8_unchecked;
 use super::pattern::Pattern;
 use super::pattern::{DoubleEndedSearcher, ReverseSearcher, Searcher};
-use super::validations::{next_code_point, next_code_point_reverse, utf8_is_cont_byte};
+use super::validations::{next_code_point, next_code_point_reverse};
 use super::LinesAnyMap;
 use super::{BytesIsNotEmpty, UnsafeBytesToStr};
 use super::{CharEscapeDebugContinue, CharEscapeDefault, CharEscapeUnicode};
@@ -27,6 +27,7 @@ use super::{IsAsciiWhitespace, IsNotEmpty, IsWhitespace};
 /// [`char`]: prim@char
 /// [`chars`]: str::chars
 #[derive(Clone)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct Chars<'a> {
     pub(super) iter: slice::Iter<'a, u8>,
@@ -38,16 +39,14 @@ impl<'a> Iterator for Chars<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<char> {
-        next_code_point(&mut self.iter).map(|ch| {
-            // SAFETY: `str` invariant says `ch` is a valid Unicode Scalar Value.
-            unsafe { char::from_u32_unchecked(ch) }
-        })
+        // SAFETY: `str` invariant says `self.iter` is a valid UTF-8 string and
+        // the resulting `ch` is a valid Unicode Scalar Value.
+        unsafe { next_code_point(&mut self.iter).map(|ch| char::from_u32_unchecked(ch)) }
     }
 
     #[inline]
     fn count(self) -> usize {
-        // length in `char` is equal to the number of non-continuation bytes
-        self.iter.filter(|&&byte| !utf8_is_cont_byte(byte)).count()
+        super::count::count_chars(self.as_str())
     }
 
     #[inline]
@@ -80,10 +79,9 @@ impl fmt::Debug for Chars<'_> {
 impl<'a> DoubleEndedIterator for Chars<'a> {
     #[inline]
     fn next_back(&mut self) -> Option<char> {
-        next_code_point_reverse(&mut self.iter).map(|ch| {
-            // SAFETY: `str` invariant says `ch` is a valid Unicode Scalar Value.
-            unsafe { char::from_u32_unchecked(ch) }
-        })
+        // SAFETY: `str` invariant says `self.iter` is a valid UTF-8 string and
+        // the resulting `ch` is a valid Unicode Scalar Value.
+        unsafe { next_code_point_reverse(&mut self.iter).map(|ch| char::from_u32_unchecked(ch)) }
     }
 }
 
@@ -109,6 +107,7 @@ impl<'a> Chars<'a> {
     /// assert_eq!(chars.as_str(), "");
     /// ```
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
+    #[must_use]
     #[inline]
     pub fn as_str(&self) -> &'a str {
         // SAFETY: `Chars` is only made from a str, which guarantees the iter is valid UTF-8.
@@ -124,6 +123,7 @@ impl<'a> Chars<'a> {
 /// [`char`]: prim@char
 /// [`char_indices`]: str::char_indices
 #[derive(Clone, Debug)]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct CharIndices<'a> {
     pub(super) front_offset: usize,
@@ -185,6 +185,7 @@ impl<'a> CharIndices<'a> {
     /// This has the same lifetime as the original slice, and so the
     /// iterator can continue to be used while this exists.
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
+    #[must_use]
     #[inline]
     pub fn as_str(&self) -> &'a str {
         self.iter.as_str()
@@ -209,6 +210,7 @@ impl<'a> CharIndices<'a> {
     /// assert_eq!(chars.next(), None);
     /// ```
     #[inline]
+    #[must_use]
     #[unstable(feature = "char_indices_offset", issue = "83871")]
     pub fn offset(&self) -> usize {
         self.front_offset
@@ -221,6 +223,7 @@ impl<'a> CharIndices<'a> {
 /// See its documentation for more.
 ///
 /// [`bytes`]: str::bytes
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Clone, Debug)]
 pub struct Bytes<'a>(pub(super) Copied<slice::Iter<'a, u8>>);
@@ -744,7 +747,7 @@ generate_pattern_iterators! {
 }
 
 impl<'a, P: Pattern<'a>> Split<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -765,7 +768,7 @@ impl<'a, P: Pattern<'a>> Split<'a, P> {
 }
 
 impl<'a, P: Pattern<'a>> RSplit<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -804,7 +807,7 @@ generate_pattern_iterators! {
 }
 
 impl<'a, P: Pattern<'a>> SplitTerminator<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -825,7 +828,7 @@ impl<'a, P: Pattern<'a>> SplitTerminator<'a, P> {
 }
 
 impl<'a, P: Pattern<'a>> RSplitTerminator<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -927,7 +930,7 @@ generate_pattern_iterators! {
 }
 
 impl<'a, P: Pattern<'a>> SplitN<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -948,7 +951,7 @@ impl<'a, P: Pattern<'a>> SplitN<'a, P> {
 }
 
 impl<'a, P: Pattern<'a>> RSplitN<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -1087,6 +1090,7 @@ generate_pattern_iterators! {
 ///
 /// [`lines`]: str::lines
 #[stable(feature = "rust1", since = "1.0.0")]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[derive(Clone, Debug)]
 pub struct Lines<'a>(pub(super) Map<SplitTerminator<'a, char>, LinesAnyMap>);
 
@@ -1126,6 +1130,7 @@ impl FusedIterator for Lines<'_> {}
 /// [`lines_any`]: str::lines_any
 #[stable(feature = "rust1", since = "1.0.0")]
 #[rustc_deprecated(since = "1.4.0", reason = "use lines()/Lines instead now")]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[derive(Clone, Debug)]
 #[allow(deprecated)]
 pub struct LinesAny<'a>(pub(super) Lines<'a>);
@@ -1230,7 +1235,7 @@ impl<'a> DoubleEndedIterator for SplitWhitespace<'a> {
 impl FusedIterator for SplitWhitespace<'_> {}
 
 impl<'a> SplitWhitespace<'a> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -1247,6 +1252,7 @@ impl<'a> SplitWhitespace<'a> {
     /// assert_eq!(split.as_str(), "");
     /// ```
     #[inline]
+    #[must_use]
     #[unstable(feature = "str_split_whitespace_as_str", issue = "77998")]
     pub fn as_str(&self) -> &'a str {
         self.inner.iter.as_str()
@@ -1285,7 +1291,7 @@ impl<'a> DoubleEndedIterator for SplitAsciiWhitespace<'a> {
 impl FusedIterator for SplitAsciiWhitespace<'_> {}
 
 impl<'a> SplitAsciiWhitespace<'a> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///
@@ -1302,6 +1308,7 @@ impl<'a> SplitAsciiWhitespace<'a> {
     /// assert_eq!(split.as_str(), "");
     /// ```
     #[inline]
+    #[must_use]
     #[unstable(feature = "str_split_whitespace_as_str", issue = "77998")]
     pub fn as_str(&self) -> &'a str {
         if self.inner.iter.iter.finished {
@@ -1352,7 +1359,7 @@ impl<'a, P: Pattern<'a, Searcher: ReverseSearcher<'a>>> DoubleEndedIterator
 impl<'a, P: Pattern<'a>> FusedIterator for SplitInclusive<'a, P> {}
 
 impl<'a, P: Pattern<'a>> SplitInclusive<'a, P> {
-    /// Returns remainder of the splitted string
+    /// Returns remainder of the split string
     ///
     /// # Examples
     ///

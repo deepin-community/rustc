@@ -1,10 +1,15 @@
 use super::Builder;
 use crate::any::Any;
 use crate::mem;
+use crate::panic::panic_any;
 use crate::result;
-use crate::sync::mpsc::{channel, Sender};
+use crate::sync::{
+    mpsc::{channel, Sender},
+    Arc, Barrier,
+};
 use crate::thread::{self, ThreadId};
 use crate::time::Duration;
+use crate::time::Instant;
 
 // !!! These tests are dangerous. If something is buggy, they will hang, !!!
 // !!! instead of exiting cleanly. This might wedge the buildbots.       !!!
@@ -44,6 +49,36 @@ fn test_run_basic() {
         tx.send(()).unwrap();
     });
     rx.recv().unwrap();
+}
+
+#[test]
+fn test_is_running() {
+    let b = Arc::new(Barrier::new(2));
+    let t = thread::spawn({
+        let b = b.clone();
+        move || {
+            b.wait();
+            1234
+        }
+    });
+
+    // Thread is definitely running here, since it's still waiting for the barrier.
+    assert_eq!(t.is_running(), true);
+
+    // Unblock the barrier.
+    b.wait();
+
+    // Now check that t.is_running() becomes false within a reasonable time.
+    let start = Instant::now();
+    while t.is_running() {
+        assert!(start.elapsed() < Duration::from_secs(2));
+        thread::sleep(Duration::from_millis(15));
+    }
+
+    // Joining the thread should not block for a significant time now.
+    let join_time = Instant::now();
+    assert_eq!(t.join().unwrap(), 1234);
+    assert!(join_time.elapsed() < Duration::from_secs(2));
 }
 
 #[test]
@@ -149,7 +184,7 @@ fn test_simple_newsched_spawn() {
 }
 
 #[test]
-fn test_try_panic_message_static_str() {
+fn test_try_panic_message_string_literal() {
     match thread::spawn(move || {
         panic!("static string");
     })
@@ -165,9 +200,9 @@ fn test_try_panic_message_static_str() {
 }
 
 #[test]
-fn test_try_panic_message_owned_str() {
+fn test_try_panic_any_message_owned_str() {
     match thread::spawn(move || {
-        panic!("owned string".to_string());
+        panic_any("owned string".to_string());
     })
     .join()
     {
@@ -181,9 +216,9 @@ fn test_try_panic_message_owned_str() {
 }
 
 #[test]
-fn test_try_panic_message_any() {
+fn test_try_panic_any_message_any() {
     match thread::spawn(move || {
-        panic!(box 413u16 as Box<dyn Any + Send>);
+        panic_any(box 413u16 as Box<dyn Any + Send>);
     })
     .join()
     {
@@ -199,10 +234,10 @@ fn test_try_panic_message_any() {
 }
 
 #[test]
-fn test_try_panic_message_unit_struct() {
+fn test_try_panic_any_message_unit_struct() {
     struct Juju;
 
-    match thread::spawn(move || panic!(Juju)).join() {
+    match thread::spawn(move || panic_any(Juju)).join() {
         Err(ref e) if e.is::<Juju>() => {}
         Err(_) | Ok(()) => panic!(),
     }

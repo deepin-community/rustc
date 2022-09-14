@@ -13,7 +13,7 @@ declare_lint! {
     ///
     /// ### Example
     ///
-    /// ```rust
+    /// ```rust,edition2018
     /// # #![allow(unused)]
     /// [1, 2, 3].into_iter().for_each(|n| { *n; });
     /// ```
@@ -52,7 +52,7 @@ impl<'tcx> LateLintPass<'tcx> for ArrayIntoIter {
             if let hir::ExprKind::Call(path, [arg]) = &arg.kind {
                 if let hir::ExprKind::Path(hir::QPath::LangItem(
                     hir::LangItem::IntoIterIntoIter,
-                    _,
+                    ..,
                 )) = &path.kind
                 {
                     self.for_expr_span = arg.span;
@@ -61,7 +61,7 @@ impl<'tcx> LateLintPass<'tcx> for ArrayIntoIter {
         }
 
         // We only care about method call expressions.
-        if let hir::ExprKind::MethodCall(call, span, args, _) = &expr.kind {
+        if let hir::ExprKind::MethodCall(call, args, _) = &expr.kind {
             if call.ident.name != sym::into_iter {
                 return;
             }
@@ -79,9 +79,8 @@ impl<'tcx> LateLintPass<'tcx> for ArrayIntoIter {
             let receiver_ty = cx.typeck_results().expr_ty(receiver_arg);
             let adjustments = cx.typeck_results().expr_adjustments(receiver_arg);
 
-            let target = match adjustments.last() {
-                Some(Adjustment { kind: Adjust::Borrow(_), target }) => target,
-                _ => return,
+            let Some(Adjustment { kind: Adjust::Borrow(_), target }) = adjustments.last() else {
+                return
             };
 
             let types =
@@ -120,11 +119,11 @@ impl<'tcx> LateLintPass<'tcx> for ArrayIntoIter {
                 // to an array or to a slice.
                 _ => bug!("array type coerced to something other than array or slice"),
             };
-            cx.struct_span_lint(ARRAY_INTO_ITER, *span, |lint| {
+            cx.struct_span_lint(ARRAY_INTO_ITER, call.ident.span, |lint| {
                 let mut diag = lint.build(&format!(
                     "this method call resolves to `<&{} as IntoIterator>::into_iter` \
                     (due to backwards compatibility), \
-                    but will resolve to <{} as IntoIterator>::into_iter in Rust 2021.",
+                    but will resolve to <{} as IntoIterator>::into_iter in Rust 2021",
                     target, target,
                 ));
                 diag.span_suggestion(
@@ -134,9 +133,8 @@ impl<'tcx> LateLintPass<'tcx> for ArrayIntoIter {
                     Applicability::MachineApplicable,
                 );
                 if self.for_expr_span == expr.span {
-                    let expr_span = expr.span.ctxt().outer_expn_data().call_site;
                     diag.span_suggestion(
-                        receiver_arg.span.shrink_to_hi().to(expr_span.shrink_to_hi()),
+                        receiver_arg.span.shrink_to_hi().to(expr.span.shrink_to_hi()),
                         "or remove `.into_iter()` to iterate by value",
                         String::new(),
                         Applicability::MaybeIncorrect,

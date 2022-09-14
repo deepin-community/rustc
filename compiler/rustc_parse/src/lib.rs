@@ -3,10 +3,12 @@
 #![feature(array_windows)]
 #![feature(crate_visibility_modifier)]
 #![feature(if_let_guard)]
-#![cfg_attr(bootstrap, feature(bindings_after_at))]
 #![feature(box_patterns)]
-#![cfg_attr(bootstrap, allow(incomplete_features))] // if_let_guard
+#![feature(let_else)]
 #![recursion_limit = "256"]
+
+#[macro_use]
+extern crate tracing;
 
 use rustc_ast as ast;
 use rustc_ast::token::{self, Nonterminal, Token, TokenKind};
@@ -133,7 +135,7 @@ fn maybe_source_file_to_parser(
     let mut parser = stream_to_parser(sess, stream, None);
     parser.unclosed_delims = unclosed_delims;
     if parser.token == token::Eof {
-        parser.token.span = Span::new(end_pos, end_pos, parser.token.span.ctxt());
+        parser.token.span = Span::new(end_pos, end_pos, parser.token.span.ctxt(), None);
     }
 
     Ok(parser)
@@ -323,6 +325,12 @@ pub fn fake_token_stream(sess: &ParseSess, nt: &Nonterminal) -> TokenStream {
     let source = pprust::nonterminal_to_string(nt);
     let filename = FileName::macro_expansion_source_code(&source);
     parse_stream_from_source_str(filename, source, sess, Some(nt.span()))
+}
+
+pub fn fake_token_stream_for_crate(sess: &ParseSess, krate: &ast::Crate) -> TokenStream {
+    let source = pprust::crate_to_string_for_macros(krate);
+    let filename = FileName::macro_expansion_source_code(&source);
+    parse_stream_from_source_str(filename, source, sess, Some(krate.span))
 }
 
 pub fn parse_cfg_attr(

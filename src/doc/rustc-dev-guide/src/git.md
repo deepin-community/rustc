@@ -157,8 +157,8 @@ no changes added to commit (use "git add" and/or "git commit -a")
 These changes are not changes to files: they are changes to submodules (more on
 this [later](#git-submodules)). To get rid of those, run `git submodule update`
 (or run any `x.py` command, which will automatically update the submodules).
-Note that there is (as of <!-- date: 2021-07 --> July 2021) a [bug][#77620] if you use
-worktrees, submodules, and x.py in a commit hook.  If you run into an error
+Note that there is (as of <!-- date: 2022-02 --> February 2022) a [bug][#77620] if you use
+worktrees, submodules, and `x.py` in a commit hook. If you run into an error
 like:
 
 ```
@@ -269,9 +269,9 @@ git push --force-with-lease (set origin to be the same as local)
 ```
 
 To avoid merges as per the [No-Merge Policy](#no-merge-policy), you may want to use
-`git config pull.ff only` (this will apply the config to the local repo).
-to avoid merge conflicts while pulling, without needing
-`--ff-only` or `--rebase` while `git pull`ing
+`git config pull.ff only` (this will apply the config only to the local repo)
+to ensure that Git doesn't create merge commits when `git pull`ing, without
+needing to pass `--ff-only` or `--rebase` every time.
 
 You can also `git push --force-with-lease` from master to keep your origin's master in sync with
 upstream.
@@ -408,15 +408,20 @@ nothing to commit, working tree clean
 ```
 
 As far as git is concerned, you are no longer in the `rust` repo, but in the `miri` repo.
-You will notice that we are in "detatched HEAD" state, i.e. not on a branch but on a
+You will notice that we are in "detached HEAD" state, i.e. not on a branch but on a
 particular commit.
 
 This is because, like any dependency, we want to be able to control which version to use.
 Submodules allow us to do just that: every submodule is "pinned" to a certain
 commit, which doesn't change unless modified manually. If you use `git checkout <commit>`
 in the `miri` directory and go back to the `rust` directory, you can stage this
-change like any other. This is usually done by the maintainers of the
-project, and looks like [this][miri-update].
+change like any other, e.g. by running `git add src/tools/miri`. (Note that if
+you *don't* stage the change to commit, then you run the risk that running
+`x.py` will just undo your change by switching back to the previous commit when
+it automatically "updates" the submodules.)
+
+This version selection is usually done by the maintainers of the project, and
+looks like [this][miri-update].
 
 Git submodules take some time to get used to, so don't worry if it isn't perfectly
 clear yet. You will rarely have to use them directly and, again, you don't need

@@ -1,6 +1,7 @@
 //! Contains `ParseSess` which holds state living beyond what one `Parser` might.
 //! It also serves as an input to the parser itself.
 
+use crate::config::CheckCfg;
 use crate::lint::{BufferedEarlyLint, BuiltinLintDiagnostics, Lint, LintId};
 use rustc_ast::node_id::NodeId;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
@@ -18,6 +19,7 @@ use std::str;
 /// The set of keys (and, optionally, values) that define the compilation
 /// environment of the crate, used to drive conditional compilation.
 pub type CrateConfig = FxHashSet<(Symbol, Option<Symbol>)>;
+pub type CrateCheckConfig = CheckCfg<Symbol>;
 
 /// Collected spans during parsing for places where a certain feature was
 /// used and should be feature gated accordingly in `check_crate`.
@@ -117,10 +119,16 @@ pub struct ParseSess {
     pub span_diagnostic: Handler,
     pub unstable_features: UnstableFeatures,
     pub config: CrateConfig,
+    pub check_config: CrateCheckConfig,
     pub edition: Edition,
     pub missing_fragment_specifiers: Lock<FxHashMap<Span, NodeId>>,
-    /// Places where raw identifiers were used. This is used for feature-gating raw identifiers.
+    /// Places where raw identifiers were used. This is used to avoid complaining about idents
+    /// clashing with keywords in new editions.
     pub raw_identifier_spans: Lock<Vec<Span>>,
+    /// Places where identifiers that contain invalid Unicode codepoints but that look like they
+    /// should be. Useful to avoid bad tokenization when encountering emoji. We group them to
+    /// provide a single error per unique incorrect identifier.
+    pub bad_unicode_identifiers: Lock<FxHashMap<Symbol, Vec<Span>>>,
     source_map: Lrc<SourceMap>,
     pub buffered_lints: Lock<Vec<BufferedEarlyLint>>,
     /// Contains the spans of block expressions that could have been incomplete based on the
@@ -157,9 +165,11 @@ impl ParseSess {
             span_diagnostic: handler,
             unstable_features: UnstableFeatures::from_environment(None),
             config: FxHashSet::default(),
+            check_config: CrateCheckConfig::default(),
             edition: ExpnId::root().expn_data().edition,
             missing_fragment_specifiers: Default::default(),
             raw_identifier_spans: Lock::new(Vec::new()),
+            bad_unicode_identifiers: Lock::new(Default::default()),
             source_map,
             buffered_lints: Lock::new(vec![]),
             ambiguous_block_expr_parse: Lock::new(FxHashMap::default()),
@@ -174,9 +184,14 @@ impl ParseSess {
         }
     }
 
-    pub fn with_silent_emitter() -> Self {
+    pub fn with_silent_emitter(fatal_note: Option<String>) -> Self {
         let sm = Lrc::new(SourceMap::new(FilePathMapping::empty()));
-        let handler = Handler::with_emitter(false, None, Box::new(SilentEmitter));
+        let fatal_handler = Handler::with_tty_emitter(ColorConfig::Auto, false, None, None);
+        let handler = Handler::with_emitter(
+            false,
+            None,
+            Box::new(SilentEmitter { fatal_handler, fatal_note }),
+        );
         ParseSess::with_span_handler(handler, sm)
     }
 

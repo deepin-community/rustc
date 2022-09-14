@@ -145,4 +145,17 @@ enum HIDataRequest {
     DeleteUnpubHIData(String),
 }
 
+enum North {
+    Normal,
+    NoLeft,
+    NoRight,
+}
+
+// #8324
+enum Phase {
+    PreLookup,
+    Lookup,
+    PostLookup,
+}
+
 fn main() {}

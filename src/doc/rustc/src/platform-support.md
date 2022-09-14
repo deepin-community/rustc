@@ -133,8 +133,8 @@ target | std | notes
 `armv5te-unknown-linux-musleabi` | ✓ | ARMv5TE Linux with MUSL
 `armv7-linux-androideabi` | ✓ | ARMv7a Android
 `armv7-unknown-linux-gnueabi` | ✓ |ARMv7 Linux (kernel 4.15, glibc 2.27)
-`armv7-unknown-linux-musleabi` | ✓ |ARMv7 Linux, MUSL
-`armv7-unknown-linux-musleabihf` | ✓ | ARMv7 Linux with MUSL
+`armv7-unknown-linux-musleabi` | ✓ |ARMv7 Linux with MUSL
+`armv7-unknown-linux-musleabihf` | ✓ | ARMv7 Linux with MUSL, hardfloat
 `armv7a-none-eabi` | * | Bare ARMv7-A
 `armv7r-none-eabi` | * | Bare ARMv7-R
 `armv7r-none-eabihf` | * | Bare ARMv7-R, hardfloat
@@ -202,12 +202,14 @@ target | std | host | notes
 -------|:---:|:----:|-------
 `aarch64-apple-ios-macabi` | ? |  | Apple Catalyst on ARM64
 `aarch64-apple-tvos` | * |  | ARM64 tvOS
+[`aarch64-kmc-solid_asp3`](platform-support/kmc-solid.md) | ✓ |  | ARM64 SOLID with TOPPERS/ASP3
 `aarch64-unknown-freebsd` | ✓ | ✓ | ARM64 FreeBSD
-`aarch64-unknown-hermit` | ? |  |
+`aarch64-unknown-hermit` | ✓ |  | ARM64 HermitCore
+[`aarch64-unknown-none-hermitkernel`](platform-support/aarch64-unknown-none-hermitkernel.md) | * |  | ARM64 HermitCore kernel
 `aarch64-unknown-uefi` | * |  | ARM64 UEFI
 `aarch64-unknown-linux-gnu_ilp32` | ✓ | ✓ | ARM64 Linux (ILP32 ABI)
 `aarch64-unknown-netbsd` | ✓ | ✓ |
-`aarch64-unknown-openbsd` | ✓ | ✓ | ARM64 OpenBSD
+[`aarch64-unknown-openbsd`](platform-support/openbsd.md) | ✓ | ✓ | ARM64 OpenBSD
 `aarch64-unknown-redox` | ? |  | ARM64 Redox OS
 `aarch64-uwp-windows-msvc` | ? |  |
 `aarch64-wrs-vxworks` | ? |  |
@@ -217,10 +219,15 @@ target | std | host | notes
 `armv5te-unknown-linux-uclibceabi` | ? |  | ARMv5TE Linux with uClibc
 `armv6-unknown-freebsd` | ✓ | ✓ | ARMv6 FreeBSD
 `armv6-unknown-netbsd-eabihf` | ? |  |
+`armv6k-nintendo-3ds` | * |  | ARMv6K Nintendo 3DS, Horizon (Requires devkitARM toolchain)
 `armv7-apple-ios` | ✓ |  | ARMv7 iOS, Cortex-a8
+[`armv7-unknown-linux-uclibceabi`](platform-support/armv7-unknown-linux-uclibceabi.md) | ✓ | ✓ | ARMv7 Linux with uClibc, softfloat
+[`armv7-unknown-linux-uclibceabihf`](platform-support/armv7-unknown-linux-uclibceabihf.md) | ✓ | ? | ARMv7 Linux with uClibc, hardfloat
 `armv7-unknown-freebsd` | ✓ | ✓ | ARMv7 FreeBSD
 `armv7-unknown-netbsd-eabihf` | ✓ | ✓ |
 `armv7-wrs-vxworks-eabihf` | ? |  |
+[`armv7a-kmc-solid_asp3-eabi`](platform-support/kmc-solid.md) | ✓ |  | ARM SOLID with TOPPERS/ASP3
+[`armv7a-kmc-solid_asp3-eabihf`](platform-support/kmc-solid.md) | ✓ |  | ARM SOLID with TOPPERS/ASP3, hardfloat
 `armv7a-none-eabihf` | * | | ARM Cortex-A, hardfloat
 `armv7s-apple-ios` | ✓ |  |
 `avr-unknown-gnu-atmega328` | * |  | AVR. Requires `-Z build-std=core`
@@ -232,12 +239,14 @@ target | std | host | notes
 `i686-pc-windows-msvc` | ✓ |  | 32-bit Windows XP support
 `i686-unknown-haiku` | ✓ | ✓ | 32-bit Haiku
 `i686-unknown-netbsd` | ✓ | ✓ | NetBSD/i386 with SSE2
-`i686-unknown-openbsd` | ✓ | ✓ | 32-bit OpenBSD
+[`i686-unknown-openbsd`](platform-support/openbsd.md) | ✓ | ✓ | 32-bit OpenBSD
 `i686-unknown-uefi` | * |  | 32-bit UEFI
 `i686-uwp-windows-gnu` | ? |  |
 `i686-uwp-windows-msvc` | ? |  |
 `i686-wrs-vxworks` | ? |  |
+`m68k-unknown-linux-gnu` | ? |  | Motorola 680x0 Linux
 `mips-unknown-linux-uclibc` | ✓ |  | MIPS Linux with uClibc
+`mips64-openwrt-linux-musl` | ? |  | MIPS64 for OpenWrt Linux MUSL
 `mipsel-sony-psp` | * |  | MIPS (LE) Sony PlayStation Portable (PSP)
 `mipsel-unknown-linux-uclibc` | ✓ |  | MIPS (LE) Linux with uClibc
 `mipsel-unknown-none` | * |  | Bare MIPS (LE) softfloat
@@ -261,27 +270,29 @@ target | std | host | notes
 `riscv32gc-unknown-linux-gnu` |   |   | RISC-V Linux (kernel 5.4, glibc 2.33)
 `riscv32gc-unknown-linux-musl` |   |   | RISC-V Linux (kernel 5.4, musl + RISCV32 support patches)
 `riscv32imc-esp-espidf` | ✓ |  | RISC-V ESP-IDF
+`riscv64gc-unknown-freebsd` |   |   | RISC-V FreeBSD
 `riscv64gc-unknown-linux-musl` |   |   | RISC-V Linux (kernel 4.20, musl 1.2.0)
 `s390x-unknown-linux-musl` |  |  | S390x Linux (kernel 2.6.32, MUSL)
 `sparc-unknown-linux-gnu` | ✓ |  | 32-bit SPARC Linux
 `sparc64-unknown-netbsd` | ✓ | ✓ | NetBSD/sparc64
-`sparc64-unknown-openbsd` | ? |  |
+[`sparc64-unknown-openbsd`](platform-support/openbsd.md) | ✓ | ✓ | OpenBSD/sparc64
 `thumbv4t-none-eabi` | * |  | ARMv4T T32
 `thumbv7a-pc-windows-msvc` | ? |  |
 `thumbv7a-uwp-windows-msvc` | ✓ |  |
 `thumbv7neon-unknown-linux-musleabihf` | ? |  | Thumb2-mode ARMv7a Linux with NEON, MUSL
-`wasm64-unknown-unknown` | * |  | WebAssembly
+[`wasm64-unknown-unknown`](platform-support/wasm64-unknown-unknown.md) | ? |  | WebAssembly
 `x86_64-apple-ios-macabi` | ✓ |  | Apple Catalyst on x86_64
 `x86_64-apple-tvos` | * | | x86 64-bit tvOS
 `x86_64-pc-windows-msvc` | ✓ |  | 64-bit Windows XP support
 `x86_64-sun-solaris` | ? |  | Deprecated target for 64-bit Solaris 10/11, illumos
 `x86_64-unknown-dragonfly` | ✓ | ✓ | 64-bit DragonFlyBSD
 `x86_64-unknown-haiku` | ✓ | ✓ | 64-bit Haiku
-`x86_64-unknown-hermit` | ? |  |
+`x86_64-unknown-hermit` | ✓ |  | HermitCore
 `x86_64-unknown-l4re-uclibc` | ? |  |
-`x86_64-unknown-none-hermitkernel` | ? |  | HermitCore kernel
+[`x86_64-unknown-none`](platform-support/x86_64-unknown-none.md) | * |  | Freestanding/bare-metal x86_64, softfloat
+`x86_64-unknown-none-hermitkernel` | * |  | HermitCore kernel
 `x86_64-unknown-none-linuxkernel` | * |  | Linux kernel modules
-`x86_64-unknown-openbsd` | ✓ | ✓ | 64-bit OpenBSD
+[`x86_64-unknown-openbsd`](platform-support/openbsd.md) | ✓ | ✓ | 64-bit OpenBSD
 `x86_64-unknown-uefi` | * |  | 64-bit UEFI
 `x86_64-uwp-windows-gnu` | ✓ |  |
 `x86_64-uwp-windows-msvc` | ✓ |  |

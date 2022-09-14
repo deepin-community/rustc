@@ -1,5 +1,5 @@
 //! A `MutVisitor` represents an AST modification; it accepts an AST piece and
-//! and mutates it in place. So, for instance, macro expansion is a `MutVisitor`
+//! mutates it in place. So, for instance, macro expansion is a `MutVisitor`
 //! that walks over an AST and modifies it.
 //!
 //! Note: using a `MutVisitor` (other than the `MacroExpander` `MutVisitor`) on
@@ -14,13 +14,14 @@ use crate::tokenstream::*;
 
 use rustc_data_structures::map_in_place::MapInPlace;
 use rustc_data_structures::sync::Lrc;
+use rustc_data_structures::thin_vec::ThinVec;
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::Ident;
 use rustc_span::Span;
 
 use smallvec::{smallvec, Array, SmallVec};
 use std::ops::DerefMut;
-use std::{panic, process, ptr};
+use std::{panic, ptr};
 
 pub trait ExpectOne<A: Array> {
     fn expect_one(self, err: &'static str) -> A::Item;
@@ -37,9 +38,7 @@ pub trait MutVisitor: Sized {
     /// Mutable token visiting only exists for the `macro_rules` token marker and should not be
     /// used otherwise. Token visitor would be entirely separate from the regular visitor if
     /// the marker didn't have to visit AST fragments in nonterminal tokens.
-    fn token_visiting_enabled(&self) -> bool {
-        false
-    }
+    const VISIT_TOKENS: bool = false;
 
     // Methods in this trait have one of three forms:
     //
@@ -166,8 +165,8 @@ pub trait MutVisitor: Sized {
         noop_visit_lifetime(l, self);
     }
 
-    fn visit_ty_constraint(&mut self, t: &mut AssocTyConstraint) {
-        noop_visit_ty_constraint(t, self);
+    fn visit_constraint(&mut self, t: &mut AssocConstraint) {
+        noop_visit_constraint(t, self);
     }
 
     fn visit_foreign_mod(&mut self, nm: &mut ForeignMod) {
@@ -285,19 +284,21 @@ pub trait MutVisitor: Sized {
 
 /// Use a map-style function (`FnOnce(T) -> T`) to overwrite a `&mut T`. Useful
 /// when using a `flat_map_*` or `filter_map_*` method within a `visit_`
-/// method. Abort the program if the closure panics.
+/// method.
 //
 // No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
-pub fn visit_clobber<T, F>(t: &mut T, f: F)
-where
-    F: FnOnce(T) -> T,
-{
+pub fn visit_clobber<T: DummyAstNode>(t: &mut T, f: impl FnOnce(T) -> T) {
     unsafe {
         // Safe because `t` is used in a read-only fashion by `read()` before
         // being overwritten by `write()`.
         let old_t = ptr::read(t);
-        let new_t = panic::catch_unwind(panic::AssertUnwindSafe(|| f(old_t)))
-            .unwrap_or_else(|_| process::abort());
+        let new_t =
+            panic::catch_unwind(panic::AssertUnwindSafe(|| f(old_t))).unwrap_or_else(|err| {
+                // Set `t` to some valid but possible meaningless value,
+                // and pass the fatal error further.
+                ptr::write(t, T::dummy());
+                panic::resume_unwind(err);
+            });
         ptr::write(t, new_t);
     }
 }
@@ -363,7 +364,7 @@ pub fn visit_mac_args<T: MutVisitor>(args: &mut MacArgs, vis: &mut T) {
         }
         MacArgs::Eq(eq_span, token) => {
             vis.visit_span(eq_span);
-            if vis.token_visiting_enabled() {
+            if T::VISIT_TOKENS {
                 visit_token(token, vis);
             } else {
                 // The value in `#[key = VALUE]` must be visited as an expression for backward
@@ -429,8 +430,8 @@ pub fn noop_flat_map_arm<T: MutVisitor>(mut arm: Arm, vis: &mut T) -> SmallVec<[
     smallvec![arm]
 }
 
-pub fn noop_visit_ty_constraint<T: MutVisitor>(
-    AssocTyConstraint { id, ident, gen_args, kind, span }: &mut AssocTyConstraint,
+pub fn noop_visit_constraint<T: MutVisitor>(
+    AssocConstraint { id, ident, gen_args, kind, span }: &mut AssocConstraint,
     vis: &mut T,
 ) {
     vis.visit_id(id);
@@ -439,12 +440,11 @@ pub fn noop_visit_ty_constraint<T: MutVisitor>(
         vis.visit_generic_args(gen_args);
     }
     match kind {
-        AssocTyConstraintKind::Equality { ref mut ty } => {
-            vis.visit_ty(ty);
-        }
-        AssocTyConstraintKind::Bound { ref mut bounds } => {
-            visit_bounds(bounds, vis);
-        }
+        AssocConstraintKind::Equality { ref mut term } => match term {
+            Term::Ty(ty) => vis.visit_ty(ty),
+            Term::Const(c) => vis.visit_anon_const(c),
+        },
+        AssocConstraintKind::Bound { ref mut bounds } => visit_bounds(bounds, vis),
     }
     vis.visit_span(span);
 }
@@ -461,7 +461,8 @@ pub fn noop_visit_ty<T: MutVisitor>(ty: &mut P<Ty>, vis: &mut T) {
             vis.visit_mt(mt);
         }
         TyKind::BareFn(bft) => {
-            let BareFnTy { unsafety: _, ext: _, generic_params, decl } = bft.deref_mut();
+            let BareFnTy { unsafety, ext: _, generic_params, decl } = bft.deref_mut();
+            visit_unsafety(unsafety, vis);
             generic_params.flat_map_in_place(|param| vis.flat_map_generic_param(param));
             vis.visit_fn_decl(decl);
         }
@@ -490,7 +491,8 @@ pub fn noop_visit_ty<T: MutVisitor>(ty: &mut P<Ty>, vis: &mut T) {
 }
 
 pub fn noop_visit_foreign_mod<T: MutVisitor>(foreign_mod: &mut ForeignMod, vis: &mut T) {
-    let ForeignMod { unsafety: _, abi: _, items } = foreign_mod;
+    let ForeignMod { unsafety, abi: _, items } = foreign_mod;
+    visit_unsafety(unsafety, vis);
     items.flat_map_in_place(|item| vis.flat_map_foreign_item(item));
 }
 
@@ -552,7 +554,7 @@ pub fn noop_visit_angle_bracketed_parameter_data<T: MutVisitor>(
     let AngleBracketedArgs { args, span } = data;
     visit_vec(args, |arg| match arg {
         AngleBracketedArg::Arg(arg) => vis.visit_generic_arg(arg),
-        AngleBracketedArg::Constraint(constraint) => vis.visit_ty_constraint(constraint),
+        AngleBracketedArg::Constraint(constraint) => vis.visit_constraint(constraint),
     });
     vis.visit_span(span);
 }
@@ -682,7 +684,7 @@ pub fn visit_tt<T: MutVisitor>(tt: &mut TokenTree, vis: &mut T) {
 
 // No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
 pub fn visit_tts<T: MutVisitor>(TokenStream(tts): &mut TokenStream, vis: &mut T) {
-    if vis.token_visiting_enabled() && !tts.is_empty() {
+    if T::VISIT_TOKENS && !tts.is_empty() {
         let tts = Lrc::make_mut(tts);
         visit_vec(tts, |(tree, _is_joint)| visit_tt(tree, vis));
     }
@@ -692,14 +694,14 @@ pub fn visit_attr_annotated_tts<T: MutVisitor>(
     AttrAnnotatedTokenStream(tts): &mut AttrAnnotatedTokenStream,
     vis: &mut T,
 ) {
-    if vis.token_visiting_enabled() && !tts.is_empty() {
+    if T::VISIT_TOKENS && !tts.is_empty() {
         let tts = Lrc::make_mut(tts);
         visit_vec(tts, |(tree, _is_joint)| visit_attr_annotated_tt(tree, vis));
     }
 }
 
 pub fn visit_lazy_tts_opt_mut<T: MutVisitor>(lazy_tts: Option<&mut LazyTokenStream>, vis: &mut T) {
-    if vis.token_visiting_enabled() {
+    if T::VISIT_TOKENS {
         if let Some(lazy_tts) = lazy_tts {
             let mut tts = lazy_tts.create_token_stream();
             visit_attr_annotated_tts(&mut tts, vis);
@@ -787,6 +789,38 @@ pub fn visit_interpolated<T: MutVisitor>(nt: &mut token::Nonterminal, vis: &mut 
         token::NtPath(path) => vis.visit_path(path),
         token::NtTT(tt) => visit_tt(tt, vis),
         token::NtVis(visib) => vis.visit_vis(visib),
+    }
+}
+
+// No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
+pub fn visit_defaultness<T: MutVisitor>(defaultness: &mut Defaultness, vis: &mut T) {
+    match defaultness {
+        Defaultness::Default(span) => vis.visit_span(span),
+        Defaultness::Final => {}
+    }
+}
+
+// No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
+pub fn visit_unsafety<T: MutVisitor>(unsafety: &mut Unsafe, vis: &mut T) {
+    match unsafety {
+        Unsafe::Yes(span) => vis.visit_span(span),
+        Unsafe::No => {}
+    }
+}
+
+// No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
+pub fn visit_polarity<T: MutVisitor>(polarity: &mut ImplPolarity, vis: &mut T) {
+    match polarity {
+        ImplPolarity::Positive => {}
+        ImplPolarity::Negative(span) => vis.visit_span(span),
+    }
+}
+
+// No `noop_` prefix because there isn't a corresponding method in `MutVisitor`.
+pub fn visit_constness<T: MutVisitor>(constness: &mut Const, vis: &mut T) {
+    match constness {
+        Const::Yes(span) => vis.visit_span(span),
+        Const::No => {}
     }
 }
 
@@ -957,25 +991,35 @@ pub fn noop_visit_item_kind<T: MutVisitor>(kind: &mut ItemKind, vis: &mut T) {
     match kind {
         ItemKind::ExternCrate(_orig_name) => {}
         ItemKind::Use(use_tree) => vis.visit_use_tree(use_tree),
-        ItemKind::Static(ty, _, expr) | ItemKind::Const(_, ty, expr) => {
+        ItemKind::Static(ty, _, expr) => {
             vis.visit_ty(ty);
             visit_opt(expr, |expr| vis.visit_expr(expr));
         }
-        ItemKind::Fn(box FnKind(_, sig, generics, body)) => {
+        ItemKind::Const(defaultness, ty, expr) => {
+            visit_defaultness(defaultness, vis);
+            vis.visit_ty(ty);
+            visit_opt(expr, |expr| vis.visit_expr(expr));
+        }
+        ItemKind::Fn(box Fn { defaultness, generics, sig, body }) => {
+            visit_defaultness(defaultness, vis);
             visit_fn_sig(sig, vis);
             vis.visit_generics(generics);
             visit_opt(body, |body| vis.visit_block(body));
         }
-        ItemKind::Mod(_unsafety, mod_kind) => match mod_kind {
-            ModKind::Loaded(items, _inline, inner_span) => {
-                vis.visit_span(inner_span);
-                items.flat_map_in_place(|item| vis.flat_map_item(item));
+        ItemKind::Mod(unsafety, mod_kind) => {
+            visit_unsafety(unsafety, vis);
+            match mod_kind {
+                ModKind::Loaded(items, _inline, inner_span) => {
+                    vis.visit_span(inner_span);
+                    items.flat_map_in_place(|item| vis.flat_map_item(item));
+                }
+                ModKind::Unloaded => {}
             }
-            ModKind::Unloaded => {}
-        },
+        }
         ItemKind::ForeignMod(nm) => vis.visit_foreign_mod(nm),
         ItemKind::GlobalAsm(asm) => noop_visit_inline_asm(asm, vis),
-        ItemKind::TyAlias(box TyAliasKind(_, generics, bounds, ty)) => {
+        ItemKind::TyAlias(box TyAlias { defaultness, generics, bounds, ty }) => {
+            visit_defaultness(defaultness, vis);
             vis.visit_generics(generics);
             visit_bounds(bounds, vis);
             visit_opt(ty, |ty| vis.visit_ty(ty));
@@ -988,22 +1032,27 @@ pub fn noop_visit_item_kind<T: MutVisitor>(kind: &mut ItemKind, vis: &mut T) {
             vis.visit_variant_data(variant_data);
             vis.visit_generics(generics);
         }
-        ItemKind::Impl(box ImplKind {
-            unsafety: _,
-            polarity: _,
-            defaultness: _,
-            constness: _,
+        ItemKind::Impl(box Impl {
+            defaultness,
+            unsafety,
             generics,
+            constness,
+            polarity,
             of_trait,
             self_ty,
             items,
         }) => {
+            visit_defaultness(defaultness, vis);
+            visit_unsafety(unsafety, vis);
             vis.visit_generics(generics);
+            visit_constness(constness, vis);
+            visit_polarity(polarity, vis);
             visit_opt(of_trait, |trait_ref| vis.visit_trait_ref(trait_ref));
             vis.visit_ty(self_ty);
             items.flat_map_in_place(|item| vis.flat_map_impl_item(item));
         }
-        ItemKind::Trait(box TraitKind(.., generics, bounds, items)) => {
+        ItemKind::Trait(box Trait { unsafety, is_auto: _, generics, bounds, items }) => {
+            visit_unsafety(unsafety, vis);
             vis.visit_generics(generics);
             visit_bounds(bounds, vis);
             items.flat_map_in_place(|item| vis.flat_map_trait_item(item));
@@ -1027,16 +1076,19 @@ pub fn noop_flat_map_assoc_item<T: MutVisitor>(
     visitor.visit_vis(vis);
     visit_attrs(attrs, visitor);
     match kind {
-        AssocItemKind::Const(_, ty, expr) => {
+        AssocItemKind::Const(defaultness, ty, expr) => {
+            visit_defaultness(defaultness, visitor);
             visitor.visit_ty(ty);
             visit_opt(expr, |expr| visitor.visit_expr(expr));
         }
-        AssocItemKind::Fn(box FnKind(_, sig, generics, body)) => {
+        AssocItemKind::Fn(box Fn { defaultness, generics, sig, body }) => {
+            visit_defaultness(defaultness, visitor);
             visitor.visit_generics(generics);
             visit_fn_sig(sig, visitor);
             visit_opt(body, |body| visitor.visit_block(body));
         }
-        AssocItemKind::TyAlias(box TyAliasKind(_, generics, bounds, ty)) => {
+        AssocItemKind::TyAlias(box TyAlias { defaultness, generics, bounds, ty }) => {
+            visit_defaultness(defaultness, visitor);
             visitor.visit_generics(generics);
             visit_bounds(bounds, visitor);
             visit_opt(ty, |ty| visitor.visit_ty(ty));
@@ -1049,40 +1101,18 @@ pub fn noop_flat_map_assoc_item<T: MutVisitor>(
 }
 
 pub fn noop_visit_fn_header<T: MutVisitor>(header: &mut FnHeader, vis: &mut T) {
-    let FnHeader { unsafety: _, asyncness, constness: _, ext: _ } = header;
+    let FnHeader { unsafety, asyncness, constness, ext: _ } = header;
+    visit_constness(constness, vis);
     vis.visit_asyncness(asyncness);
+    visit_unsafety(unsafety, vis);
 }
 
-// FIXME: Avoid visiting the crate as a `Mod` item, flat map only the inner items if possible,
-// or make crate visiting first class if necessary.
 pub fn noop_visit_crate<T: MutVisitor>(krate: &mut Crate, vis: &mut T) {
-    visit_clobber(krate, |Crate { attrs, items, span }| {
-        let item_vis =
-            Visibility { kind: VisibilityKind::Public, span: span.shrink_to_lo(), tokens: None };
-        let item = P(Item {
-            ident: Ident::invalid(),
-            attrs,
-            id: DUMMY_NODE_ID,
-            vis: item_vis,
-            span,
-            kind: ItemKind::Mod(Unsafe::No, ModKind::Loaded(items, Inline::Yes, span)),
-            tokens: None,
-        });
-        let items = vis.flat_map_item(item);
-
-        let len = items.len();
-        if len == 0 {
-            Crate { attrs: vec![], items: vec![], span }
-        } else if len == 1 {
-            let Item { attrs, span, kind, .. } = items.into_iter().next().unwrap().into_inner();
-            match kind {
-                ItemKind::Mod(_, ModKind::Loaded(items, ..)) => Crate { attrs, items, span },
-                _ => panic!("visitor converted a module to not a module"),
-            }
-        } else {
-            panic!("a crate cannot expand to more than one item");
-        }
-    });
+    let Crate { attrs, items, span, id, is_placeholder: _ } = krate;
+    vis.visit_id(id);
+    visit_attrs(attrs, vis);
+    items.flat_map_in_place(|item| vis.flat_map_item(item));
+    vis.visit_span(span);
 }
 
 // Mutates one item into possibly many items.
@@ -1116,12 +1146,14 @@ pub fn noop_flat_map_foreign_item<T: MutVisitor>(
             visitor.visit_ty(ty);
             visit_opt(expr, |expr| visitor.visit_expr(expr));
         }
-        ForeignItemKind::Fn(box FnKind(_, sig, generics, body)) => {
+        ForeignItemKind::Fn(box Fn { defaultness, generics, sig, body }) => {
+            visit_defaultness(defaultness, visitor);
             visitor.visit_generics(generics);
             visit_fn_sig(sig, visitor);
             visit_opt(body, |body| visitor.visit_block(body));
         }
-        ForeignItemKind::TyAlias(box TyAliasKind(_, generics, bounds, ty)) => {
+        ForeignItemKind::TyAlias(box TyAlias { defaultness, generics, bounds, ty }) => {
+            visit_defaultness(defaultness, visitor);
             visitor.visit_generics(generics);
             visit_bounds(bounds, visitor);
             visit_opt(ty, |ty| visitor.visit_ty(ty));
@@ -1317,23 +1349,6 @@ pub fn noop_visit_expr<T: MutVisitor>(
             visit_opt(expr, |expr| vis.visit_expr(expr));
         }
         ExprKind::InlineAsm(asm) => noop_visit_inline_asm(asm, vis),
-        ExprKind::LlvmInlineAsm(asm) => {
-            let LlvmInlineAsm {
-                asm: _,
-                asm_str_style: _,
-                outputs,
-                inputs,
-                clobbers: _,
-                volatile: _,
-                alignstack: _,
-                dialect: _,
-            } = asm.deref_mut();
-            for out in outputs {
-                let LlvmInlineAsmOutput { constraint: _, expr, is_rw: _, is_indirect: _ } = out;
-                vis.visit_expr(expr);
-            }
-            visit_vec(inputs, |(_c, expr)| vis.visit_expr(expr));
-        }
         ExprKind::MacCall(mac) => vis.visit_mac_call(mac),
         ExprKind::Struct(se) => {
             let StructExpr { qself, path, fields, rest } = se.deref_mut();
@@ -1420,4 +1435,110 @@ pub fn noop_visit_vis<T: MutVisitor>(visibility: &mut Visibility, vis: &mut T) {
         }
     }
     vis.visit_span(&mut visibility.span);
+}
+
+/// Some value for the AST node that is valid but possibly meaningless.
+pub trait DummyAstNode {
+    fn dummy() -> Self;
+}
+
+impl<T> DummyAstNode for Option<T> {
+    fn dummy() -> Self {
+        Default::default()
+    }
+}
+
+impl<T: DummyAstNode + 'static> DummyAstNode for P<T> {
+    fn dummy() -> Self {
+        P(DummyAstNode::dummy())
+    }
+}
+
+impl<T> DummyAstNode for ThinVec<T> {
+    fn dummy() -> Self {
+        Default::default()
+    }
+}
+
+impl DummyAstNode for Item {
+    fn dummy() -> Self {
+        Item {
+            attrs: Default::default(),
+            id: DUMMY_NODE_ID,
+            span: Default::default(),
+            vis: Visibility {
+                kind: VisibilityKind::Public,
+                span: Default::default(),
+                tokens: Default::default(),
+            },
+            ident: Ident::empty(),
+            kind: ItemKind::ExternCrate(None),
+            tokens: Default::default(),
+        }
+    }
+}
+
+impl DummyAstNode for Expr {
+    fn dummy() -> Self {
+        Expr {
+            id: DUMMY_NODE_ID,
+            kind: ExprKind::Err,
+            span: Default::default(),
+            attrs: Default::default(),
+            tokens: Default::default(),
+        }
+    }
+}
+
+impl DummyAstNode for Ty {
+    fn dummy() -> Self {
+        Ty {
+            id: DUMMY_NODE_ID,
+            kind: TyKind::Err,
+            span: Default::default(),
+            tokens: Default::default(),
+        }
+    }
+}
+
+impl DummyAstNode for Pat {
+    fn dummy() -> Self {
+        Pat {
+            id: DUMMY_NODE_ID,
+            kind: PatKind::Wild,
+            span: Default::default(),
+            tokens: Default::default(),
+        }
+    }
+}
+
+impl DummyAstNode for Stmt {
+    fn dummy() -> Self {
+        Stmt { id: DUMMY_NODE_ID, kind: StmtKind::Empty, span: Default::default() }
+    }
+}
+
+impl DummyAstNode for Block {
+    fn dummy() -> Self {
+        Block {
+            stmts: Default::default(),
+            id: DUMMY_NODE_ID,
+            rules: BlockCheckMode::Default,
+            span: Default::default(),
+            tokens: Default::default(),
+            could_be_bare_literal: Default::default(),
+        }
+    }
+}
+
+impl DummyAstNode for Crate {
+    fn dummy() -> Self {
+        Crate {
+            attrs: Default::default(),
+            items: Default::default(),
+            span: Default::default(),
+            id: DUMMY_NODE_ID,
+            is_placeholder: Default::default(),
+        }
+    }
 }

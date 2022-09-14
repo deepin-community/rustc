@@ -15,6 +15,8 @@
 //! switching compilers for the bootstrap and for build scripts will probably
 //! never get replaced.
 
+include!("../dylib_util.rs");
+
 use std::env;
 use std::path::PathBuf;
 use std::process::{Child, Command};
@@ -50,11 +52,11 @@ fn main() {
 
     let rustc = env::var_os(rustc).unwrap_or_else(|| panic!("{:?} was not set", rustc));
     let libdir = env::var_os(libdir).unwrap_or_else(|| panic!("{:?} was not set", libdir));
-    let mut dylib_path = bootstrap::util::dylib_path();
+    let mut dylib_path = dylib_path();
     dylib_path.insert(0, PathBuf::from(&libdir));
 
     let mut cmd = Command::new(rustc);
-    cmd.args(&args).env(bootstrap::util::dylib_path_var(), env::join_paths(&dylib_path).unwrap());
+    cmd.args(&args).env(dylib_path_var(), env::join_paths(&dylib_path).unwrap());
 
     // Get the name of the crate we're compiling, if any.
     let crate_name =
@@ -146,7 +148,7 @@ fn main() {
     }
 
     let is_test = args.iter().any(|a| a == "--test");
-    if verbose > 1 {
+    if verbose > 2 {
         let rust_env_vars =
             env::vars().filter(|(k, _)| k.starts_with("RUST") || k.starts_with("CARGO"));
         let prefix = if is_test { "[RUSTC-SHIM] rustc --test" } else { "[RUSTC-SHIM] rustc" };
@@ -161,7 +163,7 @@ fn main() {
         eprintln!(
             "{} command: {:?}={:?} {:?}",
             prefix,
-            bootstrap::util::dylib_path_var(),
+            dylib_path_var(),
             env::join_paths(&dylib_path).unwrap(),
             cmd,
         );

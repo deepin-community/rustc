@@ -23,9 +23,9 @@ impl Command {
         let envp = self.capture_env();
 
         if self.saw_nul() {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::InvalidInput,
-                &"nul byte found in provided data",
+                "nul byte found in provided data",
             ));
         }
 
@@ -38,9 +38,9 @@ impl Command {
 
     pub fn exec(&mut self, default: Stdio) -> io::Error {
         if self.saw_nul() {
-            return io::Error::new_const(
+            return io::const_io_error!(
                 io::ErrorKind::InvalidInput,
-                &"nul byte found in provided data",
+                "nul byte found in provided data",
             );
         }
 
@@ -186,9 +186,9 @@ impl Process {
             ))?;
         }
         if actual != 1 {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::InvalidData,
-                &"Failed to get exit status of process",
+                "Failed to get exit status of process",
             ));
         }
         Ok(ExitStatus(proc_info.return_code))
@@ -224,9 +224,9 @@ impl Process {
             ))?;
         }
         if actual != 1 {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::InvalidData,
-                &"Failed to get exit status of process",
+                "Failed to get exit status of process",
             ));
         }
         Ok(Some(ExitStatus(proc_info.return_code)))
@@ -284,7 +284,7 @@ impl ExitStatus {
         //
         // The other view would be to say that the caller on Fuchsia ought to know that `into_raw`
         // will give a raw Fuchsia status (whatever that is - I don't know, personally).  That is
-        // not possible here becaause we must return a c_int because that's what Unix (including
+        // not possible here because we must return a c_int because that's what Unix (including
         // SuS and POSIX) say a wait status is, but Fuchsia apparently uses a u64, so it won't
         // necessarily fit.
         //

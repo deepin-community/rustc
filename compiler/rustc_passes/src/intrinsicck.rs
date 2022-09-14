@@ -3,7 +3,7 @@ use rustc_errors::struct_span_err;
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{DefId, LocalDefId};
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_index::vec::Idx;
 use rustc_middle::ty::layout::{LayoutError, SizeSkeleton};
 use rustc_middle::ty::query::Providers;
@@ -62,7 +62,7 @@ fn unpack_option_like<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
     ty
 }
 
-impl ExprVisitor<'tcx> {
+impl<'tcx> ExprVisitor<'tcx> {
     fn def_id_is_transmute(&self, def_id: DefId) -> bool {
         self.tcx.fn_sig(def_id).abi() == RustIntrinsic
             && self.tcx.item_name(def_id) == sym::transmute
@@ -141,6 +141,7 @@ impl ExprVisitor<'tcx> {
         template: &[InlineAsmTemplatePiece],
         is_input: bool,
         tied_input: Option<(&hir::Expr<'tcx>, Option<InlineAsmType>)>,
+        target_features: &[Symbol],
     ) -> Option<InlineAsmType> {
         // Check the type against the allowed types for inline asm.
         let ty = self.typeck_results.expr_ty_adjusted(expr);
@@ -283,17 +284,19 @@ impl ExprVisitor<'tcx> {
         };
 
         // Check whether the selected type requires a target feature. Note that
-        // this is different from the feature check we did earlier in AST
-        // lowering. While AST lowering checked that this register class is
-        // usable at all with the currently enabled features, some types may
-        // only be usable with a register class when a certain feature is
-        // enabled. We check this here since it depends on the results of typeck.
+        // this is different from the feature check we did earlier. While the
+        // previous check checked that this register class is usable at all
+        // with the currently enabled features, some types may only be usable
+        // with a register class when a certain feature is enabled. We check
+        // this here since it depends on the results of typeck.
         //
         // Also note that this check isn't run when the operand type is never
-        // (!). In that case we still need the earlier check in AST lowering to
-        // verify that the register class is usable at all.
+        // (!). In that case we still need the earlier check to verify that the
+        // register class is usable at all.
         if let Some(feature) = feature {
-            if !self.tcx.sess.target_features.contains(&Symbol::intern(feature)) {
+            if !self.tcx.sess.target_features.contains(&feature)
+                && !target_features.contains(&feature)
+            {
                 let msg = &format!("`{}` target feature is not enabled", feature);
                 let mut err = self.tcx.sess.struct_span_err(expr.span, msg);
                 err.note(&format!(
@@ -349,23 +352,125 @@ impl ExprVisitor<'tcx> {
         Some(asm_ty)
     }
 
-    fn check_asm(&self, asm: &hir::InlineAsm<'tcx>) {
-        for (idx, (op, _)) in asm.operands.iter().enumerate() {
+    fn check_asm(&self, asm: &hir::InlineAsm<'tcx>, hir_id: hir::HirId) {
+        let hir = self.tcx.hir();
+        let enclosing_id = hir.enclosing_body_owner(hir_id);
+        let enclosing_def_id = hir.local_def_id(enclosing_id).to_def_id();
+        let attrs = self.tcx.codegen_fn_attrs(enclosing_def_id);
+        for (idx, (op, op_sp)) in asm.operands.iter().enumerate() {
+            // Validate register classes against currently enabled target
+            // features. We check that at least one type is available for
+            // the enabled features.
+            //
+            // We ignore target feature requirements for clobbers: if the
+            // feature is disabled then the compiler doesn't care what we
+            // do with the registers.
+            //
+            // Note that this is only possible for explicit register
+            // operands, which cannot be used in the asm string.
+            if let Some(reg) = op.reg() {
+                if !op.is_clobber() {
+                    let mut missing_required_features = vec![];
+                    let reg_class = reg.reg_class();
+                    for &(_, feature) in reg_class.supported_types(self.tcx.sess.asm_arch.unwrap())
+                    {
+                        match feature {
+                            Some(feature) => {
+                                if self.tcx.sess.target_features.contains(&feature)
+                                    || attrs.target_features.contains(&feature)
+                                {
+                                    missing_required_features.clear();
+                                    break;
+                                } else {
+                                    missing_required_features.push(feature);
+                                }
+                            }
+                            None => {
+                                missing_required_features.clear();
+                                break;
+                            }
+                        }
+                    }
+
+                    // We are sorting primitive strs here and can use unstable sort here
+                    missing_required_features.sort_unstable();
+                    missing_required_features.dedup();
+                    match &missing_required_features[..] {
+                        [] => {}
+                        [feature] => {
+                            let msg = format!(
+                                "register class `{}` requires the `{}` target feature",
+                                reg_class.name(),
+                                feature
+                            );
+                            self.tcx.sess.struct_span_err(*op_sp, &msg).emit();
+                            // register isn't enabled, don't do more checks
+                            continue;
+                        }
+                        features => {
+                            let msg = format!(
+                                "register class `{}` requires at least one of the following target features: {}",
+                                reg_class.name(),
+                                features
+                                    .iter()
+                                    .map(|f| f.as_str())
+                                    .intersperse(", ")
+                                    .collect::<String>(),
+                            );
+                            self.tcx.sess.struct_span_err(*op_sp, &msg).emit();
+                            // register isn't enabled, don't do more checks
+                            continue;
+                        }
+                    }
+                }
+            }
+
             match *op {
                 hir::InlineAsmOperand::In { reg, ref expr } => {
-                    self.check_asm_operand_type(idx, reg, expr, asm.template, true, None);
+                    self.check_asm_operand_type(
+                        idx,
+                        reg,
+                        expr,
+                        asm.template,
+                        true,
+                        None,
+                        &attrs.target_features,
+                    );
                 }
                 hir::InlineAsmOperand::Out { reg, late: _, ref expr } => {
                     if let Some(expr) = expr {
-                        self.check_asm_operand_type(idx, reg, expr, asm.template, false, None);
+                        self.check_asm_operand_type(
+                            idx,
+                            reg,
+                            expr,
+                            asm.template,
+                            false,
+                            None,
+                            &attrs.target_features,
+                        );
                     }
                 }
                 hir::InlineAsmOperand::InOut { reg, late: _, ref expr } => {
-                    self.check_asm_operand_type(idx, reg, expr, asm.template, false, None);
+                    self.check_asm_operand_type(
+                        idx,
+                        reg,
+                        expr,
+                        asm.template,
+                        false,
+                        None,
+                        &attrs.target_features,
+                    );
                 }
                 hir::InlineAsmOperand::SplitInOut { reg, late: _, ref in_expr, ref out_expr } => {
-                    let in_ty =
-                        self.check_asm_operand_type(idx, reg, in_expr, asm.template, true, None);
+                    let in_ty = self.check_asm_operand_type(
+                        idx,
+                        reg,
+                        in_expr,
+                        asm.template,
+                        true,
+                        None,
+                        &attrs.target_features,
+                    );
                     if let Some(out_expr) = out_expr {
                         self.check_asm_operand_type(
                             idx,
@@ -374,6 +479,7 @@ impl ExprVisitor<'tcx> {
                             asm.template,
                             false,
                             Some((in_expr, in_ty)),
+                            &attrs.target_features,
                         );
                     }
                 }
@@ -383,13 +489,7 @@ impl ExprVisitor<'tcx> {
     }
 }
 
-impl Visitor<'tcx> for ItemVisitor<'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
+impl<'tcx> Visitor<'tcx> for ItemVisitor<'tcx> {
     fn visit_nested_body(&mut self, body_id: hir::BodyId) {
         let owner_def_id = self.tcx.hir().body_owner_def_id(body_id);
         let body = self.tcx.hir().body(body_id);
@@ -400,13 +500,7 @@ impl Visitor<'tcx> for ItemVisitor<'tcx> {
     }
 }
 
-impl Visitor<'tcx> for ExprVisitor<'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
+impl<'tcx> Visitor<'tcx> for ExprVisitor<'tcx> {
     fn visit_expr(&mut self, expr: &'tcx hir::Expr<'tcx>) {
         match expr.kind {
             hir::ExprKind::Path(ref qpath) => {
@@ -422,7 +516,7 @@ impl Visitor<'tcx> for ExprVisitor<'tcx> {
                 }
             }
 
-            hir::ExprKind::InlineAsm(asm) => self.check_asm(asm),
+            hir::ExprKind::InlineAsm(asm) => self.check_asm(asm, expr.hir_id),
 
             _ => {}
         }

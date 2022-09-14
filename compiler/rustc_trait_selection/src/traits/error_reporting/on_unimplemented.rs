@@ -56,7 +56,7 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
                     trait_ref.substs.types().skip(1),
                     impl_trait_ref.substs.types().skip(1),
                 )
-                .all(|(u, v)| self.fuzzy_match_tys(u, v))
+                .all(|(u, v)| self.fuzzy_match_tys(u, v, false).is_some())
                 {
                     fuzzy_match_impls.push(def_id);
                 }
@@ -77,7 +77,7 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
     /// Used to set on_unimplemented's `ItemContext`
     /// to be the enclosing (async) block/function/closure
     fn describe_enclosure(&self, hir_id: hir::HirId) -> Option<&'static str> {
-        let hir = &self.tcx.hir();
+        let hir = self.tcx.hir();
         let node = hir.find(hir_id)?;
         match &node {
             hir::Node::Item(hir::Item { kind: hir::ItemKind::Fn(sig, _, body_id), .. }) => {
@@ -129,7 +129,7 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
             self.describe_enclosure(obligation.cause.body_id).map(|s| s.to_owned()),
         )];
 
-        match obligation.cause.code {
+        match obligation.cause.code() {
             ObligationCauseCode::BuiltinDerivedObligation(..)
             | ObligationCauseCode::ImplDerivedObligation(..)
             | ObligationCauseCode::DerivedObligation(..) => {}
@@ -141,7 +141,7 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
         }
 
         if let ObligationCauseCode::ItemObligation(item)
-        | ObligationCauseCode::BindingObligation(item, _) = obligation.cause.code
+        | ObligationCauseCode::BindingObligation(item, _) = *obligation.cause.code()
         {
             // FIXME: maybe also have some way of handling methods
             // from other traits? That would require name resolution,
@@ -153,9 +153,6 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
                 flags.push((sym::from_method, None));
                 flags.push((sym::from_method, Some(method.to_string())));
             }
-        }
-        if let Some((t, _)) = self.get_parent_trait_ref(&obligation.cause.code) {
-            flags.push((sym::parent_trait, Some(t)));
         }
 
         if let Some(k) = obligation.cause.span.desugaring_kind() {
@@ -214,7 +211,8 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
                     let type_string = self.tcx.type_of(def.did).to_string();
                     flags.push((sym::_Self, Some(format!("[{}]", type_string))));
 
-                    let len = len.val.try_to_value().and_then(|v| v.try_to_machine_usize(self.tcx));
+                    let len =
+                        len.val().try_to_value().and_then(|v| v.try_to_machine_usize(self.tcx));
                     let string = match len {
                         Some(n) => format!("[{}; {}]", type_string, n),
                         None => format!("[{}; _]", type_string),
@@ -234,7 +232,7 @@ impl<'a, 'tcx> InferCtxtExt<'tcx> for InferCtxt<'a, 'tcx> {
         if let Ok(Some(command)) =
             OnUnimplementedDirective::of_item(self.tcx, trait_ref.def_id, def_id)
         {
-            command.evaluate(self.tcx, trait_ref, &flags[..])
+            command.evaluate(self.tcx, trait_ref, &flags)
         } else {
             OnUnimplementedNote::default()
         }

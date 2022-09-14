@@ -42,6 +42,7 @@ impl StableHasher {
 }
 
 impl StableHasherResult for u128 {
+    #[inline]
     fn finish(hasher: StableHasher) -> Self {
         let (_0, _1) = hasher.finalize();
         u128::from(_0) | (u128::from(_1) << 64)
@@ -49,6 +50,7 @@ impl StableHasherResult for u128 {
 }
 
 impl StableHasherResult for u64 {
+    #[inline]
     fn finish(hasher: StableHasher) -> Self {
         hasher.finalize().0
     }
@@ -78,22 +80,22 @@ impl Hasher for StableHasher {
 
     #[inline]
     fn write_u16(&mut self, i: u16) {
-        self.state.write_u16(i.to_le());
+        self.state.short_write(i.to_le_bytes());
     }
 
     #[inline]
     fn write_u32(&mut self, i: u32) {
-        self.state.write_u32(i.to_le());
+        self.state.short_write(i.to_le_bytes());
     }
 
     #[inline]
     fn write_u64(&mut self, i: u64) {
-        self.state.write_u64(i.to_le());
+        self.state.short_write(i.to_le_bytes());
     }
 
     #[inline]
     fn write_u128(&mut self, i: u128) {
-        self.state.write_u128(i.to_le());
+        self.state.write(&i.to_le_bytes());
     }
 
     #[inline]
@@ -101,7 +103,7 @@ impl Hasher for StableHasher {
         // Always treat usize as u64 so we get the same results on 32 and 64 bit
         // platforms. This is important for symbol hashes when cross compiling,
         // for example.
-        self.state.write_u64((i as u64).to_le());
+        self.state.short_write((i as u64).to_le_bytes());
     }
 
     #[inline]
@@ -111,31 +113,59 @@ impl Hasher for StableHasher {
 
     #[inline]
     fn write_i16(&mut self, i: i16) {
-        self.state.write_i16(i.to_le());
+        self.state.short_write((i as u16).to_le_bytes());
     }
 
     #[inline]
     fn write_i32(&mut self, i: i32) {
-        self.state.write_i32(i.to_le());
+        self.state.short_write((i as u32).to_le_bytes());
     }
 
     #[inline]
     fn write_i64(&mut self, i: i64) {
-        self.state.write_i64(i.to_le());
+        self.state.short_write((i as u64).to_le_bytes());
     }
 
     #[inline]
     fn write_i128(&mut self, i: i128) {
-        self.state.write_i128(i.to_le());
+        self.state.write(&(i as u128).to_le_bytes());
     }
 
     #[inline]
     fn write_isize(&mut self, i: isize) {
-        // Always treat isize as i64 so we get the same results on 32 and 64 bit
+        // Always treat isize as a 64-bit number so we get the same results on 32 and 64 bit
         // platforms. This is important for symbol hashes when cross compiling,
         // for example. Sign extending here is preferable as it means that the
         // same negative number hashes the same on both 32 and 64 bit platforms.
-        self.state.write_i64((i as i64).to_le());
+        let value = i as u64;
+
+        // Cold path
+        #[cold]
+        #[inline(never)]
+        fn hash_value(state: &mut SipHasher128, value: u64) {
+            state.write_u8(0xFF);
+            state.short_write(value.to_le_bytes());
+        }
+
+        // `isize` values often seem to have a small (positive) numeric value in practice.
+        // To exploit this, if the value is small, we will hash a smaller amount of bytes.
+        // However, we cannot just skip the leading zero bytes, as that would produce the same hash
+        // e.g. if you hash two values that have the same bit pattern when they are swapped.
+        // See https://github.com/rust-lang/rust/pull/93014 for context.
+        //
+        // Therefore, we employ the following strategy:
+        // 1) When we encounter a value that fits within a single byte (the most common case), we
+        // hash just that byte. This is the most common case that is being optimized. However, we do
+        // not do this for the value 0xFF, as that is a reserved prefix (a bit like in UTF-8).
+        // 2) When we encounter a larger value, we hash a "marker" 0xFF and then the corresponding
+        // 8 bytes. Since this prefix cannot occur when we hash a single byte, when we hash two
+        // `isize`s that fit within a different amount of bytes, they should always produce a different
+        // byte stream for the hasher.
+        if value < 0xFF {
+            self.state.write_u8(value as u8);
+        } else {
+            hash_value(&mut self.state, value);
+        }
     }
 }
 
@@ -208,6 +238,12 @@ impl_stable_hash_via_hash!(i128);
 
 impl_stable_hash_via_hash!(char);
 impl_stable_hash_via_hash!(());
+
+impl<CTX> HashStable<CTX> for ! {
+    fn hash_stable(&self, _ctx: &mut CTX, _hasher: &mut StableHasher) {
+        unreachable!()
+    }
+}
 
 impl<CTX> HashStable<CTX> for ::std::num::NonZeroU32 {
     fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
@@ -295,6 +331,13 @@ impl<T: HashStable<CTX>, CTX> HashStable<CTX> for [T] {
     }
 }
 
+impl<CTX> HashStable<CTX> for [u8] {
+    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
+        self.len().hash_stable(ctx, hasher);
+        hasher.write(self);
+    }
+}
+
 impl<T: HashStable<CTX>, CTX> HashStable<CTX> for Vec<T> {
     #[inline]
     fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
@@ -364,9 +407,8 @@ impl<T: ?Sized + HashStable<CTX>, CTX> HashStable<CTX> for ::std::sync::Arc<T> {
 
 impl<CTX> HashStable<CTX> for str {
     #[inline]
-    fn hash_stable(&self, _: &mut CTX, hasher: &mut StableHasher) {
-        self.len().hash(hasher);
-        self.as_bytes().hash(hasher);
+    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
+        self.as_bytes().hash_stable(ctx, hasher);
     }
 }
 
@@ -463,14 +505,14 @@ where
 }
 
 impl<I: vec::Idx, CTX> HashStable<CTX> for bit_set::BitSet<I> {
-    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
-        self.words().hash_stable(ctx, hasher);
+    fn hash_stable(&self, _ctx: &mut CTX, hasher: &mut StableHasher) {
+        ::std::hash::Hash::hash(self, hasher);
     }
 }
 
 impl<R: vec::Idx, C: vec::Idx, CTX> HashStable<CTX> for bit_set::BitMatrix<R, C> {
-    fn hash_stable(&self, ctx: &mut CTX, hasher: &mut StableHasher) {
-        self.words().hash_stable(ctx, hasher);
+    fn hash_stable(&self, _ctx: &mut CTX, hasher: &mut StableHasher) {
+        ::std::hash::Hash::hash(self, hasher);
     }
 }
 
@@ -494,7 +536,11 @@ where
 {
     #[inline]
     fn hash_stable(&self, hcx: &mut HCX, hasher: &mut StableHasher) {
-        hash_stable_hashmap(hcx, hasher, self, ToStableHashKey::to_stable_hash_key);
+        stable_hash_reduce(hcx, hasher, self.iter(), self.len(), |hasher, hcx, (key, value)| {
+            let key = key.to_stable_hash_key(hcx);
+            key.hash_stable(hcx, hasher);
+            value.hash_stable(hcx, hasher);
+        });
     }
 }
 
@@ -504,9 +550,10 @@ where
     R: BuildHasher,
 {
     fn hash_stable(&self, hcx: &mut HCX, hasher: &mut StableHasher) {
-        let mut keys: Vec<_> = self.iter().map(|k| k.to_stable_hash_key(hcx)).collect();
-        keys.sort_unstable();
-        keys.hash_stable(hcx, hasher);
+        stable_hash_reduce(hcx, hasher, self.iter(), self.len(), |hasher, hcx, key| {
+            let key = key.to_stable_hash_key(hcx);
+            key.hash_stable(hcx, hasher);
+        });
     }
 }
 
@@ -516,10 +563,11 @@ where
     V: HashStable<HCX>,
 {
     fn hash_stable(&self, hcx: &mut HCX, hasher: &mut StableHasher) {
-        let mut entries: Vec<_> =
-            self.iter().map(|(k, v)| (k.to_stable_hash_key(hcx), v)).collect();
-        entries.sort_unstable_by(|&(ref sk1, _), &(ref sk2, _)| sk1.cmp(sk2));
-        entries.hash_stable(hcx, hasher);
+        stable_hash_reduce(hcx, hasher, self.iter(), self.len(), |hasher, hcx, (key, value)| {
+            let key = key.to_stable_hash_key(hcx);
+            key.hash_stable(hcx, hasher);
+            value.hash_stable(hcx, hasher);
+        });
     }
 }
 
@@ -528,25 +576,57 @@ where
     K: ToStableHashKey<HCX>,
 {
     fn hash_stable(&self, hcx: &mut HCX, hasher: &mut StableHasher) {
-        let mut keys: Vec<_> = self.iter().map(|k| k.to_stable_hash_key(hcx)).collect();
-        keys.sort_unstable();
-        keys.hash_stable(hcx, hasher);
+        stable_hash_reduce(hcx, hasher, self.iter(), self.len(), |hasher, hcx, key| {
+            let key = key.to_stable_hash_key(hcx);
+            key.hash_stable(hcx, hasher);
+        });
     }
 }
 
-pub fn hash_stable_hashmap<HCX, K, V, R, SK, F>(
+fn stable_hash_reduce<HCX, I, C, F>(
     hcx: &mut HCX,
     hasher: &mut StableHasher,
-    map: &::std::collections::HashMap<K, V, R>,
-    to_stable_hash_key: F,
+    mut collection: C,
+    length: usize,
+    hash_function: F,
 ) where
-    K: Eq,
-    V: HashStable<HCX>,
-    R: BuildHasher,
-    SK: HashStable<HCX> + Ord,
-    F: Fn(&K, &HCX) -> SK,
+    C: Iterator<Item = I>,
+    F: Fn(&mut StableHasher, &mut HCX, I),
 {
-    let mut entries: Vec<_> = map.iter().map(|(k, v)| (to_stable_hash_key(k, hcx), v)).collect();
-    entries.sort_unstable_by(|&(ref sk1, _), &(ref sk2, _)| sk1.cmp(sk2));
-    entries.hash_stable(hcx, hasher);
+    length.hash_stable(hcx, hasher);
+
+    match length {
+        1 => {
+            hash_function(hasher, hcx, collection.next().unwrap());
+        }
+        _ => {
+            let hash = collection
+                .map(|value| {
+                    let mut hasher = StableHasher::new();
+                    hash_function(&mut hasher, hcx, value);
+                    hasher.finish::<u128>()
+                })
+                .reduce(|accum, value| accum.wrapping_add(value));
+            hash.hash_stable(hcx, hasher);
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
+pub enum NodeIdHashingMode {
+    Ignore,
+    HashDefPath,
+}
+
+/// Controls what data we do or not not hash.
+/// Whenever a `HashStable` implementation caches its
+/// result, it needs to include `HashingControls` as part
+/// of the key, to ensure that is does not produce an incorrect
+/// result (for example, using a `Fingerprint` produced while
+/// hashing `Span`s when a `Fingeprint` without `Span`s is
+/// being requested)
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct HashingControls {
+    pub hash_spans: bool,
+    pub node_id_hashing_mode: NodeIdHashingMode,
 }

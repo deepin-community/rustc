@@ -75,9 +75,7 @@
 //! // Dropping the `_enter` guard will exit the span.
 //!```
 //!
-//! <div class="information">
-//!     <div class="tooltip compile_fail" style="">&#x26a0; &#xfe0f;<span class="tooltiptext">Warning</span></div>
-//! </div><div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
+//! <div class="example-wrap" style="display:inline-block"><pre class="compile_fail" style="white-space:normal;font:inherit;">
 //!     <strong>Warning</strong>: In asynchronous code that uses async/await syntax,
 //!     <code>Span::enter</code> may produce incorrect traces if the returned drop
 //!     guard is held across an await point. See
@@ -121,16 +119,12 @@
 //! });
 //! ```
 //!
-//! <div class="information">
-//!     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-//! </div>
-//! <div class="example-wrap" style="display:inline-block">
 //! <pre class="ignore" style="white-space:normal;font:inherit;">
-//! <strong>Note</strong>: Since entering a span takes <code>&self</code<, and
-//! <code>Span</code>s are <code>Clone</code>, <code>Send</code>, and
-//! <code>Sync</code>, it is entirely valid for multiple threads to enter the
-//! same span concurrently.
-//! </pre></div>
+//!     <strong>Note</strong>: Since entering a span takes <code>&self</code>, and
+//!     <code>Span</code>s are <code>Clone</code>, <code>Send</code>, and
+//!     <code>Sync</code>, it is entirely valid for multiple threads to enter the
+//!     same span concurrently.
+//! </pre>
 //!
 //! ## Span Relationships
 //!
@@ -142,8 +136,7 @@
 //! as long as the longest-executing span in its subtree.
 //!
 //! ```
-//! # #[macro_use] extern crate tracing;
-//! # use tracing::Level;
+//! # use tracing::{Level, span};
 //! // this span is considered the "root" of a new trace tree:
 //! span!(Level::INFO, "root").in_scope(|| {
 //!     // since we are now inside "root", this span is considered a child
@@ -163,8 +156,7 @@
 //! the `span!` macro. For example:
 //!
 //! ```rust
-//! # #[macro_use] extern crate tracing;
-//! # use tracing::Level;
+//! # use tracing::{Level, span};
 //! // Create, but do not enter, a span called "foo".
 //! let foo = span!(Level::INFO, "foo");
 //!
@@ -206,8 +198,6 @@
 //! _closed_. Consider, for example, a future which has an associated
 //! span and enters that span every time it is polled:
 //! ```rust
-//! # extern crate tracing;
-//! # extern crate futures;
 //! # use futures::{Future, Poll, Async};
 //! struct MyFuture {
 //!    // data
@@ -247,8 +237,7 @@
 //! that handle "closes" the span, since the capacity to enter it no longer
 //! exists. For example:
 //! ```
-//! # #[macro_use] extern crate tracing;
-//! # use tracing::Level;
+//! # use tracing::{Level, span};
 //! {
 //!     span!(Level::TRACE, "my_span").in_scope(|| {
 //!         // perform some work in the context of `my_span`...
@@ -281,8 +270,7 @@
 //! construct one span and perform the entire loop inside of that span, like:
 //!
 //! ```rust
-//! # #[macro_use] extern crate tracing;
-//! # use tracing::Level;
+//! # use tracing::{Level, span};
 //! # let n = 1;
 //! let span = span!(Level::TRACE, "my_loop");
 //! let _enter = span.enter();
@@ -293,8 +281,7 @@
 //! ```
 //! Or, should we create a new span for each iteration of the loop, as in:
 //! ```rust
-//! # #[macro_use] extern crate tracing;
-//! # use tracing::Level;
+//! # use tracing::{Level, span};
 //! # let n = 1u64;
 //! for i in 0..n {
 //!     let span = span!(Level::TRACE, "my_loop", iteration = i);
@@ -610,9 +597,7 @@ impl Span {
     /// **Warning**: in asynchronous code that uses [async/await syntax][syntax],
     /// `Span::enter` should be used very carefully or avoided entirely. Holding
     /// the drop guard returned by `Span::enter` across `.await` points will
-    /// result in incorrect traces.
-    ///
-    /// For example,
+    /// result in incorrect traces. For example,
     ///
     /// ```
     /// # use tracing::info_span;
@@ -656,7 +641,7 @@ impl Span {
     ///       // This is okay! The span has already been exited before we reach
     ///       // the await point.
     ///       some_other_async_function(some_value).await;
-    ///  
+    ///
     ///       // ...
     ///   }
     ///   ```
@@ -665,7 +650,7 @@ impl Span {
     ///   attaching a span to a future (async function or block). This will
     ///   enter the span _every_ time the future is polled, and exit it whenever
     ///   the future yields.
-    ///   
+    ///
     ///   `Instrument` can be used with an async block inside an async function:
     ///   ```ignore
     ///   # use tracing::info_span;
@@ -712,13 +697,13 @@ impl Span {
     ///   # async fn some_other_async_function() {}
     ///   #[tracing::instrument(level = "info")]
     ///   async fn my_async_function() {
-    ///   
+    ///
     ///       // This is correct! If we yield here, the span will be exited,
     ///       // and re-entered when we resume.
     ///       some_other_async_function().await;
     ///
     ///       // ...
-    ///    
+    ///
     ///   }
     ///   ```
     ///
@@ -730,8 +715,7 @@ impl Span {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use] extern crate tracing;
-    /// # use tracing::Level;
+    /// # use tracing::{span, Level};
     /// let span = span!(Level::INFO, "my_span");
     /// let guard = span.enter();
     ///
@@ -746,7 +730,7 @@ impl Span {
     /// Guards need not be explicitly dropped:
     ///
     /// ```
-    /// #[macro_use] extern crate tracing;
+    /// # use tracing::trace_span;
     /// fn my_function() -> String {
     ///     // enter a span for the duration of this function.
     ///     let span = trace_span!("my_function");
@@ -768,7 +752,7 @@ impl Span {
     /// entered:
     ///
     /// ```
-    /// #[macro_use] extern crate tracing;
+    /// # use tracing::{info, info_span};
     /// let span = info_span!("my_great_span");
     ///
     /// {
@@ -796,6 +780,14 @@ impl Span {
     /// Enters this span, consuming it and returning a [guard][`EnteredSpan`]
     /// that will exit the span when dropped.
     ///
+    /// <pre class="compile_fail" style="white-space:normal;font:inherit;">
+    ///     <strong>Warning</strong>: In asynchronous code that uses async/await syntax,
+    ///     <code>Span::entered</code> may produce incorrect traces if the returned drop
+    ///     guard is held across an await point. See <a href="#in-asynchronous-code">the
+    ///     <code>Span::enter</code> documentation</a> for details.
+    /// </pre>
+    ///
+    ///
     /// If this span is enabled by the current subscriber, then this function will
     /// call [`Subscriber::enter`] with the span's [`Id`], and dropping the guard
     /// will call [`Subscriber::exit`]. If the span is disabled, this does
@@ -820,25 +812,13 @@ impl Span {
     /// Furthermore, `entered` may be used when the span must be stored in some
     /// other struct or be passed to a function while remaining entered.
     ///
-    /// <div class="information">
-    ///     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-    /// </div>
-    /// <div class="example-wrap" style="display:inline-block">
     /// <pre class="ignore" style="white-space:normal;font:inherit;">
-    ///
-    /// **Note**: The returned [`EnteredSpan`] guard does not
-    /// implement `Send`. Dropping the guard will exit *this* span,
-    /// and if the guard is sent to another thread and dropped there, that thread may
-    /// never have entered this span. Thus, `EnteredSpan`s should not be sent
-    /// between threads.
-    ///
-    /// </pre></div>
-    ///
-    /// **Warning**: in asynchronous code that uses [async/await syntax][syntax],
-    /// [`Span::entered`] should be used very carefully or avoided entirely. Holding
-    /// the drop guard returned by `Span::entered` across `.await` points will
-    /// result in incorrect traces. See the documentation for the
-    /// [`Span::enter`] method for details.
+    ///     <strong>Note</strong>: The returned <a href="../struct.EnteredSpan.html">
+    ///     <code>EnteredSpan</a></code> guard does not implement <code>Send</code>.
+    ///     Dropping the guard will exit <em>this</em> span, and if the guard is sent
+    ///     to another thread and dropped there, that thread may never have entered
+    ///     this span. Thus, <code>EnteredSpan</code>s should not be sent between threads.
+    /// </pre>
     ///
     /// [syntax]: https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html
     ///
@@ -910,6 +890,136 @@ impl Span {
         }
     }
 
+    /// Returns this span, if it was [enabled] by the current [`Subscriber`], or
+    /// the [current span] (whose lexical distance may be further than expected),
+    ///  if this span [is disabled].
+    ///
+    /// This method can be useful when propagating spans to spawned threads or
+    /// [async tasks]. Consider the following:
+    ///
+    /// ```
+    /// let _parent_span = tracing::info_span!("parent").entered();
+    ///
+    /// // ...
+    ///
+    /// let child_span = tracing::debug_span!("child");
+    ///
+    /// std::thread::spawn(move || {
+    ///     let _entered = child_span.entered();
+    ///
+    ///     tracing::info!("spawned a thread!");
+    ///
+    ///     // ...
+    /// });
+    /// ```
+    ///
+    /// If the current [`Subscriber`] enables the [`DEBUG`] level, then both
+    /// the "parent" and "child" spans will be enabled. Thus, when the "spawaned
+    /// a thread!" event occurs, it will be inside of the "child" span. Because
+    /// "parent" is the parent of "child", the event will _also_ be inside of
+    /// "parent".
+    ///
+    /// However, if the [`Subscriber`] only enables the [`INFO`] level, the "child"
+    /// span will be disabled. When the thread is spawned, the
+    /// `child_span.entered()` call will do nothing, since "child" is not
+    /// enabled. In this case, the "spawned a thread!" event occurs outside of
+    /// *any* span, since the "child" span was responsible for propagating its
+    /// parent to the spawned thread.
+    ///
+    /// If this is not the desired behavior, `Span::or_current` can be used to
+    /// ensure that the "parent" span is propagated in both cases, either as a
+    /// parent of "child" _or_ directly. For example:
+    ///
+    /// ```
+    /// let _parent_span = tracing::info_span!("parent").entered();
+    ///
+    /// // ...
+    ///
+    /// // If DEBUG is enabled, then "child" will be enabled, and `or_current`
+    /// // returns "child". Otherwise, if DEBUG is not enabled, "child" will be
+    /// // disabled, and `or_current` returns "parent".
+    /// let child_span = tracing::debug_span!("child").or_current();
+    ///
+    /// std::thread::spawn(move || {
+    ///     let _entered = child_span.entered();
+    ///
+    ///     tracing::info!("spawned a thread!");
+    ///
+    ///     // ...
+    /// });
+    /// ```
+    ///
+    /// When spawning [asynchronous tasks][async tasks], `Span::or_current` can
+    /// be used similarly, in combination with [`instrument`]:
+    ///
+    /// ```
+    /// use tracing::Instrument;
+    /// # // lol
+    /// # mod tokio {
+    /// #     pub(super) fn spawn(_: impl std::future::Future) {}
+    /// # }
+    ///
+    /// let _parent_span = tracing::info_span!("parent").entered();
+    ///
+    /// // ...
+    ///
+    /// let child_span = tracing::debug_span!("child");
+    ///
+    /// tokio::spawn(
+    ///     async {
+    ///         tracing::info!("spawned a task!");
+    ///
+    ///         // ...
+    ///
+    ///     }.instrument(child_span.or_current())
+    /// );
+    /// ```
+    ///
+    /// In general, `or_current` should be preferred over nesting an
+    /// [`instrument`]  call inside of an [`in_current_span`] call, as using
+    /// `or_current` will be more efficient.
+    ///
+    /// ```
+    /// use tracing::Instrument;
+    /// # // lol
+    /// # mod tokio {
+    /// #     pub(super) fn spawn(_: impl std::future::Future) {}
+    /// # }
+    /// async fn my_async_fn() {
+    ///     // ...
+    /// }
+    ///
+    /// let _parent_span = tracing::info_span!("parent").entered();
+    ///
+    /// // Do this:
+    /// tokio::spawn(
+    ///     my_async_fn().instrument(tracing::debug_span!("child").or_current())
+    /// );
+    ///
+    /// // ...rather than this:
+    /// tokio::spawn(
+    ///     my_async_fn()
+    ///         .instrument(tracing::debug_span!("child"))
+    ///         .in_current_span()
+    /// );
+    /// ```
+    ///
+    /// [enabled]: crate::Subscriber::enabled
+    /// [`Subscriber`]: crate::Subscriber
+    /// [current span]: Span::current
+    /// [is disabled]: Span::is_disabled
+    /// [`INFO`]: crate::Level::INFO
+    /// [`DEBUG`]: crate::Level::DEBUG
+    /// [async tasks]: std::task
+    /// [`instrument`]: crate::instrument::Instrument::instrument
+    /// [`in_current_span`]: crate::instrument::Instrument::in_current_span
+    pub fn or_current(self) -> Self {
+        if self.is_disabled() {
+            return Self::current();
+        }
+        self
+    }
+
     #[inline]
     fn do_enter(&self) {
         if let Some(inner) = self.inner.as_ref() {
@@ -917,8 +1027,8 @@ impl Span {
         }
 
         if_log_enabled! { crate::Level::TRACE, {
-            if let Some(ref meta) = self.meta {
-                self.log(ACTIVITY_LOG_TARGET, log::Level::Trace, format_args!("-> {}", meta.name()));
+            if let Some(_meta) = self.meta {
+                self.log(ACTIVITY_LOG_TARGET, log::Level::Trace, format_args!("-> {}", _meta.name()));
             }
         }}
     }
@@ -934,7 +1044,7 @@ impl Span {
         }
 
         if_log_enabled! { crate::Level::TRACE, {
-            if let Some(ref _meta) = self.meta {
+            if let Some(_meta) = self.meta {
                 self.log(ACTIVITY_LOG_TARGET, log::Level::Trace, format_args!("<- {}", _meta.name()));
             }
         }}
@@ -952,8 +1062,7 @@ impl Span {
     /// # Examples
     ///
     /// ```
-    /// # #[macro_use] extern crate tracing;
-    /// # use tracing::Level;
+    /// # use tracing::{trace, span, Level};
     /// let my_span = span!(Level::TRACE, "my_span");
     ///
     /// my_span.in_scope(|| {
@@ -1039,17 +1148,15 @@ impl Span {
     /// }
     /// ```
     ///
-    /// <div class="information">
-    ///     <div class="tooltip ignore" style="">ⓘ<span class="tooltiptext">Note</span></div>
-    /// </div>
-    /// <div class="example-wrap" style="display:inline-block">
     /// <pre class="ignore" style="white-space:normal;font:inherit;">
-    /// <strong>Note</strong>: The fields associated with a span are part of its
-    /// <a href="../struct.Metadata.html"><code>Metadata</code></a>.
-    /// The <a href="../struct.Metadata.html"><code>Metadata</code></a>. describing a particular
-    /// span is constructed statically when the span is created and cannot be extended later to
-    /// add new fields. Therefore, you cannot record a value for a field that was not specified
-    /// when the span was created:</pre></div>
+    ///     <strong>Note</strong>: The fields associated with a span are part
+    ///     of its <a href="../struct.Metadata.html"><code>Metadata</code></a>.
+    ///     The <a href="../struct.Metadata.html"><code>Metadata</code></a>
+    ///     describing a particular span is constructed statically when the span
+    ///     is created and cannot be extended later to add new fields. Therefore,
+    ///     you cannot record a value for a field that was not specified when the
+    ///     span was created:
+    /// </pre>
     ///
     /// ```
     /// use tracing::{trace_span, field};
@@ -1078,7 +1185,7 @@ impl Span {
         Q: field::AsField,
         V: field::Value,
     {
-        if let Some(ref meta) = self.meta {
+        if let Some(meta) = self.meta {
             if let Some(field) = field.as_field(meta) {
                 self.record_all(
                     &meta
@@ -1098,7 +1205,7 @@ impl Span {
             inner.record(&record);
         }
 
-        if let Some(ref _meta) = self.meta {
+        if let Some(_meta) = self.meta {
             if_log_enabled! { *_meta.level(), {
                 let target = if record.is_empty() {
                     LIFECYCLE_LOG_TARGET
@@ -1207,7 +1314,7 @@ impl Span {
     #[cfg(feature = "log")]
     #[inline]
     fn log(&self, target: &str, level: log::Level, message: fmt::Arguments<'_>) {
-        if let Some(ref meta) = self.meta {
+        if let Some(meta) = self.meta {
             if level_to_log!(*meta.level()) <= log::max_level() {
                 let logger = log::logger();
                 let log_meta = log::Metadata::builder().level(level).target(target).build();
@@ -1270,7 +1377,7 @@ impl Hash for Span {
 impl fmt::Debug for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut span = f.debug_struct("Span");
-        if let Some(ref meta) = self.meta {
+        if let Some(meta) = self.meta {
             span.field("name", &meta.name())
                 .field("level", &meta.level())
                 .field("target", &meta.target());
@@ -1340,7 +1447,7 @@ impl Drop for Span {
             subscriber.try_close(id.clone());
         }
 
-        if let Some(ref _meta) = self.meta {
+        if let Some(_meta) = self.meta {
             if_log_enabled! { crate::Level::TRACE, {
                 self.log(
                     LIFECYCLE_LOG_TARGET,
@@ -1371,7 +1478,7 @@ impl Inner {
     /// returns `Ok(())` if the other span was added as a precedent of this
     /// span, or an error if this was not possible.
     fn follows_from(&self, from: &Id) {
-        self.subscriber.record_follows_from(&self.id, &from)
+        self.subscriber.record_follows_from(&self.id, from)
     }
 
     /// Returns the span's ID.

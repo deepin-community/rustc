@@ -62,7 +62,7 @@
 //! some atomic operations. Maximally portable code will want to be careful
 //! about which atomic types are used. `AtomicUsize` and `AtomicIsize` are
 //! generally the most portable, but even then they're not available everywhere.
-//! For reference, the `std` library requires pointer-sized atomics, although
+//! For reference, the `std` library requires `AtomicBool`s and pointer-sized atomics, although
 //! `core` does not.
 //!
 //! Currently you'll need to use `#[cfg(target_arch)]` primarily to
@@ -131,6 +131,7 @@ use crate::hint::spin_loop;
 /// loads and stores of `u8`.
 #[cfg(target_has_atomic_load_store = "8")]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_diagnostic_item = "AtomicBool"]
 #[repr(C, align(1))]
 pub struct AtomicBool {
     v: UnsafeCell<u8>,
@@ -290,6 +291,7 @@ impl AtomicBool {
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_const_stable(feature = "const_atomic_new", since = "1.24.0")]
+    #[must_use]
     pub const fn new(v: bool) -> AtomicBool {
         AtomicBool { v: UnsafeCell::new(v as u8) }
     }
@@ -332,10 +334,10 @@ impl AtomicBool {
     #[inline]
     #[cfg(target_has_atomic_equal_alignment = "8")]
     #[unstable(feature = "atomic_from_mut", issue = "76314")]
-    pub fn from_mut(v: &mut bool) -> &Self {
+    pub fn from_mut(v: &mut bool) -> &mut Self {
         // SAFETY: the mutable reference guarantees unique ownership, and
         // alignment of both `bool` and `Self` is 1.
-        unsafe { &*(v as *mut bool as *mut Self) }
+        unsafe { &mut *(v as *mut bool as *mut Self) }
     }
 
     /// Consumes the atomic and returns the contained value.
@@ -933,14 +935,14 @@ impl<T> AtomicPtr<T> {
     #[inline]
     #[cfg(target_has_atomic_equal_alignment = "ptr")]
     #[unstable(feature = "atomic_from_mut", issue = "76314")]
-    pub fn from_mut(v: &mut *mut T) -> &Self {
+    pub fn from_mut(v: &mut *mut T) -> &mut Self {
         use crate::mem::align_of;
         let [] = [(); align_of::<AtomicPtr<()>>() - align_of::<*mut ()>()];
         // SAFETY:
         //  - the mutable reference guarantees unique ownership.
         //  - the alignment of `*mut T` and `Self` is the same on all platforms
         //    supported by rust, as verified above.
-        unsafe { &*(v as *mut *mut T as *mut Self) }
+        unsafe { &mut *(v as *mut *mut T as *mut Self) }
     }
 
     /// Consumes the atomic and returns the contained value.
@@ -1272,7 +1274,8 @@ impl<T> AtomicPtr<T> {
 
 #[cfg(target_has_atomic_load_store = "8")]
 #[stable(feature = "atomic_bool_from", since = "1.24.0")]
-impl From<bool> for AtomicBool {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl const From<bool> for AtomicBool {
     /// Converts a `bool` into an `AtomicBool`.
     ///
     /// # Examples
@@ -1290,7 +1293,9 @@ impl From<bool> for AtomicBool {
 
 #[cfg(target_has_atomic_load_store = "ptr")]
 #[stable(feature = "atomic_from", since = "1.23.0")]
-impl<T> From<*mut T> for AtomicPtr<T> {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<*mut T> for AtomicPtr<T> {
+    /// Converts a `*mut T` into an `AtomicPtr<T>`.
     #[inline]
     fn from(p: *mut T) -> Self {
         Self::new(p)
@@ -1362,7 +1367,8 @@ macro_rules! atomic_int {
         }
 
         #[$stable_from]
-        impl From<$int_type> for $atomic_type {
+        #[rustc_const_unstable(feature = "const_num_from_num", issue = "87852")]
+        impl const From<$int_type> for $atomic_type {
             #[doc = concat!("Converts an `", stringify!($int_type), "` into an `", stringify!($atomic_type), "`.")]
             #[inline]
             fn from(v: $int_type) -> Self { Self::new(v) }
@@ -1392,6 +1398,7 @@ macro_rules! atomic_int {
             #[inline]
             #[$stable]
             #[$const_stable]
+            #[must_use]
             pub const fn new(v: $int_type) -> Self {
                 Self {v: UnsafeCell::new(v)}
             }
@@ -1442,14 +1449,14 @@ macro_rules! atomic_int {
             #[inline]
             #[$cfg_align]
             #[unstable(feature = "atomic_from_mut", issue = "76314")]
-            pub fn from_mut(v: &mut $int_type) -> &Self {
+            pub fn from_mut(v: &mut $int_type) -> &mut Self {
                 use crate::mem::align_of;
                 let [] = [(); align_of::<Self>() - align_of::<$int_type>()];
                 // SAFETY:
                 //  - the mutable reference guarantees unique ownership.
                 //  - the alignment of `$int_type` and `Self` is the
                 //    same, as promised by $cfg_align and verified above.
-                unsafe { &*(v as *mut $int_type as *mut Self) }
+                unsafe { &mut *(v as *mut $int_type as *mut Self) }
             }
 
             /// Consumes the atomic and returns the contained value.

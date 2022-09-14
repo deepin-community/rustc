@@ -1,9 +1,11 @@
+//! A collection of utility functions for the `strip_*` passes.
 use rustc_hir::def_id::DefId;
 use rustc_middle::middle::privacy::AccessLevels;
 use std::mem;
 
-use crate::clean::{self, GetDefId, Item, ItemIdSet};
+use crate::clean::{self, Item, ItemIdSet};
 use crate::fold::{strip_item, DocFolder};
+use crate::formats::cache::Cache;
 
 crate struct Stripper<'a> {
     crate retained: &'a mut ItemIdSet,
@@ -42,11 +44,10 @@ impl<'a> DocFolder for Stripper<'a> {
             | clean::TraitAliasItem(..)
             | clean::MacroItem(..)
             | clean::ForeignTypeItem => {
-                if i.def_id.is_local() {
-                    if !self.access_levels.is_exported(i.def_id.expect_def_id()) {
-                        debug!("Stripper: stripping {:?} {:?}", i.type_(), i.name);
-                        return None;
-                    }
+                if i.def_id.is_local() && !self.access_levels.is_exported(i.def_id.expect_def_id())
+                {
+                    debug!("Stripper: stripping {:?} {:?}", i.type_(), i.name);
+                    return None;
                 }
             }
 
@@ -118,6 +119,7 @@ impl<'a> DocFolder for Stripper<'a> {
 /// This stripper discards all impls which reference stripped items
 crate struct ImplStripper<'a> {
     crate retained: &'a ItemIdSet,
+    crate cache: &'a Cache,
 }
 
 impl<'a> DocFolder for ImplStripper<'a> {
@@ -127,14 +129,14 @@ impl<'a> DocFolder for ImplStripper<'a> {
             if imp.trait_.is_none() && imp.items.is_empty() {
                 return None;
             }
-            if let Some(did) = imp.for_.def_id() {
-                if did.is_local() && !imp.for_.is_generic() && !self.retained.contains(&did.into())
+            if let Some(did) = imp.for_.def_id(self.cache) {
+                if did.is_local() && !imp.for_.is_assoc_ty() && !self.retained.contains(&did.into())
                 {
                     debug!("ImplStripper: impl item for stripped type; removing");
                     return None;
                 }
             }
-            if let Some(did) = imp.trait_.def_id() {
+            if let Some(did) = imp.trait_.as_ref().map(|t| t.def_id()) {
                 if did.is_local() && !self.retained.contains(&did.into()) {
                     debug!("ImplStripper: impl item for stripped trait; removing");
                     return None;
@@ -142,7 +144,7 @@ impl<'a> DocFolder for ImplStripper<'a> {
             }
             if let Some(generics) = imp.trait_.as_ref().and_then(|t| t.generics()) {
                 for typaram in generics {
-                    if let Some(did) = typaram.def_id() {
+                    if let Some(did) = typaram.def_id(self.cache) {
                         if did.is_local() && !self.retained.contains(&did.into()) {
                             debug!(
                                 "ImplStripper: stripped item in trait's generics; removing impl"

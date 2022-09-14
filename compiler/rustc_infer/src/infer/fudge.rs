@@ -94,13 +94,12 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
     /// the actual types (`?T`, `Option<?T>`) -- and remember that
     /// after the snapshot is popped, the variable `?T` is no longer
     /// unified.
+    #[instrument(skip(self, f), level = "debug")]
     pub fn fudge_inference_if_ok<T, E, F>(&self, f: F) -> Result<T, E>
     where
         F: FnOnce() -> Result<T, E>,
         T: TypeFoldable<'tcx>,
     {
-        debug!("fudge_inference_if_ok()");
-
         let variable_lengths = self.variable_lengths();
         let (mut fudger, value) = self.probe(|_| {
             match f() {
@@ -187,7 +186,7 @@ impl<'a, 'tcx> TypeFolder<'tcx> for InferenceFudger<'a, 'tcx> {
                 if self.type_vars.0.contains(&vid) {
                     // This variable was created during the fudging.
                     // Recreate it with a fresh variable here.
-                    let idx = (vid.index - self.type_vars.0.start.index) as usize;
+                    let idx = (vid.as_usize() - self.type_vars.0.start.as_usize()) as usize;
                     let origin = self.type_vars.1[idx];
                     self.infcx.next_ty_var(origin)
                 } else {
@@ -231,14 +230,14 @@ impl<'a, 'tcx> TypeFolder<'tcx> for InferenceFudger<'a, 'tcx> {
         r
     }
 
-    fn fold_const(&mut self, ct: &'tcx ty::Const<'tcx>) -> &'tcx ty::Const<'tcx> {
-        if let ty::Const { val: ty::ConstKind::Infer(ty::InferConst::Var(vid)), ty } = ct {
+    fn fold_const(&mut self, ct: ty::Const<'tcx>) -> ty::Const<'tcx> {
+        if let ty::ConstKind::Infer(ty::InferConst::Var(vid)) = ct.val() {
             if self.const_vars.0.contains(&vid) {
                 // This variable was created during the fudging.
                 // Recreate it with a fresh variable here.
                 let idx = (vid.index - self.const_vars.0.start.index) as usize;
                 let origin = self.const_vars.1[idx];
-                self.infcx.next_const_var(ty, origin)
+                self.infcx.next_const_var(ct.ty(), origin)
             } else {
                 ct
             }

@@ -3,7 +3,7 @@
 use clippy_utils::diagnostics::span_lint;
 use clippy_utils::is_lint_allowed;
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_hir::{Crate, CRATE_HIR_ID};
+use rustc_hir::CRATE_HIR_ID;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::DUMMY_SP;
@@ -33,6 +33,7 @@ declare_clippy_lint! {
     /// ctrlc = "=3.1.0"
     /// ansi_term = "=0.11.0"
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub MULTIPLE_CRATE_VERSIONS,
     cargo,
     "multiple versions of the same crate being used"
@@ -41,13 +42,13 @@ declare_clippy_lint! {
 declare_lint_pass!(MultipleCrateVersions => [MULTIPLE_CRATE_VERSIONS]);
 
 impl LateLintPass<'_> for MultipleCrateVersions {
-    fn check_crate(&mut self, cx: &LateContext<'_>, _: &Crate<'_>) {
+    fn check_crate(&mut self, cx: &LateContext<'_>) {
         if is_lint_allowed(cx, MULTIPLE_CRATE_VERSIONS, CRATE_HIR_ID) {
             return;
         }
 
         let metadata = unwrap_cargo_metadata!(cx, MULTIPLE_CRATE_VERSIONS, true);
-        let local_name = cx.tcx.crate_name(LOCAL_CRATE).as_str();
+        let local_name = cx.tcx.crate_name(LOCAL_CRATE);
         let mut packages = metadata.packages;
         packages.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -55,7 +56,7 @@ impl LateLintPass<'_> for MultipleCrateVersions {
             if let Some(resolve) = &metadata.resolve;
             if let Some(local_id) = packages
                 .iter()
-                .find_map(|p| if p.name == *local_name { Some(&p.id) } else { None });
+                .find_map(|p| if p.name == local_name.as_str() { Some(&p.id) } else { None });
             then {
                 for (name, group) in &packages.iter().group_by(|p| p.name.clone()) {
                     let group: Vec<&Package> = group.collect();

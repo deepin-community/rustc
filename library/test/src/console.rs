@@ -47,7 +47,6 @@ pub struct ConsoleTestState {
     pub passed: usize,
     pub failed: usize,
     pub ignored: usize,
-    pub allowed_fail: usize,
     pub filtered_out: usize,
     pub measured: usize,
     pub exec_time: Option<TestSuiteExecTime>,
@@ -71,7 +70,6 @@ impl ConsoleTestState {
             passed: 0,
             failed: 0,
             ignored: 0,
-            allowed_fail: 0,
             filtered_out: 0,
             measured: 0,
             exec_time: None,
@@ -112,7 +110,6 @@ impl ConsoleTestState {
                     TestResult::TrFailed => "failed".to_owned(),
                     TestResult::TrFailedMsg(ref msg) => format!("failed: {}", msg),
                     TestResult::TrIgnored => "ignored".to_owned(),
-                    TestResult::TrAllowedFail => "failed (allowed)".to_owned(),
                     TestResult::TrBench(ref bs) => fmt_bench_samples(bs),
                     TestResult::TrTimedFail => "failed (time limit exceeded)".to_owned(),
                 },
@@ -126,7 +123,7 @@ impl ConsoleTestState {
     }
 
     fn current_test_count(&self) -> usize {
-        self.passed + self.failed + self.ignored + self.measured + self.allowed_fail
+        self.passed + self.failed + self.ignored + self.measured
     }
 }
 
@@ -191,7 +188,6 @@ fn handle_test_result(st: &mut ConsoleTestState, completed_test: CompletedTest) 
             st.not_failures.push((test, stdout));
         }
         TestResult::TrIgnored => st.ignored += 1,
-        TestResult::TrAllowedFail => st.allowed_fail += 1,
         TestResult::TrBench(bs) => {
             st.metrics.insert_metric(
                 test.name.as_slice(),
@@ -225,9 +221,9 @@ fn on_test_event(
     out: &mut dyn OutputFormatter,
 ) -> io::Result<()> {
     match (*event).clone() {
-        TestEvent::TeFiltered(ref filtered_tests) => {
+        TestEvent::TeFiltered(ref filtered_tests, shuffle_seed) => {
             st.total = filtered_tests.len();
-            out.write_run_start(filtered_tests.len())?;
+            out.write_run_start(filtered_tests.len(), shuffle_seed)?;
         }
         TestEvent::TeFilteredOut(filtered_out) => {
             st.filtered_out = filtered_out;
@@ -284,7 +280,7 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
     // Prevent the usage of `Instant` in some cases:
     // - It's currently not supported for wasm targets.
     // - We disable it for miri because it's not available when isolation is enabled.
-    let is_instant_supported = !cfg!(target_arch = "wasm32") && !cfg!(miri);
+    let is_instant_supported = !cfg!(target_family = "wasm") && !cfg!(miri);
 
     let start_time = is_instant_supported.then(Instant::now);
     run_tests(opts, tests, |x| on_test_event(&x, &mut st, &mut *out))?;

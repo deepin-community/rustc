@@ -28,7 +28,8 @@ use crate::dist;
 use crate::native;
 use crate::tool::SourceType;
 use crate::util::{exe, is_debug_info, is_dylib, symlink_dir};
-use crate::{Compiler, DependencyType, GitRepo, Mode};
+use crate::LLVM_TOOLS;
+use crate::{CLang, Compiler, DependencyType, GitRepo, Mode};
 
 #[derive(Debug, PartialOrd, Ord, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Std {
@@ -197,7 +198,7 @@ fn copy_self_contained_objects(
     t!(fs::create_dir_all(&libdir_self_contained));
     let mut target_deps = vec![];
 
-    // Copies the CRT objects.
+    // Copies the libc and CRT objects.
     //
     // rustc historically provides a more self-contained installation for musl targets
     // not requiring the presence of a native musl toolchain. For example, it can fall back
@@ -208,7 +209,7 @@ fn copy_self_contained_objects(
         let srcdir = builder.musl_libdir(target).unwrap_or_else(|| {
             panic!("Target {:?} does not have a \"musl-libdir\" key", target.triple)
         });
-        for &obj in &["crt1.o", "Scrt1.o", "rcrt1.o", "crti.o", "crtn.o"] {
+        for &obj in &["libc.a", "crt1.o", "Scrt1.o", "rcrt1.o", "crti.o", "crtn.o"] {
             copy_and_stamp(
                 builder,
                 &libdir_self_contained,
@@ -226,8 +227,10 @@ fn copy_self_contained_objects(
             target_deps.push((target, DependencyType::TargetSelfContained));
         }
 
-        let libunwind_path = copy_llvm_libunwind(builder, target, &libdir_self_contained);
-        target_deps.push((libunwind_path, DependencyType::TargetSelfContained));
+        if !target.starts_with("s390x") {
+            let libunwind_path = copy_llvm_libunwind(builder, target, &libdir_self_contained);
+            target_deps.push((libunwind_path, DependencyType::TargetSelfContained));
+        }
     } else if target.ends_with("-wasi") {
         let srcdir = builder
             .wasi_root(target)
@@ -235,7 +238,7 @@ fn copy_self_contained_objects(
                 panic!("Target {:?} does not have a \"wasi-root\" key", target.triple)
             })
             .join("lib/wasm32-wasi");
-        for &obj in &["crt1-command.o", "crt1-reactor.o"] {
+        for &obj in &["libc.a", "crt1-command.o", "crt1-reactor.o"] {
             copy_and_stamp(
                 builder,
                 &libdir_self_contained,
@@ -247,7 +250,7 @@ fn copy_self_contained_objects(
         }
     } else if target.contains("windows-gnu") {
         for obj in ["crt2.o", "dllcrt2.o"].iter() {
-            let src = compiler_file(builder, builder.cc(target), target, obj);
+            let src = compiler_file(builder, builder.cc(target), target, CLang::C, obj);
             let target = libdir_self_contained.join(obj);
             builder.copy(&src, &target);
             target_deps.push((target, DependencyType::TargetSelfContained));
@@ -528,7 +531,7 @@ impl Step for Rustc {
     const DEFAULT: bool = false;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("compiler/rustc")
+        run.never()
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -661,6 +664,8 @@ pub fn rustc_cargo_env(builder: &Builder<'_>, cargo: &mut Cargo, target: TargetS
         .env("CFG_VERSION", builder.rust_version());
 
     let libdir_relative = builder.config.libdir_relative().unwrap_or_else(|| Path::new("lib"));
+    let target_config = builder.config.target_config.get(&target);
+
     cargo.env("CFG_LIBDIR_RELATIVE", libdir_relative);
 
     if let Some(ref ver_date) = builder.rust_info.commit_date() {
@@ -672,9 +677,15 @@ pub fn rustc_cargo_env(builder: &Builder<'_>, cargo: &mut Cargo, target: TargetS
     if !builder.unstable_features() {
         cargo.env("CFG_DISABLE_UNSTABLE_FEATURES", "1");
     }
-    if let Some(ref s) = builder.config.rustc_default_linker {
+
+    // Prefer the current target's own default_linker, else a globally
+    // specified one.
+    if let Some(s) = target_config.and_then(|c| c.default_linker.as_ref()) {
+        cargo.env("CFG_DEFAULT_LINKER", s);
+    } else if let Some(ref s) = builder.config.rustc_default_linker {
         cargo.env("CFG_DEFAULT_LINKER", s);
     }
+
     if builder.config.rustc_parallel {
         cargo.rustflag("--cfg=parallel_compiler");
         cargo.rustdocflag("--cfg=parallel_compiler");
@@ -699,7 +710,6 @@ pub fn rustc_cargo_env(builder: &Builder<'_>, cargo: &mut Cargo, target: TargetS
         }
         let llvm_config = builder.ensure(native::Llvm { target });
         cargo.env("LLVM_CONFIG", &llvm_config);
-        let target_config = builder.config.target_config.get(&target);
         if let Some(s) = target_config.and_then(|c| c.llvm_config.as_ref()) {
             cargo.env("CFG_LLVM_ROOT", s);
         }
@@ -714,7 +724,13 @@ pub fn rustc_cargo_env(builder: &Builder<'_>, cargo: &mut Cargo, target: TargetS
             && !target.contains("msvc")
             && !target.contains("apple")
         {
-            let file = compiler_file(builder, builder.cxx(target).unwrap(), target, "libstdc++.a");
+            let file = compiler_file(
+                builder,
+                builder.cxx(target).unwrap(),
+                target,
+                CLang::Cxx,
+                "libstdc++.a",
+            );
             cargo.env("LLVM_STATIC_STDCPP", file);
         }
         if builder.config.llvm_link_shared {
@@ -817,8 +833,7 @@ impl Step for CodegenBackend {
 
         let out_dir = builder.cargo_out(compiler, Mode::Codegen, target);
 
-        let mut cargo =
-            builder.cargo(compiler, Mode::Codegen, SourceType::Submodule, target, "build");
+        let mut cargo = builder.cargo(compiler, Mode::Codegen, SourceType::InTree, target, "build");
         cargo
             .arg("--manifest-path")
             .arg(builder.src.join(format!("compiler/rustc_codegen_{}/Cargo.toml", backend)));
@@ -936,10 +951,11 @@ pub fn compiler_file(
     builder: &Builder<'_>,
     compiler: &Path,
     target: TargetSelection,
+    c: CLang,
     file: &str,
 ) -> PathBuf {
     let mut cmd = Command::new(compiler);
-    cmd.args(builder.cflags(target, GitRepo::Rustc));
+    cmd.args(builder.cflags(target, GitRepo::Rustc, c));
     cmd.arg(format!("-print-file-name={}", file));
     let out = output(&mut cmd);
     PathBuf::from(out.trim())
@@ -1024,9 +1040,16 @@ pub struct Assemble {
 
 impl Step for Assemble {
     type Output = Compiler;
+    const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.never()
+        run.path("compiler/rustc")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        run.builder.ensure(Assemble {
+            target_compiler: run.builder.compiler(run.builder.top_stage + 1, run.target),
+        });
     }
 
     /// Prepare a new compiler from the artifacts in `stage`
@@ -1129,7 +1152,6 @@ impl Step for Assemble {
         let libdir = builder.sysroot_libdir(target_compiler, target_compiler.host);
         let libdir_bin = libdir.parent().unwrap().join("bin");
         t!(fs::create_dir_all(&libdir_bin));
-
         if let Some(lld_install) = lld_install {
             let src_exe = exe("lld", target_compiler.host);
             let dst_exe = exe("rust-lld", target_compiler.host);
@@ -1147,17 +1169,26 @@ impl Step for Assemble {
             }
         }
 
-        // Similarly, copy `llvm-dwp` into libdir for Split DWARF. Only copy it when the LLVM
-        // backend is used to avoid unnecessarily building LLVM and because LLVM is not checked
-        // out by default when the LLVM backend is not enabled.
         if builder.config.rust_codegen_backends.contains(&INTERNER.intern_str("llvm")) {
-            let src_exe = exe("llvm-dwp", target_compiler.host);
-            let dst_exe = exe("rust-llvm-dwp", target_compiler.host);
             let llvm_config_bin = builder.ensure(native::Llvm { target: target_compiler.host });
             if !builder.config.dry_run {
                 let llvm_bin_dir = output(Command::new(llvm_config_bin).arg("--bindir"));
                 let llvm_bin_dir = Path::new(llvm_bin_dir.trim());
-                builder.copy(&llvm_bin_dir.join(&src_exe), &libdir_bin.join(&dst_exe));
+
+                // Since we've already built the LLVM tools, install them to the sysroot.
+                // This is the equivalent of installing the `llvm-tools-preview` component via
+                // rustup, and lets developers use a locally built toolchain to
+                // build projects that expect llvm tools to be present in the sysroot
+                // (e.g. the `bootimage` crate).
+                for tool in LLVM_TOOLS {
+                    let tool_exe = exe(tool, target_compiler.host);
+                    let src_path = llvm_bin_dir.join(&tool_exe);
+                    // When using `donwload-ci-llvm`, some of the tools
+                    // may not exist, so skip trying to copy them.
+                    if src_path.exists() {
+                        builder.copy(&src_path, &libdir_bin.join(&tool_exe));
+                    }
+                }
             }
         }
 

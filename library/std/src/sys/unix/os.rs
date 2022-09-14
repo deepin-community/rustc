@@ -2,7 +2,7 @@
 
 #![allow(unused_imports)] // lots of cfg code here
 
-#[cfg(all(test, target_env = "gnu"))]
+#[cfg(test)]
 mod tests;
 
 use crate::os::unix::prelude::*;
@@ -75,7 +75,7 @@ pub fn errno() -> i32 {
 }
 
 /// Sets the platform-specific value of errno
-#[cfg(all(not(target_os = "linux"), not(target_os = "dragonfly"), not(target_os = "vxworks")))] // needed for readdir and syscall!
+#[cfg(all(not(target_os = "dragonfly"), not(target_os = "vxworks")))] // needed for readdir and syscall!
 #[allow(dead_code)] // but not all target cfgs actually end up using it
 pub fn set_errno(e: i32) {
     unsafe { *errno_location() = e as c_int }
@@ -97,6 +97,7 @@ pub fn errno() -> i32 {
 }
 
 #[cfg(target_os = "dragonfly")]
+#[allow(dead_code)]
 pub fn set_errno(e: i32) {
     extern "C" {
         #[thread_local]
@@ -293,9 +294,9 @@ pub fn current_exe() -> io::Result<PathBuf> {
                 0,
             ))?;
             if path_len <= 1 {
-                return Err(io::Error::new_const(
+                return Err(io::const_io_error!(
                     io::ErrorKind::Uncategorized,
-                    &"KERN_PROC_PATHNAME sysctl returned zero-length string",
+                    "KERN_PROC_PATHNAME sysctl returned zero-length string",
                 ));
             }
             let mut path: Vec<u8> = Vec::with_capacity(path_len);
@@ -316,9 +317,9 @@ pub fn current_exe() -> io::Result<PathBuf> {
         if curproc_exe.is_file() {
             return crate::fs::read_link(curproc_exe);
         }
-        Err(io::Error::new_const(
+        Err(io::const_io_error!(
             io::ErrorKind::Uncategorized,
-            &"/proc/curproc/exe doesn't point to regular file.",
+            "/proc/curproc/exe doesn't point to regular file.",
         ))
     }
     sysctl().or_else(|_| procfs())
@@ -335,9 +336,9 @@ pub fn current_exe() -> io::Result<PathBuf> {
         cvt(libc::sysctl(mib, 4, argv.as_mut_ptr() as *mut _, &mut argv_len, ptr::null_mut(), 0))?;
         argv.set_len(argv_len as usize);
         if argv[0].is_null() {
-            return Err(io::Error::new_const(
+            return Err(io::const_io_error!(
                 io::ErrorKind::Uncategorized,
-                &"no current exe available",
+                "no current exe available",
             ));
         }
         let argv0 = CStr::from_ptr(argv[0]).to_bytes();
@@ -352,9 +353,9 @@ pub fn current_exe() -> io::Result<PathBuf> {
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "emscripten"))]
 pub fn current_exe() -> io::Result<PathBuf> {
     match crate::fs::read_link("/proc/self/exe") {
-        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::Error::new_const(
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::const_io_error!(
             io::ErrorKind::Uncategorized,
-            &"no /proc/self/exe available. Is /proc mounted?",
+            "no /proc/self/exe available. Is /proc mounted?",
         )),
         other => other,
     }
@@ -380,20 +381,24 @@ pub fn current_exe() -> io::Result<PathBuf> {
 
 #[cfg(any(target_os = "solaris", target_os = "illumos"))]
 pub fn current_exe() -> io::Result<PathBuf> {
-    extern "C" {
-        fn getexecname() -> *const c_char;
-    }
-    unsafe {
-        let path = getexecname();
-        if path.is_null() {
-            Err(io::Error::last_os_error())
-        } else {
-            let filename = CStr::from_ptr(path).to_bytes();
-            let path = PathBuf::from(<OsStr as OsStrExt>::from_bytes(filename));
+    if let Ok(path) = crate::fs::read_link("/proc/self/path/a.out") {
+        Ok(path)
+    } else {
+        extern "C" {
+            fn getexecname() -> *const c_char;
+        }
+        unsafe {
+            let path = getexecname();
+            if path.is_null() {
+                Err(io::Error::last_os_error())
+            } else {
+                let filename = CStr::from_ptr(path).to_bytes();
+                let path = PathBuf::from(<OsStr as OsStrExt>::from_bytes(filename));
 
-            // Prepend a current working directory to the path if
-            // it doesn't contain an absolute pathname.
-            if filename[0] == b'/' { Ok(path) } else { getcwd().map(|cwd| cwd.join(path)) }
+                // Prepend a current working directory to the path if
+                // it doesn't contain an absolute pathname.
+                if filename[0] == b'/' { Ok(path) } else { getcwd().map(|cwd| cwd.join(path)) }
+            }
         }
     }
 }
@@ -412,7 +417,7 @@ pub fn current_exe() -> io::Result<PathBuf> {
         );
         if result != 0 {
             use crate::io::ErrorKind;
-            Err(io::Error::new_const(ErrorKind::Uncategorized, &"Error getting executable path"))
+            Err(io::const_io_error!(ErrorKind::Uncategorized, "Error getting executable path"))
         } else {
             let name = CStr::from_ptr((*info.as_ptr()).name.as_ptr()).to_bytes();
             Ok(PathBuf::from(OsStr::from_bytes(name)))
@@ -428,7 +433,7 @@ pub fn current_exe() -> io::Result<PathBuf> {
 #[cfg(any(target_os = "fuchsia", target_os = "l4re"))]
 pub fn current_exe() -> io::Result<PathBuf> {
     use crate::io::ErrorKind;
-    Err(io::Error::new_const(ErrorKind::Unsupported, &"Not yet implemented!"))
+    Err(io::const_io_error!(ErrorKind::Unsupported, "Not yet implemented!"))
 }
 
 #[cfg(target_os = "vxworks")]
@@ -468,10 +473,7 @@ impl Iterator for Env {
 
 #[cfg(target_os = "macos")]
 pub unsafe fn environ() -> *mut *const *const c_char {
-    extern "C" {
-        fn _NSGetEnviron() -> *mut *const *const c_char;
-    }
-    _NSGetEnviron()
+    libc::_NSGetEnviron() as *mut *const *const c_char
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -632,22 +634,14 @@ pub fn getppid() -> u32 {
     unsafe { libc::getppid() as u32 }
 }
 
-#[cfg(all(target_env = "gnu", not(target_os = "vxworks")))]
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub fn glibc_version() -> Option<(usize, usize)> {
-    if let Some(Ok(version_str)) = glibc_version_cstr().map(CStr::to_str) {
+    extern "C" {
+        fn gnu_get_libc_version() -> *const libc::c_char;
+    }
+    let version_cstr = unsafe { CStr::from_ptr(gnu_get_libc_version()) };
+    if let Ok(version_str) = version_cstr.to_str() {
         parse_glibc_version(version_str)
-    } else {
-        None
-    }
-}
-
-#[cfg(all(target_env = "gnu", not(target_os = "vxworks")))]
-fn glibc_version_cstr() -> Option<&'static CStr> {
-    weak! {
-        fn gnu_get_libc_version() -> *const libc::c_char
-    }
-    if let Some(f) = gnu_get_libc_version.get() {
-        unsafe { Some(CStr::from_ptr(f())) }
     } else {
         None
     }
@@ -655,7 +649,7 @@ fn glibc_version_cstr() -> Option<&'static CStr> {
 
 // Returns Some((major, minor)) if the string is a valid "x.y" version,
 // ignoring any extra dot-separated parts. Otherwise return None.
-#[cfg(all(target_env = "gnu", not(target_os = "vxworks")))]
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 fn parse_glibc_version(version: &str) -> Option<(usize, usize)> {
     let mut parsed_ints = version.split('.').map(str::parse::<usize>).fuse();
     match (parsed_ints.next(), parsed_ints.next()) {

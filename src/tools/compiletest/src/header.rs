@@ -41,12 +41,15 @@ impl EarlyProps {
     pub fn from_reader<R: Read>(config: &Config, testfile: &Path, rdr: R) -> Self {
         let mut props = EarlyProps::default();
         iter_header(testfile, rdr, &mut |_, ln| {
-            if let Some(s) = config.parse_aux_build(ln) {
-                props.aux.push(s);
-            }
-            if let Some(ac) = config.parse_aux_crate(ln) {
-                props.aux_crate.push(ac);
-            }
+            config.push_name_value_directive(ln, directives::AUX_BUILD, &mut props.aux, |r| {
+                r.trim().to_string()
+            });
+            config.push_name_value_directive(
+                ln,
+                directives::AUX_CRATE,
+                &mut props.aux_crate,
+                Config::parse_aux_crate,
+            );
             config.parse_and_update_revisions(ln, &mut props.revisions);
         });
         return props;
@@ -78,8 +81,6 @@ pub struct TestProps {
     pub unset_rustc_env: Vec<String>,
     // Environment settings to use during execution
     pub exec_env: Vec<(String, String)>,
-    // Lines to check if they appear in the expected debugger output
-    pub check_lines: Vec<String>,
     // Build documentation for all specified aux-builds as well
     pub build_aux_docs: bool,
     // Flag to force a crate to be built with the host architecture
@@ -113,6 +114,27 @@ pub struct TestProps {
     // testing harness and used when generating compilation
     // arguments. (In particular, it propagates to the aux-builds.)
     pub incremental_dir: Option<PathBuf>,
+    // If `true`, this test will use incremental compilation.
+    //
+    // This can be set manually with the `incremental` header, or implicitly
+    // by being a part of an incremental mode test. Using the `incremental`
+    // header should be avoided if possible; using an incremental mode test is
+    // preferred. Incremental mode tests support multiple passes, which can
+    // verify that the incremental cache can be loaded properly after being
+    // created. Just setting the header will only verify the behavior with
+    // creating an incremental cache, but doesn't check that it is created
+    // correctly.
+    //
+    // Compiletest will create the incremental directory, and ensure it is
+    // empty before the test starts. Incremental mode tests will reuse the
+    // incremental directory between passes in the same test.
+    pub incremental: bool,
+    // If `true`, this test is a known bug.
+    //
+    // When set, some requirements are relaxed. Currently, this only means no
+    // error annotations are needed, but this may be updated in the future to
+    // include other relaxations.
+    pub known_bug: bool,
     // How far should the test proceed while still passing.
     pass_mode: Option<PassMode>,
     // Ignore `--pass` overrides from the command line for this test.
@@ -137,6 +159,38 @@ pub struct TestProps {
     pub stderr_per_bitwidth: bool,
 }
 
+mod directives {
+    pub const ERROR_PATTERN: &'static str = "error-pattern";
+    pub const COMPILE_FLAGS: &'static str = "compile-flags";
+    pub const RUN_FLAGS: &'static str = "run-flags";
+    pub const SHOULD_ICE: &'static str = "should-ice";
+    pub const BUILD_AUX_DOCS: &'static str = "build-aux-docs";
+    pub const FORCE_HOST: &'static str = "force-host";
+    pub const CHECK_STDOUT: &'static str = "check-stdout";
+    pub const CHECK_RUN_RESULTS: &'static str = "check-run-results";
+    pub const DONT_CHECK_COMPILER_STDOUT: &'static str = "dont-check-compiler-stdout";
+    pub const DONT_CHECK_COMPILER_STDERR: &'static str = "dont-check-compiler-stderr";
+    pub const NO_PREFER_DYNAMIC: &'static str = "no-prefer-dynamic";
+    pub const PRETTY_EXPANDED: &'static str = "pretty-expanded";
+    pub const PRETTY_MODE: &'static str = "pretty-mode";
+    pub const PRETTY_COMPARE_ONLY: &'static str = "pretty-compare-only";
+    pub const AUX_BUILD: &'static str = "aux-build";
+    pub const AUX_CRATE: &'static str = "aux-crate";
+    pub const EXEC_ENV: &'static str = "exec-env";
+    pub const RUSTC_ENV: &'static str = "rustc-env";
+    pub const UNSET_RUSTC_ENV: &'static str = "unset-rustc-env";
+    pub const FORBID_OUTPUT: &'static str = "forbid-output";
+    pub const CHECK_TEST_LINE_NUMBERS_MATCH: &'static str = "check-test-line-numbers-match";
+    pub const IGNORE_PASS: &'static str = "ignore-pass";
+    pub const FAILURE_STATUS: &'static str = "failure-status";
+    pub const RUN_RUSTFIX: &'static str = "run-rustfix";
+    pub const RUSTFIX_ONLY_MACHINE_APPLICABLE: &'static str = "rustfix-only-machine-applicable";
+    pub const ASSEMBLY_OUTPUT: &'static str = "assembly-output";
+    pub const STDERR_PER_BITWIDTH: &'static str = "stderr-per-bitwidth";
+    pub const INCREMENTAL: &'static str = "incremental";
+    pub const KNOWN_BUG: &'static str = "known-bug";
+}
+
 impl TestProps {
     pub fn new() -> Self {
         TestProps {
@@ -150,7 +204,6 @@ impl TestProps {
             rustc_env: vec![],
             unset_rustc_env: vec![],
             exec_env: vec![],
-            check_lines: vec![],
             build_aux_docs: false,
             force_host: false,
             check_stdout: false,
@@ -163,6 +216,8 @@ impl TestProps {
             pretty_compare_only: false,
             forbid_output: vec![],
             incremental_dir: None,
+            incremental: false,
+            known_bug: false,
             pass_mode: None,
             fail_mode: None,
             ignore_pass: false,
@@ -206,6 +261,7 @@ impl TestProps {
     /// `//[foo]`), then the property is ignored unless `cfg` is
     /// `Some("foo")`.
     fn load_from(&mut self, testfile: &Path, cfg: Option<&str>, config: &Config) {
+        let mut has_edition = false;
         if !testfile.is_dir() {
             let file = File::open(testfile).unwrap();
 
@@ -214,114 +270,93 @@ impl TestProps {
                     return;
                 }
 
-                if let Some(ep) = config.parse_error_pattern(ln) {
-                    self.error_patterns.push(ep);
-                }
+                use directives::*;
 
-                if let Some(flags) = config.parse_compile_flags(ln) {
+                config.push_name_value_directive(
+                    ln,
+                    ERROR_PATTERN,
+                    &mut self.error_patterns,
+                    |r| r,
+                );
+
+                if let Some(flags) = config.parse_name_value_directive(ln, COMPILE_FLAGS) {
                     self.compile_flags.extend(flags.split_whitespace().map(|s| s.to_owned()));
                 }
 
                 if let Some(edition) = config.parse_edition(ln) {
                     self.compile_flags.push(format!("--edition={}", edition));
-                    if edition == "2021" {
-                        self.compile_flags.push("-Zunstable-options".to_string());
-                    }
+                    has_edition = true;
                 }
 
                 config.parse_and_update_revisions(ln, &mut self.revisions);
 
-                if self.run_flags.is_none() {
-                    self.run_flags = config.parse_run_flags(ln);
-                }
+                config.set_name_value_directive(ln, RUN_FLAGS, &mut self.run_flags, |r| r);
 
                 if self.pp_exact.is_none() {
                     self.pp_exact = config.parse_pp_exact(ln, testfile);
                 }
 
-                if !self.should_ice {
-                    self.should_ice = config.parse_should_ice(ln);
-                }
+                config.set_name_directive(ln, SHOULD_ICE, &mut self.should_ice);
+                config.set_name_directive(ln, BUILD_AUX_DOCS, &mut self.build_aux_docs);
+                config.set_name_directive(ln, FORCE_HOST, &mut self.force_host);
+                config.set_name_directive(ln, CHECK_STDOUT, &mut self.check_stdout);
+                config.set_name_directive(ln, CHECK_RUN_RESULTS, &mut self.check_run_results);
+                config.set_name_directive(
+                    ln,
+                    DONT_CHECK_COMPILER_STDOUT,
+                    &mut self.dont_check_compiler_stdout,
+                );
+                config.set_name_directive(
+                    ln,
+                    DONT_CHECK_COMPILER_STDERR,
+                    &mut self.dont_check_compiler_stderr,
+                );
+                config.set_name_directive(ln, NO_PREFER_DYNAMIC, &mut self.no_prefer_dynamic);
+                config.set_name_directive(ln, PRETTY_EXPANDED, &mut self.pretty_expanded);
 
-                if !self.build_aux_docs {
-                    self.build_aux_docs = config.parse_build_aux_docs(ln);
-                }
-
-                if !self.force_host {
-                    self.force_host = config.parse_force_host(ln);
-                }
-
-                if !self.check_stdout {
-                    self.check_stdout = config.parse_check_stdout(ln);
-                }
-
-                if !self.check_run_results {
-                    self.check_run_results = config.parse_check_run_results(ln);
-                }
-
-                if !self.dont_check_compiler_stdout {
-                    self.dont_check_compiler_stdout = config.parse_dont_check_compiler_stdout(ln);
-                }
-
-                if !self.dont_check_compiler_stderr {
-                    self.dont_check_compiler_stderr = config.parse_dont_check_compiler_stderr(ln);
-                }
-
-                if !self.no_prefer_dynamic {
-                    self.no_prefer_dynamic = config.parse_no_prefer_dynamic(ln);
-                }
-
-                if !self.pretty_expanded {
-                    self.pretty_expanded = config.parse_pretty_expanded(ln);
-                }
-
-                if let Some(m) = config.parse_pretty_mode(ln) {
+                if let Some(m) = config.parse_name_value_directive(ln, PRETTY_MODE) {
                     self.pretty_mode = m;
                 }
 
-                if !self.pretty_compare_only {
-                    self.pretty_compare_only = config.parse_pretty_compare_only(ln);
-                }
-
-                if let Some(ab) = config.parse_aux_build(ln) {
-                    self.aux_builds.push(ab);
-                }
-
-                if let Some(ac) = config.parse_aux_crate(ln) {
-                    self.aux_crates.push(ac);
-                }
-
-                if let Some(ee) = config.parse_env(ln, "exec-env") {
-                    self.exec_env.push(ee);
-                }
-
-                if let Some(ee) = config.parse_env(ln, "rustc-env") {
-                    self.rustc_env.push(ee);
-                }
-
-                if let Some(ev) = config.parse_name_value_directive(ln, "unset-rustc-env") {
-                    self.unset_rustc_env.push(ev);
-                }
-
-                if let Some(cl) = config.parse_check_line(ln) {
-                    self.check_lines.push(cl);
-                }
-
-                if let Some(of) = config.parse_forbid_output(ln) {
-                    self.forbid_output.push(of);
-                }
-
-                if !self.check_test_line_numbers_match {
-                    self.check_test_line_numbers_match =
-                        config.parse_check_test_line_numbers_match(ln);
-                }
+                config.set_name_directive(ln, PRETTY_COMPARE_ONLY, &mut self.pretty_compare_only);
+                config.push_name_value_directive(ln, AUX_BUILD, &mut self.aux_builds, |r| {
+                    r.trim().to_string()
+                });
+                config.push_name_value_directive(
+                    ln,
+                    AUX_CRATE,
+                    &mut self.aux_crates,
+                    Config::parse_aux_crate,
+                );
+                config.push_name_value_directive(
+                    ln,
+                    EXEC_ENV,
+                    &mut self.exec_env,
+                    Config::parse_env,
+                );
+                config.push_name_value_directive(
+                    ln,
+                    RUSTC_ENV,
+                    &mut self.rustc_env,
+                    Config::parse_env,
+                );
+                config.push_name_value_directive(
+                    ln,
+                    UNSET_RUSTC_ENV,
+                    &mut self.unset_rustc_env,
+                    |r| r,
+                );
+                config.push_name_value_directive(ln, FORBID_OUTPUT, &mut self.forbid_output, |r| r);
+                config.set_name_directive(
+                    ln,
+                    CHECK_TEST_LINE_NUMBERS_MATCH,
+                    &mut self.check_test_line_numbers_match,
+                );
 
                 self.update_pass_mode(ln, cfg, config);
                 self.update_fail_mode(ln, config);
 
-                if !self.ignore_pass {
-                    self.ignore_pass = config.parse_ignore_pass(ln);
-                }
+                config.set_name_directive(ln, IGNORE_PASS, &mut self.ignore_pass);
 
                 if let Some(rule) = config.parse_custom_normalization(ln, "normalize-stdout") {
                     self.normalize_stdout.push(rule);
@@ -330,26 +365,28 @@ impl TestProps {
                     self.normalize_stderr.push(rule);
                 }
 
-                if let Some(code) = config.parse_failure_status(ln) {
+                if let Some(code) = config
+                    .parse_name_value_directive(ln, FAILURE_STATUS)
+                    .and_then(|code| code.trim().parse::<i32>().ok())
+                {
                     self.failure_status = code;
                 }
 
-                if !self.run_rustfix {
-                    self.run_rustfix = config.parse_run_rustfix(ln);
-                }
-
-                if !self.rustfix_only_machine_applicable {
-                    self.rustfix_only_machine_applicable =
-                        config.parse_rustfix_only_machine_applicable(ln);
-                }
-
-                if self.assembly_output.is_none() {
-                    self.assembly_output = config.parse_assembly_output(ln);
-                }
-
-                if !self.stderr_per_bitwidth {
-                    self.stderr_per_bitwidth = config.parse_stderr_per_bitwidth(ln);
-                }
+                config.set_name_directive(ln, RUN_RUSTFIX, &mut self.run_rustfix);
+                config.set_name_directive(
+                    ln,
+                    RUSTFIX_ONLY_MACHINE_APPLICABLE,
+                    &mut self.rustfix_only_machine_applicable,
+                );
+                config.set_name_value_directive(
+                    ln,
+                    ASSEMBLY_OUTPUT,
+                    &mut self.assembly_output,
+                    |r| r.trim().to_string(),
+                );
+                config.set_name_directive(ln, STDERR_PER_BITWIDTH, &mut self.stderr_per_bitwidth);
+                config.set_name_directive(ln, INCREMENTAL, &mut self.incremental);
+                config.set_name_directive(ln, KNOWN_BUG, &mut self.known_bug);
             });
         }
 
@@ -360,12 +397,20 @@ impl TestProps {
             self.failure_status = 101;
         }
 
+        if config.mode == Mode::Incremental {
+            self.incremental = true;
+        }
+
         for key in &["RUST_TEST_NOCAPTURE", "RUST_TEST_THREADS"] {
             if let Ok(val) = env::var(key) {
                 if self.exec_env.iter().find(|&&(ref x, _)| x == key).is_none() {
                     self.exec_env.push(((*key).to_owned(), val))
                 }
             }
+        }
+
+        if let (Some(edition), false) = (&config.edition, has_edition) {
+            self.compile_flags.push(format!("--edition={}", edition));
         }
     }
 
@@ -483,33 +528,12 @@ fn iter_header<R: Read>(testfile: &Path, rdr: R, it: &mut dyn FnMut(Option<&str>
 }
 
 impl Config {
-    fn parse_should_ice(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "should-ice")
-    }
-    fn parse_error_pattern(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "error-pattern")
-    }
-
-    fn parse_forbid_output(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "forbid-output")
-    }
-
-    fn parse_aux_build(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "aux-build").map(|r| r.trim().to_string())
-    }
-
-    fn parse_aux_crate(&self, line: &str) -> Option<(String, String)> {
-        self.parse_name_value_directive(line, "aux-crate").map(|r| {
-            let mut parts = r.trim().splitn(2, '=');
-            (
-                parts.next().expect("missing aux-crate name (e.g. log=log.rs)").to_string(),
-                parts.next().expect("missing aux-crate value (e.g. log=log.rs)").to_string(),
-            )
-        })
-    }
-
-    fn parse_compile_flags(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "compile-flags")
+    fn parse_aux_crate(r: String) -> (String, String) {
+        let mut parts = r.trim().splitn(2, '=');
+        (
+            parts.next().expect("missing aux-crate name (e.g. log=log.rs)").to_string(),
+            parts.next().expect("missing aux-crate value (e.g. log=log.rs)").to_string(),
+        )
     }
 
     fn parse_and_update_revisions(&self, line: &str, existing: &mut Vec<String>) {
@@ -524,91 +548,18 @@ impl Config {
         }
     }
 
-    fn parse_run_flags(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "run-flags")
-    }
+    fn parse_env(nv: String) -> (String, String) {
+        // nv is either FOO or FOO=BAR
+        let mut strs: Vec<String> = nv.splitn(2, '=').map(str::to_owned).collect();
 
-    fn parse_check_line(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "check")
-    }
-
-    fn parse_force_host(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "force-host")
-    }
-
-    fn parse_build_aux_docs(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "build-aux-docs")
-    }
-
-    fn parse_check_stdout(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "check-stdout")
-    }
-
-    fn parse_check_run_results(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "check-run-results")
-    }
-
-    fn parse_dont_check_compiler_stdout(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "dont-check-compiler-stdout")
-    }
-
-    fn parse_dont_check_compiler_stderr(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "dont-check-compiler-stderr")
-    }
-
-    fn parse_no_prefer_dynamic(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "no-prefer-dynamic")
-    }
-
-    fn parse_pretty_expanded(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "pretty-expanded")
-    }
-
-    fn parse_pretty_mode(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "pretty-mode")
-    }
-
-    fn parse_pretty_compare_only(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "pretty-compare-only")
-    }
-
-    fn parse_failure_status(&self, line: &str) -> Option<i32> {
-        match self.parse_name_value_directive(line, "failure-status") {
-            Some(code) => code.trim().parse::<i32>().ok(),
-            _ => None,
-        }
-    }
-
-    fn parse_check_test_line_numbers_match(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "check-test-line-numbers-match")
-    }
-
-    fn parse_ignore_pass(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "ignore-pass")
-    }
-
-    fn parse_stderr_per_bitwidth(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "stderr-per-bitwidth")
-    }
-
-    fn parse_assembly_output(&self, line: &str) -> Option<String> {
-        self.parse_name_value_directive(line, "assembly-output").map(|r| r.trim().to_string())
-    }
-
-    fn parse_env(&self, line: &str, name: &str) -> Option<(String, String)> {
-        self.parse_name_value_directive(line, name).map(|nv| {
-            // nv is either FOO or FOO=BAR
-            let mut strs: Vec<String> = nv.splitn(2, '=').map(str::to_owned).collect();
-
-            match strs.len() {
-                1 => (strs.pop().unwrap(), String::new()),
-                2 => {
-                    let end = strs.pop().unwrap();
-                    (strs.pop().unwrap(), end)
-                }
-                n => panic!("Expected 1 or 2 strings, not {}", n),
+        match strs.len() {
+            1 => (strs.pop().unwrap(), String::new()),
+            2 => {
+                let end = strs.pop().unwrap();
+                (strs.pop().unwrap(), end)
             }
-        })
+            n => panic!("Expected 1 or 2 strings, not {}", n),
+        }
     }
 
     fn parse_pp_exact(&self, line: &str, testfile: &Path) -> Option<PathBuf> {
@@ -720,16 +671,38 @@ impl Config {
         None
     }
 
-    fn parse_run_rustfix(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "run-rustfix")
-    }
-
-    fn parse_rustfix_only_machine_applicable(&self, line: &str) -> bool {
-        self.parse_name_directive(line, "rustfix-only-machine-applicable")
-    }
-
     fn parse_edition(&self, line: &str) -> Option<String> {
         self.parse_name_value_directive(line, "edition")
+    }
+
+    fn set_name_directive(&self, line: &str, directive: &str, value: &mut bool) {
+        if !*value {
+            *value = self.parse_name_directive(line, directive)
+        }
+    }
+
+    fn set_name_value_directive<T>(
+        &self,
+        line: &str,
+        directive: &str,
+        value: &mut Option<T>,
+        parse: impl FnOnce(String) -> T,
+    ) {
+        if value.is_none() {
+            *value = self.parse_name_value_directive(line, directive).map(parse);
+        }
+    }
+
+    fn push_name_value_directive<T>(
+        &self,
+        line: &str,
+        directive: &str,
+        values: &mut Vec<T>,
+        parse: impl FnOnce(String) -> T,
+    ) {
+        if let Some(value) = self.parse_name_value_directive(line, directive).map(parse) {
+            values.push(value);
+        }
     }
 }
 
@@ -843,6 +816,7 @@ pub fn make_test_description<R: Read>(
     let has_msan = util::MSAN_SUPPORTED_TARGETS.contains(&&*config.target);
     let has_tsan = util::TSAN_SUPPORTED_TARGETS.contains(&&*config.target);
     let has_hwasan = util::HWASAN_SUPPORTED_TARGETS.contains(&&*config.target);
+    let has_memtag = util::MEMTAG_SUPPORTED_TARGETS.contains(&&*config.target);
     // for `-Z gcc-ld=lld`
     let has_rust_lld = config
         .compile_lib_path
@@ -879,9 +853,11 @@ pub fn make_test_description<R: Read>(
         ignore |= !has_msan && config.parse_name_directive(ln, "needs-sanitizer-memory");
         ignore |= !has_tsan && config.parse_name_directive(ln, "needs-sanitizer-thread");
         ignore |= !has_hwasan && config.parse_name_directive(ln, "needs-sanitizer-hwaddress");
+        ignore |= !has_memtag && config.parse_name_directive(ln, "needs-sanitizer-memtag");
         ignore |= config.target_panic == PanicStrategy::Abort
             && config.parse_name_directive(ln, "needs-unwind");
-        ignore |= config.target == "wasm32-unknown-unknown" && config.parse_check_run_results(ln);
+        ignore |= config.target == "wasm32-unknown-unknown"
+            && config.parse_name_directive(ln, directives::CHECK_RUN_RESULTS);
         ignore |= config.debugger == Some(Debugger::Cdb) && ignore_cdb(config, ln);
         ignore |= config.debugger == Some(Debugger::Gdb) && ignore_gdb(config, ln);
         ignore |= config.debugger == Some(Debugger::Lldb) && ignore_lldb(config, ln);
@@ -902,10 +878,11 @@ pub fn make_test_description<R: Read>(
         name,
         ignore,
         should_panic,
-        allow_fail: false,
         compile_fail: false,
         no_run: false,
         test_type: test::TestType::Unknown,
+        #[cfg(bootstrap)]
+        allow_fail: false,
     }
 }
 

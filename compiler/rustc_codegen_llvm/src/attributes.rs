@@ -12,7 +12,7 @@ use rustc_middle::ty::{self, TyCtxt};
 use rustc_session::config::OptLevel;
 use rustc_session::Session;
 use rustc_target::spec::abi::Abi;
-use rustc_target::spec::{FramePointer, SanitizerSet, StackProbeType};
+use rustc_target::spec::{FramePointer, SanitizerSet, StackProbeType, StackProtector};
 
 use crate::attributes;
 use crate::llvm::AttributePlace::Function;
@@ -25,7 +25,7 @@ use crate::value::Value;
 
 /// Mark LLVM function to use provided inline heuristic.
 #[inline]
-fn inline(cx: &CodegenCx<'ll, '_>, val: &'ll Value, inline: InlineAttr) {
+fn inline<'ll>(cx: &CodegenCx<'ll, '_>, val: &'ll Value, inline: InlineAttr) {
     use self::InlineAttr::*;
     match inline {
         Hint => Attribute::InlineHint.apply_llfn(Function, val),
@@ -41,7 +41,7 @@ fn inline(cx: &CodegenCx<'ll, '_>, val: &'ll Value, inline: InlineAttr) {
 
 /// Apply LLVM sanitize attributes.
 #[inline]
-pub fn sanitize(cx: &CodegenCx<'ll, '_>, no_sanitize: SanitizerSet, llfn: &'ll Value) {
+pub fn sanitize<'ll>(cx: &CodegenCx<'ll, '_>, no_sanitize: SanitizerSet, llfn: &'ll Value) {
     let enabled = cx.tcx.sess.opts.debugging_opts.sanitizer - no_sanitize;
     if enabled.contains(SanitizerSet::ADDRESS) {
         llvm::Attribute::SanitizeAddress.apply_llfn(Function, llfn);
@@ -55,21 +55,37 @@ pub fn sanitize(cx: &CodegenCx<'ll, '_>, no_sanitize: SanitizerSet, llfn: &'ll V
     if enabled.contains(SanitizerSet::HWADDRESS) {
         llvm::Attribute::SanitizeHWAddress.apply_llfn(Function, llfn);
     }
+    if enabled.contains(SanitizerSet::MEMTAG) {
+        // Check to make sure the mte target feature is actually enabled.
+        let sess = cx.tcx.sess;
+        let features = llvm_util::llvm_global_features(sess).join(",");
+        let mte_feature_enabled = features.rfind("+mte");
+        let mte_feature_disabled = features.rfind("-mte");
+
+        if mte_feature_enabled.is_none() || (mte_feature_disabled > mte_feature_enabled) {
+            sess.err("`-Zsanitizer=memtag` requires `-Ctarget-feature=+mte`");
+        }
+
+        llvm::Attribute::SanitizeMemTag.apply_llfn(Function, llfn);
+    }
 }
 
 /// Tell LLVM to emit or not emit the information necessary to unwind the stack for the function.
 #[inline]
-pub fn emit_uwtable(val: &'ll Value, emit: bool) {
-    Attribute::UWTable.toggle_llfn(Function, val, emit);
+pub fn emit_uwtable(val: &Value) {
+    // NOTE: We should determine if we even need async unwind tables, as they
+    // take have more overhead and if we can use sync unwind tables we
+    // probably should.
+    llvm::EmitUWTableAttr(val, true);
 }
 
 /// Tell LLVM if this function should be 'naked', i.e., skip the epilogue and prologue.
 #[inline]
-fn naked(val: &'ll Value, is_naked: bool) {
+fn naked(val: &Value, is_naked: bool) {
     Attribute::Naked.toggle_llfn(Function, val, is_naked);
 }
 
-pub fn set_frame_pointer_type(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+pub fn set_frame_pointer_type<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     let mut fp = cx.sess().target.frame_pointer;
     // "mcount" function relies on stack pointer.
     // See <https://sourceware.org/binutils/docs/gprof/Implementation.html>.
@@ -92,7 +108,7 @@ pub fn set_frame_pointer_type(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
 
 /// Tell LLVM what instrument function to insert.
 #[inline]
-fn set_instrument_function(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+fn set_instrument_function<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     if cx.sess().instrument_mcount() {
         // Similar to `clang -pg` behavior. Handled by the
         // `post-inline-ee-instrument` LLVM pass.
@@ -110,7 +126,7 @@ fn set_instrument_function(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     }
 }
 
-fn set_probestack(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+fn set_probestack<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     // Currently stack probes seem somewhat incompatible with the address
     // sanitizer and thread sanitizer. With asan we're already protected from
     // stack overflow anyway so we don't really need stack probes regardless.
@@ -161,7 +177,18 @@ fn set_probestack(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     }
 }
 
-pub fn apply_target_cpu_attr(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+fn set_stackprotector<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+    let sspattr = match cx.sess().stack_protector() {
+        StackProtector::None => return,
+        StackProtector::All => Attribute::StackProtectReq,
+        StackProtector::Strong => Attribute::StackProtectStrong,
+        StackProtector::Basic => Attribute::StackProtect,
+    };
+
+    sspattr.apply_llfn(Function, llfn)
+}
+
+pub fn apply_target_cpu_attr<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     let target_cpu = SmallCStr::new(llvm_util::target_cpu(cx.tcx.sess));
     llvm::AddFunctionAttrStringValue(
         llfn,
@@ -171,7 +198,7 @@ pub fn apply_target_cpu_attr(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     );
 }
 
-pub fn apply_tune_cpu_attr(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
+pub fn apply_tune_cpu_attr<'ll>(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     if let Some(tune) = llvm_util::tune_cpu(cx.tcx.sess) {
         let tune_cpu = SmallCStr::new(tune);
         llvm::AddFunctionAttrStringValue(
@@ -185,14 +212,14 @@ pub fn apply_tune_cpu_attr(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
 
 /// Sets the `NonLazyBind` LLVM attribute on a given function,
 /// assuming the codegen options allow skipping the PLT.
-pub fn non_lazy_bind(sess: &Session, llfn: &'ll Value) {
+pub fn non_lazy_bind<'ll>(sess: &Session, llfn: &'ll Value) {
     // Don't generate calls through PLT if it's not necessary
     if !sess.needs_plt() {
         Attribute::NonLazyBind.apply_llfn(Function, llfn);
     }
 }
 
-pub(crate) fn default_optimisation_attrs(sess: &Session, llfn: &'ll Value) {
+pub(crate) fn default_optimisation_attrs<'ll>(sess: &Session, llfn: &'ll Value) {
     match sess.opts.optimize {
         OptLevel::Size => {
             llvm::Attribute::MinSize.unapply_llfn(Function, llfn);
@@ -215,7 +242,11 @@ pub(crate) fn default_optimisation_attrs(sess: &Session, llfn: &'ll Value) {
 
 /// Composite function which sets LLVM attributes for function depending on its AST (`#[attribute]`)
 /// attributes.
-pub fn from_fn_attrs(cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value, instance: ty::Instance<'tcx>) {
+pub fn from_fn_attrs<'ll, 'tcx>(
+    cx: &CodegenCx<'ll, 'tcx>,
+    llfn: &'ll Value,
+    instance: ty::Instance<'tcx>,
+) {
     let codegen_fn_attrs = cx.tcx.codegen_fn_attrs(instance.def_id());
 
     match codegen_fn_attrs.optimize {
@@ -260,13 +291,18 @@ pub fn from_fn_attrs(cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value, instance: ty::
     // You can also find more info on why Windows always requires uwtables here:
     //      https://bugzilla.mozilla.org/show_bug.cgi?id=1302078
     if cx.sess().must_emit_unwind_tables() {
-        attributes::emit_uwtable(llfn, true);
+        attributes::emit_uwtable(llfn);
+    }
+
+    if cx.sess().opts.debugging_opts.profile_sample_use.is_some() {
+        llvm::AddFunctionAttrString(llfn, Function, cstr!("use-sample-profile"));
     }
 
     // FIXME: none of these three functions interact with source level attributes.
     set_frame_pointer_type(cx, llfn);
     set_instrument_function(cx, llfn);
     set_probestack(cx, llfn);
+    set_stackprotector(cx, llfn);
 
     if codegen_fn_attrs.flags.contains(CodegenFnAttrFlags::COLD) {
         Attribute::Cold.apply_llfn(Function, llfn);
@@ -302,12 +338,36 @@ pub fn from_fn_attrs(cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value, instance: ty::
     // The target doesn't care; the subtarget reads our attribute.
     apply_tune_cpu_attr(cx, llfn);
 
-    let mut function_features = codegen_fn_attrs
-        .target_features
+    let function_features =
+        codegen_fn_attrs.target_features.iter().map(|f| f.as_str()).collect::<Vec<&str>>();
+
+    if let Some(f) = llvm_util::check_tied_features(
+        cx.tcx.sess,
+        &function_features.iter().map(|f| (*f, true)).collect(),
+    ) {
+        let span = cx
+            .tcx
+            .get_attrs(instance.def_id())
+            .iter()
+            .find(|a| a.has_name(rustc_span::sym::target_feature))
+            .map_or_else(|| cx.tcx.def_span(instance.def_id()), |a| a.span);
+        let msg = format!(
+            "the target features {} must all be either enabled or disabled together",
+            f.join(", ")
+        );
+        let mut err = cx.tcx.sess.struct_span_err(span, &msg);
+        err.help("add the missing features in a `target_feature` attribute");
+        err.emit();
+        return;
+    }
+
+    let mut function_features = function_features
         .iter()
-        .map(|f| {
-            let feature = &f.as_str();
-            format!("+{}", llvm_util::to_llvm_feature(cx.tcx.sess, feature))
+        .flat_map(|feat| {
+            llvm_util::to_llvm_feature(cx.tcx.sess, feat)
+                .into_iter()
+                .map(|f| format!("+{}", f))
+                .collect::<Vec<String>>()
         })
         .chain(codegen_fn_attrs.instruction_set.iter().map(|x| match x {
             InstructionSetAttr::ArmA32 => "-thumb-mode".to_string(),
@@ -328,7 +388,7 @@ pub fn from_fn_attrs(cx: &CodegenCx<'ll, 'tcx>, llfn: &'ll Value, instance: ty::
 
             let name =
                 codegen_fn_attrs.link_name.unwrap_or_else(|| cx.tcx.item_name(instance.def_id()));
-            let name = CString::new(&name.as_str()[..]).unwrap();
+            let name = CString::new(name.as_str()).unwrap();
             llvm::AddFunctionAttrStringValue(
                 llfn,
                 llvm::AttributePlace::Function,

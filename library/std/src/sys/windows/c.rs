@@ -4,6 +4,7 @@
 #![cfg_attr(test, allow(dead_code))]
 #![unstable(issue = "none", feature = "windows_c")]
 
+use crate::mem;
 use crate::os::raw::NonZero_c_ulong;
 use crate::os::raw::{c_char, c_int, c_long, c_longlong, c_uint, c_ulong, c_ushort};
 use crate::ptr;
@@ -36,6 +37,7 @@ pub type USHORT = c_ushort;
 pub type SIZE_T = usize;
 pub type WORD = u16;
 pub type CHAR = c_char;
+pub type CCHAR = c_char;
 pub type ULONG_PTR = usize;
 pub type ULONG = c_ulong;
 pub type NTSTATUS = LONG;
@@ -81,10 +83,15 @@ pub const CSTR_GREATER_THAN: c_int = 3;
 pub const FILE_ATTRIBUTE_READONLY: DWORD = 0x1;
 pub const FILE_ATTRIBUTE_DIRECTORY: DWORD = 0x10;
 pub const FILE_ATTRIBUTE_REPARSE_POINT: DWORD = 0x400;
+pub const INVALID_FILE_ATTRIBUTES: DWORD = DWORD::MAX;
 
 pub const FILE_SHARE_DELETE: DWORD = 0x4;
 pub const FILE_SHARE_READ: DWORD = 0x1;
 pub const FILE_SHARE_WRITE: DWORD = 0x2;
+
+pub const FILE_OPEN: ULONG = 0x00000001;
+pub const FILE_OPEN_REPARSE_POINT: ULONG = 0x200000;
+pub const OBJ_DONT_REPARSE: ULONG = 0x1000;
 
 pub const CREATE_ALWAYS: DWORD = 2;
 pub const CREATE_NEW: DWORD = 1;
@@ -92,10 +99,12 @@ pub const OPEN_ALWAYS: DWORD = 4;
 pub const OPEN_EXISTING: DWORD = 3;
 pub const TRUNCATE_EXISTING: DWORD = 5;
 
+pub const FILE_LIST_DIRECTORY: DWORD = 0x1;
 pub const FILE_WRITE_DATA: DWORD = 0x00000002;
 pub const FILE_APPEND_DATA: DWORD = 0x00000004;
 pub const FILE_WRITE_EA: DWORD = 0x00000010;
 pub const FILE_WRITE_ATTRIBUTES: DWORD = 0x00000100;
+pub const DELETE: DWORD = 0x10000;
 pub const READ_CONTROL: DWORD = 0x00020000;
 pub const SYNCHRONIZE: DWORD = 0x00100000;
 pub const GENERIC_READ: DWORD = 0x80000000;
@@ -261,6 +270,60 @@ pub const FD_SETSIZE: usize = 64;
 pub const STACK_SIZE_PARAM_IS_A_RESERVATION: DWORD = 0x00010000;
 
 pub const STATUS_SUCCESS: NTSTATUS = 0x00000000;
+pub const STATUS_DELETE_PENDING: NTSTATUS = 0xc0000056_u32 as _;
+pub const STATUS_INVALID_PARAMETER: NTSTATUS = 0xc000000d_u32 as _;
+
+// Equivalent to the `NT_SUCCESS` C preprocessor macro.
+// See: https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/using-ntstatus-values
+pub fn nt_success(status: NTSTATUS) -> bool {
+    status >= 0
+}
+
+pub const BCRYPT_USE_SYSTEM_PREFERRED_RNG: DWORD = 0x00000002;
+
+#[repr(C)]
+pub struct UNICODE_STRING {
+    pub Length: u16,
+    pub MaximumLength: u16,
+    pub Buffer: *mut u16,
+}
+impl UNICODE_STRING {
+    pub fn from_ref(slice: &[u16]) -> Self {
+        let len = slice.len() * mem::size_of::<u16>();
+        Self { Length: len as _, MaximumLength: len as _, Buffer: slice.as_ptr() as _ }
+    }
+}
+#[repr(C)]
+pub struct OBJECT_ATTRIBUTES {
+    pub Length: ULONG,
+    pub RootDirectory: HANDLE,
+    pub ObjectName: *const UNICODE_STRING,
+    pub Attributes: ULONG,
+    pub SecurityDescriptor: *mut c_void,
+    pub SecurityQualityOfService: *mut c_void,
+}
+impl Default for OBJECT_ATTRIBUTES {
+    fn default() -> Self {
+        Self {
+            Length: mem::size_of::<Self>() as _,
+            RootDirectory: ptr::null_mut(),
+            ObjectName: ptr::null_mut(),
+            Attributes: 0,
+            SecurityDescriptor: ptr::null_mut(),
+            SecurityQualityOfService: ptr::null_mut(),
+        }
+    }
+}
+#[repr(C)]
+pub struct IO_STATUS_BLOCK {
+    pub Pointer: *mut c_void,
+    pub Information: usize,
+}
+impl Default for IO_STATUS_BLOCK {
+    fn default() -> Self {
+        Self { Pointer: ptr::null_mut(), Information: 0 }
+    }
+}
 
 #[repr(C)]
 #[cfg(not(target_pointer_width = "64"))]
@@ -351,9 +414,43 @@ pub enum FILE_INFO_BY_HANDLE_CLASS {
     FileIdInfo = 18,                     // 0x12
     FileIdExtdDirectoryInfo = 19,        // 0x13
     FileIdExtdDirectoryRestartInfo = 20, // 0x14
+    FileDispositionInfoEx = 21,          // 0x15, Windows 10 version 1607
     MaximumFileInfoByHandlesClass,
 }
 
+#[repr(C)]
+pub struct FILE_DISPOSITION_INFO {
+    pub DeleteFile: BOOLEAN,
+}
+
+pub const FILE_DISPOSITION_DELETE: DWORD = 0x1;
+pub const FILE_DISPOSITION_POSIX_SEMANTICS: DWORD = 0x2;
+pub const FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE: DWORD = 0x10;
+
+#[repr(C)]
+pub struct FILE_DISPOSITION_INFO_EX {
+    pub Flags: DWORD,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct FILE_ID_BOTH_DIR_INFO {
+    pub NextEntryOffset: DWORD,
+    pub FileIndex: DWORD,
+    pub CreationTime: LARGE_INTEGER,
+    pub LastAccessTime: LARGE_INTEGER,
+    pub LastWriteTime: LARGE_INTEGER,
+    pub ChangeTime: LARGE_INTEGER,
+    pub EndOfFile: LARGE_INTEGER,
+    pub AllocationSize: LARGE_INTEGER,
+    pub FileAttributes: DWORD,
+    pub FileNameLength: DWORD,
+    pub EaSize: DWORD,
+    pub ShortNameLength: CCHAR,
+    pub ShortName: [WCHAR; 12],
+    pub FileId: LARGE_INTEGER,
+    pub FileName: [WCHAR; 1],
+}
 #[repr(C)]
 pub struct FILE_BASIC_INFO {
     pub CreationTime: LARGE_INTEGER,
@@ -678,10 +775,6 @@ if #[cfg(not(target_vendor = "uwp"))] {
 
     #[link(name = "advapi32")]
     extern "system" {
-        // Forbidden when targeting UWP
-        #[link_name = "SystemFunction036"]
-        pub fn RtlGenRandom(RandomBuffer: *mut u8, RandomBufferLength: ULONG) -> BOOLEAN;
-
         // Allowed but unused by UWP
         pub fn OpenProcessToken(
             ProcessHandle: HANDLE,
@@ -736,6 +829,7 @@ if #[cfg(not(target_vendor = "uwp"))] {
             lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
         ) -> BOOL;
         pub fn SetThreadStackGuarantee(_size: *mut c_ulong) -> BOOL;
+        pub fn GetWindowsDirectoryW(lpBuffer: LPWSTR, uSize: UINT) -> UINT;
     }
 }
 }
@@ -743,8 +837,6 @@ if #[cfg(not(target_vendor = "uwp"))] {
 // UWP specific functions & types
 cfg_if::cfg_if! {
 if #[cfg(target_vendor = "uwp")] {
-    pub const BCRYPT_USE_SYSTEM_PREFERRED_RNG: DWORD = 0x00000002;
-
     #[repr(C)]
     pub struct FILE_STANDARD_INFO {
         pub AllocationSize: LARGE_INTEGER,
@@ -752,25 +844,6 @@ if #[cfg(target_vendor = "uwp")] {
         pub NumberOfLinks: DWORD,
         pub DeletePending: BOOLEAN,
         pub Directory: BOOLEAN,
-    }
-
-    #[link(name = "bcrypt")]
-    extern "system" {
-        pub fn BCryptGenRandom(
-            hAlgorithm: LPVOID,
-            pBuffer: *mut u8,
-            cbBuffer: ULONG,
-            dwFlags: ULONG,
-        ) -> LONG;
-    }
-    #[link(name = "kernel32")]
-    extern "system" {
-        pub fn GetFileInformationByHandleEx(
-            hFile: HANDLE,
-            fileInfoClass: FILE_INFO_BY_HANDLE_CLASS,
-            lpFileInformation: LPVOID,
-            dwBufferSize: DWORD,
-        ) -> BOOL;
     }
 }
 }
@@ -786,6 +859,7 @@ extern "system" {
     pub fn LeaveCriticalSection(CriticalSection: *mut CRITICAL_SECTION);
     pub fn DeleteCriticalSection(CriticalSection: *mut CRITICAL_SECTION);
 
+    pub fn GetSystemDirectoryW(lpBuffer: LPWSTR, uSize: UINT) -> UINT;
     pub fn RemoveDirectoryW(lpPathName: LPCWSTR) -> BOOL;
     pub fn SetFileAttributesW(lpFileName: LPCWSTR, dwFileAttributes: DWORD) -> BOOL;
     pub fn SetLastError(dwErrCode: DWORD);
@@ -960,6 +1034,12 @@ extern "system" {
         cchFilePath: DWORD,
         dwFlags: DWORD,
     ) -> DWORD;
+    pub fn GetFileInformationByHandleEx(
+        hFile: HANDLE,
+        fileInfoClass: FILE_INFO_BY_HANDLE_CLASS,
+        lpFileInformation: LPVOID,
+        dwBufferSize: DWORD,
+    ) -> BOOL;
     pub fn SetFileInformationByHandle(
         hFile: HANDLE,
         FileInformationClass: FILE_INFO_BY_HANDLE_CLASS,
@@ -990,6 +1070,13 @@ extern "system" {
         cchCount2: c_int,
         bIgnoreCase: BOOL,
     ) -> c_int;
+    pub fn GetFullPathNameW(
+        lpFileName: LPCWSTR,
+        nBufferLength: DWORD,
+        lpBuffer: LPWSTR,
+        lpFilePart: *mut LPWSTR,
+    ) -> DWORD;
+    pub fn GetFileAttributesW(lpFileName: LPCWSTR) -> DWORD;
 }
 
 #[link(name = "ws2_32")]
@@ -1085,6 +1172,18 @@ extern "system" {
     ) -> c_int;
 }
 
+#[link(name = "bcrypt")]
+extern "system" {
+    // >= Vista / Server 2008
+    // https://docs.microsoft.com/en-us/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom
+    pub fn BCryptGenRandom(
+        hAlgorithm: LPVOID,
+        pBuffer: *mut u8,
+        cbBuffer: ULONG,
+        dwFlags: ULONG,
+    ) -> NTSTATUS;
+}
+
 // Functions that aren't available on every version of Windows that we support,
 // but we still use them and just provide some form of a fallback implementation.
 compat_fn! {
@@ -1102,6 +1201,12 @@ compat_fn! {
     pub fn GetSystemTimePreciseAsFileTime(lpSystemTimeAsFileTime: LPFILETIME)
                                           -> () {
         GetSystemTimeAsFileTime(lpSystemTimeAsFileTime)
+    }
+
+    // >= Win11 / Server 2022
+    // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppath2a
+    pub fn GetTempPath2W(nBufferLength: DWORD, lpBuffer: LPCWSTR) -> DWORD {
+        GetTempPathW(nBufferLength, lpBuffer)
     }
 }
 
@@ -1126,6 +1231,26 @@ compat_fn! {
 
 compat_fn! {
     "ntdll":
+    pub fn NtCreateFile(
+        FileHandle: *mut HANDLE,
+        DesiredAccess: ACCESS_MASK,
+        ObjectAttributes: *const OBJECT_ATTRIBUTES,
+        IoStatusBlock: *mut IO_STATUS_BLOCK,
+        AllocationSize: *mut i64,
+        FileAttributes: ULONG,
+        ShareAccess: ULONG,
+        CreateDisposition: ULONG,
+        CreateOptions: ULONG,
+        EaBuffer: *mut c_void,
+        EaLength: ULONG
+    ) -> NTSTATUS {
+        panic!("`NtCreateFile` not available");
+    }
+    pub fn RtlNtStatusToDosError(
+        Status: NTSTATUS
+    ) -> ULONG {
+        panic!("`RtlNtStatusToDosError` not available");
+    }
     pub fn NtCreateKeyedEvent(
         KeyedEventHandle: LPHANDLE,
         DesiredAccess: ACCESS_MASK,

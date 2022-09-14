@@ -12,11 +12,22 @@ use super::{count, wrap_index, RingSlices};
 /// [`iter_mut`]: super::VecDeque::iter_mut
 #[stable(feature = "rust1", since = "1.0.0")]
 pub struct IterMut<'a, T: 'a> {
-    // Internal safety invariant: the entire slice is dereferencable.
-    pub(crate) ring: *mut [T],
-    pub(crate) tail: usize,
-    pub(crate) head: usize,
-    pub(crate) phantom: PhantomData<&'a mut [T]>,
+    // Internal safety invariant: the entire slice is dereferenceable.
+    ring: *mut [T],
+    tail: usize,
+    head: usize,
+    phantom: PhantomData<&'a mut [T]>,
+}
+
+impl<'a, T> IterMut<'a, T> {
+    pub(super) unsafe fn new(
+        ring: *mut [T],
+        tail: usize,
+        head: usize,
+        phantom: PhantomData<&'a mut [T]>,
+    ) -> Self {
+        IterMut { ring, tail, head, phantom }
+    }
 }
 
 // SAFETY: we do nothing thread-local and there is no interior mutability,
@@ -31,7 +42,7 @@ impl<T: fmt::Debug> fmt::Debug for IterMut<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (front, back) = RingSlices::ring_slices(self.ring, self.head, self.tail);
         // SAFETY: these are the elements we have not handed out yet, so aliasing is fine.
-        // The `IterMut` invariant also ensures everything is dereferencable.
+        // The `IterMut` invariant also ensures everything is dereferenceable.
         let (front, back) = unsafe { (&*front, &*back) };
         f.debug_tuple("IterMut").field(&front).field(&back).finish()
     }
@@ -67,7 +78,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     {
         let (front, back) = RingSlices::ring_slices(self.ring, self.head, self.tail);
         // SAFETY: these are the elements we have not handed out yet, so aliasing is fine.
-        // The `IterMut` invariant also ensures everything is dereferencable.
+        // The `IterMut` invariant also ensures everything is dereferenceable.
         let (front, back) = unsafe { (&mut *front, &mut *back) };
         accum = front.iter_mut().fold(accum, &mut f);
         back.iter_mut().fold(accum, &mut f)
@@ -121,7 +132,7 @@ impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
     {
         let (front, back) = RingSlices::ring_slices(self.ring, self.head, self.tail);
         // SAFETY: these are the elements we have not handed out yet, so aliasing is fine.
-        // The `IterMut` invariant also ensures everything is dereferencable.
+        // The `IterMut` invariant also ensures everything is dereferenceable.
         let (front, back) = unsafe { (&mut *front, &mut *back) };
         accum = back.iter_mut().rfold(accum, &mut f);
         front.iter_mut().rfold(accum, &mut f)

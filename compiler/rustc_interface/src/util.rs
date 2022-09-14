@@ -1,19 +1,21 @@
+use libloading::Library;
 use rustc_ast::mut_visit::{visit_clobber, MutVisitor, *};
 use rustc_ast::ptr::P;
-use rustc_ast::{self as ast, AttrVec, BlockCheckMode};
+use rustc_ast::{self as ast, AttrVec, BlockCheckMode, Term};
 use rustc_codegen_ssa::traits::CodegenBackend;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 #[cfg(parallel_compiler)]
 use rustc_data_structures::jobserver;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::registry::Registry;
-use rustc_metadata::dynamic_lib::DynamicLibrary;
 #[cfg(parallel_compiler)]
 use rustc_middle::ty::tls;
+use rustc_parse::validate_attr;
 #[cfg(parallel_compiler)]
 use rustc_query_impl::QueryCtxt;
 use rustc_resolve::{self, Resolver};
 use rustc_session as session;
+use rustc_session::config::CheckCfg;
 use rustc_session::config::{self, CrateType};
 use rustc_session::config::{ErrorOutputType, Input, OutputFilenames};
 use rustc_session::lint::{self, BuiltinLintDiagnostics, LintBuffer};
@@ -26,7 +28,6 @@ use rustc_span::symbol::{sym, Symbol};
 use smallvec::SmallVec;
 use std::env;
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
-use std::io;
 use std::lazy::SyncOnceCell;
 use std::mem;
 use std::ops::DerefMut;
@@ -34,9 +35,11 @@ use std::ops::DerefMut;
 use std::panic;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 use std::thread;
 use tracing::info;
+
+/// Function pointer type that constructs a new CodegenBackend.
+pub type MakeBackendFn = fn() -> Box<dyn CodegenBackend>;
 
 /// Adds `target_feature = "..."` cfgs for a variety of platform
 /// specific features (SSE, NEON etc.).
@@ -63,6 +66,7 @@ pub fn add_configuration(
 pub fn create_session(
     sopts: config::Options,
     cfg: FxHashSet<(String, Option<String>)>,
+    check_cfg: CheckCfg,
     diagnostic_output: DiagnosticOutput,
     file_loader: Option<Box<dyn FileLoader + Send + Sync + 'static>>,
     input_path: Option<PathBuf>,
@@ -98,7 +102,13 @@ pub fn create_session(
 
     let mut cfg = config::build_configuration(&sess, config::to_crate_config(cfg));
     add_configuration(&mut cfg, &mut sess, &*codegen_backend);
+
+    let mut check_cfg = config::to_crate_check_config(check_cfg);
+    check_cfg.fill_well_known();
+    check_cfg.fill_actual(&cfg);
+
     sess.parse_sess.config = cfg;
+    sess.parse_sess.check_config = check_cfg;
 
     (Lrc::new(sess), Lrc::new(codegen_backend))
 }
@@ -114,33 +124,19 @@ fn get_stack_size() -> Option<usize> {
 /// Like a `thread::Builder::spawn` followed by a `join()`, but avoids the need
 /// for `'static` bounds.
 #[cfg(not(parallel_compiler))]
-pub fn scoped_thread<F: FnOnce() -> R + Send, R: Send>(cfg: thread::Builder, f: F) -> R {
-    struct Ptr(*mut ());
-    unsafe impl Send for Ptr {}
-    unsafe impl Sync for Ptr {}
-
-    let mut f = Some(f);
-    let run = Ptr(&mut f as *mut _ as *mut ());
-    let mut result = None;
-    let result_ptr = Ptr(&mut result as *mut _ as *mut ());
-
-    let thread = cfg.spawn(move || {
-        let run = unsafe { (*(run.0 as *mut Option<F>)).take().unwrap() };
-        let result = unsafe { &mut *(result_ptr.0 as *mut Option<R>) };
-        *result = Some(run());
-    });
-
-    match thread.unwrap().join() {
-        Ok(()) => result.unwrap(),
-        Err(p) => panic::resume_unwind(p),
+fn scoped_thread<F: FnOnce() -> R + Send, R: Send>(cfg: thread::Builder, f: F) -> R {
+    // SAFETY: join() is called immediately, so any closure captures are still
+    // alive.
+    match unsafe { cfg.spawn_unchecked(f) }.unwrap().join() {
+        Ok(v) => v,
+        Err(e) => panic::resume_unwind(e),
     }
 }
 
 #[cfg(not(parallel_compiler))]
-pub fn setup_callbacks_and_run_in_thread_pool_with_globals<F: FnOnce() -> R + Send, R: Send>(
+pub fn run_in_thread_pool_with_globals<F: FnOnce() -> R + Send, R: Send>(
     edition: Edition,
     _threads: usize,
-    stderr: &Option<Arc<Mutex<Vec<u8>>>>,
     f: F,
 ) -> R {
     let mut cfg = thread::Builder::new().name("rustc".to_string());
@@ -149,14 +145,7 @@ pub fn setup_callbacks_and_run_in_thread_pool_with_globals<F: FnOnce() -> R + Se
         cfg = cfg.stack_size(size);
     }
 
-    crate::callbacks::setup_callbacks();
-
-    let main_handler = move || {
-        rustc_span::create_session_globals_then(edition, || {
-            io::set_output_capture(stderr.clone());
-            f()
-        })
-    };
+    let main_handler = move || rustc_span::create_session_globals_then(edition, f);
 
     scoped_thread(cfg, main_handler)
 }
@@ -185,14 +174,11 @@ unsafe fn handle_deadlock() {
 }
 
 #[cfg(parallel_compiler)]
-pub fn setup_callbacks_and_run_in_thread_pool_with_globals<F: FnOnce() -> R + Send, R: Send>(
+pub fn run_in_thread_pool_with_globals<F: FnOnce() -> R + Send, R: Send>(
     edition: Edition,
     threads: usize,
-    stderr: &Option<Arc<Mutex<Vec<u8>>>>,
     f: F,
 ) -> R {
-    crate::callbacks::setup_callbacks();
-
     let mut config = rayon::ThreadPoolBuilder::new()
         .thread_name(|_| "rustc".to_string())
         .acquire_thread_handler(jobserver::acquire_thread)
@@ -212,10 +198,7 @@ pub fn setup_callbacks_and_run_in_thread_pool_with_globals<F: FnOnce() -> R + Se
             // the thread local rustc uses. `session_globals` is captured and set
             // on the new threads.
             let main_handler = move |thread: rayon::ThreadBuilder| {
-                rustc_span::set_session_globals_then(session_globals, || {
-                    io::set_output_capture(stderr.clone());
-                    thread.run()
-                })
+                rustc_span::set_session_globals_then(session_globals, || thread.run())
             };
 
             config.build_scoped(main_handler, with_pool).unwrap()
@@ -223,28 +206,24 @@ pub fn setup_callbacks_and_run_in_thread_pool_with_globals<F: FnOnce() -> R + Se
     })
 }
 
-fn load_backend_from_dylib(path: &Path) -> fn() -> Box<dyn CodegenBackend> {
-    let lib = DynamicLibrary::open(path).unwrap_or_else(|err| {
-        let err = format!("couldn't load codegen backend {:?}: {:?}", path, err);
+fn load_backend_from_dylib(path: &Path) -> MakeBackendFn {
+    let lib = unsafe { Library::new(path) }.unwrap_or_else(|err| {
+        let err = format!("couldn't load codegen backend {:?}: {}", path, err);
         early_error(ErrorOutputType::default(), &err);
     });
-    unsafe {
-        match lib.symbol("__rustc_codegen_backend") {
-            Ok(f) => {
-                mem::forget(lib);
-                mem::transmute::<*mut u8, _>(f)
-            }
-            Err(e) => {
-                let err = format!(
-                    "couldn't load codegen backend as it \
-                                   doesn't export the `__rustc_codegen_backend` \
-                                   symbol: {:?}",
-                    e
-                );
-                early_error(ErrorOutputType::default(), &err);
-            }
-        }
-    }
+
+    let backend_sym = unsafe { lib.get::<MakeBackendFn>(b"__rustc_codegen_backend") }
+        .unwrap_or_else(|e| {
+            let err = format!("couldn't load codegen backend: {}", e);
+            early_error(ErrorOutputType::default(), &err);
+        });
+
+    // Intentionally leak the dynamic library. We can't ever unload it
+    // since the library can make things that will live arbitrarily long.
+    let backend_sym = unsafe { backend_sym.into_raw() };
+    mem::forget(lib);
+
+    *backend_sym
 }
 
 /// Get the codegen backend based on the name and specified sysroot.
@@ -356,6 +335,7 @@ fn sysroot_candidates() -> Vec<PathBuf> {
     #[cfg(windows)]
     fn current_dll_path() -> Option<PathBuf> {
         use std::ffi::OsString;
+        use std::io;
         use std::os::windows::prelude::*;
         use std::ptr;
 
@@ -392,10 +372,7 @@ fn sysroot_candidates() -> Vec<PathBuf> {
     }
 }
 
-pub fn get_codegen_sysroot(
-    maybe_sysroot: &Option<PathBuf>,
-    backend_name: &str,
-) -> fn() -> Box<dyn CodegenBackend> {
+fn get_codegen_sysroot(maybe_sysroot: &Option<PathBuf>, backend_name: &str) -> MakeBackendFn {
     // For now we only allow this function to be called once as it'll dlopen a
     // few things, which seems to work best if we only do that once. In
     // general this assertion never trips due to the once guard in `get_codegen_backend`,
@@ -414,7 +391,7 @@ pub fn get_codegen_sysroot(
         .iter()
         .chain(sysroot_candidates.iter())
         .map(|sysroot| {
-            filesearch::make_target_lib_path(&sysroot, &target).with_file_name("codegen-backends")
+            filesearch::make_target_lib_path(sysroot, target).with_file_name("codegen-backends")
         })
         .find(|f| {
             info!("codegen backend candidate: {}", f.display());
@@ -488,7 +465,7 @@ pub fn get_codegen_sysroot(
 }
 
 pub(crate) fn check_attr_crate_type(
-    _sess: &Session,
+    sess: &Session,
     attrs: &[ast::Attribute],
     lint_buffer: &mut LintBuffer,
 ) {
@@ -500,7 +477,7 @@ pub(crate) fn check_attr_crate_type(
                     return;
                 }
 
-                if let ast::MetaItemKind::NameValue(spanned) = a.meta().unwrap().kind {
+                if let ast::MetaItemKind::NameValue(spanned) = a.meta_kind().unwrap() {
                     let span = spanned.span;
                     let lev_candidate = find_best_match_for_name(
                         &CRATE_TYPES.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
@@ -528,6 +505,19 @@ pub(crate) fn check_attr_crate_type(
                         );
                     }
                 }
+            } else {
+                // This is here mainly to check for using a macro, such as
+                // #![crate_type = foo!()]. That is not supported since the
+                // crate type needs to be known very early in compilation long
+                // before expansion. Otherwise, validation would normally be
+                // caught in AstValidator (via `check_builtin_attribute`), but
+                // by the time that runs the macro is expanded, and it doesn't
+                // give an error.
+                validate_attr::emit_fatal_malformed_builtin_attribute(
+                    &sess.parse_sess,
+                    a,
+                    sym::crate_type,
+                );
             }
         }
     }
@@ -603,6 +593,7 @@ pub fn build_output_filenames(
     input: &Input,
     odir: &Option<PathBuf>,
     ofile: &Option<PathBuf>,
+    temps_dir: &Option<PathBuf>,
     attrs: &[ast::Attribute],
     sess: &Session,
 ) -> OutputFilenames {
@@ -618,13 +609,14 @@ pub fn build_output_filenames(
                 .opts
                 .crate_name
                 .clone()
-                .or_else(|| rustc_attr::find_crate_name(&sess, attrs).map(|n| n.to_string()))
+                .or_else(|| rustc_attr::find_crate_name(sess, attrs).map(|n| n.to_string()))
                 .unwrap_or_else(|| input.filestem().to_owned());
 
             OutputFilenames::new(
                 dirpath,
                 stem,
                 None,
+                temps_dir.clone(),
                 sess.opts.cg.extra_filename.clone(),
                 sess.opts.output_types.clone(),
             )
@@ -653,6 +645,7 @@ pub fn build_output_filenames(
                 out_file.parent().unwrap_or_else(|| Path::new("")).to_path_buf(),
                 out_file.file_stem().unwrap_or_default().to_str().unwrap().to_string(),
                 ofile,
+                temps_dir.clone(),
                 sess.opts.cg.extra_filename.clone(),
                 sess.opts.output_types.clone(),
             )
@@ -717,52 +710,57 @@ impl<'a, 'b> ReplaceBodyWithLoop<'a, 'b> {
     }
 
     fn should_ignore_fn(ret_ty: &ast::FnRetTy) -> bool {
-        if let ast::FnRetTy::Ty(ref ty) = ret_ty {
-            fn involves_impl_trait(ty: &ast::Ty) -> bool {
-                match ty.kind {
-                    ast::TyKind::ImplTrait(..) => true,
-                    ast::TyKind::Slice(ref subty)
-                    | ast::TyKind::Array(ref subty, _)
-                    | ast::TyKind::Ptr(ast::MutTy { ty: ref subty, .. })
-                    | ast::TyKind::Rptr(_, ast::MutTy { ty: ref subty, .. })
-                    | ast::TyKind::Paren(ref subty) => involves_impl_trait(subty),
-                    ast::TyKind::Tup(ref tys) => any_involves_impl_trait(tys.iter()),
-                    ast::TyKind::Path(_, ref path) => {
-                        path.segments.iter().any(|seg| match seg.args.as_deref() {
-                            None => false,
-                            Some(&ast::GenericArgs::AngleBracketed(ref data)) => {
-                                data.args.iter().any(|arg| match arg {
-                                    ast::AngleBracketedArg::Arg(arg) => match arg {
-                                        ast::GenericArg::Type(ty) => involves_impl_trait(ty),
-                                        ast::GenericArg::Lifetime(_)
-                                        | ast::GenericArg::Const(_) => false,
-                                    },
-                                    ast::AngleBracketedArg::Constraint(c) => match c.kind {
-                                        ast::AssocTyConstraintKind::Bound { .. } => true,
-                                        ast::AssocTyConstraintKind::Equality { ref ty } => {
-                                            involves_impl_trait(ty)
+        let ast::FnRetTy::Ty(ref ty) = ret_ty else {
+            return false;
+        };
+        fn involves_impl_trait(ty: &ast::Ty) -> bool {
+            match ty.kind {
+                ast::TyKind::ImplTrait(..) => true,
+                ast::TyKind::Slice(ref subty)
+                | ast::TyKind::Array(ref subty, _)
+                | ast::TyKind::Ptr(ast::MutTy { ty: ref subty, .. })
+                | ast::TyKind::Rptr(_, ast::MutTy { ty: ref subty, .. })
+                | ast::TyKind::Paren(ref subty) => involves_impl_trait(subty),
+                ast::TyKind::Tup(ref tys) => any_involves_impl_trait(tys.iter()),
+                ast::TyKind::Path(_, ref path) => {
+                    path.segments.iter().any(|seg| match seg.args.as_deref() {
+                        None => false,
+                        Some(&ast::GenericArgs::AngleBracketed(ref data)) => {
+                            data.args.iter().any(|arg| match arg {
+                                ast::AngleBracketedArg::Arg(arg) => match arg {
+                                    ast::GenericArg::Type(ty) => involves_impl_trait(ty),
+                                    ast::GenericArg::Lifetime(_) | ast::GenericArg::Const(_) => {
+                                        false
+                                    }
+                                },
+                                ast::AngleBracketedArg::Constraint(c) => match c.kind {
+                                    ast::AssocConstraintKind::Bound { .. } => true,
+                                    ast::AssocConstraintKind::Equality { ref term } => {
+                                        match term {
+                                            Term::Ty(ty) => involves_impl_trait(ty),
+                                            // FIXME(...): This should check if the constant
+                                            // involves a trait impl, but for now ignore.
+                                            Term::Const(_) => false,
                                         }
-                                    },
-                                })
-                            }
-                            Some(&ast::GenericArgs::Parenthesized(ref data)) => {
-                                any_involves_impl_trait(data.inputs.iter())
-                                    || ReplaceBodyWithLoop::should_ignore_fn(&data.output)
-                            }
-                        })
-                    }
-                    _ => false,
+                                    }
+                                },
+                            })
+                        }
+                        Some(&ast::GenericArgs::Parenthesized(ref data)) => {
+                            any_involves_impl_trait(data.inputs.iter())
+                                || ReplaceBodyWithLoop::should_ignore_fn(&data.output)
+                        }
+                    })
                 }
+                _ => false,
             }
-
-            fn any_involves_impl_trait<'a, I: Iterator<Item = &'a P<ast::Ty>>>(mut it: I) -> bool {
-                it.any(|subty| involves_impl_trait(subty))
-            }
-
-            involves_impl_trait(ty)
-        } else {
-            false
         }
+
+        fn any_involves_impl_trait<'a, I: Iterator<Item = &'a P<ast::Ty>>>(mut it: I) -> bool {
+            it.any(|subty| involves_impl_trait(subty))
+        }
+
+        involves_impl_trait(ty)
     }
 
     fn is_sig_const(sig: &ast::FnSig) -> bool {
@@ -775,7 +773,7 @@ impl<'a> MutVisitor for ReplaceBodyWithLoop<'a, '_> {
     fn visit_item_kind(&mut self, i: &mut ast::ItemKind) {
         let is_const = match i {
             ast::ItemKind::Static(..) | ast::ItemKind::Const(..) => true,
-            ast::ItemKind::Fn(box ast::FnKind(_, ref sig, _, _)) => Self::is_sig_const(sig),
+            ast::ItemKind::Fn(box ast::Fn { ref sig, .. }) => Self::is_sig_const(sig),
             _ => false,
         };
         self.run(is_const, |s| noop_visit_item_kind(i, s))
@@ -784,7 +782,7 @@ impl<'a> MutVisitor for ReplaceBodyWithLoop<'a, '_> {
     fn flat_map_trait_item(&mut self, i: P<ast::AssocItem>) -> SmallVec<[P<ast::AssocItem>; 1]> {
         let is_const = match i.kind {
             ast::AssocItemKind::Const(..) => true,
-            ast::AssocItemKind::Fn(box ast::FnKind(_, ref sig, _, _)) => Self::is_sig_const(sig),
+            ast::AssocItemKind::Fn(box ast::Fn { ref sig, .. }) => Self::is_sig_const(sig),
             _ => false,
         };
         self.run(is_const, |s| noop_flat_map_assoc_item(i, s))

@@ -118,9 +118,6 @@ struct Scope {
     /// the region span of this scope within source code.
     region_scope: region::Scope,
 
-    /// the span of that region_scope
-    region_scope_span: Span,
-
     /// set of places to drop when exiting this scope. This starts
     /// out empty but grows as variables are declared during the
     /// building process. This is a stack, so we always drop from the
@@ -365,11 +362,7 @@ impl DropTree {
         blocks: &IndexVec<DropIdx, Option<BasicBlock>>,
     ) {
         for (drop_idx, drop_data) in self.drops.iter_enumerated().rev() {
-            let block = if let Some(block) = blocks[drop_idx] {
-                block
-            } else {
-                continue;
-            };
+            let Some(block) = blocks[drop_idx] else { continue };
             match drop_data.0.kind {
                 DropKind::Value => {
                     let terminator = TerminatorKind::Drop {
@@ -420,7 +413,6 @@ impl<'tcx> Scopes<'tcx> {
         self.scopes.push(Scope {
             source_scope: vis_scope,
             region_scope: region_scope.0,
-            region_scope_span: region_scope.1.span,
             drops: vec![],
             moved_locals: vec![],
             cached_unwind_block: None,
@@ -506,7 +498,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
     ///
     /// if let Some(x) = a && let Some(y) = b && let Some(z) = c { ... }
     ///
-    /// there are three possible ways the condition can be false and we may have
+    /// There are three possible ways the condition can be false and we may have
     /// to drop `x`, `x` and `y`, or neither depending on which binding fails.
     /// To handle this correctly we use a `DropTree` in a similar way to a
     /// `loop` expression and 'break' out on all of the 'else' paths.
@@ -1042,6 +1034,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                     | TerminatorKind::Call { .. }
                     | TerminatorKind::DropAndReplace { .. }
                     | TerminatorKind::FalseUnwind { .. }
+                    | TerminatorKind::InlineAsm { .. }
             ),
             "diverge_from called on block with terminator that cannot unwind."
         );
@@ -1381,7 +1374,8 @@ impl<'tcx> DropTreeBuilder<'tcx> for Unwind {
             | TerminatorKind::DropAndReplace { unwind, .. }
             | TerminatorKind::FalseUnwind { unwind, .. }
             | TerminatorKind::Call { cleanup: unwind, .. }
-            | TerminatorKind::Assert { cleanup: unwind, .. } => {
+            | TerminatorKind::Assert { cleanup: unwind, .. }
+            | TerminatorKind::InlineAsm { cleanup: unwind, .. } => {
                 *unwind = Some(to);
             }
             TerminatorKind::Goto { .. }
@@ -1392,8 +1386,7 @@ impl<'tcx> DropTreeBuilder<'tcx> for Unwind {
             | TerminatorKind::Unreachable
             | TerminatorKind::Yield { .. }
             | TerminatorKind::GeneratorDrop
-            | TerminatorKind::FalseEdge { .. }
-            | TerminatorKind::InlineAsm { .. } => {
+            | TerminatorKind::FalseEdge { .. } => {
                 span_bug!(term.source_info.span, "cannot unwind from {:?}", term.kind)
             }
         }

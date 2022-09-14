@@ -8,14 +8,14 @@ use rustc_ast::tokenstream::{CanSynthesizeMissingTokens, TokenStream};
 use rustc_ast::visit::{AssocCtxt, Visitor};
 use rustc_ast::{self as ast, AstLike, Attribute, Item, NodeId, PatKind};
 use rustc_attr::{self as attr, Deprecation, Stability};
-use rustc_data_structures::fx::FxHashMap;
+use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::sync::{self, Lrc};
-use rustc_errors::{DiagnosticBuilder, ErrorReported};
+use rustc_errors::{Applicability, DiagnosticBuilder, ErrorReported};
 use rustc_lint_defs::builtin::PROC_MACRO_BACK_COMPAT;
 use rustc_lint_defs::BuiltinLintDiagnostics;
 use rustc_parse::{self, nt_to_tokenstream, parser, MACRO_ARGUMENTS};
 use rustc_session::{parse::ParseSess, Limit, Session};
-use rustc_span::def_id::{CrateNum, DefId};
+use rustc_span::def_id::{CrateNum, DefId, LocalDefId};
 use rustc_span::edition::Edition;
 use rustc_span::hygiene::{AstPass, ExpnData, ExpnKind, LocalExpnId};
 use rustc_span::source_map::SourceMap;
@@ -48,6 +48,7 @@ pub enum Annotatable {
     Param(ast::Param),
     FieldDef(ast::FieldDef),
     Variant(ast::Variant),
+    Crate(ast::Crate),
 }
 
 impl Annotatable {
@@ -66,6 +67,7 @@ impl Annotatable {
             Annotatable::Param(ref p) => p.span,
             Annotatable::FieldDef(ref sf) => sf.span,
             Annotatable::Variant(ref v) => v.span,
+            Annotatable::Crate(ref c) => c.span,
         }
     }
 
@@ -84,6 +86,7 @@ impl Annotatable {
             Annotatable::Param(p) => p.visit_attrs(f),
             Annotatable::FieldDef(sf) => sf.visit_attrs(f),
             Annotatable::Variant(v) => v.visit_attrs(f),
+            Annotatable::Crate(c) => c.visit_attrs(f),
         }
     }
 
@@ -102,6 +105,7 @@ impl Annotatable {
             Annotatable::Param(p) => visitor.visit_param(p),
             Annotatable::FieldDef(sf) => visitor.visit_field_def(sf),
             Annotatable::Variant(v) => visitor.visit_variant(v),
+            Annotatable::Crate(c) => visitor.visit_crate(c),
         }
     }
 
@@ -122,7 +126,8 @@ impl Annotatable {
             | Annotatable::GenericParam(..)
             | Annotatable::Param(..)
             | Annotatable::FieldDef(..)
-            | Annotatable::Variant(..) => panic!("unexpected annotatable"),
+            | Annotatable::Variant(..)
+            | Annotatable::Crate(..) => panic!("unexpected annotatable"),
         }
     }
 
@@ -218,6 +223,13 @@ impl Annotatable {
         match self {
             Annotatable::Variant(v) => v,
             _ => panic!("expected variant"),
+        }
+    }
+
+    pub fn expect_crate(self) -> ast::Crate {
+        match self {
+            Annotatable::Crate(krate) => krate,
+            _ => panic!("expected krate"),
         }
     }
 }
@@ -418,6 +430,11 @@ pub trait MacResult {
 
     fn make_variants(self: Box<Self>) -> Option<SmallVec<[ast::Variant; 1]>> {
         None
+    }
+
+    fn make_crate(self: Box<Self>) -> Option<ast::Crate> {
+        // Fn-like macros cannot produce a crate.
+        unreachable!()
     }
 }
 
@@ -843,6 +860,7 @@ pub type DeriveResolutions = Vec<(ast::Path, Annotatable, Option<Lrc<SyntaxExten
 
 pub trait ResolverExpand {
     fn next_node_id(&mut self) -> NodeId;
+    fn invocation_parent(&self, id: LocalExpnId) -> LocalDefId;
 
     fn resolve_dollar_crates(&mut self);
     fn visit_ast_fragment_with_placeholders(
@@ -902,7 +920,24 @@ pub trait ResolverExpand {
     /// we generated proc macros harnesses, so that we can map
     /// HIR proc macros items back to their harness items.
     fn declare_proc_macro(&mut self, id: NodeId);
+
+    /// Tools registered with `#![register_tool]` and used by tool attributes and lints.
+    fn registered_tools(&self) -> &FxHashSet<Ident>;
 }
+
+pub trait LintStoreExpand {
+    fn pre_expansion_lint(
+        &self,
+        sess: &Session,
+        registered_tools: &FxHashSet<Ident>,
+        node_id: NodeId,
+        attrs: &[Attribute],
+        items: &[P<Item>],
+        name: &str,
+    );
+}
+
+type LintStoreExpandDyn<'a> = Option<&'a (dyn LintStoreExpand + 'a)>;
 
 #[derive(Clone, Default)]
 pub struct ModuleData {
@@ -938,9 +973,6 @@ pub struct ExpansionData {
     pub is_trailing_mac: bool,
 }
 
-type OnExternModLoaded<'a> =
-    Option<&'a dyn Fn(Ident, Vec<Attribute>, Vec<P<Item>>, Span) -> (Vec<Attribute>, Vec<P<Item>>)>;
-
 /// One of these is made during expansion and incrementally updated as we go;
 /// when a macro expansion occurs, the resulting nodes have the `backtrace()
 /// -> expn_data` of their expansion context stored into their span.
@@ -955,10 +987,8 @@ pub struct ExtCtxt<'a> {
     /// (or during eager expansion, but that's a hack).
     pub force_mode: bool,
     pub expansions: FxHashMap<Span, Vec<String>>,
-    /// Called directly after having parsed an external `mod foo;` in expansion.
-    ///
-    /// `Ident` is the module name.
-    pub(super) extern_mod_loaded: OnExternModLoaded<'a>,
+    /// Used for running pre-expansion lints on freshly loaded modules.
+    pub(super) lint_store: LintStoreExpandDyn<'a>,
     /// When we 'expand' an inert attribute, we leave it
     /// in the AST, but insert it here so that we know
     /// not to expand it again.
@@ -970,14 +1000,14 @@ impl<'a> ExtCtxt<'a> {
         sess: &'a Session,
         ecfg: expand::ExpansionConfig<'a>,
         resolver: &'a mut dyn ResolverExpand,
-        extern_mod_loaded: OnExternModLoaded<'a>,
+        lint_store: LintStoreExpandDyn<'a>,
     ) -> ExtCtxt<'a> {
         ExtCtxt {
             sess,
             ecfg,
             reduced_recursion_limit: None,
             resolver,
-            extern_mod_loaded,
+            lint_store,
             root_path: PathBuf::new(),
             current_expansion: ExpansionData {
                 id: LocalExpnId::ROOT,
@@ -1136,13 +1166,15 @@ impl<'a> ExtCtxt<'a> {
 }
 
 /// Extracts a string literal from the macro expanded version of `expr`,
-/// emitting `err_msg` if `expr` is not a string literal. This does not stop
-/// compilation on error, merely emits a non-fatal error and returns `None`.
+/// returning a diagnostic error of `err_msg` if `expr` is not a string literal.
+/// The returned bool indicates whether an applicable suggestion has already been
+/// added to the diagnostic to avoid emitting multiple suggestions. `Err(None)`
+/// indicates that an ast error was encountered.
 pub fn expr_to_spanned_string<'a>(
     cx: &'a mut ExtCtxt<'_>,
     expr: P<ast::Expr>,
     err_msg: &str,
-) -> Result<(Symbol, ast::StrStyle, Span), Option<DiagnosticBuilder<'a>>> {
+) -> Result<(Symbol, ast::StrStyle, Span), Option<(DiagnosticBuilder<'a>, bool)>> {
     // Perform eager expansion on the expression.
     // We want to be able to handle e.g., `concat!("foo", "bar")`.
     let expr = cx.expander().fully_expand_fragment(AstFragment::Expr(expr)).make_expr();
@@ -1150,14 +1182,27 @@ pub fn expr_to_spanned_string<'a>(
     Err(match expr.kind {
         ast::ExprKind::Lit(ref l) => match l.kind {
             ast::LitKind::Str(s, style) => return Ok((s, style, expr.span)),
+            ast::LitKind::ByteStr(_) => {
+                let mut err = cx.struct_span_err(l.span, err_msg);
+                err.span_suggestion(
+                    expr.span.shrink_to_lo(),
+                    "consider removing the leading `b`",
+                    String::new(),
+                    Applicability::MaybeIncorrect,
+                );
+                Some((err, true))
+            }
             ast::LitKind::Err(_) => None,
-            _ => Some(cx.struct_span_err(l.span, err_msg)),
+            _ => Some((cx.struct_span_err(l.span, err_msg), false)),
         },
         ast::ExprKind::Err => None,
-        _ => Some(cx.struct_span_err(expr.span, err_msg)),
+        _ => Some((cx.struct_span_err(expr.span, err_msg), false)),
     })
 }
 
+/// Extracts a string literal from the macro expanded version of `expr`,
+/// emitting `err_msg` if `expr` is not a string literal. This does not stop
+/// compilation on error, merely emits a non-fatal error and returns `None`.
 pub fn expr_to_string(
     cx: &mut ExtCtxt<'_>,
     expr: P<ast::Expr>,
@@ -1165,7 +1210,7 @@ pub fn expr_to_string(
 ) -> Option<(Symbol, ast::StrStyle)> {
     expr_to_spanned_string(cx, expr, err_msg)
         .map_err(|err| {
-            err.map(|mut err| {
+            err.map(|(mut err, _)| {
                 err.emit();
             })
         })

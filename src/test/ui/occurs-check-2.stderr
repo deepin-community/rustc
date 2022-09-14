@@ -1,13 +1,13 @@
 error[E0308]: mismatched types
   --> $DIR/occurs-check-2.rs:7:9
    |
-LL |     f = box g;
-   |         ^^^^^ cyclic type of infinite size
+LL |     f = Box::new(g);
+   |         ^^^^^^^^^^^ cyclic type of infinite size
    |
-help: try using a conversion method
+help: consider unboxing the value
    |
-LL |     f = (box g).to_string();
-   |         +     +++++++++++++
+LL |     f = *Box::new(g);
+   |         +
 
 error: aborting due to previous error
 

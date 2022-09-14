@@ -1,6 +1,5 @@
 use clippy_utils::consts::{constant_context, Constant};
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::in_macro;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
 use if_chain::if_chain;
@@ -36,6 +35,7 @@ declare_clippy_lint! {
     ///     let x = String::from("hello world").clone();
     /// }
     /// ```
+    #[clippy::version = "1.47.0"]
     pub REPEAT_ONCE,
     complexity,
     "using `.repeat(1)` instead of `String.clone()`, `str.to_string()` or `slice.to_vec()` "
@@ -46,10 +46,10 @@ declare_lint_pass!(RepeatOnce => [REPEAT_ONCE]);
 impl<'tcx> LateLintPass<'tcx> for RepeatOnce {
     fn check_expr(&mut self, cx: &LateContext<'_>, expr: &'tcx Expr<'_>) {
         if_chain! {
-            if let ExprKind::MethodCall(path, _, [receiver, count], _) = &expr.kind;
+            if let ExprKind::MethodCall(path, [receiver, count], _) = &expr.kind;
             if path.ident.name == sym!(repeat);
-            if let Some(Constant::Int(1)) = constant_context(cx, cx.typeck_results()).expr(count);
-            if !in_macro(receiver.span);
+            if constant_context(cx, cx.typeck_results()).expr(count) == Some(Constant::Int(1));
+            if !receiver.span.from_expansion();
             then {
                 let ty = cx.typeck_results().expr_ty(receiver).peel_refs();
                 if ty.is_str() {
@@ -72,7 +72,7 @@ impl<'tcx> LateLintPass<'tcx> for RepeatOnce {
                         format!("{}.to_vec()", snippet(cx, receiver.span, r#""...""#)),
                         Applicability::MachineApplicable,
                     );
-                } else if is_type_diagnostic_item(cx, ty, sym::string_type) {
+                } else if is_type_diagnostic_item(cx, ty, sym::String) {
                     span_lint_and_sugg(
                         cx,
                         REPEAT_ONCE,

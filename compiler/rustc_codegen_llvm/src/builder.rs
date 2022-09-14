@@ -15,15 +15,17 @@ use rustc_codegen_ssa::traits::*;
 use rustc_codegen_ssa::MemFlags;
 use rustc_data_structures::small_c_str::SmallCStr;
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::layout::TyAndLayout;
+use rustc_middle::ty::layout::{
+    FnAbiError, FnAbiOfHelpers, FnAbiRequest, LayoutError, LayoutOfHelpers, TyAndLayout,
+};
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::Span;
-use rustc_target::abi::{self, Align, Size};
+use rustc_target::abi::{self, call::FnAbi, Align, Size, WrappingRange};
 use rustc_target::spec::{HasTargetSpec, Target};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::iter;
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 use std::ptr;
 use tracing::debug;
 
@@ -34,7 +36,7 @@ pub struct Builder<'a, 'll, 'tcx> {
     pub cx: &'a CodegenCx<'ll, 'tcx>,
 }
 
-impl Drop for Builder<'a, 'll, 'tcx> {
+impl Drop for Builder<'_, '_, '_> {
     fn drop(&mut self) {
         unsafe {
             llvm::LLVMDisposeBuilder(&mut *(self.llbuilder as *mut _));
@@ -50,7 +52,7 @@ const EMPTY_C_STR: &CStr = unsafe { CStr::from_bytes_with_nul_unchecked(b"\0") }
 // FIXME(eddyb) pass `&CStr` directly to FFI once it's a thin pointer.
 const UNNAMED: *const c_char = EMPTY_C_STR.as_ptr();
 
-impl BackendTypes for Builder<'_, 'll, 'tcx> {
+impl<'ll, 'tcx> BackendTypes for Builder<'_, 'll, 'tcx> {
     type Value = <CodegenCx<'ll, 'tcx> as BackendTypes>::Value;
     type Function = <CodegenCx<'ll, 'tcx> as BackendTypes>::Function;
     type BasicBlock = <CodegenCx<'ll, 'tcx> as BackendTypes>::BasicBlock;
@@ -68,36 +70,50 @@ impl abi::HasDataLayout for Builder<'_, '_, '_> {
     }
 }
 
-impl ty::layout::HasTyCtxt<'tcx> for Builder<'_, '_, 'tcx> {
+impl<'tcx> ty::layout::HasTyCtxt<'tcx> for Builder<'_, '_, 'tcx> {
     #[inline]
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.cx.tcx
     }
 }
 
-impl ty::layout::HasParamEnv<'tcx> for Builder<'_, '_, 'tcx> {
+impl<'tcx> ty::layout::HasParamEnv<'tcx> for Builder<'_, '_, 'tcx> {
     fn param_env(&self) -> ty::ParamEnv<'tcx> {
         self.cx.param_env()
     }
 }
 
-impl HasTargetSpec for Builder<'_, '_, 'tcx> {
+impl HasTargetSpec for Builder<'_, '_, '_> {
     #[inline]
     fn target_spec(&self) -> &Target {
-        &self.cx.target_spec()
+        self.cx.target_spec()
     }
 }
 
-impl abi::LayoutOf<'tcx> for Builder<'_, '_, 'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = TyAndLayout<'tcx>;
+impl<'tcx> LayoutOfHelpers<'tcx> for Builder<'_, '_, 'tcx> {
+    type LayoutOfResult = TyAndLayout<'tcx>;
 
-    fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyAndLayout {
-        self.cx.layout_of(ty)
+    #[inline]
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
+        self.cx.handle_layout_err(err, span, ty)
     }
 }
 
-impl Deref for Builder<'_, 'll, 'tcx> {
+impl<'tcx> FnAbiOfHelpers<'tcx> for Builder<'_, '_, 'tcx> {
+    type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
+
+    #[inline]
+    fn handle_fn_abi_err(
+        &self,
+        err: FnAbiError<'tcx>,
+        span: Span,
+        fn_abi_request: FnAbiRequest<'tcx>,
+    ) -> ! {
+        self.cx.handle_fn_abi_err(err, span, fn_abi_request)
+    }
+}
+
+impl<'ll, 'tcx> Deref for Builder<'_, 'll, 'tcx> {
     type Target = CodegenCx<'ll, 'tcx>;
 
     #[inline]
@@ -106,7 +122,7 @@ impl Deref for Builder<'_, 'll, 'tcx> {
     }
 }
 
-impl HasCodegen<'tcx> for Builder<'_, 'll, 'tcx> {
+impl<'ll, 'tcx> HasCodegen<'tcx> for Builder<'_, 'll, 'tcx> {
     type CodegenCx = CodegenCx<'ll, 'tcx>;
 }
 
@@ -120,7 +136,7 @@ macro_rules! builder_methods_for_value_instructions {
     }
 }
 
-impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
+impl<'a, 'll, 'tcx> BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     fn build(cx: &'a CodegenCx<'ll, 'tcx>, llbb: &'ll BasicBlock) -> Self {
         let bx = Builder::with_cx(cx);
         unsafe {
@@ -382,7 +398,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             val
         }
     }
-    fn to_immediate_scalar(&mut self, val: Self::Value, scalar: &abi::Scalar) -> Self::Value {
+    fn to_immediate_scalar(&mut self, val: Self::Value, scalar: abi::Scalar) -> Self::Value {
         if scalar.is_bool() {
             return self.trunc(val, self.cx().type_i1());
         }
@@ -460,16 +476,15 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         fn scalar_load_metadata<'a, 'll, 'tcx>(
             bx: &mut Builder<'a, 'll, 'tcx>,
             load: &'ll Value,
-            scalar: &abi::Scalar,
+            scalar: abi::Scalar,
         ) {
             match scalar.value {
                 abi::Int(..) => {
-                    let range = scalar.valid_range_exclusive(bx);
-                    if range.start != range.end {
-                        bx.range_metadata(load, range);
+                    if !scalar.is_always_valid(bx) {
+                        bx.range_metadata(load, scalar.valid_range);
                     }
                 }
-                abi::Pointer if !scalar.valid_range.contains_zero() => {
+                abi::Pointer if !scalar.valid_range.contains(0) => {
                     bx.nonnull_metadata(load);
                 }
                 _ => {}
@@ -489,17 +504,17 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             }
             let llval = const_llval.unwrap_or_else(|| {
                 let load = self.load(place.layout.llvm_type(self), place.llval, place.align);
-                if let abi::Abi::Scalar(ref scalar) = place.layout.abi {
+                if let abi::Abi::Scalar(scalar) = place.layout.abi {
                     scalar_load_metadata(self, load, scalar);
                 }
                 load
             });
             OperandValue::Immediate(self.to_immediate(llval, place.layout))
-        } else if let abi::Abi::ScalarPair(ref a, ref b) = place.layout.abi {
+        } else if let abi::Abi::ScalarPair(a, b) = place.layout.abi {
             let b_offset = a.value.size(self).align_to(b.value.align(self).abi);
             let pair_ty = place.layout.llvm_type(self);
 
-            let mut load = |i, scalar: &abi::Scalar, align| {
+            let mut load = |i, scalar: abi::Scalar, align| {
                 let llptr = self.struct_gep(pair_ty, place.llval, i as u64);
                 let llty = place.layout.scalar_pair_element_llvm_type(self, i, false);
                 let load = self.load(llty, llptr, align);
@@ -555,7 +570,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         next_bx
     }
 
-    fn range_metadata(&mut self, load: &'ll Value, range: Range<u128>) {
+    fn range_metadata(&mut self, load: &'ll Value, range: WrappingRange) {
         if self.sess().target.arch == "amdgpu" {
             // amdgpu/LLVM does something weird and thinks an i64 value is
             // split into a v2i32, halving the bitwidth LLVM expects,
@@ -568,7 +583,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
             let llty = self.cx.val_ty(load);
             let v = [
                 self.cx.const_uint_big(llty, range.start),
-                self.cx.const_uint_big(llty, range.end),
+                self.cx.const_uint_big(llty, range.end.wrapping_add(1)),
             ];
 
             llvm::LLVMSetMetadata(
@@ -586,6 +601,32 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 llvm::MD_nonnull as c_uint,
                 llvm::LLVMMDNodeInContext(self.cx.llcx, ptr::null(), 0),
             );
+        }
+    }
+
+    fn type_metadata(&mut self, function: &'ll Value, typeid: String) {
+        let typeid_metadata = self.typeid_metadata(typeid);
+        let v = [self.const_usize(0), typeid_metadata];
+        unsafe {
+            llvm::LLVMGlobalSetMetadata(
+                function,
+                llvm::MD_type as c_uint,
+                llvm::LLVMValueAsMetadata(llvm::LLVMMDNodeInContext(
+                    self.cx.llcx,
+                    v.as_ptr(),
+                    v.len() as c_uint,
+                )),
+            )
+        }
+    }
+
+    fn typeid_metadata(&mut self, typeid: String) -> Self::Value {
+        unsafe {
+            llvm::LLVMMDStringInContext(
+                self.cx.llcx,
+                typeid.as_ptr() as *const c_char,
+                typeid.as_bytes().len() as c_uint,
+            )
         }
     }
 
@@ -690,27 +731,11 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 
     fn fptoui_sat(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> Option<&'ll Value> {
-        if llvm_util::get_version() >= (12, 0, 0) && !self.fptoint_sat_broken_in_llvm() {
-            let src_ty = self.cx.val_ty(val);
-            let float_width = self.cx.float_width(src_ty);
-            let int_width = self.cx.int_width(dest_ty);
-            let name = format!("llvm.fptoui.sat.i{}.f{}", int_width, float_width);
-            return Some(self.call_intrinsic(&name, &[val]));
-        }
-
-        None
+        self.fptoint_sat(false, val, dest_ty)
     }
 
     fn fptosi_sat(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> Option<&'ll Value> {
-        if llvm_util::get_version() >= (12, 0, 0) && !self.fptoint_sat_broken_in_llvm() {
-            let src_ty = self.cx.val_ty(val);
-            let float_width = self.cx.float_width(src_ty);
-            let int_width = self.cx.int_width(dest_ty);
-            let name = format!("llvm.fptosi.sat.i{}.f{}", int_width, float_width);
-            return Some(self.call_intrinsic(&name, &[val]));
-        }
-
-        None
+        self.fptoint_sat(true, val, dest_ty)
     }
 
     fn fptoui(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
@@ -728,7 +753,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         // we like. To ensure that LLVM picks the right instruction we choose
         // the raw wasm intrinsic functions which avoid LLVM inserting all the
         // other control flow automatically.
-        if self.sess().target.arch == "wasm32" {
+        if self.sess().target.is_like_wasm {
             let src_ty = self.cx.val_ty(val);
             if self.cx.type_kind(src_ty) != TypeKind::Vector {
                 let float_width = self.cx.float_width(src_ty);
@@ -750,7 +775,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
 
     fn fptosi(&mut self, val: &'ll Value, dest_ty: &'ll Type) -> &'ll Value {
         // see `fptoui` above for why wasm is different here
-        if self.sess().target.arch == "wasm32" {
+        if self.sess().target.is_like_wasm {
             let src_ty = self.cx.val_ty(val);
             if self.cx.type_kind(src_ty) != TypeKind::Vector {
                 let float_width = self.cx.float_width(src_ty);
@@ -813,6 +838,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
     }
 
     fn fcmp(&mut self, op: RealPredicate, lhs: &'ll Value, rhs: &'ll Value) -> &'ll Value {
+        let op = llvm::RealPredicate::from_generic(op);
         unsafe { llvm::LLVMBuildFCmp(self.llbuilder, op as c_uint, lhs, rhs, UNNAMED) }
     }
 
@@ -930,29 +956,24 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         unsafe { llvm::LLVMBuildInsertValue(self.llbuilder, agg_val, elt, idx as c_uint, UNNAMED) }
     }
 
-    fn landing_pad(
-        &mut self,
-        ty: &'ll Type,
-        pers_fn: &'ll Value,
-        num_clauses: usize,
-    ) -> &'ll Value {
-        // Use LLVMSetPersonalityFn to set the personality. It supports arbitrary Consts while,
-        // LLVMBuildLandingPad requires the argument to be a Function (as of LLVM 12). The
-        // personality lives on the parent function anyway.
-        self.set_personality_fn(pers_fn);
+    fn set_personality_fn(&mut self, personality: &'ll Value) {
         unsafe {
-            llvm::LLVMBuildLandingPad(self.llbuilder, ty, None, num_clauses as c_uint, UNNAMED)
+            llvm::LLVMSetPersonalityFn(self.llfn(), personality);
         }
     }
 
-    fn set_cleanup(&mut self, landing_pad: &'ll Value) {
+    fn cleanup_landing_pad(&mut self, ty: &'ll Type, pers_fn: &'ll Value) -> &'ll Value {
+        let landing_pad = self.landing_pad(ty, pers_fn, 1 /* FIXME should this be 0? */);
         unsafe {
             llvm::LLVMSetCleanup(landing_pad, llvm::True);
         }
+        landing_pad
     }
 
-    fn resume(&mut self, exn: &'ll Value) -> &'ll Value {
-        unsafe { llvm::LLVMBuildResume(self.llbuilder, exn) }
+    fn resume(&mut self, exn: &'ll Value) {
+        unsafe {
+            llvm::LLVMBuildResume(self.llbuilder, exn);
+        }
     }
 
     fn cleanup_pad(&mut self, parent: Option<&'ll Value>, args: &[&'ll Value]) -> Funclet<'ll> {
@@ -969,14 +990,11 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         Funclet::new(ret.expect("LLVM does not have support for cleanuppad"))
     }
 
-    fn cleanup_ret(
-        &mut self,
-        funclet: &Funclet<'ll>,
-        unwind: Option<&'ll BasicBlock>,
-    ) -> &'ll Value {
-        let ret =
-            unsafe { llvm::LLVMRustBuildCleanupRet(self.llbuilder, funclet.cleanuppad(), unwind) };
-        ret.expect("LLVM does not have support for cleanupret")
+    fn cleanup_ret(&mut self, funclet: &Funclet<'ll>, unwind: Option<&'ll BasicBlock>) {
+        unsafe {
+            llvm::LLVMRustBuildCleanupRet(self.llbuilder, funclet.cleanuppad(), unwind)
+                .expect("LLVM does not have support for cleanupret");
+        }
     }
 
     fn catch_pad(&mut self, parent: &'ll Value, args: &[&'ll Value]) -> Funclet<'ll> {
@@ -997,7 +1015,7 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         &mut self,
         parent: Option<&'ll Value>,
         unwind: Option<&'ll BasicBlock>,
-        num_handlers: usize,
+        handlers: &[&'ll BasicBlock],
     ) -> &'ll Value {
         let name = cstr!("catchswitch");
         let ret = unsafe {
@@ -1005,23 +1023,17 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
                 self.llbuilder,
                 parent,
                 unwind,
-                num_handlers as c_uint,
+                handlers.len() as c_uint,
                 name.as_ptr(),
             )
         };
-        ret.expect("LLVM does not have support for catchswitch")
-    }
-
-    fn add_handler(&mut self, catch_switch: &'ll Value, handler: &'ll BasicBlock) {
-        unsafe {
-            llvm::LLVMRustAddHandler(catch_switch, handler);
+        let ret = ret.expect("LLVM does not have support for catchswitch");
+        for handler in handlers {
+            unsafe {
+                llvm::LLVMRustAddHandler(ret, handler);
+            }
         }
-    }
-
-    fn set_personality_fn(&mut self, personality: &'ll Value) {
-        unsafe {
-            llvm::LLVMSetPersonalityFn(self.llfn(), personality);
-        }
+        ret
     }
 
     // Atomic Operations
@@ -1159,19 +1171,26 @@ impl BuilderMethods<'a, 'tcx> for Builder<'a, 'll, 'tcx> {
         unsafe { llvm::LLVMBuildZExt(self.llbuilder, val, dest_ty, UNNAMED) }
     }
 
-    fn do_not_inline(&mut self, llret: &'ll Value) {
-        llvm::Attribute::NoInline.apply_callsite(llvm::AttributePlace::Function, llret);
+    fn apply_attrs_to_cleanup_callsite(&mut self, llret: &'ll Value) {
+        // Cleanup is always the cold path.
+        llvm::Attribute::Cold.apply_callsite(llvm::AttributePlace::Function, llret);
+
+        // In LLVM versions with deferred inlining (currently, system LLVM < 14),
+        // inlining drop glue can lead to exponential size blowup, see #41696 and #92110.
+        if !llvm_util::is_rust_llvm() && llvm_util::get_version() < (14, 0, 0) {
+            llvm::Attribute::NoInline.apply_callsite(llvm::AttributePlace::Function, llret);
+        }
     }
 }
 
-impl StaticBuilderMethods for Builder<'a, 'll, 'tcx> {
+impl<'ll> StaticBuilderMethods for Builder<'_, 'll, '_> {
     fn get_static(&mut self, def_id: DefId) -> &'ll Value {
         // Forward to the `get_static` method of `CodegenCx`
         self.cx().get_static(def_id)
     }
 }
 
-impl Builder<'a, 'll, 'tcx> {
+impl<'a, 'll, 'tcx> Builder<'a, 'll, 'tcx> {
     fn with_cx(cx: &'a CodegenCx<'ll, 'tcx>) -> Self {
         // Create a fresh builder from the crate context.
         let llbuilder = unsafe { llvm::LLVMCreateBuilderInContext(cx.llcx) };
@@ -1404,6 +1423,60 @@ impl Builder<'a, 'll, 'tcx> {
             // FIXME - https://bugs.llvm.org/show_bug.cgi?id=50083
             "riscv64" => llvm_util::get_version() < (13, 0, 0),
             _ => false,
+        }
+    }
+
+    fn fptoint_sat(
+        &mut self,
+        signed: bool,
+        val: &'ll Value,
+        dest_ty: &'ll Type,
+    ) -> Option<&'ll Value> {
+        if !self.fptoint_sat_broken_in_llvm() {
+            let src_ty = self.cx.val_ty(val);
+            let (float_ty, int_ty, vector_length) = if self.cx.type_kind(src_ty) == TypeKind::Vector
+            {
+                assert_eq!(self.cx.vector_length(src_ty), self.cx.vector_length(dest_ty));
+                (
+                    self.cx.element_type(src_ty),
+                    self.cx.element_type(dest_ty),
+                    Some(self.cx.vector_length(src_ty)),
+                )
+            } else {
+                (src_ty, dest_ty, None)
+            };
+            let float_width = self.cx.float_width(float_ty);
+            let int_width = self.cx.int_width(int_ty);
+
+            let instr = if signed { "fptosi" } else { "fptoui" };
+            let name = if let Some(vector_length) = vector_length {
+                format!(
+                    "llvm.{}.sat.v{}i{}.v{}f{}",
+                    instr, vector_length, int_width, vector_length, float_width
+                )
+            } else {
+                format!("llvm.{}.sat.i{}.f{}", instr, int_width, float_width)
+            };
+            let f =
+                self.declare_cfn(&name, llvm::UnnamedAddr::No, self.type_func(&[src_ty], dest_ty));
+            Some(self.call(self.type_func(&[src_ty], dest_ty), f, &[val], None))
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn landing_pad(
+        &mut self,
+        ty: &'ll Type,
+        pers_fn: &'ll Value,
+        num_clauses: usize,
+    ) -> &'ll Value {
+        // Use LLVMSetPersonalityFn to set the personality. It supports arbitrary Consts while,
+        // LLVMBuildLandingPad requires the argument to be a Function (as of LLVM 12). The
+        // personality lives on the parent function anyway.
+        self.set_personality_fn(pers_fn);
+        unsafe {
+            llvm::LLVMBuildLandingPad(self.llbuilder, ty, None, num_clauses as c_uint, UNNAMED)
         }
     }
 }

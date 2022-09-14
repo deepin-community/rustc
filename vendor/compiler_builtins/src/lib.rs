@@ -18,6 +18,8 @@
 #![allow(improper_ctypes, improper_ctypes_definitions)]
 // `mem::swap` cannot be used because it may generate references to memcpy in unoptimized code.
 #![allow(clippy::manual_swap)]
+// Support compiling on both stage0 and stage1 which may differ in supported stable features.
+#![allow(stable_features)]
 
 // We disable #[no_mangle] for tests so that we can verify the test results
 // against the native compiler-rt implementations of the builtins.
@@ -39,7 +41,8 @@ pub mod float;
 pub mod int;
 
 #[cfg(any(
-    all(target_arch = "wasm32", target_os = "unknown"),
+    all(target_family = "wasm", target_os = "unknown"),
+    all(target_arch = "x86_64", target_os = "uefi"),
     all(target_arch = "arm", target_os = "none"),
     all(target_vendor = "fortanix", target_env = "sgx")
 ))]

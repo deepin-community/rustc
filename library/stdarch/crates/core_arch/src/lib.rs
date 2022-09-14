@@ -4,8 +4,6 @@
 #![allow(unused_features)]
 #![deny(rust_2018_idioms)]
 #![feature(
-    asm,
-    const_panic,
     custom_inner_attributes,
     link_llvm_intrinsics,
     platform_intrinsics,
@@ -34,7 +32,8 @@
     f16c_target_feature,
     allow_internal_unstable,
     decl_macro,
-    bench_black_box
+    bench_black_box,
+    asm_const
 )]
 #![cfg_attr(test, feature(test, abi_vectorcall))]
 #![deny(clippy::missing_inline_in_public_items)]
@@ -68,7 +67,10 @@ extern crate std_detect;
 #[path = "mod.rs"]
 mod core_arch;
 
-pub use self::core_arch::arch;
+pub mod arch {
+    pub use crate::core_arch::arch::*;
+    pub use core::arch::asm;
+}
 
 #[allow(unused_imports)]
 use core::{convert, ffi, hint, intrinsics, marker, mem, ops, ptr, sync};

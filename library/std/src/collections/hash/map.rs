@@ -203,9 +203,9 @@ use crate::sys;
 /// }
 /// ```
 
-#[cfg_attr(not(test), rustc_diagnostic_item = "hashmap_type")]
+#[cfg_attr(not(test), rustc_diagnostic_item = "HashMap")]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[cfg_attr(not(bootstrap), rustc_insignificant_dtor)]
+#[rustc_insignificant_dtor]
 pub struct HashMap<K, V, S = RandomState> {
     base: base::HashMap<K, V, S>,
 }
@@ -223,6 +223,7 @@ impl<K, V> HashMap<K, V, RandomState> {
     /// let mut map: HashMap<&str, i32> = HashMap::new();
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn new() -> HashMap<K, V, RandomState> {
         Default::default()
@@ -240,6 +241,7 @@ impl<K, V> HashMap<K, V, RandomState> {
     /// let mut map: HashMap<&str, i32> = HashMap::with_capacity(10);
     /// ```
     #[inline]
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn with_capacity(capacity: usize) -> HashMap<K, V, RandomState> {
         HashMap::with_capacity_and_hasher(capacity, Default::default())
@@ -332,10 +334,11 @@ impl<K, V, S> HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// for key in map.keys() {
     ///     println!("{}", key);
@@ -346,6 +349,34 @@ impl<K, V, S> HashMap<K, V, S> {
         Keys { inner: self.iter() }
     }
 
+    /// Creates a consuming iterator visiting all the keys in arbitrary order.
+    /// The map cannot be used after calling this.
+    /// The iterator element type is `K`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
+    ///
+    /// let mut vec: Vec<&str> = map.into_keys().collect();
+    /// // The `IntoKeys` iterator produces keys in arbitrary order, so the
+    /// // keys must be sorted to test them against a sorted array.
+    /// vec.sort_unstable();
+    /// assert_eq!(vec, ["a", "b", "c"]);
+    /// ```
+    #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
+    #[stable(feature = "map_into_keys_values", since = "1.54.0")]
+    pub fn into_keys(self) -> IntoKeys<K, V> {
+        IntoKeys { inner: self.into_iter() }
+    }
+
     /// An iterator visiting all values in arbitrary order.
     /// The iterator element type is `&'a V`.
     ///
@@ -354,10 +385,11 @@ impl<K, V, S> HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// for val in map.values() {
     ///     println!("{}", val);
@@ -376,11 +408,11 @@ impl<K, V, S> HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    ///
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let mut map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// for val in map.values_mut() {
     ///     *val = *val + 10;
@@ -395,6 +427,34 @@ impl<K, V, S> HashMap<K, V, S> {
         ValuesMut { inner: self.iter_mut() }
     }
 
+    /// Creates a consuming iterator visiting all the values in arbitrary order.
+    /// The map cannot be used after calling this.
+    /// The iterator element type is `V`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
+    ///
+    /// let mut vec: Vec<i32> = map.into_values().collect();
+    /// // The `IntoValues` iterator produces values in arbitrary order, so
+    /// // the values must be sorted to test them against a sorted array.
+    /// vec.sort_unstable();
+    /// assert_eq!(vec, [1, 2, 3]);
+    /// ```
+    #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
+    #[stable(feature = "map_into_keys_values", since = "1.54.0")]
+    pub fn into_values(self) -> IntoValues<K, V> {
+        IntoValues { inner: self.into_iter() }
+    }
+
     /// An iterator visiting all key-value pairs in arbitrary order.
     /// The iterator element type is `(&'a K, &'a V)`.
     ///
@@ -403,15 +463,17 @@ impl<K, V, S> HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// for (key, val) in map.iter() {
     ///     println!("key: {} val: {}", key, val);
     /// }
     /// ```
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter { base: self.base.iter() }
@@ -426,10 +488,11 @@ impl<K, V, S> HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let mut map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// // Update all values
     /// for (_, val) in map.iter_mut() {
@@ -440,6 +503,7 @@ impl<K, V, S> HashMap<K, V, S> {
     ///     println!("key: {} val: {}", key, val);
     /// }
     /// ```
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut { base: self.base.iter_mut() }
@@ -483,6 +547,10 @@ impl<K, V, S> HashMap<K, V, S> {
     /// Clears the map, returning all key-value pairs as an iterator. Keeps the
     /// allocated memory for reuse.
     ///
+    /// If the returned iterator is dropped before being fully consumed, it
+    /// drops the remaining key-value pairs. The returned iterator keeps a
+    /// mutable borrow on the vector to optimize its implementation.
+    ///
     /// # Examples
     ///
     /// ```
@@ -500,6 +568,7 @@ impl<K, V, S> HashMap<K, V, S> {
     /// assert!(a.is_empty());
     /// ```
     #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     #[stable(feature = "drain", since = "1.6.0")]
     pub fn drain(&mut self) -> Drain<'_, K, V> {
         Drain { base: self.base.drain() }
@@ -541,12 +610,37 @@ impl<K, V, S> HashMap<K, V, S> {
     /// assert_eq!(odds, vec![1, 3, 5, 7]);
     /// ```
     #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     #[unstable(feature = "hash_drain_filter", issue = "59618")]
     pub fn drain_filter<F>(&mut self, pred: F) -> DrainFilter<'_, K, V, F>
     where
         F: FnMut(&K, &mut V) -> bool,
     {
         DrainFilter { base: self.base.drain_filter(pred) }
+    }
+
+    /// Retains only the elements specified by the predicate.
+    ///
+    /// In other words, remove all pairs `(k, v)` such that `f(&k, &mut v)` returns `false`.
+    /// The elements are visited in unsorted (and unspecified) order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    ///
+    /// let mut map: HashMap<i32, i32> = (0..8).map(|x| (x, x*10)).collect();
+    /// map.retain(|&k, _| k % 2 == 0);
+    /// assert_eq!(map.len(), 4);
+    /// ```
+    #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
+    #[stable(feature = "retain_hash_collection", since = "1.18.0")]
+    pub fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&K, &mut V) -> bool,
+    {
+        self.base.retain(f)
     }
 
     /// Clears the map, removing all key-value pairs. Keeps the allocated memory
@@ -625,14 +719,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(try_reserve)]
     /// use std::collections::HashMap;
     ///
     /// let mut map: HashMap<&str, isize> = HashMap::new();
     /// map.try_reserve(10).expect("why is the test harness OOMing on 10 bytes?");
     /// ```
     #[inline]
-    #[unstable(feature = "try_reserve", reason = "new API", issue = "48043")]
+    #[stable(feature = "try_reserve", since = "1.57.0")]
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.base.try_reserve(additional).map_err(map_try_reserve_error)
     }
@@ -932,81 +1025,6 @@ where
     {
         self.base.remove_entry(k)
     }
-
-    /// Retains only the elements specified by the predicate.
-    ///
-    /// In other words, remove all pairs `(k, v)` such that `f(&k, &mut v)` returns `false`.
-    /// The elements are visited in unsorted (and unspecified) order.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    ///
-    /// let mut map: HashMap<i32, i32> = (0..8).map(|x| (x, x*10)).collect();
-    /// map.retain(|&k, _| k % 2 == 0);
-    /// assert_eq!(map.len(), 4);
-    /// ```
-    #[inline]
-    #[stable(feature = "retain_hash_collection", since = "1.18.0")]
-    pub fn retain<F>(&mut self, f: F)
-    where
-        F: FnMut(&K, &mut V) -> bool,
-    {
-        self.base.retain(f)
-    }
-
-    /// Creates a consuming iterator visiting all the keys in arbitrary order.
-    /// The map cannot be used after calling this.
-    /// The iterator element type is `K`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
-    ///
-    /// let mut vec: Vec<&str> = map.into_keys().collect();
-    /// // The `IntoKeys` iterator produces keys in arbitrary order, so the
-    /// // keys must be sorted to test them against a sorted array.
-    /// vec.sort_unstable();
-    /// assert_eq!(vec, ["a", "b", "c"]);
-    /// ```
-    #[inline]
-    #[stable(feature = "map_into_keys_values", since = "1.54.0")]
-    pub fn into_keys(self) -> IntoKeys<K, V> {
-        IntoKeys { inner: self.into_iter() }
-    }
-
-    /// Creates a consuming iterator visiting all the values in arbitrary order.
-    /// The map cannot be used after calling this.
-    /// The iterator element type is `V`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::HashMap;
-    ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
-    ///
-    /// let mut vec: Vec<i32> = map.into_values().collect();
-    /// // The `IntoValues` iterator produces values in arbitrary order, so
-    /// // the values must be sorted to test them against a sorted array.
-    /// vec.sort_unstable();
-    /// assert_eq!(vec, [1, 2, 3]);
-    /// ```
-    #[inline]
-    #[stable(feature = "map_into_keys_values", since = "1.54.0")]
-    pub fn into_values(self) -> IntoValues<K, V> {
-        IntoValues { inner: self.into_iter() }
-    }
 }
 
 impl<K, V, S> HashMap<K, V, S>
@@ -1185,7 +1203,7 @@ where
     /// assert_eq!(map1, map2);
     /// ```
     fn from(arr: [(K, V); N]) -> Self {
-        crate::array::IntoIter::new(arr).collect()
+        Self::from_iter(arr)
     }
 }
 
@@ -1201,8 +1219,9 @@ where
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter = map.iter();
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1238,8 +1257,9 @@ impl<K: Debug, V: Debug> fmt::Debug for Iter<'_, K, V> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let mut map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter = map.iter_mut();
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1258,17 +1278,19 @@ impl<'a, K, V> IterMut<'a, K, V> {
 /// An owning iterator over the entries of a `HashMap`.
 ///
 /// This `struct` is created by the [`into_iter`] method on [`HashMap`]
-/// (provided by the `IntoIterator` trait). See its documentation for more.
+/// (provided by the [`IntoIterator`] trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: crate::iter::IntoIterator
 ///
 /// # Example
 ///
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter = map.into_iter();
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1296,8 +1318,9 @@ impl<K, V> IntoIter<K, V> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter_keys = map.keys();
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1333,8 +1356,9 @@ impl<K: Debug, V> fmt::Debug for Keys<'_, K, V> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter_values = map.values();
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -1370,8 +1394,9 @@ impl<K, V: Debug> fmt::Debug for Values<'_, K, V> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let mut map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter = map.drain();
 /// ```
 #[stable(feature = "drain", since = "1.6.0")]
@@ -1400,8 +1425,9 @@ impl<'a, K, V> Drain<'a, K, V> {
 ///
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let mut map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter = map.drain_filter(|_k, v| *v % 2 == 0);
 /// ```
 #[unstable(feature = "hash_drain_filter", issue = "59618")]
@@ -1424,8 +1450,9 @@ where
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let mut map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter_values = map.values_mut();
 /// ```
 #[stable(feature = "map_values_mut", since = "1.10.0")]
@@ -1445,8 +1472,9 @@ pub struct ValuesMut<'a, K: 'a, V: 'a> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter_keys = map.into_keys();
 /// ```
 #[stable(feature = "map_into_keys_values", since = "1.54.0")]
@@ -1466,8 +1494,9 @@ pub struct IntoKeys<K, V> {
 /// ```
 /// use std::collections::HashMap;
 ///
-/// let mut map = HashMap::new();
-/// map.insert("a", 1);
+/// let map = HashMap::from([
+///     ("a", 1),
+/// ]);
 /// let iter_keys = map.into_values();
 /// ```
 #[stable(feature = "map_into_keys_values", since = "1.54.0")]
@@ -1705,6 +1734,7 @@ impl<'a, K, V, S> RawEntryMut<'a, K, V, S> {
 impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Gets a reference to the key in the entry.
     #[inline]
+    #[must_use]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn key(&self) -> &K {
         self.base.key()
@@ -1712,6 +1742,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
 
     /// Gets a mutable reference to the key in the entry.
     #[inline]
+    #[must_use]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn key_mut(&mut self) -> &mut K {
         self.base.key_mut()
@@ -1720,6 +1751,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the entry into a mutable reference to the key in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn into_key(self) -> &'a mut K {
         self.base.into_key()
@@ -1727,6 +1759,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
 
     /// Gets a reference to the value in the entry.
     #[inline]
+    #[must_use]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn get(&self) -> &V {
         self.base.get()
@@ -1735,6 +1768,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the `OccupiedEntry` into a mutable reference to the value in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn into_mut(self) -> &'a mut V {
         self.base.into_mut()
@@ -1742,6 +1776,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
 
     /// Gets a mutable reference to the value in the entry.
     #[inline]
+    #[must_use]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn get_mut(&mut self) -> &mut V {
         self.base.get_mut()
@@ -1749,6 +1784,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
 
     /// Gets a reference to the key and value in the entry.
     #[inline]
+    #[must_use]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn get_key_value(&mut self) -> (&K, &V) {
         self.base.get_key_value()
@@ -1764,6 +1800,7 @@ impl<'a, K, V, S> RawOccupiedEntryMut<'a, K, V, S> {
     /// Converts the `OccupiedEntry` into a mutable reference to the key and value in the entry
     /// with a lifetime bound to the map itself.
     #[inline]
+    #[must_use = "`self` will be dropped if the result is not used"]
     #[unstable(feature = "hash_raw_entry", issue = "56167")]
     pub fn into_key_value(self) -> (&'a mut K, &'a mut V) {
         self.base.into_key_value()
@@ -1964,6 +2001,7 @@ impl<'a, K, V, S> IntoIterator for &'a HashMap<K, V, S> {
     type IntoIter = Iter<'a, K, V>;
 
     #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     fn into_iter(self) -> Iter<'a, K, V> {
         self.iter()
     }
@@ -1975,6 +2013,7 @@ impl<'a, K, V, S> IntoIterator for &'a mut HashMap<K, V, S> {
     type IntoIter = IterMut<'a, K, V>;
 
     #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     fn into_iter(self) -> IterMut<'a, K, V> {
         self.iter_mut()
     }
@@ -1994,15 +2033,17 @@ impl<K, V, S> IntoIterator for HashMap<K, V, S> {
     /// ```
     /// use std::collections::HashMap;
     ///
-    /// let mut map = HashMap::new();
-    /// map.insert("a", 1);
-    /// map.insert("b", 2);
-    /// map.insert("c", 3);
+    /// let map = HashMap::from([
+    ///     ("a", 1),
+    ///     ("b", 2),
+    ///     ("c", 3),
+    /// ]);
     ///
     /// // Not possible with .iter()
     /// let vec: Vec<(&str, i32)> = map.into_iter().collect();
     /// ```
     #[inline]
+    #[cfg_attr(not(bootstrap), rustc_lint_query_instability)]
     fn into_iter(self) -> IntoIter<K, V> {
         IntoIter { base: self.base.into_iter() }
     }
@@ -2439,13 +2480,13 @@ impl<'a, K, V> Entry<'a, K, V> {
     /// use std::collections::HashMap;
     ///
     /// let mut map: HashMap<&str, String> = HashMap::new();
-    /// let entry = map.entry("poneyland").insert("hoho".to_string());
+    /// let entry = map.entry("poneyland").insert_entry("hoho".to_string());
     ///
     /// assert_eq!(entry.key(), &"poneyland");
     /// ```
     #[inline]
     #[unstable(feature = "entry_insert", issue = "65225")]
-    pub fn insert(self, value: V) -> OccupiedEntry<'a, K, V> {
+    pub fn insert_entry(self, value: V) -> OccupiedEntry<'a, K, V> {
         match self {
             Occupied(mut entry) => {
                 entry.insert(value);
@@ -2778,18 +2819,20 @@ impl<'a, K: 'a, V: 'a> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
+    /// #![feature(entry_insert)]
     /// use std::collections::HashMap;
     /// use std::collections::hash_map::Entry;
     ///
     /// let mut map: HashMap<&str, u32> = HashMap::new();
     ///
     /// if let Entry::Vacant(o) = map.entry("poneyland") {
-    ///     o.insert(37);
+    ///     o.insert_entry(37);
     /// }
     /// assert_eq!(map["poneyland"], 37);
     /// ```
     #[inline]
-    fn insert_entry(self, value: V) -> OccupiedEntry<'a, K, V> {
+    #[unstable(feature = "entry_insert", issue = "65225")]
+    pub fn insert_entry(self, value: V) -> OccupiedEntry<'a, K, V> {
         let base = self.base.insert_entry(value);
         OccupiedEntry { base }
     }
@@ -2891,6 +2934,7 @@ impl RandomState {
     #[inline]
     #[allow(deprecated)]
     // rand
+    #[must_use]
     #[stable(feature = "hashmap_build_hasher", since = "1.7.0")]
     pub fn new() -> RandomState {
         // Historically this function did not cache keys from the OS and instead
@@ -2943,6 +2987,7 @@ impl DefaultHasher {
     /// instances created through `new` or `default`.
     #[stable(feature = "hashmap_default_hasher", since = "1.13.0")]
     #[allow(deprecated)]
+    #[must_use]
     pub fn new() -> DefaultHasher {
         DefaultHasher(SipHasher13::new_with_keys(0, 0))
     }

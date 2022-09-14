@@ -23,7 +23,7 @@ pub fn placeholder(
         }
     }
 
-    let ident = Ident::invalid();
+    let ident = Ident::empty();
     let attrs = Vec::new();
     let vis = vis.unwrap_or(ast::Visibility {
         span: DUMMY_SP,
@@ -46,6 +46,13 @@ pub fn placeholder(
         || P(ast::Pat { id, kind: ast::PatKind::MacCall(mac_placeholder()), span, tokens: None });
 
     match kind {
+        AstFragmentKind::Crate => AstFragment::Crate(ast::Crate {
+            attrs: Default::default(),
+            items: Default::default(),
+            span,
+            id,
+            is_placeholder: true,
+        }),
         AstFragmentKind::Expr => AstFragment::Expr(expr_placeholder()),
         AstFragmentKind::OptExpr => AstFragment::OptExpr(Some(expr_placeholder())),
         AstFragmentKind::Items => AstFragment::Items(smallvec![P(ast::Item {
@@ -116,7 +123,7 @@ pub fn placeholder(
             span,
             is_placeholder: true,
         }]),
-        AstFragmentKind::Fields => AstFragment::Fields(smallvec![ast::ExprField {
+        AstFragmentKind::ExprFields => AstFragment::ExprFields(smallvec![ast::ExprField {
             attrs: Default::default(),
             expr: expr_placeholder(),
             id,
@@ -125,7 +132,7 @@ pub fn placeholder(
             span,
             is_placeholder: true,
         }]),
-        AstFragmentKind::FieldPats => AstFragment::FieldPats(smallvec![ast::PatField {
+        AstFragmentKind::PatFields => AstFragment::PatFields(smallvec![ast::PatField {
             attrs: Default::default(),
             id,
             ident,
@@ -152,7 +159,7 @@ pub fn placeholder(
             ty: ty(),
             is_placeholder: true,
         }]),
-        AstFragmentKind::StructFields => AstFragment::StructFields(smallvec![ast::FieldDef {
+        AstFragmentKind::FieldDefs => AstFragment::FieldDefs(smallvec![ast::FieldDef {
             attrs: Default::default(),
             id,
             ident: None,
@@ -352,6 +359,14 @@ impl MutVisitor for PlaceholderExpander {
         match ty.kind {
             ast::TyKind::MacCall(_) => *ty = self.remove(ty.id).make_ty(),
             _ => noop_visit_ty(ty, self),
+        }
+    }
+
+    fn visit_crate(&mut self, krate: &mut ast::Crate) {
+        if krate.is_placeholder {
+            *krate = self.remove(krate.id).make_crate();
+        } else {
+            noop_visit_crate(krate, self)
         }
     }
 }

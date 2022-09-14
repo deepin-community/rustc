@@ -1,12 +1,11 @@
 use crate::infer::InferCtxt;
 use crate::opaque_types::required_region_bounds;
 use crate::traits;
-use rustc_data_structures::sync::Lrc;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::lang_items::LangItem;
 use rustc_middle::ty::subst::{GenericArg, GenericArgKind, SubstsRef};
-use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable, WithConstness};
+use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable};
 use rustc_span::Span;
 
 use std::iter;
@@ -42,7 +41,7 @@ pub fn obligations<'a, 'tcx>(
             .into()
         }
         GenericArgKind::Const(ct) => {
-            match ct.val {
+            match ct.val() {
                 ty::ConstKind::Infer(infer) => {
                     let resolved = infcx.shallow_resolve(infer);
                     if resolved == infer {
@@ -50,7 +49,9 @@ pub fn obligations<'a, 'tcx>(
                         return None;
                     }
 
-                    infcx.tcx.mk_const(ty::Const { val: ty::ConstKind::Infer(resolved), ty: ct.ty })
+                    infcx
+                        .tcx
+                        .mk_const(ty::ConstS { val: ty::ConstKind::Infer(resolved), ty: ct.ty() })
                 }
                 _ => ct,
             }
@@ -117,7 +118,10 @@ pub fn predicate_obligations<'a, 'tcx>(
         }
         ty::PredicateKind::Projection(t) => {
             wf.compute_projection(t.projection_ty);
-            wf.compute(t.ty.into());
+            wf.compute(match t.term {
+                ty::Term::Ty(ty) => ty.into(),
+                ty::Term::Const(c) => c.into(),
+            })
         }
         ty::PredicateKind::WellFormed(arg) => {
             wf.compute(arg);
@@ -133,11 +137,10 @@ pub fn predicate_obligations<'a, 'tcx>(
             wf.compute(b.into());
         }
         ty::PredicateKind::ConstEvaluatable(uv) => {
-            let substs = uv.substs(wf.tcx());
-            let obligations = wf.nominal_obligations(uv.def.did, substs);
+            let obligations = wf.nominal_obligations(uv.def.did, uv.substs);
             wf.out.extend(obligations);
 
-            for arg in substs.iter() {
+            for arg in uv.substs.iter() {
                 wf.compute(arg);
             }
         }
@@ -197,19 +200,18 @@ fn extend_cause_with_original_assoc_item_obligation<'tcx>(
     trait_ref: &ty::TraitRef<'tcx>,
     item: Option<&hir::Item<'tcx>>,
     cause: &mut traits::ObligationCause<'tcx>,
-    pred: &ty::Predicate<'tcx>,
-    mut trait_assoc_items: impl Iterator<Item = &'tcx ty::AssocItem>,
+    pred: ty::Predicate<'tcx>,
 ) {
     debug!(
         "extended_cause_with_original_assoc_item_obligation {:?} {:?} {:?} {:?}",
         trait_ref, item, cause, pred
     );
-    let items = match item {
-        Some(hir::Item { kind: hir::ItemKind::Impl(impl_), .. }) => impl_.items,
+    let (items, impl_def_id) = match item {
+        Some(hir::Item { kind: hir::ItemKind::Impl(impl_), def_id, .. }) => (impl_.items, *def_id),
         _ => return,
     };
     let fix_span =
-        |impl_item_ref: &hir::ImplItemRef<'_>| match tcx.hir().impl_item(impl_item_ref.id).kind {
+        |impl_item_ref: &hir::ImplItemRef| match tcx.hir().impl_item(impl_item_ref.id).kind {
             hir::ImplItemKind::Const(ty, _) | hir::ImplItemKind::TyAlias(ty) => ty.span,
             _ => impl_item_ref.span,
         };
@@ -222,12 +224,17 @@ fn extend_cause_with_original_assoc_item_obligation<'tcx>(
             // projection coming from another associated type. See
             // `src/test/ui/associated-types/point-at-type-on-obligation-failure.rs` and
             // `traits-assoc-type-in-supertrait-bad.rs`.
-            if let ty::Projection(projection_ty) = proj.ty.kind() {
-                let trait_assoc_item = tcx.associated_item(projection_ty.item_def_id);
-                if let Some(impl_item_span) =
-                    items.iter().find(|item| item.ident == trait_assoc_item.ident).map(fix_span)
+            if let Some(ty::Projection(projection_ty)) = proj.term.ty().map(|ty| ty.kind()) {
+                if let Some(&impl_item_id) =
+                    tcx.impl_item_implementor_ids(impl_def_id).get(&projection_ty.item_def_id)
                 {
-                    cause.make_mut().span = impl_item_span;
+                    if let Some(impl_item_span) = items
+                        .iter()
+                        .find(|item| item.id.def_id.to_def_id() == impl_item_id)
+                        .map(fix_span)
+                    {
+                        cause.span = impl_item_span;
+                    }
                 }
             }
         }
@@ -236,13 +243,16 @@ fn extend_cause_with_original_assoc_item_obligation<'tcx>(
             // can be seen in `ui/associated-types/point-at-type-on-obligation-failure-2.rs`.
             debug!("extended_cause_with_original_assoc_item_obligation trait proj {:?}", pred);
             if let ty::Projection(ty::ProjectionTy { item_def_id, .. }) = *pred.self_ty().kind() {
-                if let Some(impl_item_span) = trait_assoc_items
-                    .find(|i| i.def_id == item_def_id)
-                    .and_then(|trait_assoc_item| {
-                        items.iter().find(|i| i.ident == trait_assoc_item.ident).map(fix_span)
-                    })
+                if let Some(&impl_item_id) =
+                    tcx.impl_item_implementor_ids(impl_def_id).get(&item_def_id)
                 {
-                    cause.make_mut().span = impl_item_span;
+                    if let Some(impl_item_span) = items
+                        .iter()
+                        .find(|item| item.id.def_id.to_def_id() == impl_item_id)
+                        .map(fix_span)
+                    {
+                        cause.span = impl_item_span;
+                    }
                 }
             }
         }
@@ -298,12 +308,12 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 
         let extend = |obligation: traits::PredicateObligation<'tcx>| {
             let mut cause = cause.clone();
-            if let Some(parent_trait_ref) = obligation.predicate.to_opt_poly_trait_ref() {
+            if let Some(parent_trait_pred) = obligation.predicate.to_opt_poly_trait_pred() {
                 let derived_cause = traits::DerivedObligationCause {
-                    parent_trait_ref: parent_trait_ref.value,
-                    parent_code: Lrc::new(obligation.cause.code.clone()),
+                    parent_trait_pred,
+                    parent_code: obligation.cause.clone_code(),
                 };
-                cause.make_mut().code =
+                *cause.make_mut_code() =
                     traits::ObligationCauseCode::DerivedObligation(derived_cause);
             }
             extend_cause_with_original_assoc_item_obligation(
@@ -311,8 +321,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                 trait_ref,
                 item,
                 &mut cause,
-                &obligation.predicate,
-                tcx.associated_items(trait_ref.def_id).in_definition_order(),
+                obligation.predicate,
             );
             traits::Obligation::with_depth(cause, depth, param_env, obligation.predicate)
         };
@@ -342,14 +351,14 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                         if let Some(hir::ItemKind::Impl(hir::Impl { self_ty, .. })) =
                             item.map(|i| &i.kind)
                         {
-                            new_cause.make_mut().span = self_ty.span;
+                            new_cause.span = self_ty.span;
                         }
                     }
                     traits::Obligation::with_depth(
                         new_cause,
                         depth,
                         param_env,
-                        ty::PredicateKind::WellFormed(arg).to_predicate(tcx),
+                        ty::Binder::dummy(ty::PredicateKind::WellFormed(arg)).to_predicate(tcx),
                     )
                 }),
         );
@@ -399,7 +408,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                         cause.clone(),
                         depth,
                         param_env,
-                        ty::PredicateKind::WellFormed(arg).to_predicate(tcx),
+                        ty::Binder::dummy(ty::PredicateKind::WellFormed(arg)).to_predicate(tcx),
                     )
                 }),
         );
@@ -416,14 +425,14 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                 cause,
                 self.recursion_depth,
                 self.param_env,
-                trait_ref.without_const().to_predicate(self.infcx.tcx),
+                ty::Binder::dummy(trait_ref).without_const().to_predicate(self.infcx.tcx),
             ));
         }
     }
 
     /// Pushes all the predicates needed to validate that `ty` is WF into `out`.
     fn compute(&mut self, arg: GenericArg<'tcx>) {
-        let mut walker = arg.walk(self.tcx());
+        let mut walker = arg.walk();
         let param_env = self.param_env;
         let depth = self.recursion_depth;
         while let Some(arg) = walker.next() {
@@ -435,18 +444,14 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                 GenericArgKind::Lifetime(_) => continue,
 
                 GenericArgKind::Const(constant) => {
-                    match constant.val {
+                    match constant.val() {
                         ty::ConstKind::Unevaluated(uv) => {
-                            assert!(uv.promoted.is_none());
-                            let substs = uv.substs(self.tcx());
-
-                            let obligations = self.nominal_obligations(uv.def.did, substs);
+                            let obligations = self.nominal_obligations(uv.def.did, uv.substs);
                             self.out.extend(obligations);
 
-                            let predicate = ty::PredicateKind::ConstEvaluatable(
-                                ty::Unevaluated::new(uv.def, substs),
-                            )
-                            .to_predicate(self.tcx());
+                            let predicate =
+                                ty::Binder::dummy(ty::PredicateKind::ConstEvaluatable(uv.shrink()))
+                                    .to_predicate(self.tcx());
                             let cause = self.cause(traits::MiscObligation);
                             self.out.push(traits::Obligation::with_depth(
                                 cause,
@@ -461,16 +466,18 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                             if resolved != infer {
                                 let cause = self.cause(traits::MiscObligation);
 
-                                let resolved_constant = self.infcx.tcx.mk_const(ty::Const {
+                                let resolved_constant = self.infcx.tcx.mk_const(ty::ConstS {
                                     val: ty::ConstKind::Infer(resolved),
-                                    ..*constant
+                                    ty: constant.ty(),
                                 });
                                 self.out.push(traits::Obligation::with_depth(
                                     cause,
                                     self.recursion_depth,
                                     self.param_env,
-                                    ty::PredicateKind::WellFormed(resolved_constant.into())
-                                        .to_predicate(self.tcx()),
+                                    ty::Binder::dummy(ty::PredicateKind::WellFormed(
+                                        resolved_constant.into(),
+                                    ))
+                                    .to_predicate(self.tcx()),
                                 ));
                             }
                         }
@@ -556,8 +563,10 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                             cause,
                             depth,
                             param_env,
-                            ty::PredicateKind::TypeOutlives(ty::OutlivesPredicate(rty, r))
-                                .to_predicate(self.tcx()),
+                            ty::Binder::dummy(ty::PredicateKind::TypeOutlives(
+                                ty::OutlivesPredicate(rty, r),
+                            ))
+                            .to_predicate(self.tcx()),
                         ));
                     }
                 }
@@ -646,7 +655,8 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                                 cause.clone(),
                                 depth,
                                 param_env,
-                                ty::PredicateKind::ObjectSafe(did).to_predicate(tcx),
+                                ty::Binder::dummy(ty::PredicateKind::ObjectSafe(did))
+                                    .to_predicate(tcx),
                             )
                         }));
                     }
@@ -673,7 +683,8 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                             cause,
                             self.recursion_depth,
                             param_env,
-                            ty::PredicateKind::WellFormed(ty.into()).to_predicate(self.tcx()),
+                            ty::Binder::dummy(ty::PredicateKind::WellFormed(ty.into()))
+                                .to_predicate(self.tcx()),
                         ));
                     } else {
                         // Yes, resolved, proceed with the result.
@@ -703,7 +714,12 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 
         iter::zip(iter::zip(predicates.predicates, predicates.spans), origins.into_iter().rev())
             .map(|((pred, span), origin_def_id)| {
-                let cause = self.cause(traits::BindingObligation(origin_def_id, span));
+                let code = if span.is_dummy() {
+                    traits::MiscObligation
+                } else {
+                    traits::BindingObligation(origin_def_id, span)
+                };
+                let cause = self.cause(code);
                 traits::Obligation::with_depth(cause, self.recursion_depth, self.param_env, pred)
             })
             .filter(|pred| !pred.has_escaping_bound_vars())

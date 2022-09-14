@@ -185,6 +185,8 @@ others at:
 * [`x86_64`]
 * [`arm`]
 * [`aarch64`]
+* [`riscv32`]
+* [`riscv64`]
 * [`mips`]
 * [`mips64`]
 * [`powerpc`]
@@ -192,16 +194,18 @@ others at:
 * [`nvptx`]
 * [`wasm32`]
 
-[`x86`]: x86/index.html
-[`x86_64`]: x86_64/index.html
-[`arm`]: arm/index.html
-[`aarch64`]: aarch64/index.html
-[`mips`]: mips/index.html
-[`mips64`]: mips64/index.html
-[`powerpc`]: powerpc/index.html
-[`powerpc64`]: powerpc64/index.html
-[`nvptx`]: nvptx/index.html
-[`wasm32`]: wasm32/index.html
+[`x86`]: ../../core/arch/x86/index.html
+[`x86_64`]: ../../core/arch/x86_64/index.html
+[`arm`]: ../../core/arch/arm/index.html
+[`aarch64`]: ../../core/arch/aarch64/index.html
+[`riscv32`]: ../../core/arch/riscv32/index.html
+[`riscv64`]: ../../core/arch/riscv64/index.html
+[`mips`]: ../../core/arch/mips/index.html
+[`mips64`]: ../../core/arch/mips64/index.html
+[`powerpc`]: ../../core/arch/powerpc/index.html
+[`powerpc64`]: ../../core/arch/powerpc64/index.html
+[`nvptx`]: ../../core/arch/nvptx/index.html
+[`wasm32`]: ../../core/arch/wasm32/index.html
 
 # Examples
 

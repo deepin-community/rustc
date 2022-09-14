@@ -88,8 +88,7 @@ evaluated (primarily) at compile time.
 
 #### Suffixes
 
-A suffix is a non-raw identifier immediately (without whitespace)
-following the primary part of a literal.
+A suffix is a sequence of characters following the primary part of a literal (without intervening whitespace), of the same form as a non-raw identifier or keyword.
 
 Any kind of literal (string, integer, etc) with any suffix is valid as a token,
 and can be passed to a macro without producing an error.
@@ -235,7 +234,7 @@ r##"foo #"# bar"##;                // foo #"# bar
 >
 > BYTE_ESCAPE :\
 > &nbsp;&nbsp; &nbsp;&nbsp; `\x` HEX_DIGIT HEX_DIGIT\
-> &nbsp;&nbsp; | `\n` | `\r` | `\t` | `\\` | `\0`
+> &nbsp;&nbsp; | `\n` | `\r` | `\t` | `\\` | `\0` | `\'` | `\"`
 
 A _byte literal_ is a single ASCII character (in the `U+0000` to `U+007F`
 range) or a single _escape_ preceded by the characters `U+0062` (`b`) and
@@ -583,9 +582,9 @@ usages and meanings are defined in the linked pages.
 | `>=`   | Ge          | [Greater than or equal to][comparison], [Generics]
 | `<=`   | Le          | [Less than or equal to][comparison]
 | `@`    | At          | [Subpattern binding]
-| `_`    | Underscore  | [Wildcard patterns], [Inferred types], Unnamed items in [constants], [extern crates], and [use declarations]
+| `_`    | Underscore  | [Wildcard patterns], [Inferred types], Unnamed items in [constants], [extern crates], [use declarations], and [destructuring assignment]
 | `.`    | Dot         | [Field access][field], [Tuple index]
-| `..`   | DotDot      | [Range][range], [Struct expressions], [Patterns]
+| `..`   | DotDot      | [Range][range], [Struct expressions], [Patterns], [Range Patterns][rangepat]
 | `...`  | DotDotDot   | [Variadic functions][extern], [Range patterns]
 | `..=`  | DotDotEq    | [Inclusive Range][range], [Range patterns]
 | `,`    | Comma       | Various separators
@@ -626,6 +625,7 @@ them are referred to as "token trees" in [macros].  The three types of brackets 
 [compound]: expressions/operator-expr.md#compound-assignment-expressions
 [constants]: items/constant-items.md
 [dereference]: expressions/operator-expr.md#the-dereference-operator
+[destructuring assignment]: expressions/underscore-expr.md
 [extern crates]: items/extern-crates.md
 [extern]: items/external-blocks.md
 [field]: expressions/field-expr.md
@@ -646,6 +646,7 @@ them are referred to as "token trees" in [macros].  The three types of brackets 
 [patterns]: patterns.md
 [question]: expressions/operator-expr.md#the-question-mark-operator
 [range]: expressions/range-expr.md
+[rangepat]: patterns.md#range-patterns
 [raw pointers]: types/pointer.md#raw-pointers-const-and-mut
 [references]: types/pointer.md
 [sized]: trait-bounds.md#sized
@@ -658,3 +659,39 @@ them are referred to as "token trees" in [macros].  The three types of brackets 
 [use declarations]: items/use-declarations.md
 [use wildcards]: items/use-declarations.md
 [while let]: expressions/loop-expr.md#predicate-pattern-loops
+
+## Reserved prefixes
+
+> **<sup>Lexer 2021+</sup>**\
+> RESERVED_TOKEN_DOUBLE_QUOTE : ( IDENTIFIER_OR_KEYWORD <sub>_Except `b` or `r` or `br`_</sub> | `_` ) `"`\
+> RESERVED_TOKEN_SINGLE_QUOTE : ( IDENTIFIER_OR_KEYWORD <sub>_Except `b`_</sub> | `_` ) `'`\
+> RESERVED_TOKEN_POUND : ( IDENTIFIER_OR_KEYWORD <sub>_Except `r` or `br`_</sub> | `_` ) `#`
+
+Some lexical forms known as _reserved prefixes_ are reserved for future use.
+
+Source input which would otherwise be lexically interpreted as a non-raw identifier (or a keyword or `_`) which is immediately followed by a `#`, `'`, or `"` character (without intervening whitespace) is identified as a reserved prefix.
+
+Note that raw identifiers, raw string literals, and raw byte string literals may contain a `#` character but are not interpreted as containing a reserved prefix.
+
+Similarly the `r`, `b`, and `br` prefixes used in raw string literals, byte literals, byte string literals, and raw byte string literals are not interpreted as reserved prefixes.
+
+> **Edition Differences**: Starting with the 2021 edition, reserved prefixes are reported as an error by the lexer (in particular, they cannot be passed to macros).
+>
+> Before the 2021 edition, a reserved prefixes are accepted by the lexer and interpreted as multiple tokens (for example, one token for the identifier or keyword, followed by a `#` token).
+>
+> Examples accepted in all editions:
+> ```rust
+> macro_rules! lexes {($($_:tt)*) => {}}
+> lexes!{a #foo}
+> lexes!{continue 'foo}
+> lexes!{match "..." {}}
+> lexes!{r#let#foo}         // three tokens: r#let # foo
+> ```
+>
+> Examples accepted before the 2021 edition but rejected later:
+> ```rust,edition2018
+> macro_rules! lexes {($($_:tt)*) => {}}
+> lexes!{a#foo}
+> lexes!{continue'foo}
+> lexes!{match"..." {}}
+> ```

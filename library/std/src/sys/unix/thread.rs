@@ -7,7 +7,9 @@ use crate::ptr;
 use crate::sys::{os, stack_overflow};
 use crate::time::Duration;
 
-#[cfg(any(target_os = "linux", target_os = "solaris", target_os = "illumos"))]
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+use crate::sys::weak::dlsym;
+#[cfg(any(target_os = "solaris", target_os = "illumos"))]
 use crate::sys::weak::weak;
 #[cfg(not(any(target_os = "l4re", target_os = "vxworks", target_os = "espidf")))]
 pub const DEFAULT_MIN_STACK_SIZE: usize = 2 * 1024 * 1024;
@@ -263,7 +265,7 @@ impl Drop for Thread {
     }
 }
 
-pub fn available_concurrency() -> io::Result<NonZeroUsize> {
+pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     cfg_if::cfg_if! {
         if #[cfg(any(
             target_os = "android",
@@ -275,9 +277,17 @@ pub fn available_concurrency() -> io::Result<NonZeroUsize> {
             target_os = "solaris",
             target_os = "illumos",
         ))] {
+            #[cfg(any(target_os = "android", target_os = "linux"))]
+            {
+                let mut set: libc::cpu_set_t = unsafe { mem::zeroed() };
+                if unsafe { libc::sched_getaffinity(0, mem::size_of::<libc::cpu_set_t>(), &mut set) } == 0 {
+                    let count = unsafe { libc::CPU_COUNT(&set) };
+                    return Ok(unsafe { NonZeroUsize::new_unchecked(count as usize) });
+                }
+            }
             match unsafe { libc::sysconf(libc::_SC_NPROCESSORS_ONLN) } {
                 -1 => Err(io::Error::last_os_error()),
-                0 => Err(io::Error::new_const(io::ErrorKind::NotFound, &"The number of hardware threads is not known for the target platform")),
+                0 => Err(io::const_io_error!(io::ErrorKind::NotFound, "The number of hardware threads is not known for the target platform")),
                 cpus => Ok(unsafe { NonZeroUsize::new_unchecked(cpus as usize) }),
             }
         } else if #[cfg(any(target_os = "freebsd", target_os = "dragonfly", target_os = "netbsd"))] {
@@ -308,7 +318,7 @@ pub fn available_concurrency() -> io::Result<NonZeroUsize> {
                 if res == -1 {
                     return Err(io::Error::last_os_error());
                 } else if cpus == 0 {
-                    return Err(io::Error::new_const(io::ErrorKind::NotFound, &"The number of hardware threads is not known for the target platform"));
+                    return Err(io::const_io_error!(io::ErrorKind::NotFound, "The number of hardware threads is not known for the target platform"));
                 }
             }
             Ok(unsafe { NonZeroUsize::new_unchecked(cpus as usize) })
@@ -334,13 +344,26 @@ pub fn available_concurrency() -> io::Result<NonZeroUsize> {
             if res == -1 {
                 return Err(io::Error::last_os_error());
             } else if cpus == 0 {
-                return Err(io::Error::new_const(io::ErrorKind::NotFound, &"The number of hardware threads is not known for the target platform"));
+                return Err(io::const_io_error!(io::ErrorKind::NotFound, "The number of hardware threads is not known for the target platform"));
             }
 
             Ok(unsafe { NonZeroUsize::new_unchecked(cpus as usize) })
+        } else if #[cfg(target_os = "haiku")] {
+            // system_info cpu_count field gets the static data set at boot time with `smp_set_num_cpus`
+            // `get_system_info` calls then `smp_get_num_cpus`
+            unsafe {
+                let mut sinfo: libc::system_info = crate::mem::zeroed();
+                let res = libc::get_system_info(&mut sinfo);
+
+                if res != libc::B_OK {
+                    return Err(io::const_io_error!(io::ErrorKind::NotFound, "The number of hardware threads is not known for the target platform"));
+                }
+
+                Ok(NonZeroUsize::new_unchecked(sinfo.cpu_count as usize))
+            }
         } else {
-            // FIXME: implement on vxWorks, Redox, Haiku, l4re
-            Err(io::Error::new_const(io::ErrorKind::Unsupported, &"Getting the number of hardware threads is not supported on the target platform"))
+            // FIXME: implement on vxWorks, Redox, l4re
+            Err(io::const_io_error!(io::ErrorKind::Unsupported, "Getting the number of hardware threads is not supported on the target platform"))
         }
     }
 }
@@ -581,7 +604,8 @@ pub mod guard {
                 Some(stackaddr - guardsize..stackaddr)
             } else if cfg!(all(target_os = "linux", target_env = "musl")) {
                 Some(stackaddr - guardsize..stackaddr)
-            } else if cfg!(all(target_os = "linux", target_env = "gnu")) {
+            } else if cfg!(all(target_os = "linux", any(target_env = "gnu", target_env = "uclibc")))
+            {
                 // glibc used to include the guard area within the stack, as noted in the BUGS
                 // section of `man pthread_attr_getguardsize`.  This has been corrected starting
                 // with glibc 2.27, and in some distro backports, so the guard is now placed at the
@@ -605,10 +629,12 @@ pub mod guard {
 // We need that information to avoid blowing up when a small stack
 // is created in an application with big thread-local storage requirements.
 // See #6233 for rationale and details.
-#[cfg(target_os = "linux")]
-#[allow(deprecated)]
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
-    weak!(fn __pthread_get_minstack(*const libc::pthread_attr_t) -> libc::size_t);
+    // We use dlsym to avoid an ELF version dependency on GLIBC_PRIVATE. (#23628)
+    // We shouldn't really be using such an internal symbol, but there's currently
+    // no other way to account for the TLS size.
+    dlsym!(fn __pthread_get_minstack(*const libc::pthread_attr_t) -> libc::size_t);
 
     match __pthread_get_minstack.get() {
         None => libc::PTHREAD_STACK_MIN,
@@ -616,9 +642,8 @@ fn min_stack_size(attr: *const libc::pthread_attr_t) -> usize {
     }
 }
 
-// No point in looking up __pthread_get_minstack() on non-glibc
-// platforms.
-#[cfg(all(not(target_os = "linux"), not(target_os = "netbsd")))]
+// No point in looking up __pthread_get_minstack() on non-glibc platforms.
+#[cfg(all(not(all(target_os = "linux", target_env = "gnu")), not(target_os = "netbsd")))]
 fn min_stack_size(_: *const libc::pthread_attr_t) -> usize {
     libc::PTHREAD_STACK_MIN
 }

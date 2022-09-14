@@ -3,7 +3,7 @@
 use std::iter::once;
 use std::ops::Range;
 
-use rustc_errors::{Applicability, Handler};
+use rustc_errors::{pluralize, Applicability, Handler};
 use rustc_lexer::unescape::{EscapeError, Mode};
 use rustc_span::{BytePos, Span};
 
@@ -49,24 +49,84 @@ pub(crate) fn emit_unescape_error(
                 .emit();
         }
         EscapeError::MoreThanOneChar => {
-            let (prefix, msg) = if mode.is_bytes() {
-                ("b", "if you meant to write a byte string literal, use double quotes")
-            } else {
-                ("", "if you meant to write a `str` literal, use double quotes")
-            };
+            use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
-            handler
-                .struct_span_err(
-                    span_with_quotes,
-                    "character literal may only contain one codepoint",
-                )
-                .span_suggestion(
+            let mut has_help = false;
+            let mut handler = handler.struct_span_err(
+                span_with_quotes,
+                "character literal may only contain one codepoint",
+            );
+
+            if lit.chars().skip(1).all(|c| is_combining_mark(c)) {
+                let escaped_marks =
+                    lit.chars().skip(1).map(|c| c.escape_default().to_string()).collect::<Vec<_>>();
+                handler.span_note(
+                    span,
+                    &format!(
+                        "this `{}` is followed by the combining mark{} `{}`",
+                        lit.chars().next().unwrap(),
+                        pluralize!(escaped_marks.len()),
+                        escaped_marks.join(""),
+                    ),
+                );
+                let normalized = lit.nfc().to_string();
+                if normalized.chars().count() == 1 {
+                    has_help = true;
+                    handler.span_suggestion(
+                        span,
+                        &format!(
+                            "consider using the normalized form `{}` of this character",
+                            normalized.chars().next().unwrap().escape_default()
+                        ),
+                        normalized,
+                        Applicability::MachineApplicable,
+                    );
+                }
+            } else {
+                let printable: Vec<char> = lit
+                    .chars()
+                    .filter(|&x| {
+                        unicode_width::UnicodeWidthChar::width(x).unwrap_or(0) != 0
+                            && !x.is_whitespace()
+                    })
+                    .collect();
+
+                if let [ch] = printable.as_slice() {
+                    has_help = true;
+
+                    handler.span_note(
+                        span,
+                        &format!(
+                            "there are non-printing characters, the full sequence is `{}`",
+                            lit.escape_default(),
+                        ),
+                    );
+
+                    handler.span_suggestion(
+                        span,
+                        "consider removing the non-printing characters",
+                        ch.to_string(),
+                        Applicability::MaybeIncorrect,
+                    );
+                }
+            }
+
+            if !has_help {
+                let (prefix, msg) = if mode.is_bytes() {
+                    ("b", "if you meant to write a byte string literal, use double quotes")
+                } else {
+                    ("", "if you meant to write a `str` literal, use double quotes")
+                };
+
+                handler.span_suggestion(
                     span_with_quotes,
                     msg,
                     format!("{}\"{}\"", prefix, lit),
                     Applicability::MachineApplicable,
-                )
-                .emit();
+                );
+            }
+
+            handler.emit();
         }
         EscapeError::EscapeOnlyChar => {
             let (c, char_span) = last_char();
@@ -125,6 +185,15 @@ pub(crate) fn emit_unescape_error(
                      version control settings",
                 );
             } else {
+                if !mode.is_bytes() {
+                    diag.span_suggestion(
+                        span_with_quotes,
+                        "if you meant to write a literal backslash (perhaps escaping in a regular expression), consider a raw string literal",
+                        format!("r\"{}\"", lit),
+                        Applicability::MaybeIncorrect,
+                    );
+                }
+
                 diag.help(
                     "for more information, visit \
                      <https://static.rust-lang.org/doc/master/reference.html#literals>",
@@ -154,12 +223,17 @@ pub(crate) fn emit_unescape_error(
             assert!(mode.is_bytes());
             let (c, span) = last_char();
             let mut err = handler.struct_span_err(span, "non-ASCII character in byte constant");
-            err.span_label(span, "byte constant must be ASCII");
+            let postfix = if unicode_width::UnicodeWidthChar::width(c).unwrap_or(1) == 0 {
+                format!(" but is {:?}", c)
+            } else {
+                String::new()
+            };
+            err.span_label(span, &format!("byte constant must be ASCII{}", postfix));
             if (c as u32) <= 0xFF {
                 err.span_suggestion(
                     span,
                     &format!(
-                        "if you meant to use the unicode code point for '{}', use a \\xHH escape",
+                        "if you meant to use the unicode code point for {:?}, use a \\xHH escape",
                         c
                     ),
                     format!("\\x{:X}", c as u32),
@@ -173,7 +247,7 @@ pub(crate) fn emit_unescape_error(
                 err.span_suggestion(
                     span,
                     &format!(
-                        "if you meant to use the UTF-8 encoding of '{}', use \\xHH escapes",
+                        "if you meant to use the UTF-8 encoding of {:?}, use \\xHH escapes",
                         c
                     ),
                     utf8.as_bytes()
@@ -187,10 +261,15 @@ pub(crate) fn emit_unescape_error(
         }
         EscapeError::NonAsciiCharInByteString => {
             assert!(mode.is_bytes());
-            let (_c, span) = last_char();
+            let (c, span) = last_char();
+            let postfix = if unicode_width::UnicodeWidthChar::width(c).unwrap_or(1) == 0 {
+                format!(" but is {:?}", c)
+            } else {
+                String::new()
+            };
             handler
                 .struct_span_err(span, "raw byte string must be ASCII")
-                .span_label(span, "must be ASCII")
+                .span_label(span, &format!("must be ASCII{}", postfix))
                 .emit();
         }
         EscapeError::OutOfRangeHexEscape => {

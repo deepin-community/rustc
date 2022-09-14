@@ -1,12 +1,12 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
-use clippy_utils::is_qpath_def_path;
 use clippy_utils::source::snippet_with_applicability;
+use clippy_utils::{match_def_path, path_def_id};
 use if_chain::if_chain;
 use rustc_ast::ast;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_lint::LateContext;
-use rustc_target::abi::LayoutOf;
+use rustc_middle::ty::layout::LayoutOf;
 
 pub fn check(
     cx: &LateContext<'_>,
@@ -81,7 +81,7 @@ fn is_min_or_max<'tcx>(cx: &LateContext<'tcx>, expr: &hir::Expr<'_>) -> Option<M
         if args.is_empty();
         if let hir::ExprKind::Path(hir::QPath::TypeRelative(_, segment)) = &func.kind;
         then {
-            match &*segment.ident.as_str() {
+            match segment.ident.as_str() {
                 "max_value" => return Some(MinMax::Max),
                 "min_value" => return Some(MinMax::Min),
                 _ => {}
@@ -93,12 +93,12 @@ fn is_min_or_max<'tcx>(cx: &LateContext<'tcx>, expr: &hir::Expr<'_>) -> Option<M
     let ty_str = ty.to_string();
 
     // `std::T::MAX` `std::T::MIN` constants
-    if let hir::ExprKind::Path(path) = &expr.kind {
-        if is_qpath_def_path(cx, path, expr.hir_id, &["core", &ty_str, "MAX"][..]) {
+    if let Some(id) = path_def_id(cx, expr) {
+        if match_def_path(cx, id, &["core", &ty_str, "MAX"]) {
             return Some(MinMax::Max);
         }
 
-        if is_qpath_def_path(cx, path, expr.hir_id, &["core", &ty_str, "MIN"][..]) {
+        if match_def_path(cx, id, &["core", &ty_str, "MIN"]) {
             return Some(MinMax::Min);
         }
     }

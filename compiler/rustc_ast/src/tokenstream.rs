@@ -163,7 +163,7 @@ impl<S: Encoder> Encodable<S> for LazyTokenStream {
 }
 
 impl<D: Decoder> Decodable<D> for LazyTokenStream {
-    fn decode(_d: &mut D) -> Result<Self, D::Error> {
+    fn decode(_d: &mut D) -> Self {
         panic!("Attempted to decode LazyTokenStream");
     }
 }
@@ -221,12 +221,6 @@ impl AttrAnnotatedTokenStream {
                     for attr in &data.attrs {
                         match attr.style {
                             crate::AttrStyle::Outer => {
-                                assert!(
-                                    inner_attrs.len() == 0,
-                                    "Found outer attribute {:?} after inner attrs {:?}",
-                                    attr,
-                                    inner_attrs
-                                );
                                 outer_attrs.push(attr);
                             }
                             crate::AttrStyle::Inner => {

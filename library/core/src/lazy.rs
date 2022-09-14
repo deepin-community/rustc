@@ -74,7 +74,8 @@ impl<T: PartialEq> PartialEq for OnceCell<T> {
 impl<T: Eq> Eq for OnceCell<T> {}
 
 #[unstable(feature = "once_cell", issue = "74465")]
-impl<T> From<T> for OnceCell<T> {
+impl<T> const From<T> for OnceCell<T> {
+    /// Creates a new `OnceCell<T>` which already contains the given `value`.
     fn from(value: T) -> Self {
         OnceCell { inner: UnsafeCell::new(Some(value)) }
     }
@@ -83,6 +84,7 @@ impl<T> From<T> for OnceCell<T> {
 impl<T> OnceCell<T> {
     /// Creates a new empty cell.
     #[unstable(feature = "once_cell", issue = "74465")]
+    #[must_use]
     pub const fn new() -> OnceCell<T> {
         OnceCell { inner: UnsafeCell::new(None) }
     }
@@ -101,8 +103,7 @@ impl<T> OnceCell<T> {
     /// Returns `None` if the cell is empty.
     #[unstable(feature = "once_cell", issue = "74465")]
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        // SAFETY: Safe because we have unique access
-        unsafe { &mut *self.inner.get() }.as_mut()
+        self.inner.get_mut().as_mut()
     }
 
     /// Sets the contents of the cell to `value`.
@@ -214,7 +215,16 @@ impl<T> OnceCell<T> {
         if let Some(val) = self.get() {
             return Ok(val);
         }
-        let val = f()?;
+        /// Avoid inlining the initialization closure into the common path that fetches
+        /// the already initialized value
+        #[cold]
+        fn outlined_call<F, T, E>(f: F) -> Result<T, E>
+        where
+            F: FnOnce() -> Result<T, E>,
+        {
+            f()
+        }
+        let val = outlined_call(f)?;
         // Note that *some* forms of reentrant initialization might lead to
         // UB (see `reentrant_init` test). I believe that just removing this
         // `assert`, while keeping `set/get` would be sound, but it seems

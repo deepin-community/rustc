@@ -1,17 +1,15 @@
 [package]
 name = "rustc_driver"
 version = "0.0.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["dylib"]
 
 [dependencies]
 libc = "0.2"
-atty = "0.2"
-tracing = { version = "0.1.25" }
-tracing-subscriber = { version = "0.2.16", default-features = false, features = ["fmt", "env-filter", "smallvec", "parking_lot", "ansi"] }
-tracing-tree = "0.1.9"
+tracing = { version = "0.1.28" }
+rustc_log = { path = "../rustc_log" }
 rustc_middle = { path = "../rustc_middle" }
 rustc_ast_pretty = { path = "../rustc_ast_pretty" }
 rustc_target = { path = "../rustc_target" }
@@ -22,7 +20,7 @@ rustc_feature = { path = "../rustc_feature" }
 rustc_hir = { path = "../rustc_hir" }
 rustc_hir_pretty = { path = "../rustc_hir_pretty" }
 rustc_metadata = { path = "../rustc_metadata" }
-rustc_mir = { path = "../rustc_mir" }
+rustc_const_eval = { path = "../rustc_const_eval" }
 rustc_parse = { path = "../rustc_parse" }
 rustc_plugin_impl = { path = "../rustc_plugin_impl" }
 rustc_save_analysis = { path = "../rustc_save_analysis" }
@@ -40,4 +38,4 @@ winapi = { version = "0.3", features = ["consoleapi", "debugapi", "processenv"] 
 
 [features]
 llvm = ['rustc_interface/llvm']
-max_level_info = ['tracing/max_level_info']
+max_level_info = ['rustc_log/max_level_info']

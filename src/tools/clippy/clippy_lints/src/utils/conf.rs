@@ -15,6 +15,30 @@ pub struct Rename {
     pub rename: String,
 }
 
+/// A single disallowed method, used by the `DISALLOWED_METHODS` lint.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum DisallowedMethod {
+    Simple(String),
+    WithReason { path: String, reason: Option<String> },
+}
+
+impl DisallowedMethod {
+    pub fn path(&self) -> &str {
+        let (Self::Simple(path) | Self::WithReason { path, .. }) = self;
+
+        path
+    }
+}
+
+/// A single disallowed type, used by the `DISALLOWED_TYPES` lint.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum DisallowedType {
+    Simple(String),
+    WithReason { path: String, reason: Option<String> },
+}
+
 /// Conf with parse errors
 #[derive(Default)]
 pub struct TryConf {
@@ -31,9 +55,6 @@ impl TryConf {
     }
 }
 
-/// Note that the configuration parsing currently doesn't support documentation that will
-/// that spans over several lines. This will be possible with the new implementation
-/// See (rust-clippy#7172)
 macro_rules! define_Conf {
     ($(
         $(#[doc = $doc:literal])+
@@ -100,7 +121,7 @@ macro_rules! define_Conf {
             }
         }
 
-        #[cfg(feature = "metadata-collector-lint")]
+        #[cfg(feature = "internal")]
         pub mod metadata {
             use crate::utils::internal_lints::metadata_collector::ClippyConfiguration;
 
@@ -130,13 +151,12 @@ macro_rules! define_Conf {
     };
 }
 
-// N.B., this macro is parsed by util/lintlib.py
 define_Conf! {
-    /// Lint: ENUM_VARIANT_NAMES, LARGE_TYPES_PASSED_BY_VALUE, TRIVIALLY_COPY_PASS_BY_REF, UNNECESSARY_WRAPS, UPPER_CASE_ACRONYMS, WRONG_SELF_CONVENTION.
+    /// Lint: ENUM_VARIANT_NAMES, LARGE_TYPES_PASSED_BY_VALUE, TRIVIALLY_COPY_PASS_BY_REF, UNNECESSARY_WRAPS, UPPER_CASE_ACRONYMS, WRONG_SELF_CONVENTION, BOX_COLLECTION, REDUNDANT_ALLOCATION, RC_BUFFER, VEC_BOX, OPTION_OPTION, LINKEDLIST, RC_MUTEX.
     ///
     /// Suppress lints whenever the suggested change would cause breakage for other crates.
     (avoid_breaking_exported_api: bool = true),
-    /// Lint: MANUAL_STR_REPEAT, CLONED_INSTEAD_OF_COPIED, REDUNDANT_FIELD_NAMES, REDUNDANT_STATIC_LIFETIMES, FILTER_MAP_NEXT, CHECKED_CONVERSIONS, MANUAL_RANGE_CONTAINS, USE_SELF, MEM_REPLACE_WITH_DEFAULT, MANUAL_NON_EXHAUSTIVE, OPTION_AS_REF_DEREF, MAP_UNWRAP_OR, MATCH_LIKE_MATCHES_MACRO, MANUAL_STRIP, MISSING_CONST_FOR_FN, UNNESTED_OR_PATTERNS, FROM_OVER_INTO, PTR_AS_PTR, IF_THEN_SOME_ELSE_NONE.
+    /// Lint: MANUAL_SPLIT_ONCE, MANUAL_STR_REPEAT, CLONED_INSTEAD_OF_COPIED, REDUNDANT_FIELD_NAMES, REDUNDANT_STATIC_LIFETIMES, FILTER_MAP_NEXT, CHECKED_CONVERSIONS, MANUAL_RANGE_CONTAINS, USE_SELF, MEM_REPLACE_WITH_DEFAULT, MANUAL_NON_EXHAUSTIVE, OPTION_AS_REF_DEREF, MAP_UNWRAP_OR, MATCH_LIKE_MATCHES_MACRO, MANUAL_STRIP, MISSING_CONST_FOR_FN, UNNESTED_OR_PATTERNS, FROM_OVER_INTO, PTR_AS_PTR, IF_THEN_SOME_ELSE_NONE, APPROX_CONSTANT, DEPRECATED_CFG_ATTR, INDEX_REFUTABLE_SLICE, MAP_CLONE, BORROW_AS_PTR, MANUAL_BITS.
     ///
     /// The minimum rust version that the project supports
     (msrv: Option<String> = None),
@@ -244,14 +264,14 @@ define_Conf! {
     ///
     /// Whether to allow certain wildcard imports (prelude, super in tests).
     (warn_on_all_wildcard_imports: bool = false),
-    /// Lint: DISALLOWED_METHOD.
+    /// Lint: DISALLOWED_METHODS.
     ///
     /// The list of disallowed methods, written as fully qualified paths.
-    (disallowed_methods: Vec<String> = Vec::new()),
-    /// Lint: DISALLOWED_TYPE.
+    (disallowed_methods: Vec<crate::utils::conf::DisallowedMethod> = Vec::new()),
+    /// Lint: DISALLOWED_TYPES.
     ///
     /// The list of disallowed types, written as fully qualified paths.
-    (disallowed_types: Vec<String> = Vec::new()),
+    (disallowed_types: Vec<crate::utils::conf::DisallowedType> = Vec::new()),
     /// Lint: UNREADABLE_LITERAL.
     ///
     /// Should the fraction of a decimal be linted to include separators.
@@ -276,10 +296,20 @@ define_Conf! {
     ///
     /// The list of imports to always rename, a fully qualified path followed by the rename.
     (enforced_import_renames: Vec<crate::utils::conf::Rename> = Vec::new()),
-    /// Lint: RESTRICTED_SCRIPTS.
+    /// Lint: DISALLOWED_SCRIPT_IDENTS.
     ///
     /// The list of unicode scripts allowed to be used in the scope.
-    (allowed_scripts: Vec<String> = vec!["Latin".to_string()]),
+    (allowed_scripts: Vec<String> = ["Latin"].iter().map(ToString::to_string).collect()),
+    /// Lint: NON_SEND_FIELDS_IN_SEND_TY.
+    ///
+    /// Whether to apply the raw pointer heuristic to determine if a type is `Send`.
+    (enable_raw_pointer_heuristic_for_send: bool = true),
+    /// Lint: INDEX_REFUTABLE_SLICE.
+    ///
+    /// When Clippy suggests using a slice pattern, this is the maximum number of elements allowed in
+    /// the slice pattern that is suggested. If more elements would be necessary, the lint is suppressed.
+    /// For example, `[_, _, _, e, ..]` is a slice pattern with 4 elements.
+    (max_suggested_slice_pattern_length: u64 = 3),
 }
 
 /// Search for the configuration file.
@@ -292,6 +322,9 @@ pub fn lookup_conf_file() -> io::Result<Option<PathBuf>> {
     let mut current = env::var_os("CLIPPY_CONF_DIR")
         .or_else(|| env::var_os("CARGO_MANIFEST_DIR"))
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
+
+    let mut found_config: Option<PathBuf> = None;
+
     loop {
         for config_file_name in &CONFIG_FILE_NAMES {
             if let Ok(config_file) = current.join(config_file_name).canonicalize() {
@@ -299,9 +332,24 @@ pub fn lookup_conf_file() -> io::Result<Option<PathBuf>> {
                     Err(e) if e.kind() == io::ErrorKind::NotFound => {},
                     Err(e) => return Err(e),
                     Ok(md) if md.is_dir() => {},
-                    Ok(_) => return Ok(Some(config_file)),
+                    Ok(_) => {
+                        // warn if we happen to find two config files #8323
+                        if let Some(ref found_config_) = found_config {
+                            eprintln!(
+                                "Using config file `{}`\nWarning: `{}` will be ignored.",
+                                found_config_.display(),
+                                config_file.display(),
+                            );
+                        } else {
+                            found_config = Some(config_file);
+                        }
+                    },
                 }
             }
+        }
+
+        if found_config.is_some() {
+            return Ok(found_config);
         }
 
         // If the current directory has no parent, we're done searching.

@@ -40,22 +40,29 @@ impl<A: Iterator, B: Iterator> Zip<A, B> {
 /// # Examples
 ///
 /// ```
-/// #![feature(iter_zip)]
 /// use std::iter::zip;
 ///
 /// let xs = [1, 2, 3];
 /// let ys = [4, 5, 6];
-/// for (x, y) in zip(&xs, &ys) {
-///     println!("x:{}, y:{}", x, y);
-/// }
+///
+/// let mut iter = zip(xs, ys);
+///
+/// assert_eq!(iter.next().unwrap(), (1, 4));
+/// assert_eq!(iter.next().unwrap(), (2, 5));
+/// assert_eq!(iter.next().unwrap(), (3, 6));
+/// assert!(iter.next().is_none());
 ///
 /// // Nested zips are also possible:
 /// let zs = [7, 8, 9];
-/// for ((x, y), z) in zip(zip(&xs, &ys), &zs) {
-///     println!("x:{}, y:{}, z:{}", x, y, z);
-/// }
+///
+/// let mut iter = zip(zip(xs, ys), zs);
+///
+/// assert_eq!(iter.next().unwrap(), ((1, 4), 7));
+/// assert_eq!(iter.next().unwrap(), ((2, 5), 8));
+/// assert_eq!(iter.next().unwrap(), ((3, 6), 9));
+/// assert!(iter.next().is_none());
 /// ```
-#[unstable(feature = "iter_zip", issue = "83574")]
+#[stable(feature = "iter_zip", since = "1.59.0")]
 pub fn zip<A, B>(a: A, b: B) -> Zip<A::IntoIter, B::IntoIter>
 where
     A: IntoIterator,
@@ -414,28 +421,22 @@ where
 // Arbitrarily selects the left side of the zip iteration as extractable "source"
 // it would require negative trait bounds to be able to try both
 #[unstable(issue = "none", feature = "inplace_iteration")]
-unsafe impl<S, A, B> SourceIter for Zip<A, B>
+unsafe impl<A, B> SourceIter for Zip<A, B>
 where
-    A: SourceIter<Source = S>,
-    B: Iterator,
-    S: Iterator,
+    A: SourceIter,
 {
-    type Source = S;
+    type Source = A::Source;
 
     #[inline]
-    unsafe fn as_inner(&mut self) -> &mut S {
+    unsafe fn as_inner(&mut self) -> &mut A::Source {
         // SAFETY: unsafe function forwarding to unsafe function with the same requirements
         unsafe { SourceIter::as_inner(&mut self.a) }
     }
 }
 
+// Since SourceIter forwards the left hand side we do the same here
 #[unstable(issue = "none", feature = "inplace_iteration")]
-// Limited to Item: Copy since interaction between Zip's use of TrustedRandomAccess
-// and Drop implementation of the source is unclear.
-//
-// An additional method returning the number of times the source has been logically advanced
-// (without calling next()) would be needed to properly drop the remainder of the source.
-unsafe impl<A: InPlaceIterable, B: Iterator> InPlaceIterable for Zip<A, B> where A::Item: Copy {}
+unsafe impl<A: InPlaceIterable, B: Iterator> InPlaceIterable for Zip<A, B> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<A: Debug, B: Debug> Debug for Zip<A, B> {
@@ -515,7 +516,7 @@ impl<A: Debug + TrustedRandomAccessNoCoerce, B: Debug + TrustedRandomAccessNoCoe
 /// * It must also be safe to drop `self` after calling `self.__iterator_get_unchecked(idx)`.
 /// * If `T` is a subtype of `Self`, then it must be safe to coerce `self` to `T`.
 //
-// FIXME: Clarify interaction with SourceIter/InPlaceIterable. Calling `SouceIter::as_inner`
+// FIXME: Clarify interaction with SourceIter/InPlaceIterable. Calling `SourceIter::as_inner`
 // after `__iterator_get_unchecked` is supposed to be allowed.
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]

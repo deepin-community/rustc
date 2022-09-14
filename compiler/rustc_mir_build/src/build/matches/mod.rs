@@ -47,6 +47,25 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         let expr_span = expr.span;
 
         match expr.kind {
+            ExprKind::LogicalOp { op: LogicalOp::And, lhs, rhs } => {
+                let lhs_then_block = unpack!(this.then_else_break(
+                    block,
+                    &this.thir[lhs],
+                    temp_scope_override,
+                    break_scope,
+                    variable_scope_span,
+                ));
+
+                let rhs_then_block = unpack!(this.then_else_break(
+                    lhs_then_block,
+                    &this.thir[rhs],
+                    temp_scope_override,
+                    break_scope,
+                    variable_scope_span,
+                ));
+
+                rhs_then_block.unit()
+            }
             ExprKind::Scope { region_scope, lint_level, value } => {
                 let region_scope = (region_scope, this.source_info(expr_span));
                 this.in_scope(region_scope, lint_level, |this| {
@@ -245,7 +264,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         // The set of places that we are creating fake borrows of. If there are
         // no match guards then we don't need any fake borrows, so don't track
         // them.
-        let mut fake_borrows = if match_has_guard { Some(FxHashSet::default()) } else { None };
+        let mut fake_borrows = match_has_guard.then(FxHashSet::default);
 
         let mut otherwise = None;
 
@@ -583,33 +602,30 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 for binding in &candidate_ref.bindings {
                     let local = self.var_local_id(binding.var_id, OutsideGuard);
 
-                    if let Some(box LocalInfo::User(ClearCrossCrate::Set(BindingForm::Var(
+                    let Some(box LocalInfo::User(ClearCrossCrate::Set(BindingForm::Var(
                         VarBindingForm { opt_match_place: Some((ref mut match_place, _)), .. },
-                    )))) = self.local_decls[local].local_info
-                    {
-                        // `try_upvars_resolved` may fail if it is unable to resolve the given
-                        // `PlaceBuilder` inside a closure. In this case, we don't want to include
-                        // a scrutinee place. `scrutinee_place_builder` will fail for destructured
-                        // assignments. This is because a closure only captures the precise places
-                        // that it will read and as a result a closure may not capture the entire
-                        // tuple/struct and rather have individual places that will be read in the
-                        // final MIR.
-                        // Example:
-                        // ```
-                        // let foo = (0, 1);
-                        // let c = || {
-                        //    let (v1, v2) = foo;
-                        // };
-                        // ```
-                        if let Ok(match_pair_resolved) =
-                            initializer.clone().try_upvars_resolved(self.tcx, self.typeck_results)
-                        {
-                            let place =
-                                match_pair_resolved.into_place(self.tcx, self.typeck_results);
-                            *match_place = Some(place);
-                        }
-                    } else {
+                    )))) = self.local_decls[local].local_info else {
                         bug!("Let binding to non-user variable.")
+                    };
+                    // `try_upvars_resolved` may fail if it is unable to resolve the given
+                    // `PlaceBuilder` inside a closure. In this case, we don't want to include
+                    // a scrutinee place. `scrutinee_place_builder` will fail for destructured
+                    // assignments. This is because a closure only captures the precise places
+                    // that it will read and as a result a closure may not capture the entire
+                    // tuple/struct and rather have individual places that will be read in the
+                    // final MIR.
+                    // Example:
+                    // ```
+                    // let foo = (0, 1);
+                    // let c = || {
+                    //    let (v1, v2) = foo;
+                    // };
+                    // ```
+                    if let Ok(match_pair_resolved) =
+                        initializer.clone().try_upvars_resolved(self.tcx, self.typeck_results)
+                    {
+                        let place = match_pair_resolved.into_place(self.tcx, self.typeck_results);
+                        *match_place = Some(place);
                     }
                 }
                 // All of the subcandidates should bind the same locals, so we
@@ -900,10 +916,7 @@ fn traverse_candidate<'pat, 'tcx: 'pat, C, T, I>(
 struct Binding<'tcx> {
     span: Span,
     source: Place<'tcx>,
-    name: Symbol,
     var_id: HirId,
-    var_ty: Ty<'tcx>,
-    mutability: Mutability,
     binding_mode: BindingMode,
 }
 
@@ -951,13 +964,13 @@ enum TestKind<'tcx> {
         ///
         /// For `bool` we always generate two edges, one for `true` and one for
         /// `false`.
-        options: FxIndexMap<&'tcx ty::Const<'tcx>, u128>,
+        options: FxIndexMap<ty::Const<'tcx>, u128>,
     },
 
     /// Test for equality with value, possibly after an unsizing coercion to
     /// `ty`,
     Eq {
-        value: &'tcx ty::Const<'tcx>,
+        value: ty::Const<'tcx>,
         // Integer types are handled by `SwitchInt`, and constants with ADT
         // types are converted back into patterns, so this can only be `&str`,
         // `&[T]`, `f32` or `f64`.
@@ -1331,23 +1344,22 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
 
         let mut otherwise = None;
         for match_pair in match_pairs {
-            if let PatKind::Or { ref pats } = *match_pair.pattern.kind {
-                let or_span = match_pair.pattern.span;
-                let place = match_pair.place;
-
-                first_candidate.visit_leaves(|leaf_candidate| {
-                    self.test_or_pattern(
-                        leaf_candidate,
-                        &mut otherwise,
-                        pats,
-                        or_span,
-                        place.clone(),
-                        fake_borrows,
-                    );
-                });
-            } else {
+            let PatKind::Or { ref pats } = &*match_pair.pattern.kind else {
                 bug!("Or-patterns should have been sorted to the end");
-            }
+            };
+            let or_span = match_pair.pattern.span;
+            let place = match_pair.place;
+
+            first_candidate.visit_leaves(|leaf_candidate| {
+                self.test_or_pattern(
+                    leaf_candidate,
+                    &mut otherwise,
+                    pats,
+                    or_span,
+                    place.clone(),
+                    fake_borrows,
+                );
+            });
         }
 
         let remainder_start = otherwise.unwrap_or_else(|| self.cfg.start_new_block());
@@ -1609,13 +1621,12 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
         // encounter a candidate where the test is not relevant; at
         // that point, we stop sorting.
         while let Some(candidate) = candidates.first_mut() {
-            if let Some(idx) = self.sort_candidate(&match_place.clone(), &test, candidate) {
-                let (candidate, rest) = candidates.split_first_mut().unwrap();
-                target_candidates[idx].push(candidate);
-                candidates = rest;
-            } else {
+            let Some(idx) = self.sort_candidate(&match_place.clone(), &test, candidate) else {
                 break;
-            }
+            };
+            let (candidate, rest) = candidates.split_first_mut().unwrap();
+            target_candidates[idx].push(candidate);
+            candidates = rest;
         }
         // at least the first candidate ought to be tested
         assert!(total_candidate_count > candidates.len());
@@ -1765,8 +1776,8 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
     ) -> BlockAnd<()> {
         let expr_span = expr.span;
         let expr_place_builder = unpack!(block = self.lower_scrutinee(block, expr, expr_span));
-        let mut guard_candidate = Candidate::new(expr_place_builder.clone(), &pat, false);
         let wildcard = Pat::wildcard_from_ty(pat.ty);
+        let mut guard_candidate = Candidate::new(expr_place_builder.clone(), &pat, false);
         let mut otherwise_candidate = Candidate::new(expr_place_builder.clone(), &wildcard, false);
         let fake_borrow_temps = self.lower_match_tree(
             block,
@@ -2063,7 +2074,7 @@ impl<'a, 'tcx> Builder<'a, 'tcx> {
                 source_info.span, ascription.source, ascription.user_ty,
             );
 
-            let user_ty = ascription.user_ty.clone().user_ty(
+            let user_ty = ascription.user_ty.user_ty(
                 &mut self.canonical_user_type_annotations,
                 ascription.source.ty(&self.local_decls, self.tcx).ty,
                 source_info.span,

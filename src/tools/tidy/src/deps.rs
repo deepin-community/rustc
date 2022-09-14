@@ -15,6 +15,7 @@ const LICENSES: &[&str] = &[
     "Apache-2.0 OR MIT",
     "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT", // wasi license
     "MIT",
+    "ISC",
     "Unlicense/MIT",
     "Unlicense OR MIT",
     "0BSD OR MIT OR Apache-2.0", // adler license
@@ -26,18 +27,17 @@ const LICENSES: &[&str] = &[
 /// tooling. It is _crucial_ that no exception crates be dependencies
 /// of the Rust runtime (std/test).
 const EXCEPTIONS: &[(&str, &str)] = &[
-    ("mdbook", "MPL-2.0"),                                  // mdbook
-    ("openssl", "Apache-2.0"),                              // cargo, mdbook
-    ("colored", "MPL-2.0"),                                 // rustfmt
-    ("ordslice", "Apache-2.0"),                             // rls
-    ("ryu", "Apache-2.0 OR BSL-1.0"),                       // rls/cargo/... (because of serde)
-    ("bytesize", "Apache-2.0"),                             // cargo
-    ("im-rc", "MPL-2.0+"),                                  // cargo
-    ("sized-chunks", "MPL-2.0+"),                           // cargo via im-rc
-    ("bitmaps", "MPL-2.0+"),                                // cargo via im-rc
-    ("crossbeam-queue", "MIT/Apache-2.0 AND BSD-2-Clause"), // rls via rayon
-    ("instant", "BSD-3-Clause"), // rustc_driver/tracing-subscriber/parking_lot
-    ("snap", "BSD-3-Clause"),    // rustc
+    ("mdbook", "MPL-2.0"),            // mdbook
+    ("openssl", "Apache-2.0"),        // cargo, mdbook
+    ("colored", "MPL-2.0"),           // rustfmt
+    ("ordslice", "Apache-2.0"),       // rls
+    ("ryu", "Apache-2.0 OR BSL-1.0"), // rls/cargo/... (because of serde)
+    ("bytesize", "Apache-2.0"),       // cargo
+    ("im-rc", "MPL-2.0+"),            // cargo
+    ("sized-chunks", "MPL-2.0+"),     // cargo via im-rc
+    ("bitmaps", "MPL-2.0+"),          // cargo via im-rc
+    ("instant", "BSD-3-Clause"),      // rustc_driver/tracing-subscriber/parking_lot
+    ("snap", "BSD-3-Clause"),         // rustc
     // FIXME: this dependency violates the documentation comment above:
     ("fortanix-sgx-abi", "MPL-2.0"), // libstd but only for `sgx` target
 ];
@@ -53,7 +53,6 @@ const EXCEPTIONS_CRANELIFT: &[(&str, &str)] = &[
     ("cranelift-module", "Apache-2.0 WITH LLVM-exception"),
     ("cranelift-native", "Apache-2.0 WITH LLVM-exception"),
     ("cranelift-object", "Apache-2.0 WITH LLVM-exception"),
-    ("libloading", "ISC"),
     ("mach", "BSD-2-Clause"),
     ("regalloc", "Apache-2.0 WITH LLVM-exception"),
     ("target-lexicon", "Apache-2.0 WITH LLVM-exception"),
@@ -73,6 +72,7 @@ const RESTRICTED_DEPENDENCY_CRATES: &[&str] = &["rustc_driver", "rustc_codegen_l
 const PERMITTED_DEPENDENCIES: &[&str] = &[
     "addr2line",
     "adler",
+    "ahash",
     "aho-corasick",
     "annotate-snippets",
     "ansi_term",
@@ -82,8 +82,8 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "bitflags",
     "block-buffer",
     "block-padding",
-    "byteorder",
     "byte-tools",
+    "byteorder",
     "cc",
     "cfg-if",
     "chalk-derive",
@@ -93,12 +93,12 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "chrono",
     "cmake",
     "compiler_builtins",
-    "cpuid-bool",
+    "cpufeatures",
     "crc32fast",
     "crossbeam-deque",
     "crossbeam-epoch",
-    "crossbeam-queue",
     "crossbeam-utils",
+    "crypto-common",
     "cstr",
     "datafrog",
     "difference",
@@ -109,6 +109,7 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "env_logger",
     "expect-test",
     "fake-simd",
+    "fallible-iterator", // dependency of `thorin`
     "filetime",
     "fixedbitset",
     "flate2",
@@ -129,21 +130,22 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "jobserver",
     "lazy_static",
     "libc",
+    "libloading",
     "libz-sys",
     "lock_api",
     "log",
     "matchers",
-    "maybe-uninit",
     "md-5",
     "measureme",
     "memchr",
     "memmap2",
     "memoffset",
     "miniz_oxide",
-    "num_cpus",
     "num-integer",
     "num-traits",
+    "num_cpus",
     "object",
+    "odht",
     "once_cell",
     "opaque-debug",
     "parking_lot",
@@ -166,6 +168,7 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "rand_hc",
     "rand_pcg",
     "rand_xorshift",
+    "rand_xoshiro",
     "redox_syscall",
     "regex",
     "regex-automata",
@@ -182,14 +185,13 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "scoped-tls",
     "scopeguard",
     "semver",
-    "semver-parser",
     "serde",
     "serde_derive",
     "serde_json",
     "sha-1",
     "sha2",
-    "smallvec",
     "sharded-slab",
+    "smallvec",
     "snap",
     "stable_deref_trait",
     "stacker",
@@ -198,6 +200,7 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "tempfile",
     "termcolor",
     "termize",
+    "thorin-dwp",
     "thread_local",
     "time",
     "tinyvec",
@@ -205,10 +208,14 @@ const PERMITTED_DEPENDENCIES: &[&str] = &[
     "tracing-attributes",
     "tracing-core",
     "tracing-log",
-    "tracing-serde",
     "tracing-subscriber",
     "tracing-tree",
     "typenum",
+    "unic-char-property",
+    "unic-char-range",
+    "unic-common",
+    "unic-emoji-char",
+    "unic-ucd-version",
     "unicode-normalization",
     "unicode-script",
     "unicode-security",
@@ -266,7 +273,6 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
     // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
     // under control.
     "cargo",
-    "rustc-ap-rustc_ast",
 ];
 
 /// Dependency checks.

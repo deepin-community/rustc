@@ -1,10 +1,11 @@
 use smallvec::smallvec;
 
+use crate::infer::outlives::components::{push_outlives_components, Component};
 use crate::traits::{Obligation, ObligationCause, PredicateObligation};
 use rustc_data_structures::fx::{FxHashSet, FxIndexSet};
-use rustc_middle::ty::outlives::Component;
-use rustc_middle::ty::{self, ToPredicate, TyCtxt, WithConstness};
+use rustc_middle::ty::{self, ToPredicate, TyCtxt};
 use rustc_span::symbol::Ident;
+use rustc_span::Span;
 
 pub fn anonymize_predicate<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -19,7 +20,7 @@ pub struct PredicateSet<'tcx> {
     set: FxHashSet<ty::Predicate<'tcx>>,
 }
 
-impl PredicateSet<'tcx> {
+impl<'tcx> PredicateSet<'tcx> {
     pub fn new(tcx: TyCtxt<'tcx>) -> Self {
         Self { tcx, set: Default::default() }
     }
@@ -39,7 +40,7 @@ impl PredicateSet<'tcx> {
     }
 }
 
-impl Extend<ty::Predicate<'tcx>> for PredicateSet<'tcx> {
+impl<'tcx> Extend<ty::Predicate<'tcx>> for PredicateSet<'tcx> {
     fn extend<I: IntoIterator<Item = ty::Predicate<'tcx>>>(&mut self, iter: I) {
         for pred in iter {
             self.insert(pred);
@@ -97,6 +98,22 @@ pub fn elaborate_predicates<'tcx>(
     elaborate_obligations(tcx, obligations)
 }
 
+pub fn elaborate_predicates_with_span<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    predicates: impl Iterator<Item = (ty::Predicate<'tcx>, Span)>,
+) -> Elaborator<'tcx> {
+    let obligations = predicates
+        .map(|(predicate, span)| {
+            predicate_obligation(
+                predicate,
+                ty::ParamEnv::empty(),
+                ObligationCause::dummy_with_span(span),
+            )
+        })
+        .collect();
+    elaborate_obligations(tcx, obligations)
+}
+
 pub fn elaborate_obligations<'tcx>(
     tcx: TyCtxt<'tcx>,
     mut obligations: Vec<PredicateObligation<'tcx>>,
@@ -114,7 +131,7 @@ fn predicate_obligation<'tcx>(
     Obligation { cause, param_env, recursion_depth: 0, predicate }
 }
 
-impl Elaborator<'tcx> {
+impl<'tcx> Elaborator<'tcx> {
     pub fn filter_to_traits(self) -> FilterToTraits<Self> {
         FilterToTraits::new(self)
     }
@@ -135,7 +152,7 @@ impl Elaborator<'tcx> {
                         obligation.cause.clone(),
                     )
                 });
-                debug!("super_predicates: data={:?}", data);
+                debug!(?data, ?obligations, "super_predicates");
 
                 // Only keep those bounds that we haven't already seen.
                 // This is necessary to prevent infinite recursion in some
@@ -200,7 +217,7 @@ impl Elaborator<'tcx> {
 
                 let visited = &mut self.visited;
                 let mut components = smallvec![];
-                tcx.push_outlives_components(ty_max, &mut components);
+                push_outlives_components(tcx, ty_max, &mut components);
                 self.stack.extend(
                     components
                         .into_iter()
@@ -224,13 +241,23 @@ impl Elaborator<'tcx> {
 
                             Component::UnresolvedInferenceVariable(_) => None,
 
-                            Component::Projection(_) | Component::EscapingProjection(_) => {
-                                // We can probably do more here. This
-                                // corresponds to a case like `<T as
-                                // Foo<'a>>::U: 'b`.
+                            Component::Projection(projection) => {
+                                // We might end up here if we have `Foo<<Bar as Baz>::Assoc>: 'a`.
+                                // With this, we can deduce that `<Bar as Baz>::Assoc: 'a`.
+                                let ty =
+                                    tcx.mk_projection(projection.item_def_id, projection.substs);
+                                Some(ty::PredicateKind::TypeOutlives(ty::OutlivesPredicate(
+                                    ty, r_min,
+                                )))
+                            }
+
+                            Component::EscapingProjection(_) => {
+                                // We might be able to do more here, but we don't
+                                // want to deal with escaping vars right now.
                                 None
                             }
                         })
+                        .map(ty::Binder::dummy)
                         .map(|predicate_kind| predicate_kind.to_predicate(tcx))
                         .filter(|&predicate| visited.insert(predicate))
                         .map(|predicate| {
@@ -249,7 +276,7 @@ impl Elaborator<'tcx> {
     }
 }
 
-impl Iterator for Elaborator<'tcx> {
+impl<'tcx> Iterator for Elaborator<'tcx> {
     type Item = PredicateObligation<'tcx>;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -310,8 +337,8 @@ pub fn transitive_bounds_that_define_assoc_type<'tcx>(
                 ));
                 for (super_predicate, _) in super_predicates.predicates {
                     let subst_predicate = super_predicate.subst_supertrait(tcx, &trait_ref);
-                    if let Some(binder) = subst_predicate.to_opt_poly_trait_ref() {
-                        stack.push(binder.value);
+                    if let Some(binder) = subst_predicate.to_opt_poly_trait_pred() {
+                        stack.push(binder.map_bound(|t| t.trait_ref));
                     }
                 }
 
@@ -344,8 +371,8 @@ impl<'tcx, I: Iterator<Item = PredicateObligation<'tcx>>> Iterator for FilterToT
 
     fn next(&mut self) -> Option<ty::PolyTraitRef<'tcx>> {
         while let Some(obligation) = self.base_iterator.next() {
-            if let Some(data) = obligation.predicate.to_opt_poly_trait_ref() {
-                return Some(data.value);
+            if let Some(data) = obligation.predicate.to_opt_poly_trait_pred() {
+                return Some(data.map_bound(|t| t.trait_ref));
             }
         }
         None

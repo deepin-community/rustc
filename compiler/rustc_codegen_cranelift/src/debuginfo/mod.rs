@@ -2,6 +2,7 @@
 
 mod emit;
 mod line_info;
+mod object;
 mod unwind;
 
 use crate::prelude::*;
@@ -9,7 +10,7 @@ use crate::prelude::*;
 use rustc_index::vec::IndexVec;
 
 use cranelift_codegen::entity::EntityRef;
-use cranelift_codegen::ir::{LabelValueLoc, StackSlots, ValueLabel, ValueLoc};
+use cranelift_codegen::ir::{Endianness, LabelValueLoc, ValueLabel};
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::ValueLocRange;
 
@@ -21,15 +22,6 @@ use gimli::{Encoding, Format, LineEncoding, RunTimeEndian, X86_64};
 
 pub(crate) use emit::{DebugReloc, DebugRelocName};
 pub(crate) use unwind::UnwindContext;
-
-fn target_endian(tcx: TyCtxt<'_>) -> RunTimeEndian {
-    use rustc_target::abi::Endian;
-
-    match tcx.data_layout.endian {
-        Endian::Big => RunTimeEndian::Big,
-        Endian::Little => RunTimeEndian::Little,
-    }
-}
 
 pub(crate) struct DebugContext<'tcx> {
     tcx: TyCtxt<'tcx>,
@@ -59,6 +51,11 @@ impl<'tcx> DebugContext<'tcx> {
             address_size: isa.frontend_config().pointer_bytes(),
         };
 
+        let endian = match isa.endianness() {
+            Endianness::Little => RunTimeEndian::Little,
+            Endianness::Big => RunTimeEndian::Big,
+        };
+
         let mut dwarf = DwarfUnit::new(encoding);
 
         let producer = format!(
@@ -66,7 +63,12 @@ impl<'tcx> DebugContext<'tcx> {
             rustc_interface::util::version_str().unwrap_or("unknown version"),
             cranelift_codegen::VERSION,
         );
-        let comp_dir = tcx.sess.opts.working_dir.to_string_lossy(FileNameDisplayPreference::Remapped).into_owned();
+        let comp_dir = tcx
+            .sess
+            .opts
+            .working_dir
+            .to_string_lossy(FileNameDisplayPreference::Remapped)
+            .into_owned();
         let (name, file_info) = match tcx.sess.local_crate_source_file.clone() {
             Some(path) => {
                 let name = path.to_string_lossy().into_owned();
@@ -102,7 +104,7 @@ impl<'tcx> DebugContext<'tcx> {
         DebugContext {
             tcx,
 
-            endian: target_endian(tcx),
+            endian,
 
             dwarf,
             unit_range_list: RangeList(Vec::new()),
@@ -112,7 +114,7 @@ impl<'tcx> DebugContext<'tcx> {
     }
 
     fn dwarf_ty(&mut self, ty: Ty<'tcx>) -> UnitEntryId {
-        if let Some(type_id) = self.types.get(ty) {
+        if let Some(type_id) = self.types.get(&ty) {
             return *type_id;
         }
 
@@ -141,7 +143,7 @@ impl<'tcx> DebugContext<'tcx> {
                 // Ensure that type is inserted before recursing to avoid duplicates
                 self.types.insert(ty, type_id);
 
-                let pointee = self.dwarf_ty(pointee_ty);
+                let pointee = self.dwarf_ty(*pointee_ty);
 
                 let type_entry = self.dwarf.unit.get_mut(type_id);
 
@@ -172,7 +174,7 @@ impl<'tcx> DebugContext<'tcx> {
 
                     field_entry.set(
                         gimli::DW_AT_name,
-                        AttributeValue::String(field_def.ident.as_str().to_string().into_bytes()),
+                        AttributeValue::String(field_def.name.as_str().to_string().into_bytes()),
                     );
                     field_entry.set(
                         gimli::DW_AT_data_member_location,
@@ -249,7 +251,7 @@ impl<'tcx> DebugContext<'tcx> {
 
         // FIXME make it more reliable and implement scopes before re-enabling this.
         if false {
-            let value_labels_ranges = context.build_value_labels_ranges(isa).unwrap();
+            let value_labels_ranges = std::collections::HashMap::new(); // FIXME
 
             for (local, _local_decl) in mir.local_decls.iter_enumerated() {
                 let ty = self.tcx.subst_and_normalize_erasing_regions(
@@ -263,7 +265,6 @@ impl<'tcx> DebugContext<'tcx> {
                     self,
                     isa,
                     symbol,
-                    context,
                     &local_map,
                     &value_labels_ranges,
                     Place { local, projection: ty::List::empty() },
@@ -282,7 +283,6 @@ fn place_location<'tcx>(
     debug_context: &mut DebugContext<'tcx>,
     isa: &dyn TargetIsa,
     symbol: usize,
-    context: &Context,
     local_map: &IndexVec<mir::Local, CPlace<'tcx>>,
     #[allow(rustc::default_hash_types)] value_labels_ranges: &std::collections::HashMap<
         ValueLabel,
@@ -305,12 +305,7 @@ fn place_location<'tcx>(
                                 addend: i64::from(value_loc_range.start),
                             },
                             end: Address::Symbol { symbol, addend: i64::from(value_loc_range.end) },
-                            data: translate_loc(
-                                isa,
-                                value_loc_range.loc,
-                                &context.func.stack_slots,
-                            )
-                            .unwrap(),
+                            data: translate_loc(isa, value_loc_range.loc).unwrap(),
                         })
                         .collect(),
                 );
@@ -339,34 +334,14 @@ fn place_location<'tcx>(
             AttributeValue::Exprloc(Expression::new())
 
             // For PointerBase::Stack:
-            //AttributeValue::Exprloc(translate_loc(ValueLoc::Stack(*stack_slot), &context.func.stack_slots).unwrap())
+            //AttributeValue::Exprloc(translate_loc(ValueLoc::Stack(*stack_slot)).unwrap())
         }
     }
 }
 
 // Adapted from https://github.com/CraneStation/wasmtime/blob/5a1845b4caf7a5dba8eda1fef05213a532ed4259/crates/debug/src/transform/expression.rs#L59-L137
-fn translate_loc(
-    isa: &dyn TargetIsa,
-    loc: LabelValueLoc,
-    stack_slots: &StackSlots,
-) -> Option<Expression> {
+fn translate_loc(isa: &dyn TargetIsa, loc: LabelValueLoc) -> Option<Expression> {
     match loc {
-        LabelValueLoc::ValueLoc(ValueLoc::Reg(reg)) => {
-            let machine_reg = isa.map_dwarf_register(reg).unwrap();
-            let mut expr = Expression::new();
-            expr.op_reg(gimli::Register(machine_reg));
-            Some(expr)
-        }
-        LabelValueLoc::ValueLoc(ValueLoc::Stack(ss)) => {
-            if let Some(ss_offset) = stack_slots[ss].offset {
-                let mut expr = Expression::new();
-                expr.op_breg(X86_64::RBP, i64::from(ss_offset) + 16);
-                Some(expr)
-            } else {
-                None
-            }
-        }
-        LabelValueLoc::ValueLoc(ValueLoc::Unassigned) => unreachable!(),
         LabelValueLoc::Reg(reg) => {
             let machine_reg = isa.map_regalloc_reg_to_dwarf(reg).unwrap();
             let mut expr = Expression::new();

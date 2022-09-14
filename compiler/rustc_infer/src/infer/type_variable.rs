@@ -14,6 +14,7 @@ use std::ops::Range;
 use rustc_data_structures::undo_log::{Rollback, UndoLogs};
 
 /// Represents a single undo-able action that affects a type inference variable.
+#[derive(Clone)]
 pub(crate) enum UndoLog<'tcx> {
     EqRelation(sv::UndoLog<ut::Delegate<TyVidEqKey<'tcx>>>),
     SubRelation(sv::UndoLog<ut::Delegate<ty::TyVid>>),
@@ -58,6 +59,7 @@ impl<'tcx> Rollback<UndoLog<'tcx>> for TypeVariableStorage<'tcx> {
     }
 }
 
+#[derive(Clone)]
 pub struct TypeVariableStorage<'tcx> {
     values: sv::SnapshotVecStorage<Delegate>,
 
@@ -129,19 +131,17 @@ pub enum TypeVariableOriginKind {
     SubstitutionPlaceholder,
     AutoDeref,
     AdjustmentType,
-    DivergingFn,
+
+    /// In type check, when we are type checking a function that
+    /// returns `-> dyn Foo`, we substitute a type variable for the
+    /// return type for diagnostic purposes.
+    DynReturnFn,
     LatticeVariable,
 }
 
+#[derive(Clone)]
 pub(crate) struct TypeVariableData {
     origin: TypeVariableOrigin,
-    diverging: Diverging,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum Diverging {
-    NotDiverging,
-    Diverges,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -168,6 +168,7 @@ impl<'tcx> TypeVariableValue<'tcx> {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct Instantiate;
 
 pub(crate) struct Delegate;
@@ -191,20 +192,12 @@ impl<'tcx> TypeVariableStorage<'tcx> {
 }
 
 impl<'tcx> TypeVariableTable<'_, 'tcx> {
-    /// Returns the diverges flag given when `vid` was created.
-    ///
-    /// Note that this function does not return care whether
-    /// `vid` has been unified with something else or not.
-    pub fn var_diverges(&self, vid: ty::TyVid) -> Diverging {
-        self.storage.values.get(vid.index as usize).diverging
-    }
-
     /// Returns the origin that was given when `vid` was created.
     ///
     /// Note that this function does not return care whether
     /// `vid` has been unified with something else or not.
     pub fn var_origin(&self, vid: ty::TyVid) -> &TypeVariableOrigin {
-        &self.storage.values.get(vid.index as usize).origin
+        &self.storage.values.get(vid.as_usize()).origin
     }
 
     /// Records that `a == b`, depending on `dir`.
@@ -260,7 +253,6 @@ impl<'tcx> TypeVariableTable<'_, 'tcx> {
     pub fn new_var(
         &mut self,
         universe: ty::UniverseIndex,
-        diverging: Diverging,
         origin: TypeVariableOrigin,
     ) -> ty::TyVid {
         let eq_key = self.eq_relations().new_key(TypeVariableValue::Unknown { universe });
@@ -268,13 +260,10 @@ impl<'tcx> TypeVariableTable<'_, 'tcx> {
         let sub_key = self.sub_relations().new_key(());
         assert_eq!(eq_key.vid, sub_key);
 
-        let index = self.values().push(TypeVariableData { origin, diverging });
-        assert_eq!(eq_key.vid.index, index as u32);
+        let index = self.values().push(TypeVariableData { origin });
+        assert_eq!(eq_key.vid.as_u32(), index as u32);
 
-        debug!(
-            "new_var(index={:?}, universe={:?}, diverging={:?}, origin={:?}",
-            eq_key.vid, universe, diverging, origin,
-        );
+        debug!("new_var(index={:?}, universe={:?}, origin={:?})", eq_key.vid, universe, origin);
 
         eq_key.vid
     }
@@ -357,11 +346,11 @@ impl<'tcx> TypeVariableTable<'_, 'tcx> {
         &mut self,
         value_count: usize,
     ) -> (Range<TyVid>, Vec<TypeVariableOrigin>) {
-        let range = TyVid { index: value_count as u32 }..TyVid { index: self.num_vars() as u32 };
+        let range = TyVid::from_usize(value_count)..TyVid::from_usize(self.num_vars());
         (
             range.start..range.end,
-            (range.start.index..range.end.index)
-                .map(|index| self.storage.values.get(index as usize).origin)
+            (range.start.as_usize()..range.end.as_usize())
+                .map(|index| self.storage.values.get(index).origin)
                 .collect(),
         )
     }
@@ -371,7 +360,7 @@ impl<'tcx> TypeVariableTable<'_, 'tcx> {
     pub fn unsolved_variables(&mut self) -> Vec<ty::TyVid> {
         (0..self.storage.values.len())
             .filter_map(|i| {
-                let vid = ty::TyVid { index: i as u32 };
+                let vid = ty::TyVid::from_usize(i);
                 match self.probe(vid) {
                     TypeVariableValue::Unknown { .. } => Some(vid),
                     TypeVariableValue::Known { .. } => None,
@@ -415,6 +404,7 @@ pub(crate) struct TyVidEqKey<'tcx> {
 }
 
 impl<'tcx> From<ty::TyVid> for TyVidEqKey<'tcx> {
+    #[inline] // make this function eligible for inlining - it is quite hot.
     fn from(vid: ty::TyVid) -> Self {
         TyVidEqKey { vid, phantom: PhantomData }
     }
@@ -424,10 +414,11 @@ impl<'tcx> ut::UnifyKey for TyVidEqKey<'tcx> {
     type Value = TypeVariableValue<'tcx>;
     #[inline(always)]
     fn index(&self) -> u32 {
-        self.vid.index
+        self.vid.as_u32()
     }
+    #[inline]
     fn from_index(i: u32) -> Self {
-        TyVidEqKey::from(ty::TyVid { index: i })
+        TyVidEqKey::from(ty::TyVid::from_u32(i))
     }
     fn tag() -> &'static str {
         "TyVidEqKey"

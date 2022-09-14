@@ -72,6 +72,7 @@ jobs:
         - arm-unknown-linux-gnueabihf
         - armv7-unknown-linux-gnueabihf
         - aarch64-unknown-linux-gnu
+        - riscv64gc-unknown-linux-gnu
         - powerpc64le-unknown-linux-gnu
         - mips-unknown-linux-gnu
         - mips64-unknown-linux-gnuabi64
@@ -116,7 +117,6 @@ jobs:
           os: ubuntu-latest
         - target: armv7-unknown-linux-gnueabihf
           os: ubuntu-latest
-          rustflags: -C target-feature=+neon
         - target: mips-unknown-linux-gnu
           os: ubuntu-latest
           norun: true
@@ -138,9 +138,8 @@ jobs:
           norun: true
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-latest
-        # Temporarily disabled because otool crashes with "Out of memory", seems Github CI issue
-        #- target: x86_64-apple-darwin
-        #  os: macos-latest
+        - target: x86_64-apple-darwin
+          os: macos-11
         - target: x86_64-pc-windows-msvc
           os: windows-latest
         - target: i686-pc-windows-msvc
@@ -169,9 +168,13 @@ jobs:
           os: ubuntu-latest
         - target: thumbv7em-none-eabihf
           os: ubuntu-latest
+        - target: riscv64gc-unknown-linux-gnu
+          os: ubuntu-latest
 
     steps:
     - uses: actions/checkout@master
+      with:
+        submodules: recursive
     - name: Install Rust (rustup)
       run: |
         rustup update nightly --no-self-update
@@ -190,7 +193,6 @@ jobs:
       if: "!endsWith(matrix.target, 'emulated')"
     - name: Setup (aarch64-apple-darwin)
       run: |
-        sudo xcode-select -s /Applications/Xcode_12.2.app/
         echo "SDKROOT=$(xcrun -sdk macosx11.0 --show-sdk-path)" >> $GITHUB_ENV
         echo "MACOS_DEPLOYMENT_TARGET=$(xcrun -sdk macosx11.0 --show-sdk-platform-version)" >> $GITHUB_ENV
       if: matrix.target == 'aarch64-apple-darwin'

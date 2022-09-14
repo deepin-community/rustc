@@ -8,9 +8,10 @@ use rustc_errors::struct_span_err;
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{DefId, LocalDefId, CRATE_DEF_ID, CRATE_DEF_INDEX, LOCAL_CRATE};
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::hir_id::CRATE_HIR_ID;
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{FieldDef, Generics, HirId, Item, TraitRef, Ty, TyKind, Variant};
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::middle::privacy::AccessLevels;
 use rustc_middle::middle::stability::{DeprecationEntry, Index};
 use rustc_middle::ty::{self, query::Providers, TyCtxt};
@@ -377,10 +378,10 @@ impl<'a, 'tcx> Visitor<'tcx> for Annotator<'a, 'tcx> {
     /// Because stability levels are scoped lexically, we want to walk
     /// nested items in the context of the outer item, so enable
     /// deep-walking.
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::All;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::All(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_item(&mut self, i: &'tcx Item<'tcx>) {
@@ -576,26 +577,30 @@ impl<'tcx> MissingStabilityAnnotations<'tcx> {
     }
 
     fn check_missing_const_stability(&self, def_id: LocalDefId, span: Span) {
-        let stab_map = self.tcx.stability();
-        let stab = stab_map.local_stability(def_id);
-        if stab.map_or(false, |stab| stab.level.is_stable()) {
-            let const_stab = stab_map.local_const_stability(def_id);
-            if const_stab.is_none() {
-                self.tcx.sess.span_err(
-                    span,
-                    "`#[stable]` const functions must also be either \
-                    `#[rustc_const_stable]` or `#[rustc_const_unstable]`",
-                );
-            }
+        if !self.tcx.features().staged_api {
+            return;
+        }
+
+        let is_const = self.tcx.is_const_fn(def_id.to_def_id());
+        let is_stable = self
+            .tcx
+            .lookup_stability(def_id)
+            .map_or(false, |stability| stability.level.is_stable());
+        let missing_const_stability_attribute = self.tcx.lookup_const_stability(def_id).is_none();
+        let is_reachable = self.access_levels.is_reachable(def_id);
+
+        if is_const && is_stable && missing_const_stability_attribute && is_reachable {
+            let descr = self.tcx.def_kind(def_id).descr(def_id.to_def_id());
+            self.tcx.sess.span_err(span, &format!("{descr} has missing const stability attribute"));
         }
     }
 }
 
 impl<'tcx> Visitor<'tcx> for MissingStabilityAnnotations<'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_item(&mut self, i: &'tcx Item<'tcx>) {
@@ -611,13 +616,8 @@ impl<'tcx> Visitor<'tcx> for MissingStabilityAnnotations<'tcx> {
             self.check_missing_stability(i.def_id, i.span);
         }
 
-        // Ensure `const fn` that are `stable` have one of `rustc_const_unstable` or
-        // `rustc_const_stable`.
-        if self.tcx.features().staged_api
-            && matches!(&i.kind, hir::ItemKind::Fn(sig, ..) if sig.header.is_const())
-        {
-            self.check_missing_const_stability(i.def_id, i.span);
-        }
+        // Ensure stable `const fn` have a const stability attribute.
+        self.check_missing_const_stability(i.def_id, i.span);
 
         intravisit::walk_item(self, i)
     }
@@ -628,9 +628,10 @@ impl<'tcx> Visitor<'tcx> for MissingStabilityAnnotations<'tcx> {
     }
 
     fn visit_impl_item(&mut self, ii: &'tcx hir::ImplItem<'tcx>) {
-        let impl_def_id = self.tcx.hir().local_def_id(self.tcx.hir().get_parent_item(ii.hir_id()));
+        let impl_def_id = self.tcx.hir().get_parent_item(ii.hir_id());
         if self.tcx.impl_trait_ref(impl_def_id).is_none() {
             self.check_missing_stability(ii.def_id, ii.span);
+            self.check_missing_const_stability(ii.def_id, ii.span);
         }
         intravisit::walk_impl_item(self, ii);
     }
@@ -654,7 +655,7 @@ impl<'tcx> Visitor<'tcx> for MissingStabilityAnnotations<'tcx> {
     // stable (assuming they have not inherited instability from their parent).
 }
 
-fn stability_index(tcx: TyCtxt<'tcx>, (): ()) -> Index<'tcx> {
+fn stability_index<'tcx>(tcx: TyCtxt<'tcx>, (): ()) -> Index<'tcx> {
     let is_staged_api =
         tcx.sess.opts.debugging_opts.force_unstable_if_unmarked || tcx.features().staged_api;
     let mut staged_api = FxHashMap::default();
@@ -678,7 +679,6 @@ fn stability_index(tcx: TyCtxt<'tcx>, (): ()) -> Index<'tcx> {
         .collect();
 
     {
-        let krate = tcx.hir().krate();
         let mut annotator = Annotator {
             tcx,
             index: &mut index,
@@ -711,13 +711,13 @@ fn stability_index(tcx: TyCtxt<'tcx>, (): ()) -> Index<'tcx> {
 
         annotator.annotate(
             CRATE_DEF_ID,
-            krate.module().inner,
+            tcx.hir().span(CRATE_HIR_ID),
             None,
             AnnotationKind::Required,
             InheritDeprecation::Yes,
             InheritConstStability::No,
             InheritStability::No,
-            |v| intravisit::walk_crate(v, krate),
+            |v| tcx.hir().walk_toplevel_module(v),
         );
     }
     index
@@ -737,14 +737,14 @@ struct Checker<'tcx> {
     tcx: TyCtxt<'tcx>,
 }
 
-impl Visitor<'tcx> for Checker<'tcx> {
-    type Map = Map<'tcx>;
+impl<'tcx> Visitor<'tcx> for Checker<'tcx> {
+    type NestedFilter = nested_filter::OnlyBodies;
 
     /// Because stability levels are scoped lexically, we want to walk
     /// nested items in the context of the outer item, so enable
     /// deep-walking.
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_item(&mut self, item: &'tcx hir::Item<'tcx>) {
@@ -794,19 +794,12 @@ impl Visitor<'tcx> for Checker<'tcx> {
                     }
                 }
 
-                if let Res::Def(DefKind::Trait, trait_did) = t.path.res {
-                    for impl_item_ref in items {
-                        let impl_item = self.tcx.hir().impl_item(impl_item_ref.id);
-                        let trait_item_def_id = self
-                            .tcx
-                            .associated_items(trait_did)
-                            .filter_by_name_unhygienic(impl_item.ident.name)
-                            .next()
-                            .map(|item| item.def_id);
-                        if let Some(def_id) = trait_item_def_id {
-                            // Pass `None` to skip deprecation warnings.
-                            self.tcx.check_stability(def_id, None, impl_item.span, None);
-                        }
+                for impl_item_ref in items {
+                    let impl_item = self.tcx.associated_item(impl_item_ref.id.def_id);
+
+                    if let Some(def_id) = impl_item.trait_item_def_id {
+                        // Pass `None` to skip deprecation warnings.
+                        self.tcx.check_stability(def_id, None, impl_item_ref.span, None);
                     }
                 }
             }
@@ -866,13 +859,7 @@ struct CheckTraitImplStable<'tcx> {
     fully_stable: bool,
 }
 
-impl Visitor<'tcx> for CheckTraitImplStable<'tcx> {
-    type Map = Map<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
+impl<'tcx> Visitor<'tcx> for CheckTraitImplStable<'tcx> {
     fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _id: hir::HirId) {
         if let Some(def_id) = path.res.opt_def_id() {
             if let Some(stab) = self.tcx.lookup_stability(def_id) {
@@ -906,11 +893,10 @@ pub fn check_unused_or_stable_features(tcx: TyCtxt<'_>) {
     let access_levels = &tcx.privacy_access_levels(());
 
     if tcx.stability().staged_api[&LOCAL_CRATE] {
-        let krate = tcx.hir().krate();
         let mut missing = MissingStabilityAnnotations { tcx, access_levels };
-        missing.check_missing_stability(CRATE_DEF_ID, krate.module().inner);
-        intravisit::walk_crate(&mut missing, krate);
-        krate.visit_all_item_likes(&mut missing.as_deep_visitor());
+        missing.check_missing_stability(CRATE_DEF_ID, tcx.hir().span(CRATE_HIR_ID));
+        tcx.hir().walk_toplevel_module(&mut missing);
+        tcx.hir().visit_all_item_likes(&mut missing.as_deep_visitor());
     }
 
     let declared_lang_features = &tcx.features().declared_lang_features;
@@ -929,6 +915,16 @@ pub fn check_unused_or_stable_features(tcx: TyCtxt<'_>) {
     let declared_lib_features = &tcx.features().declared_lib_features;
     let mut remaining_lib_features = FxHashMap::default();
     for (feature, span) in declared_lib_features {
+        if !tcx.sess.opts.unstable_features.is_nightly_build() {
+            struct_span_err!(
+                tcx.sess,
+                *span,
+                E0554,
+                "`#![feature]` may not be used on the {} release channel",
+                env!("CFG_RELEASE_CHANNEL")
+            )
+            .emit();
+        }
         if remaining_lib_features.contains_key(&feature) {
             // Warn if the user enables a lib feature multiple times.
             duplicate_feature_err(tcx.sess, *span, *feature);
@@ -961,7 +957,7 @@ pub fn check_unused_or_stable_features(tcx: TyCtxt<'_>) {
 
     // We always collect the lib features declared in the current crate, even if there are
     // no unknown features, because the collection also does feature attribute validation.
-    let local_defined_features = tcx.lib_features().to_vec();
+    let local_defined_features = tcx.lib_features(()).to_vec();
     if !remaining_lib_features.is_empty() {
         check_features(&mut remaining_lib_features, &local_defined_features);
 

@@ -286,7 +286,7 @@ impl<'hir> Sig for hir::Ty<'hir> {
                     refs: vec![SigElement { id, start, end }],
                 })
             }
-            hir::TyKind::Path(hir::QPath::LangItem(lang_item, _)) => {
+            hir::TyKind::Path(hir::QPath::LangItem(lang_item, _, _)) => {
                 Ok(text_sig(format!("#[lang = \"{}\"]", lang_item.name())))
             }
             hir::TyKind::TraitObject(bounds, ..) => {
@@ -310,9 +310,9 @@ impl<'hir> Sig for hir::Ty<'hir> {
                 let nested = bounds_to_string(&bounds);
                 Ok(text_sig(nested))
             }
-            hir::TyKind::Array(ref ty, ref anon_const) => {
+            hir::TyKind::Array(ref ty, ref length) => {
                 let nested_ty = ty.make(offset + 1, id, scx)?;
-                let expr = id_to_string(&scx.tcx.hir(), anon_const.body.hir_id).replace('\n', " ");
+                let expr = id_to_string(&scx.tcx.hir(), length.hir_id()).replace('\n', " ");
                 let text = format!("[{}; {}]", nested_ty.text, expr);
                 Ok(replace_text(nested_ty, text))
             }
@@ -573,7 +573,7 @@ impl<'hir> Sig for hir::Path<'hir> {
         let res = scx.get_path_res(id.ok_or("Missing id for Path")?);
 
         let (name, start, end) = match res {
-            Res::PrimTy(..) | Res::SelfTy(..) | Res::Err => {
+            Res::PrimTy(..) | Res::SelfTy { .. } | Res::Err => {
                 return Ok(Signature { text: path_to_string(self), defs: vec![], refs: vec![] });
             }
             Res::Def(DefKind::AssocConst | DefKind::Variant | DefKind::Ctor(..), _) => {
@@ -616,7 +616,7 @@ impl<'hir> Sig for hir::Generics<'hir> {
             if let hir::GenericParamKind::Const { .. } = param.kind {
                 param_text.push_str("const ");
             }
-            param_text.push_str(&param.name.ident().as_str());
+            param_text.push_str(param.name.ident().as_str());
             defs.push(SigElement {
                 id: id_from_hir_id(param.hir_id, scx),
                 start: offset + text.len(),

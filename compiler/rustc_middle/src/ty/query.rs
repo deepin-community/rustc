@@ -1,10 +1,8 @@
 use crate::dep_graph;
-use crate::hir::exports::Export;
 use crate::infer::canonical::{self, Canonical};
 use crate::lint::LintLevelMap;
+use crate::metadata::ModChild;
 use crate::middle::codegen_fn_attrs::CodegenFnAttrs;
-use crate::middle::cstore::{CrateDepKind, CrateSource};
-use crate::middle::cstore::{ExternCrate, ForeignModule, LinkagePreference, NativeLib};
 use crate::middle::exported_symbols::{ExportedSymbol, SymbolExportLevel};
 use crate::middle::lib_features::LibFeatures;
 use crate::middle::privacy::AccessLevels;
@@ -30,6 +28,7 @@ use crate::traits::query::{
 };
 use crate::traits::specialization_graph;
 use crate::traits::{self, ImplSource};
+use crate::ty::fast_reject::SimplifiedType;
 use crate::ty::subst::{GenericArg, SubstsRef};
 use crate::ty::util::AlwaysRequiresDrop;
 use crate::ty::{self, AdtSizedConstraint, CrateInherentImpls, ParamEnvAnd, Ty, TyCtxt};
@@ -46,15 +45,17 @@ use rustc_hir::lang_items::{LangItem, LanguageItems};
 use rustc_hir::{Crate, ItemLocalId, TraitCandidate};
 use rustc_index::{bit_set::FiniteBitSet, vec::IndexVec};
 use rustc_session::config::{EntryFnType, OptLevel, OutputFilenames, SymbolManglingVersion};
+use rustc_session::cstore::{CrateDepKind, CrateSource};
+use rustc_session::cstore::{ExternCrate, ForeignModule, LinkagePreference, NativeLib};
 use rustc_session::utils::NativeLibKind;
 use rustc_session::Limits;
+use rustc_target::abi;
 use rustc_target::spec::PanicStrategy;
 
 use rustc_ast as ast;
 use rustc_attr as attr;
 use rustc_span::symbol::Symbol;
 use rustc_span::{Span, DUMMY_SP};
-use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -68,7 +69,7 @@ pub struct TyCtxtAt<'tcx> {
     pub span: Span,
 }
 
-impl Deref for TyCtxtAt<'tcx> {
+impl<'tcx> Deref for TyCtxtAt<'tcx> {
     type Target = TyCtxt<'tcx>;
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
@@ -81,7 +82,7 @@ pub struct TyCtxtEnsure<'tcx> {
     pub tcx: TyCtxt<'tcx>,
 }
 
-impl TyCtxt<'tcx> {
+impl<'tcx> TyCtxt<'tcx> {
     /// Returns a transparent wrapper for `TyCtxt`, which ensures queries
     /// are executed instead of just returning their results.
     #[inline(always)]
@@ -101,6 +102,16 @@ impl TyCtxt<'tcx> {
     }
 }
 
+/// Helper for `TyCtxtEnsure` to avoid a closure.
+#[inline(always)]
+fn noop<T>(_: &T) {}
+
+/// Helper to ensure that queries only return `Copy` types.
+#[inline(always)]
+fn copy<T: Copy>(x: &T) -> T {
+    *x
+}
+
 macro_rules! query_helper_param_ty {
     (DefId) => { impl IntoQueryParam<DefId> };
     ($K:ty) => { $K };
@@ -110,11 +121,54 @@ macro_rules! query_storage {
     ([][$K:ty, $V:ty]) => {
         <DefaultCacheSelector as CacheSelector<$K, $V>>::Cache
     };
-    ([storage($ty:ty) $($rest:tt)*][$K:ty, $V:ty]) => {
+    ([(storage $ty:ty) $($rest:tt)*][$K:ty, $V:ty]) => {
         <$ty as CacheSelector<$K, $V>>::Cache
     };
-    ([$other:ident $(($($other_args:tt)*))* $(, $($modifiers:tt)*)*][$($args:tt)*]) => {
-        query_storage!([$($($modifiers)*)*][$($args)*])
+    ([$other:tt $($modifiers:tt)*][$($args:tt)*]) => {
+        query_storage!([$($modifiers)*][$($args)*])
+    };
+}
+
+macro_rules! separate_provide_extern_decl {
+    ([][$name:ident]) => {
+        ()
+    };
+    ([(separate_provide_extern) $($rest:tt)*][$name:ident]) => {
+        for<'tcx> fn(
+            TyCtxt<'tcx>,
+            query_keys::$name<'tcx>,
+        ) -> query_values::$name<'tcx>
+    };
+    ([$other:tt $($modifiers:tt)*][$($args:tt)*]) => {
+        separate_provide_extern_decl!([$($modifiers)*][$($args)*])
+    };
+}
+
+macro_rules! separate_provide_extern_default {
+    ([][$name:ident]) => {
+        ()
+    };
+    ([(separate_provide_extern) $($rest:tt)*][$name:ident]) => {
+        |_, key| bug!(
+            "`tcx.{}({:?})` unsupported by its crate; \
+             perhaps the `{}` query was never assigned a provider function",
+            stringify!($name),
+            key,
+            stringify!($name),
+        )
+    };
+    ([$other:tt $($modifiers:tt)*][$($args:tt)*]) => {
+        separate_provide_extern_default!([$($modifiers)*][$($args)*])
+    };
+}
+
+macro_rules! opt_remap_env_constness {
+    ([][$name:ident]) => {};
+    ([(remap_env_constness) $($rest:tt)*][$name:ident]) => {
+        let $name = $name.without_const();
+    };
+    ([$other:tt $($modifiers:tt)*][$name:ident]) => {
+        opt_remap_env_constness!([$($modifiers)*][$name])
     };
 }
 
@@ -159,12 +213,14 @@ macro_rules! define_callbacks {
             $($(#[$attr])* pub $name: QueryCacheStore<query_storage::$name<$tcx>>,)*
         }
 
-        impl TyCtxtEnsure<$tcx> {
+        impl<$tcx> TyCtxtEnsure<$tcx> {
             $($(#[$attr])*
             #[inline(always)]
             pub fn $name(self, key: query_helper_param_ty!($($K)*)) {
                 let key = key.into_query_param();
-                let cached = try_get_cached(self.tcx, &self.tcx.query_caches.$name, &key, |_| {});
+                opt_remap_env_constness!([$($modifiers)*][key]);
+
+                let cached = try_get_cached(self.tcx, &self.tcx.query_caches.$name, &key, noop);
 
                 let lookup = match cached {
                     Ok(()) => return,
@@ -175,7 +231,7 @@ macro_rules! define_callbacks {
             })*
         }
 
-        impl TyCtxt<$tcx> {
+        impl<$tcx> TyCtxt<$tcx> {
             $($(#[$attr])*
             #[inline(always)]
             #[must_use]
@@ -185,15 +241,15 @@ macro_rules! define_callbacks {
             })*
         }
 
-        impl TyCtxtAt<$tcx> {
+        impl<$tcx> TyCtxtAt<$tcx> {
             $($(#[$attr])*
             #[inline(always)]
             pub fn $name(self, key: query_helper_param_ty!($($K)*)) -> query_stored::$name<$tcx>
             {
                 let key = key.into_query_param();
-                let cached = try_get_cached(self.tcx, &self.tcx.query_caches.$name, &key, |value| {
-                    value.clone()
-                });
+                opt_remap_env_constness!([$($modifiers)*][key]);
+
+                let cached = try_get_cached(self.tcx, &self.tcx.query_caches.$name, &key, copy);
 
                 let lookup = match cached {
                     Ok(value) => return value,
@@ -211,6 +267,10 @@ macro_rules! define_callbacks {
             ) -> query_values::$name<'tcx>,)*
         }
 
+        pub struct ExternProviders {
+            $(pub $name: separate_provide_extern_decl!([$($modifiers)*][$name]),)*
+        }
+
         impl Default for Providers {
             fn default() -> Self {
                 Providers {
@@ -225,8 +285,21 @@ macro_rules! define_callbacks {
             }
         }
 
+        impl Default for ExternProviders {
+            fn default() -> Self {
+                ExternProviders {
+                    $($name: separate_provide_extern_default!([$($modifiers)*][$name]),)*
+                }
+            }
+        }
+
         impl Copy for Providers {}
         impl Clone for Providers {
+            fn clone(&self) -> Self { *self }
+        }
+
+        impl Copy for ExternProviders {}
+        impl Clone for ExternProviders {
             fn clone(&self) -> Self { *self }
         }
 
@@ -280,6 +353,13 @@ mod sealed {
         }
     }
 
+    impl<'a, P: Copy> IntoQueryParam<P> for &'a P {
+        #[inline(always)]
+        fn into_query_param(self) -> P {
+            *self
+        }
+    }
+
     impl IntoQueryParam<DefId> for LocalDefId {
         #[inline(always)]
         fn into_query_param(self) -> DefId {
@@ -290,7 +370,7 @@ mod sealed {
 
 use sealed::IntoQueryParam;
 
-impl TyCtxt<'tcx> {
+impl<'tcx> TyCtxt<'tcx> {
     pub fn def_kind(self, def_id: impl IntoQueryParam<DefId>) -> DefKind {
         let def_id = def_id.into_query_param();
         self.opt_def_kind(def_id)
@@ -298,7 +378,7 @@ impl TyCtxt<'tcx> {
     }
 }
 
-impl TyCtxtAt<'tcx> {
+impl<'tcx> TyCtxtAt<'tcx> {
     pub fn def_kind(self, def_id: impl IntoQueryParam<DefId>) -> DefKind {
         let def_id = def_id.into_query_param();
         self.opt_def_kind(def_id)

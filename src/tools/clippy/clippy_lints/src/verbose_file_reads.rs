@@ -27,6 +27,7 @@ declare_clippy_lint! {
     /// # use std::fs;
     /// let mut bytes = fs::read("foo.txt").unwrap();
     /// ```
+    #[clippy::version = "1.44.0"]
     pub VERBOSE_FILE_READS,
     restriction,
     "use of `File::read_to_end` or `File::read_to_string`"
@@ -60,7 +61,7 @@ impl<'tcx> LateLintPass<'tcx> for VerboseFileReads {
 
 fn is_file_read_to_end<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> bool {
     if_chain! {
-        if let ExprKind::MethodCall(method_name, _, exprs, _) = expr.kind;
+        if let ExprKind::MethodCall(method_name, exprs, _) = expr.kind;
         if method_name.ident.as_str() == "read_to_end";
         if let ExprKind::Path(QPath::Resolved(None, _)) = &exprs[0].kind;
         let ty = cx.typeck_results().expr_ty(&exprs[0]);
@@ -74,7 +75,7 @@ fn is_file_read_to_end<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> 
 
 fn is_file_read_to_string<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> bool {
     if_chain! {
-        if let ExprKind::MethodCall(method_name, _, exprs, _) = expr.kind;
+        if let ExprKind::MethodCall(method_name, exprs, _) = expr.kind;
         if method_name.ident.as_str() == "read_to_string";
         if let ExprKind::Path(QPath::Resolved(None, _)) = &exprs[0].kind;
         let ty = cx.typeck_results().expr_ty(&exprs[0]);

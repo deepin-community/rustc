@@ -180,6 +180,12 @@ use crate::time::Duration;
 #[macro_use]
 mod local;
 
+#[unstable(feature = "scoped_threads", issue = "93203")]
+mod scoped;
+
+#[unstable(feature = "scoped_threads", issue = "93203")]
+pub use scoped::{scope, Scope, ScopedJoinHandle};
+
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use self::local::{AccessError, LocalKey};
 
@@ -200,16 +206,9 @@ pub use self::local::fast::Key as __FastLocalKeyInner;
 #[doc(hidden)]
 pub use self::local::os::Key as __OsLocalKeyInner;
 #[unstable(feature = "libstd_thread_internals", issue = "none")]
-#[cfg(all(target_arch = "wasm32", not(target_feature = "atomics")))]
+#[cfg(all(target_family = "wasm", not(target_feature = "atomics")))]
 #[doc(hidden)]
 pub use self::local::statik::Key as __StaticLocalKeyInner;
-
-// This is only used to make thread locals with `const { .. }` initialization
-// expressions unstable. If and/or when that syntax is stabilized with thread
-// locals this will simply be removed.
-#[doc(hidden)]
-#[unstable(feature = "thread_local_const_init", issue = "84223")]
-pub const fn require_unstable_const_init_thread_local() {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builder
@@ -257,6 +256,7 @@ pub const fn require_unstable_const_init_thread_local() {}
 /// [`unwrap`]: crate::result::Result::unwrap
 /// [naming-threads]: ./index.html#naming-threads
 /// [stack-size]: ./index.html#stack-size
+#[must_use = "must eventually spawn the thread"]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Debug)]
 pub struct Builder {
@@ -412,9 +412,9 @@ impl Builder {
     ///
     /// # Safety
     ///
-    /// The caller has to ensure that no references in the supplied thread closure
-    /// or its return type can outlive the spawned thread's lifetime. This can be
-    /// guaranteed in two ways:
+    /// The caller has to ensure that the spawned thread does not outlive any
+    /// references in the supplied thread closure and its return type.
+    /// This can be guaranteed in two ways:
     ///
     /// - ensure that [`join`][`JoinHandle::join`] is called before any referenced
     /// data is dropped
@@ -453,14 +453,31 @@ impl Builder {
         F: Send + 'a,
         T: Send + 'a,
     {
+        Ok(JoinHandle(unsafe { self.spawn_unchecked_(f, None) }?))
+    }
+
+    unsafe fn spawn_unchecked_<'a, 'scope, F, T>(
+        self,
+        f: F,
+        scope_data: Option<&'scope scoped::ScopeData>,
+    ) -> io::Result<JoinInner<'scope, T>>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'a,
+        T: Send + 'a,
+        'scope: 'a,
+    {
         let Builder { name, stack_size } = self;
 
         let stack_size = stack_size.unwrap_or_else(thread::min_stack);
 
-        let my_thread = Thread::new(name);
+        let my_thread = Thread::new(name.map(|name| {
+            CString::new(name).expect("thread name may not contain interior null bytes")
+        }));
         let their_thread = my_thread.clone();
 
-        let my_packet: Arc<UnsafeCell<Option<Result<T>>>> = Arc::new(UnsafeCell::new(None));
+        let my_packet: Arc<Packet<'scope, T>> =
+            Arc::new(Packet { scope: scope_data, result: UnsafeCell::new(None) });
         let their_packet = my_packet.clone();
 
         let output_capture = crate::io::set_output_capture(None);
@@ -484,10 +501,14 @@ impl Builder {
             // closure (it is an Arc<...>) and `my_packet` will be stored in the
             // same `JoinInner` as this closure meaning the mutation will be
             // safe (not modify it and affect a value far away).
-            unsafe { *their_packet.get() = Some(try_result) };
+            unsafe { *their_packet.result.get() = Some(try_result) };
         };
 
-        Ok(JoinHandle(JoinInner {
+        if let Some(scope_data) = scope_data {
+            scope_data.increment_num_running_threads();
+        }
+
+        Ok(JoinInner {
             // SAFETY:
             //
             // `imp::Thread::new` takes a closure with a `'static` lifetime, since it's passed
@@ -502,16 +523,16 @@ impl Builder {
             // exist after the thread has terminated, which is signaled by `Thread::join`
             // returning.
             native: unsafe {
-                Some(imp::Thread::new(
+                imp::Thread::new(
                     stack_size,
                     mem::transmute::<Box<dyn FnOnce() + 'a>, Box<dyn FnOnce() + 'static>>(
                         Box::new(main),
                     ),
-                )?)
+                )?
             },
             thread: my_thread,
-            packet: Packet(my_packet),
-        }))
+            packet: my_packet,
+        })
     }
 }
 
@@ -647,6 +668,7 @@ where
 ///
 /// handler.join().unwrap();
 /// ```
+#[must_use]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn current() -> Thread {
     thread_info::current_thread().expect(
@@ -735,6 +757,7 @@ pub fn yield_now() {
 ///
 /// [Mutex]: crate::sync::Mutex
 #[inline]
+#[must_use]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn panicking() -> bool {
     panicking::panicking()
@@ -974,10 +997,13 @@ pub fn park_timeout(dur: Duration) {
 
 /// A unique identifier for a running thread.
 ///
-/// A `ThreadId` is an opaque object that has a unique value for each thread
-/// that creates one. `ThreadId`s are not guaranteed to correspond to a thread's
-/// system-designated identifier. A `ThreadId` can be retrieved from the [`id`]
-/// method on a [`Thread`].
+/// A `ThreadId` is an opaque object that uniquely identifies each thread
+/// created during the lifetime of a process. `ThreadId`s are guaranteed not to
+/// be reused, even when a thread terminates. `ThreadId`s are under the control
+/// of Rust's standard library and there may not be any relationship between
+/// `ThreadId` and the underlying platform's notion of a thread identifier --
+/// the two concepts cannot, therefore, be used interchangeably. A `ThreadId`
+/// can be retrieved from the [`id`] method on a [`Thread`].
 ///
 /// # Examples
 ///
@@ -1029,6 +1055,7 @@ impl ThreadId {
     /// value is entirely opaque -- only equality testing is stable. Note that
     /// it is not guaranteed which values new threads will return, and this may
     /// change across Rust versions.
+    #[must_use]
     #[unstable(feature = "thread_id_value", issue = "67939")]
     pub fn as_u64(&self) -> NonZeroU64 {
         self.0
@@ -1073,12 +1100,8 @@ pub struct Thread {
 impl Thread {
     // Used only internally to construct a thread object without spawning
     // Panics if the name contains nuls.
-    pub(crate) fn new(name: Option<String>) -> Thread {
-        let cname =
-            name.map(|n| CString::new(n).expect("thread name may not contain interior null bytes"));
-        Thread {
-            inner: Arc::new(Inner { name: cname, id: ThreadId::new(), parker: Parker::new() }),
-        }
+    pub(crate) fn new(name: Option<CString>) -> Thread {
+        Thread { inner: Arc::new(Inner { name, id: ThreadId::new(), parker: Parker::new() }) }
     }
 
     /// Atomically makes the handle's token available if it is not already.
@@ -1132,6 +1155,7 @@ impl Thread {
     /// assert!(thread::current().id() != other_thread_id);
     /// ```
     #[stable(feature = "thread_id", since = "1.19.0")]
+    #[must_use]
     pub fn id(&self) -> ThreadId {
         self.inner.id
     }
@@ -1174,6 +1198,7 @@ impl Thread {
     ///
     /// [naming-threads]: ./index.html#naming-threads
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.cname().map(|s| unsafe { str::from_utf8_unchecked(s.to_bytes()) })
     }
@@ -1242,41 +1267,55 @@ impl fmt::Debug for Thread {
 #[stable(feature = "rust1", since = "1.0.0")]
 pub type Result<T> = crate::result::Result<T, Box<dyn Any + Send + 'static>>;
 
-// This packet is used to communicate the return value between the spawned thread
-// and the rest of the program. Memory is shared through the `Arc` within and there's
-// no need for a mutex here because synchronization happens with `join()` (the
-// caller will never read this packet until the thread has exited).
+// This packet is used to communicate the return value between the spawned
+// thread and the rest of the program. It is shared through an `Arc` and
+// there's no need for a mutex here because synchronization happens with `join()`
+// (the caller will never read this packet until the thread has exited).
 //
-// This packet itself is then stored into a `JoinInner` which in turns is placed
-// in `JoinHandle` and `JoinGuard`. Due to the usage of `UnsafeCell` we need to
-// manually worry about impls like Send and Sync. The type `T` should
-// already always be Send (otherwise the thread could not have been created) and
-// this type is inherently Sync because no methods take &self. Regardless,
-// however, we add inheriting impls for Send/Sync to this type to ensure it's
-// Send/Sync and that future modifications will still appropriately classify it.
-struct Packet<T>(Arc<UnsafeCell<Option<Result<T>>>>);
-
-unsafe impl<T: Send> Send for Packet<T> {}
-unsafe impl<T: Sync> Sync for Packet<T> {}
-
-/// Inner representation for JoinHandle
-struct JoinInner<T> {
-    native: Option<imp::Thread>,
-    thread: Thread,
-    packet: Packet<T>,
+// An Arc to the packet is stored into a `JoinInner` which in turns is placed
+// in `JoinHandle`.
+struct Packet<'scope, T> {
+    scope: Option<&'scope scoped::ScopeData>,
+    result: UnsafeCell<Option<Result<T>>>,
 }
 
-impl<T> JoinInner<T> {
-    fn join(&mut self) -> Result<T> {
-        self.native.take().unwrap().join();
-        unsafe { (*self.packet.0.get()).take().unwrap() }
+// Due to the usage of `UnsafeCell` we need to manually implement Sync.
+// The type `T` should already always be Send (otherwise the thread could not
+// have been created) and the Packet is Sync because all access to the
+// `UnsafeCell` synchronized (by the `join()` boundary), and `ScopeData` is Sync.
+unsafe impl<'scope, T: Sync> Sync for Packet<'scope, T> {}
+
+impl<'scope, T> Drop for Packet<'scope, T> {
+    fn drop(&mut self) {
+        // Book-keeping so the scope knows when it's done.
+        if let Some(scope) = self.scope {
+            // If this packet was for a thread that ran in a scope, the thread
+            // panicked, and nobody consumed the panic payload, we make sure
+            // the scope function will panic.
+            let unhandled_panic = matches!(self.result.get_mut(), Some(Err(_)));
+            scope.decrement_num_running_threads(unhandled_panic);
+        }
+    }
+}
+
+/// Inner representation for JoinHandle
+struct JoinInner<'scope, T> {
+    native: imp::Thread,
+    thread: Thread,
+    packet: Arc<Packet<'scope, T>>,
+}
+
+impl<'scope, T> JoinInner<'scope, T> {
+    fn join(mut self) -> Result<T> {
+        self.native.join();
+        Arc::get_mut(&mut self.packet).unwrap().result.get_mut().take().unwrap()
     }
 }
 
 /// An owned permission to join on a thread (block on its termination).
 ///
 /// A `JoinHandle` *detaches* the associated thread when it is dropped, which
-/// means that there is no longer any handle to thread and no way to `join`
+/// means that there is no longer any handle to the thread and no way to `join`
 /// on it.
 ///
 /// Due to platform restrictions, it is not possible to [`Clone`] this
@@ -1336,7 +1375,7 @@ impl<T> JoinInner<T> {
 /// [`thread::Builder::spawn`]: Builder::spawn
 /// [`thread::spawn`]: spawn
 #[stable(feature = "rust1", since = "1.0.0")]
-pub struct JoinHandle<T>(JoinInner<T>);
+pub struct JoinHandle<T>(JoinInner<'static, T>);
 
 #[stable(feature = "joinhandle_impl_send_sync", since = "1.29.0")]
 unsafe impl<T> Send for JoinHandle<T> {}
@@ -1361,6 +1400,7 @@ impl<T> JoinHandle<T> {
     /// println!("thread id: {:?}", thread.id());
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
+    #[must_use]
     pub fn thread(&self) -> &Thread {
         &self.0.thread
     }
@@ -1399,20 +1439,29 @@ impl<T> JoinHandle<T> {
     /// join_handle.join().expect("Couldn't join on the associated thread");
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn join(mut self) -> Result<T> {
+    pub fn join(self) -> Result<T> {
         self.0.join()
+    }
+
+    /// Checks if the associated thread is still running its main function.
+    ///
+    /// This might return `false` for a brief moment after the thread's main
+    /// function has returned, but before the thread itself has stopped running.
+    #[unstable(feature = "thread_is_running", issue = "90470")]
+    pub fn is_running(&self) -> bool {
+        Arc::strong_count(&self.0.packet) > 1
     }
 }
 
 impl<T> AsInner<imp::Thread> for JoinHandle<T> {
     fn as_inner(&self) -> &imp::Thread {
-        self.0.native.as_ref().unwrap()
+        &self.0.native
     }
 }
 
 impl<T> IntoInner<imp::Thread> for JoinHandle<T> {
     fn into_inner(self) -> imp::Thread {
-        self.0.native.unwrap()
+        self.0.native
     }
 }
 
@@ -1429,38 +1478,83 @@ fn _assert_sync_and_send() {
     _assert_both::<Thread>();
 }
 
-/// Returns the number of hardware threads available to the program.
+/// Returns an estimate of the default amount of parallelism a program should use.
 ///
-/// This value should be considered only a hint.
+/// Parallelism is a resource. A given machine provides a certain capacity for
+/// parallelism, i.e., a bound on the number of computations it can perform
+/// simultaneously. This number often corresponds to the amount of CPUs or
+/// computer has, but it may diverge in various cases.
 ///
-/// # Platform-specific behavior
+/// Host environments such as VMs or container orchestrators may want to
+/// restrict the amount of parallelism made available to programs in them. This
+/// is often done to limit the potential impact of (unintentionally)
+/// resource-intensive programs on other programs running on the same machine.
 ///
-/// If interpreted as the number of actual hardware threads, it may undercount on
-/// Windows systems with more than 64 hardware threads. If interpreted as the
-/// available concurrency for that process, it may overcount on Windows systems
-/// when limited by a process wide affinity mask or job object limitations, and
-/// it may overcount on Linux systems when limited by a process wide affinity
-/// mask or affected by cgroups limits.
+/// # Limitations
+///
+/// The purpose of this API is to provide an easy and portable way to query
+/// the default amount of parallelism the program should use. Among other things it
+/// does not expose information on NUMA regions, does not account for
+/// differences in (co)processor capabilities or current system load,
+/// and will not modify the program's global state in order to more accurately
+/// query the amount of available parallelism.
+///
+/// Where both fixed steady-state and burst limits are available the steady-state
+/// capacity will be used to ensure more predictable latencies.
+///
+/// Resource limits can be changed during the runtime of a program, therefore the value is
+/// not cached and instead recomputed every time this function is called. It should not be
+/// called from hot code.
+///
+/// The value returned by this function should be considered a simplified
+/// approximation of the actual amount of parallelism available at any given
+/// time. To get a more detailed or precise overview of the amount of
+/// parallelism available to the program, you may wish to use
+/// platform-specific APIs as well. The following platform limitations currently
+/// apply to `available_parallelism`:
+///
+/// On Windows:
+/// - It may undercount the amount of parallelism available on systems with more
+///   than 64 logical CPUs. However, programs typically need specific support to
+///   take advantage of more than 64 logical CPUs, and in the absence of such
+///   support, the number returned by this function accurately reflects the
+///   number of logical CPUs the program can use by default.
+/// - It may overcount the amount of parallelism available on systems limited by
+///   process-wide affinity masks, or job object limitations.
+///
+/// On Linux:
+/// - It may overcount the amount of parallelism available when limited by a
+///   process-wide affinity mask, or when affected by cgroup limits.
+///
+/// On all targets:
+/// - It may overcount the amount of parallelism available when running in a VM
+/// with CPU usage limits (e.g. an overcommitted host).
 ///
 /// # Errors
 ///
-/// This function will return an error in the following situations, but is not
-/// limited to just these cases:
+/// This function will, but is not limited to, return errors in the following
+/// cases:
 ///
-/// - If the number of hardware threads is not known for the target platform.
-/// - The process lacks permissions to view the number of hardware threads
-///   available.
+/// - If the amount of parallelism is not known for the target platform.
+/// - If the program lacks permission to query the amount of parallelism made
+///   available to it.
 ///
 /// # Examples
 ///
 /// ```
 /// # #![allow(dead_code)]
-/// #![feature(available_concurrency)]
-/// use std::thread;
+/// use std::{io, thread};
 ///
-/// let count = thread::available_concurrency().map(|n| n.get()).unwrap_or(1);
+/// fn main() -> io::Result<()> {
+///     let count = thread::available_parallelism()?.get();
+///     assert!(count >= 1_usize);
+///     Ok(())
+/// }
 /// ```
-#[unstable(feature = "available_concurrency", issue = "74479")]
-pub fn available_concurrency() -> io::Result<NonZeroUsize> {
-    imp::available_concurrency()
+#[doc(alias = "available_concurrency")] // Alias for a previous name we gave this API on unstable.
+#[doc(alias = "hardware_concurrency")] // Alias for C++ `std::thread::hardware_concurrency`.
+#[doc(alias = "num_cpus")] // Alias for a popular ecosystem crate which provides similar functionality.
+#[stable(feature = "available_parallelism", since = "1.59.0")]
+pub fn available_parallelism() -> io::Result<NonZeroUsize> {
+    imp::available_parallelism()
 }

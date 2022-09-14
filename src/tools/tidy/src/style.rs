@@ -56,6 +56,12 @@ const ANNOTATIONS_TO_IGNORE: &[&str] = &[
     "// normalize-stderr-test",
 ];
 
+// Intentionally written in decimal rather than hex
+const PROBLEMATIC_CONSTS: &[u32] = &[
+    184594741, 2880289470, 2881141438, 2965027518, 2976579765, 3203381950, 3405691582, 3405697037,
+    3735927486, 4027431614, 4276992702,
+];
+
 /// Parser states for `line_is_url`.
 #[derive(Clone, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -217,6 +223,10 @@ pub fn check(path: &Path, bad: &mut bool) {
     fn skip(path: &Path) -> bool {
         super::filter_dirs(path) || skip_markdown_path(path)
     }
+    let problematic_consts_strings: Vec<String> = (PROBLEMATIC_CONSTS.iter().map(u32::to_string))
+        .chain(PROBLEMATIC_CONSTS.iter().map(|v| format!("{:x}", v)))
+        .chain(PROBLEMATIC_CONSTS.iter().map(|v| format!("{:X}", v)))
+        .collect();
     super::walk(path, &mut skip, &mut |entry, contents| {
         let file = entry.path();
         let filename = file.file_name().unwrap().to_string_lossy();
@@ -266,6 +276,8 @@ pub fn check(path: &Path, bad: &mut bool) {
             contains_ignore_directive(can_contain, &contents, "end-whitespace");
         let mut skip_trailing_newlines =
             contains_ignore_directive(can_contain, &contents, "trailing-newlines");
+        let mut skip_leading_newlines =
+            contains_ignore_directive(can_contain, &contents, "leading-newlines");
         let mut skip_copyright = contains_ignore_directive(can_contain, &contents, "copyright");
         let mut leading_new_lines = false;
         let mut trailing_new_lines = 0;
@@ -303,6 +315,11 @@ pub fn check(path: &Path, bad: &mut bool) {
                 }
                 if line.contains("//") && line.contains(" XXX") {
                     err("XXX is deprecated; use FIXME")
+                }
+                for s in problematic_consts_strings.iter() {
+                    if line.contains(s) {
+                        err("Don't use magic numbers that spell things (consider 0x12345678)");
+                    }
                 }
             }
             let is_test = || file.components().any(|c| c.as_os_str() == "tests");
@@ -350,7 +367,10 @@ pub fn check(path: &Path, bad: &mut bool) {
             }
         }
         if leading_new_lines {
-            tidy_error!(bad, "{}: leading newline", file.display());
+            let mut err = |_| {
+                tidy_error!(bad, "{}: leading newline", file.display());
+            };
+            suppressible_tidy_err!(err, skip_leading_newlines, "mising leading newline");
         }
         let mut err = |msg: &str| {
             tidy_error!(bad, "{}: {}", file.display(), msg);
@@ -394,6 +414,9 @@ pub fn check(path: &Path, bad: &mut bool) {
         }
         if let Directive::Ignore(false) = skip_trailing_newlines {
             tidy_error!(bad, "{}: ignoring trailing newlines unnecessarily", file.display());
+        }
+        if let Directive::Ignore(false) = skip_leading_newlines {
+            tidy_error!(bad, "{}: ignoring leading newlines unnecessarily", file.display());
         }
         if let Directive::Ignore(false) = skip_copyright {
             tidy_error!(bad, "{}: ignoring copyright unnecessarily", file.display());

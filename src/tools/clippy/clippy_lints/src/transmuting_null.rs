@@ -25,6 +25,7 @@ declare_clippy_lint! {
     /// ```rust
     /// let null_ref: &u64 = unsafe { std::mem::transmute(0 as *const u64) };
     /// ```
+    #[clippy::version = "1.35.0"]
     pub TRANSMUTING_NULL,
     correctness,
     "transmutes from a null pointer to a reference, which is undefined behavior"
@@ -49,8 +50,8 @@ impl<'tcx> LateLintPass<'tcx> for TransmutingNull {
                 let mut const_eval_context = constant_context(cx, cx.typeck_results());
                 if_chain! {
                     if let ExprKind::Path(ref _qpath) = arg.kind;
-                    let x = const_eval_context.expr(arg);
-                    if let Some(Constant::RawPtr(0)) = x;
+                    if let Some(Constant::RawPtr(x)) = const_eval_context.expr(arg);
+                    if x == 0;
                     then {
                         span_lint(cx, TRANSMUTING_NULL, expr.span, LINT_MSG)
                     }

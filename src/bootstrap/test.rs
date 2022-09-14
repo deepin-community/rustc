@@ -24,7 +24,7 @@ use crate::tool::{self, SourceType, Tool};
 use crate::toolstate::ToolState;
 use crate::util::{self, add_link_lib_path, dylib_path, dylib_path_var};
 use crate::Crate as CargoCrate;
-use crate::{envify, DocTests, GitRepo, Mode};
+use crate::{envify, CLang, DocTests, GitRepo, Mode};
 
 const ADB_TEST_DIR: &str = "/data/tmp/work";
 
@@ -390,7 +390,7 @@ impl Step for Rustfmt {
             host,
             "test",
             "src/tools/rustfmt",
-            SourceType::Submodule,
+            SourceType::InTree,
             &[],
         );
 
@@ -653,7 +653,7 @@ impl Step for Clippy {
         let host = self.host;
         let compiler = builder.compiler(stage, host);
 
-        let clippy = builder
+        builder
             .ensure(tool::Clippy { compiler, target: self.host, extra_features: Vec::new() })
             .expect("in-tree tool");
         let mut cargo = tool::prepare_tool_cargo(
@@ -672,14 +672,7 @@ impl Step for Clippy {
         cargo.env("RUSTC_TEST_SUITE", builder.rustc(compiler));
         cargo.env("RUSTC_LIB_PATH", builder.rustc_libdir(compiler));
         let host_libs = builder.stage_out(compiler, Mode::ToolRustc).join(builder.cargo_dir());
-        let target_libs = builder
-            .stage_out(compiler, Mode::ToolRustc)
-            .join(&self.host.triple)
-            .join(builder.cargo_dir());
         cargo.env("HOST_LIBS", host_libs);
-        cargo.env("TARGET_LIBS", target_libs);
-        // clippy tests need to find the driver
-        cargo.env("CLIPPY_DRIVER_PATH", clippy);
 
         cargo.arg("--").args(builder.config.cmd.test_args());
 
@@ -770,7 +763,7 @@ impl Step for RustdocJSStd {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/test/rustdoc-js-std")
+        run.suite_path("src/test/rustdoc-js-std")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -790,6 +783,17 @@ impl Step for RustdocJSStd {
                 .arg(builder.doc_out(self.target))
                 .arg("--test-folder")
                 .arg(builder.src.join("src/test/rustdoc-js-std"));
+            for path in &builder.paths {
+                if let Some(p) =
+                    util::is_valid_test_suite_arg(path, "src/test/rustdoc-js-std", builder)
+                {
+                    if !p.ends_with(".js") {
+                        eprintln!("A non-js file was given: `{}`", path.display());
+                        panic!("Cannot run rustdoc-js-std tests");
+                    }
+                    command.arg("--test-file").arg(path);
+                }
+            }
             builder.ensure(crate::doc::Std { target: self.target, stage: builder.top_stage });
             builder.run(&mut command);
         } else {
@@ -810,7 +814,7 @@ impl Step for RustdocJSNotStd {
     const ONLY_HOSTS: bool = true;
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/test/rustdoc-js")
+        run.suite_path("src/test/rustdoc-js")
     }
 
     fn make_run(run: RunConfig<'_>) {
@@ -905,7 +909,7 @@ impl Step for RustdocGUI {
         let out_dir = builder.test_out(self.target).join("rustdoc-gui");
 
         // We remove existing folder to be sure there won't be artifacts remaining.
-        let _ = fs::remove_dir_all(&out_dir);
+        builder.clear_if_dirty(&out_dir, &builder.rustdoc(self.compiler));
 
         let src_path = builder.build.src.join("src/test/rustdoc-gui/src");
         // We generate docs for the libraries present in the rustdoc-gui's src folder.
@@ -925,6 +929,11 @@ impl Step for RustdocGUI {
                     .env("RUSTDOC", builder.rustdoc(self.compiler))
                     .env("RUSTC", builder.rustc(self.compiler))
                     .current_dir(path);
+                // FIXME: implement a `// compile-flags` command or similar
+                //        instead of hard-coding this test
+                if entry.file_name() == "link_to_definition" {
+                    cargo.env("RUSTDOCFLAGS", "-Zunstable-options --generate-link-to-definition");
+                }
                 builder.run(&mut cargo);
             }
         }
@@ -940,8 +949,12 @@ impl Step for RustdocGUI {
             .arg("--tests-folder")
             .arg(builder.build.src.join("src/test/rustdoc-gui"));
         for path in &builder.paths {
-            if let Some(name) = path.file_name().and_then(|f| f.to_str()) {
-                if name.ends_with(".goml") {
+            if let Some(p) = util::is_valid_test_suite_arg(path, "src/test/rustdoc-gui", builder) {
+                if !p.ends_with(".goml") {
+                    eprintln!("A non-goml file was given: `{}`", path.display());
+                    panic!("Cannot run rustdoc-gui tests");
+                }
+                if let Some(name) = path.file_name().and_then(|f| f.to_str()) {
                     command.arg("--file").arg(name);
                 }
             }
@@ -1263,7 +1276,7 @@ note: if you're sure you want to do this, please open an issue as to why. In the
         builder.ensure(native::TestHelpers { target: compiler.host });
 
         // As well as the target, except for plain wasm32, which can't build it
-        if !target.contains("wasm32") || target.contains("emscripten") {
+        if !target.contains("wasm") || target.contains("emscripten") {
             builder.ensure(native::TestHelpers { target });
         }
 
@@ -1418,35 +1431,7 @@ note: if you're sure you want to do this, please open an issue as to why. In the
         // Get test-args by striping suite path
         let mut test_args: Vec<&str> = paths
             .iter()
-            .map(|p| match p.strip_prefix(".") {
-                Ok(path) => path,
-                Err(_) => p,
-            })
-            .filter(|p| p.starts_with(suite_path))
-            .filter(|p| {
-                let exists = p.is_dir() || p.is_file();
-                if !exists {
-                    if let Some(p) = p.to_str() {
-                        builder.info(&format!(
-                            "Warning: Skipping \"{}\": not a regular file or directory",
-                            p
-                        ));
-                    }
-                }
-                exists
-            })
-            .filter_map(|p| {
-                // Since test suite paths are themselves directories, if we don't
-                // specify a directory or file, we'll get an empty string here
-                // (the result of the test suite directory without its suite prefix).
-                // Therefore, we need to filter these out, as only the first --test-args
-                // flag is respected, so providing an empty --test-args conflicts with
-                // any following it.
-                match p.strip_prefix(suite_path).ok().and_then(|p| p.to_str()) {
-                    Some(s) if !s.is_empty() => Some(s),
-                    _ => None,
-                }
-            })
+            .filter_map(|p| util::is_valid_test_suite_arg(p, suite_path, builder))
             .collect();
 
         test_args.append(&mut builder.config.cmd.test_args());
@@ -1524,7 +1509,9 @@ note: if you're sure you want to do this, please open an issue as to why. In the
                 .arg("--cxx")
                 .arg(builder.cxx(target).unwrap())
                 .arg("--cflags")
-                .arg(builder.cflags(target, GitRepo::Rustc).join(" "));
+                .arg(builder.cflags(target, GitRepo::Rustc, CLang::C).join(" "))
+                .arg("--cxxflags")
+                .arg(builder.cflags(target, GitRepo::Rustc, CLang::Cxx).join(" "));
             copts_passed = true;
             if let Some(ar) = builder.ar(target) {
                 cmd.arg("--ar").arg(ar);
@@ -1535,7 +1522,14 @@ note: if you're sure you want to do this, please open an issue as to why. In the
             cmd.arg("--llvm-components").arg("");
         }
         if !copts_passed {
-            cmd.arg("--cc").arg("").arg("--cxx").arg("").arg("--cflags").arg("");
+            cmd.arg("--cc")
+                .arg("")
+                .arg("--cxx")
+                .arg("")
+                .arg("--cflags")
+                .arg("")
+                .arg("--cxxflags")
+                .arg("");
         }
 
         if builder.remote_tested(target) {
@@ -1555,6 +1549,9 @@ note: if you're sure you want to do this, please open an issue as to why. In the
             }
         }
         cmd.env("RUSTC_BOOTSTRAP", "1");
+        // Override the rustc version used in symbol hashes to reduce the amount of normalization
+        // needed when diffing test output.
+        cmd.env("RUSTC_FORCE_RUSTC_VERSION", "compiletest");
         cmd.env("DOC_RUST_LANG_ORG_CHANNEL", builder.doc_rust_lang_org_channel());
         builder.add_rust_test_threads(&mut cmd);
 

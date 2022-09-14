@@ -73,7 +73,7 @@ x--expand-yaml-anchors--remove:
     env: {}
 
   - &job-linux-xl
-    os: ubuntu-latest-xl
+    os: ubuntu-20.04-xl
     <<: *base-job
 
   - &job-macos-xl
@@ -153,10 +153,6 @@ x--expand-yaml-anchors--remove:
         run: src/ci/scripts/install-sccache.sh
         <<: *step
 
-      - name: select Xcode
-        run: src/ci/scripts/select-xcode.sh
-        <<: *step
-
       - name: install clang
         run: src/ci/scripts/install-clang.sh
         <<: *step
@@ -208,6 +204,10 @@ x--expand-yaml-anchors--remove:
 
       - name: ensure backported commits are in upstream branches
         run: src/ci/scripts/verify-backported-commits.sh
+        <<: *step
+
+      - name: ensure the stable version number is correct
+        run: src/ci/scripts/verify-stable-version-number.sh
         <<: *step
 
       - name: run the build
@@ -288,7 +288,7 @@ jobs:
           - name: mingw-check
             <<: *job-linux-xl
 
-          - name: x86_64-gnu-llvm-10
+          - name: x86_64-gnu-llvm-12
             <<: *job-linux-xl
 
           - name: x86_64-gnu-tools
@@ -435,7 +435,7 @@ jobs:
           - name: x86_64-gnu-distcheck
             <<: *job-linux-xl
 
-          - name: x86_64-gnu-llvm-10
+          - name: x86_64-gnu-llvm-12
             env:
               RUST_BACKTRACE: 1
             <<: *job-linux-xl
@@ -454,13 +454,25 @@ jobs:
 
           - name: dist-x86_64-apple
             env:
-              SCRIPT: ./x.py dist
-              RUST_CONFIGURE_ARGS: --host=x86_64-apple-darwin --target=x86_64-apple-darwin,aarch64-apple-ios,x86_64-apple-ios,aarch64-apple-ios-sim --enable-full-tools --enable-sanitizers --enable-profiler --set rust.jemalloc --set llvm.ninja=false
+              SCRIPT: ./x.py dist --host=x86_64-apple-darwin --target=x86_64-apple-darwin
+              RUST_CONFIGURE_ARGS: --enable-full-tools --enable-sanitizers --enable-profiler --set rust.jemalloc --set llvm.ninja=false
               RUSTC_RETRY_LINKER_ON_SEGFAULT: 1
               MACOSX_DEPLOYMENT_TARGET: 10.7
               NO_LLVM_ASSERTIONS: 1
               NO_DEBUG_ASSERTIONS: 1
+              NO_OVERFLOW_CHECKS: 1
               DIST_REQUIRE_ALL_TOOLS: 1
+            <<: *job-macos-xl
+
+          - name: dist-apple-various
+            env:
+              SCRIPT: ./x.py dist --host='' --target=aarch64-apple-ios,x86_64-apple-ios,aarch64-apple-ios-sim
+              RUST_CONFIGURE_ARGS: --enable-sanitizers --enable-profiler --set rust.jemalloc --set llvm.ninja=false
+              RUSTC_RETRY_LINKER_ON_SEGFAULT: 1
+              MACOSX_DEPLOYMENT_TARGET: 10.7
+              NO_LLVM_ASSERTIONS: 1
+              NO_DEBUG_ASSERTIONS: 1
+              NO_OVERFLOW_CHECKS: 1
             <<: *job-macos-xl
 
           - name: dist-x86_64-apple-alt
@@ -471,17 +483,25 @@ jobs:
               MACOSX_DEPLOYMENT_TARGET: 10.7
               NO_LLVM_ASSERTIONS: 1
               NO_DEBUG_ASSERTIONS: 1
+              NO_OVERFLOW_CHECKS: 1
             <<: *job-macos-xl
 
-          - name: x86_64-apple
-            env:
-              SCRIPT: ./x.py --stage 2 test
+          - name: x86_64-apple-1
+            env: &env-x86_64-apple-tests
+              SCRIPT: ./x.py --stage 2 test --exclude src/test/ui --exclude src/test/rustdoc --exclude src/test/run-make-fulldeps
               RUST_CONFIGURE_ARGS: --build=x86_64-apple-darwin --enable-sanitizers --enable-profiler --set rust.jemalloc --set llvm.ninja=false
               RUSTC_RETRY_LINKER_ON_SEGFAULT: 1
               MACOSX_DEPLOYMENT_TARGET: 10.8
               MACOSX_STD_DEPLOYMENT_TARGET: 10.7
               NO_LLVM_ASSERTIONS: 1
               NO_DEBUG_ASSERTIONS: 1
+              NO_OVERFLOW_CHECKS: 1
+            <<: *job-macos-xl
+
+          - name: x86_64-apple-2
+            env:
+              SCRIPT: ./x.py --stage 2 test src/test/ui src/test/rustdoc src/test/run-make-fulldeps
+              <<: *env-x86_64-apple-tests
             <<: *job-macos-xl
 
           # This target only needs to support 11.0 and up as nothing else supports the hardware
@@ -495,15 +515,16 @@ jobs:
                 --enable-full-tools
                 --enable-sanitizers
                 --enable-profiler
+                --disable-docs
                 --set rust.jemalloc
                 --set llvm.ninja=false
               RUSTC_RETRY_LINKER_ON_SEGFAULT: 1
-              SELECT_XCODE: /Applications/Xcode_12.2.app
               USE_XCODE_CLANG: 1
               MACOSX_DEPLOYMENT_TARGET: 11.0
               MACOSX_STD_DEPLOYMENT_TARGET: 11.0
               NO_LLVM_ASSERTIONS: 1
               NO_DEBUG_ASSERTIONS: 1
+              NO_OVERFLOW_CHECKS: 1
               DIST_REQUIRE_ALL_TOOLS: 1
               # Corresponds to 16K page size
               #
@@ -547,7 +568,6 @@ jobs:
             env:
               SCRIPT: python x.py --stage 2 test src/tools/cargotest src/tools/cargo
               RUST_CONFIGURE_ARGS: --build=x86_64-pc-windows-msvc --enable-lld
-              VCVARS_BAT: vcvars64.bat
             <<: *job-windows-xl
 
           - name: x86_64-msvc-tools
@@ -671,7 +691,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - *dist-x86_64-linux
+          - &dist-x86_64-linux
+            name: dist-x86_64-linux
+            <<: *job-linux-xl
 
   master:
     name: master

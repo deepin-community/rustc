@@ -8,7 +8,7 @@
 //! - **MIR.** The "mid-level (M) intermediate representation (IR)" is
 //!   defined in the `mir` module. This module contains only the
 //!   *definition* of the MIR; the passes that transform and operate
-//!   on MIR are found in `rustc_mir` crate.
+//!   on MIR are found in `rustc_const_eval` crate.
 //! - **Types.** The internal representation of types used in rustc is
 //!   defined in the `ty` module. This includes the **type context**
 //!   (or `tcx`), which is the central context during most of
@@ -30,31 +30,33 @@
 #![feature(bool_to_option)]
 #![feature(box_patterns)]
 #![feature(core_intrinsics)]
+#![feature(derive_default_enum)]
 #![feature(discriminant_kind)]
+#![feature(exhaustive_patterns)]
+#![feature(get_mut_unchecked)]
 #![feature(if_let_guard)]
+#![feature(map_first_last)]
 #![feature(never_type)]
 #![feature(extern_types)]
 #![feature(new_uninit)]
 #![feature(nll)]
 #![feature(once_cell)]
+#![feature(let_else)]
 #![feature(min_specialization)]
 #![feature(trusted_len)]
-#![feature(test)]
-#![feature(in_band_lifetimes)]
 #![feature(crate_visibility_modifier)]
 #![feature(associated_type_bounds)]
 #![feature(rustc_attrs)]
 #![feature(half_open_range_patterns)]
-#![feature(exclusive_range_pattern)]
 #![feature(control_flow_enum)]
 #![feature(associated_type_defaults)]
-#![feature(iter_zip)]
-#![feature(thread_local_const_init)]
-#![feature(try_reserve)]
+#![feature(trusted_step)]
+#![feature(try_blocks)]
 #![feature(try_reserve_kind)]
 #![feature(nonzero_ops)]
-#![cfg_attr(bootstrap, allow(incomplete_features))] // if_let_guard
+#![feature(unwrap_infallible)]
 #![recursion_limit = "512"]
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 #[macro_use]
 extern crate bitflags;
@@ -81,9 +83,9 @@ pub mod arena;
 #[macro_use]
 pub mod dep_graph;
 pub mod hir;
-pub mod ich;
 pub mod infer;
 pub mod lint;
+pub mod metadata;
 pub mod middle;
 pub mod mir;
 pub mod thir;

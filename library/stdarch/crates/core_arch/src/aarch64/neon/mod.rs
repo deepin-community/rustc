@@ -12,61 +12,59 @@ pub use self::generated::*;
 use crate::{
     core_arch::{arm_shared::*, simd::*, simd_llvm::*},
     hint::unreachable_unchecked,
-    mem::{size_of, transmute, zeroed},
-    ptr::copy_nonoverlapping,
+    mem::{transmute, zeroed},
+    ptr::{read_unaligned, write_unaligned},
 };
 #[cfg(test)]
 use stdarch_test::assert_instr;
 
 types! {
     /// ARM-specific 64-bit wide vector of one packed `f64`.
+    #[stable(feature = "neon_intrinsics", since = "1.59.0")]
     pub struct float64x1_t(f64); // FIXME: check this!
     /// ARM-specific 128-bit wide vector of two packed `f64`.
+    #[stable(feature = "neon_intrinsics", since = "1.59.0")]
     pub struct float64x2_t(f64, f64);
 }
 
-/// ARM-specific type containing two `int8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct int8x16x2_t(pub int8x16_t, pub int8x16_t);
-/// ARM-specific type containing three `int8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct int8x16x3_t(pub int8x16_t, pub int8x16_t, pub int8x16_t);
-/// ARM-specific type containing four `int8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct int8x16x4_t(pub int8x16_t, pub int8x16_t, pub int8x16_t, pub int8x16_t);
-
-/// ARM-specific type containing two `uint8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct uint8x16x2_t(pub uint8x16_t, pub uint8x16_t);
-/// ARM-specific type containing three `uint8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct uint8x16x3_t(pub uint8x16_t, pub uint8x16_t, pub uint8x16_t);
-/// ARM-specific type containing four `uint8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct uint8x16x4_t(
-    pub uint8x16_t,
-    pub uint8x16_t,
-    pub uint8x16_t,
-    pub uint8x16_t,
+/// ARM-specific type containing two `float64x1_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x1x2_t(pub float64x1_t, pub float64x1_t);
+/// ARM-specific type containing three `float64x1_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x1x3_t(pub float64x1_t, pub float64x1_t, pub float64x1_t);
+/// ARM-specific type containing four `float64x1_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x1x4_t(
+    pub float64x1_t,
+    pub float64x1_t,
+    pub float64x1_t,
+    pub float64x1_t,
 );
 
-/// ARM-specific type containing two `poly8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct poly8x16x2_t(pub poly8x16_t, pub poly8x16_t);
-/// ARM-specific type containing three `poly8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct poly8x16x3_t(pub poly8x16_t, pub poly8x16_t, pub poly8x16_t);
-/// ARM-specific type containing four `poly8x16_t` vectors.
-#[derive(Copy, Clone)]
-pub struct poly8x16x4_t(
-    pub poly8x16_t,
-    pub poly8x16_t,
-    pub poly8x16_t,
-    pub poly8x16_t,
+/// ARM-specific type containing two `float64x2_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x2x2_t(pub float64x2_t, pub float64x2_t);
+/// ARM-specific type containing three `float64x2_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x2x3_t(pub float64x2_t, pub float64x2_t, pub float64x2_t);
+/// ARM-specific type containing four `float64x2_t` vectors.
+#[derive(Copy, Clone, Debug)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub struct float64x2x4_t(
+    pub float64x2_t,
+    pub float64x2_t,
+    pub float64x2_t,
+    pub float64x2_t,
 );
 
 #[allow(improper_ctypes)]
-extern "C" {
+extern "unadjusted" {
     // absolute value
     #[link_name = "llvm.aarch64.neon.abs.i64"]
     fn vabsd_s64_(a: i64) -> i64;
@@ -113,6 +111,8 @@ extern "C" {
     fn vpaddq_s16_(a: int16x8_t, b: int16x8_t) -> int16x8_t;
     #[link_name = "llvm.aarch64.neon.addp.v4i32"]
     fn vpaddq_s32_(a: int32x4_t, b: int32x4_t) -> int32x4_t;
+    #[link_name = "llvm.aarch64.neon.addp.v2i64"]
+    fn vpaddq_s64_(a: int64x2_t, b: int64x2_t) -> int64x2_t;
     #[link_name = "llvm.aarch64.neon.addp.v16i8"]
     fn vpaddq_s8_(a: int8x16_t, b: int8x16_t) -> int8x16_t;
 
@@ -362,6 +362,7 @@ extern "C" {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N1 = 0, N2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_lane_s64<const N1: i32, const N2: i32>(
     _a: int64x1_t,
     b: int64x1_t,
@@ -376,6 +377,7 @@ pub unsafe fn vcopy_lane_s64<const N1: i32, const N2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N1 = 0, N2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_lane_u64<const N1: i32, const N2: i32>(
     _a: uint64x1_t,
     b: uint64x1_t,
@@ -390,6 +392,7 @@ pub unsafe fn vcopy_lane_u64<const N1: i32, const N2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N1 = 0, N2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_lane_p64<const N1: i32, const N2: i32>(
     _a: poly64x1_t,
     b: poly64x1_t,
@@ -404,6 +407,7 @@ pub unsafe fn vcopy_lane_p64<const N1: i32, const N2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N1 = 0, N2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_lane_f64<const N1: i32, const N2: i32>(
     _a: float64x1_t,
     b: float64x1_t,
@@ -418,6 +422,7 @@ pub unsafe fn vcopy_lane_f64<const N1: i32, const N2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, LANE1 = 0, LANE2 = 1))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_laneq_s64<const LANE1: i32, const LANE2: i32>(
     _a: int64x1_t,
     b: int64x2_t,
@@ -432,6 +437,7 @@ pub unsafe fn vcopy_laneq_s64<const LANE1: i32, const LANE2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, LANE1 = 0, LANE2 = 1))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_laneq_u64<const LANE1: i32, const LANE2: i32>(
     _a: uint64x1_t,
     b: uint64x2_t,
@@ -446,6 +452,7 @@ pub unsafe fn vcopy_laneq_u64<const LANE1: i32, const LANE2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, LANE1 = 0, LANE2 = 1))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_laneq_p64<const LANE1: i32, const LANE2: i32>(
     _a: poly64x1_t,
     b: poly64x2_t,
@@ -460,6 +467,7 @@ pub unsafe fn vcopy_laneq_p64<const LANE1: i32, const LANE2: i32>(
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, LANE1 = 0, LANE2 = 1))]
 #[rustc_legacy_const_generics(1, 3)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopy_laneq_f64<const LANE1: i32, const LANE2: i32>(
     _a: float64x1_t,
     b: float64x2_t,
@@ -473,327 +481,275 @@ pub unsafe fn vcopy_laneq_f64<const LANE1: i32, const LANE2: i32>(
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_s8(ptr: *const i8) -> int8x8_t {
-    transmute(i8x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_s8(ptr: *const i8) -> int8x16_t {
-    transmute(i8x16::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-        *ptr.offset(8),
-        *ptr.offset(9),
-        *ptr.offset(10),
-        *ptr.offset(11),
-        *ptr.offset(12),
-        *ptr.offset(13),
-        *ptr.offset(14),
-        *ptr.offset(15),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_s16(ptr: *const i16) -> int16x4_t {
-    transmute(i16x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_s16(ptr: *const i16) -> int16x8_t {
-    transmute(i16x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_s32(ptr: *const i32) -> int32x2_t {
-    transmute(i32x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_s32(ptr: *const i32) -> int32x4_t {
-    transmute(i32x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_s64(ptr: *const i64) -> int64x1_t {
-    transmute(i64x1::new(*ptr))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_s64(ptr: *const i64) -> int64x2_t {
-    transmute(i64x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_u8(ptr: *const u8) -> uint8x8_t {
-    transmute(u8x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_u8(ptr: *const u8) -> uint8x16_t {
-    transmute(u8x16::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-        *ptr.offset(8),
-        *ptr.offset(9),
-        *ptr.offset(10),
-        *ptr.offset(11),
-        *ptr.offset(12),
-        *ptr.offset(13),
-        *ptr.offset(14),
-        *ptr.offset(15),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_u16(ptr: *const u16) -> uint16x4_t {
-    transmute(u16x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_u16(ptr: *const u16) -> uint16x8_t {
-    transmute(u16x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_u32(ptr: *const u32) -> uint32x2_t {
-    transmute(u32x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_u32(ptr: *const u32) -> uint32x4_t {
-    transmute(u32x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_u64(ptr: *const u64) -> uint64x1_t {
-    transmute(u64x1::new(*ptr))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_u64(ptr: *const u64) -> uint64x2_t {
-    transmute(u64x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_p8(ptr: *const p8) -> poly8x8_t {
-    transmute(u8x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_p8(ptr: *const p8) -> poly8x16_t {
-    transmute(u8x16::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-        *ptr.offset(8),
-        *ptr.offset(9),
-        *ptr.offset(10),
-        *ptr.offset(11),
-        *ptr.offset(12),
-        *ptr.offset(13),
-        *ptr.offset(14),
-        *ptr.offset(15),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_p16(ptr: *const p16) -> poly16x4_t {
-    transmute(u16x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_p16(ptr: *const p16) -> poly16x8_t {
-    transmute(u16x8::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-        *ptr.offset(4),
-        *ptr.offset(5),
-        *ptr.offset(6),
-        *ptr.offset(7),
-    ))
+    read_unaligned(ptr.cast())
+}
+
+/// Load multiple single-element structures to one, two, three, or four registers.
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1_p64(ptr: *const p64) -> poly64x1_t {
+    read_unaligned(ptr.cast())
+}
+
+/// Load multiple single-element structures to one, two, three, or four registers.
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1q_p64(ptr: *const p64) -> poly64x2_t {
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_f32(ptr: *const f32) -> float32x2_t {
-    transmute(f32x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_f32(ptr: *const f32) -> float32x4_t {
-    transmute(f32x4::new(
-        *ptr,
-        *ptr.offset(1),
-        *ptr.offset(2),
-        *ptr.offset(3),
-    ))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1_f64(ptr: *const f64) -> float64x1_t {
-    transmute(f64x1::new(*ptr))
+    read_unaligned(ptr.cast())
 }
 
 /// Load multiple single-element structures to one, two, three, or four registers.
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vld1q_f64(ptr: *const f64) -> float64x2_t {
-    transmute(f64x2::new(*ptr, *ptr.offset(1)))
+    read_unaligned(ptr.cast())
+}
+
+/// Load multiple single-element structures to one, two, three, or four registers
+#[inline]
+#[target_feature(enable = "neon")]
+#[cfg_attr(test, assert_instr(ldr))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1_dup_f64(ptr: *const f64) -> float64x1_t {
+    vld1_f64(ptr)
+}
+
+/// Load multiple single-element structures to one, two, three, or four registers
+#[inline]
+#[target_feature(enable = "neon")]
+#[cfg_attr(test, assert_instr(ld1r))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1q_dup_f64(ptr: *const f64) -> float64x2_t {
+    let x = vld1q_lane_f64::<0>(ptr, transmute(f64x2::splat(0.)));
+    simd_shuffle2!(x, x, [0, 0])
+}
+
+/// Load one single-element structure to one lane of one register.
+#[inline]
+#[target_feature(enable = "neon")]
+#[rustc_legacy_const_generics(2)]
+#[cfg_attr(test, assert_instr(ldr, LANE = 0))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1_lane_f64<const LANE: i32>(ptr: *const f64, src: float64x1_t) -> float64x1_t {
+    static_assert!(LANE : i32 where LANE == 0);
+    simd_insert(src, LANE as u32, *ptr)
+}
+
+/// Load one single-element structure to one lane of one register.
+#[inline]
+#[target_feature(enable = "neon")]
+#[rustc_legacy_const_generics(2)]
+#[cfg_attr(test, assert_instr(ld1, LANE = 1))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vld1q_lane_f64<const LANE: i32>(ptr: *const f64, src: float64x2_t) -> float64x2_t {
+    static_assert_imm1!(LANE);
+    simd_insert(src, LANE as u32, *ptr)
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -801,12 +757,9 @@ pub unsafe fn vld1q_f64(ptr: *const f64) -> float64x2_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_s8(ptr: *mut i8, a: int8x8_t) {
-    copy_nonoverlapping(
-        &a as *const int8x8_t as *const i8,
-        ptr as *mut i8,
-        size_of::<int8x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -814,12 +767,9 @@ pub unsafe fn vst1_s8(ptr: *mut i8, a: int8x8_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_s8(ptr: *mut i8, a: int8x16_t) {
-    copy_nonoverlapping(
-        &a as *const int8x16_t as *const i8,
-        ptr as *mut i8,
-        size_of::<int8x16_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -827,12 +777,9 @@ pub unsafe fn vst1q_s8(ptr: *mut i8, a: int8x16_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_s16(ptr: *mut i16, a: int16x4_t) {
-    copy_nonoverlapping(
-        &a as *const int16x4_t as *const i16,
-        ptr as *mut i16,
-        size_of::<int16x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -840,12 +787,9 @@ pub unsafe fn vst1_s16(ptr: *mut i16, a: int16x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_s16(ptr: *mut i16, a: int16x8_t) {
-    copy_nonoverlapping(
-        &a as *const int16x8_t as *const i16,
-        ptr as *mut i16,
-        size_of::<int16x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -853,12 +797,9 @@ pub unsafe fn vst1q_s16(ptr: *mut i16, a: int16x8_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_s32(ptr: *mut i32, a: int32x2_t) {
-    copy_nonoverlapping(
-        &a as *const int32x2_t as *const i32,
-        ptr as *mut i32,
-        size_of::<int32x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -866,12 +807,9 @@ pub unsafe fn vst1_s32(ptr: *mut i32, a: int32x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_s32(ptr: *mut i32, a: int32x4_t) {
-    copy_nonoverlapping(
-        &a as *const int32x4_t as *const i32,
-        ptr as *mut i32,
-        size_of::<int32x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -879,12 +817,9 @@ pub unsafe fn vst1q_s32(ptr: *mut i32, a: int32x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_s64(ptr: *mut i64, a: int64x1_t) {
-    copy_nonoverlapping(
-        &a as *const int64x1_t as *const i64,
-        ptr as *mut i64,
-        size_of::<int64x1_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -892,12 +827,9 @@ pub unsafe fn vst1_s64(ptr: *mut i64, a: int64x1_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_s64(ptr: *mut i64, a: int64x2_t) {
-    copy_nonoverlapping(
-        &a as *const int64x2_t as *const i64,
-        ptr as *mut i64,
-        size_of::<int64x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -905,12 +837,9 @@ pub unsafe fn vst1q_s64(ptr: *mut i64, a: int64x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_u8(ptr: *mut u8, a: uint8x8_t) {
-    copy_nonoverlapping(
-        &a as *const uint8x8_t as *const u8,
-        ptr as *mut u8,
-        size_of::<uint8x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -918,12 +847,9 @@ pub unsafe fn vst1_u8(ptr: *mut u8, a: uint8x8_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_u8(ptr: *mut u8, a: uint8x16_t) {
-    copy_nonoverlapping(
-        &a as *const uint8x16_t as *const u8,
-        ptr as *mut u8,
-        size_of::<uint8x16_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -931,12 +857,9 @@ pub unsafe fn vst1q_u8(ptr: *mut u8, a: uint8x16_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_u16(ptr: *mut u16, a: uint16x4_t) {
-    copy_nonoverlapping(
-        &a as *const uint16x4_t as *const u16,
-        ptr as *mut u16,
-        size_of::<uint16x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -944,12 +867,9 @@ pub unsafe fn vst1_u16(ptr: *mut u16, a: uint16x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_u16(ptr: *mut u16, a: uint16x8_t) {
-    copy_nonoverlapping(
-        &a as *const uint16x8_t as *const u16,
-        ptr as *mut u16,
-        size_of::<uint16x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -957,12 +877,9 @@ pub unsafe fn vst1q_u16(ptr: *mut u16, a: uint16x8_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_u32(ptr: *mut u32, a: uint32x2_t) {
-    copy_nonoverlapping(
-        &a as *const uint32x2_t as *const u32,
-        ptr as *mut u32,
-        size_of::<uint32x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -970,12 +887,9 @@ pub unsafe fn vst1_u32(ptr: *mut u32, a: uint32x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_u32(ptr: *mut u32, a: uint32x4_t) {
-    copy_nonoverlapping(
-        &a as *const uint32x4_t as *const u32,
-        ptr as *mut u32,
-        size_of::<uint32x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -983,12 +897,9 @@ pub unsafe fn vst1q_u32(ptr: *mut u32, a: uint32x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_u64(ptr: *mut u64, a: uint64x1_t) {
-    copy_nonoverlapping(
-        &a as *const uint64x1_t as *const u64,
-        ptr as *mut u64,
-        size_of::<uint64x1_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -996,12 +907,9 @@ pub unsafe fn vst1_u64(ptr: *mut u64, a: uint64x1_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_u64(ptr: *mut u64, a: uint64x2_t) {
-    copy_nonoverlapping(
-        &a as *const uint64x2_t as *const u64,
-        ptr as *mut u64,
-        size_of::<uint64x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -1009,12 +917,9 @@ pub unsafe fn vst1q_u64(ptr: *mut u64, a: uint64x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_p8(ptr: *mut p8, a: poly8x8_t) {
-    copy_nonoverlapping(
-        &a as *const poly8x8_t as *const p8,
-        ptr as *mut p8,
-        size_of::<poly8x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -1022,12 +927,9 @@ pub unsafe fn vst1_p8(ptr: *mut p8, a: poly8x8_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_p8(ptr: *mut p8, a: poly8x16_t) {
-    copy_nonoverlapping(
-        &a as *const poly8x16_t as *const p8,
-        ptr as *mut p8,
-        size_of::<poly8x16_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -1035,12 +937,9 @@ pub unsafe fn vst1q_p8(ptr: *mut p8, a: poly8x16_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_p16(ptr: *mut p16, a: poly16x4_t) {
-    copy_nonoverlapping(
-        &a as *const poly16x4_t as *const p16,
-        ptr as *mut p16,
-        size_of::<poly16x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Store multiple single-element structures from one, two, three, or four registers.
@@ -1048,38 +947,29 @@ pub unsafe fn vst1_p16(ptr: *mut p16, a: poly16x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_p16(ptr: *mut p16, a: poly16x8_t) {
-    copy_nonoverlapping(
-        &a as *const poly16x8_t as *const p16,
-        ptr as *mut p16,
-        size_of::<poly16x8_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
 #[inline]
-#[target_feature(enable = "neon")]
+#[target_feature(enable = "neon,aes")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_p64(ptr: *mut p64, a: poly64x1_t) {
-    copy_nonoverlapping(
-        &a as *const poly64x1_t as *const p64,
-        ptr as *mut p64,
-        size_of::<poly64x1_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
 #[inline]
-#[target_feature(enable = "neon")]
+#[target_feature(enable = "neon,aes")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_p64(ptr: *mut p64, a: poly64x2_t) {
-    copy_nonoverlapping(
-        &a as *const poly64x2_t as *const p64,
-        ptr as *mut p64,
-        size_of::<poly64x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
@@ -1087,12 +977,9 @@ pub unsafe fn vst1q_p64(ptr: *mut p64, a: poly64x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_f32(ptr: *mut f32, a: float32x2_t) {
-    copy_nonoverlapping(
-        &a as *const float32x2_t as *const f32,
-        ptr as *mut f32,
-        size_of::<float32x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
@@ -1100,12 +987,9 @@ pub unsafe fn vst1_f32(ptr: *mut f32, a: float32x2_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_f32(ptr: *mut f32, a: float32x4_t) {
-    copy_nonoverlapping(
-        &a as *const float32x4_t as *const f32,
-        ptr as *mut f32,
-        size_of::<float32x4_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
@@ -1113,12 +997,9 @@ pub unsafe fn vst1q_f32(ptr: *mut f32, a: float32x4_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1_f64(ptr: *mut f64, a: float64x1_t) {
-    copy_nonoverlapping(
-        &a as *const float64x1_t as *const f64,
-        ptr as *mut f64,
-        size_of::<float64x1_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 // Store multiple single-element structures from one, two, three, or four registers.
@@ -1126,18 +1007,16 @@ pub unsafe fn vst1_f64(ptr: *mut f64, a: float64x1_t) {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(str))]
 #[allow(clippy::cast_ptr_alignment)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vst1q_f64(ptr: *mut f64, a: float64x2_t) {
-    copy_nonoverlapping(
-        &a as *const float64x2_t as *const f64,
-        ptr as *mut f64,
-        size_of::<float64x2_t>(),
-    )
+    write_unaligned(ptr.cast(), a);
 }
 
 /// Absolute Value (wrapping).
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(abs))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vabsd_s64(a: i64) -> i64 {
     vabsd_s64_(a)
 }
@@ -1145,6 +1024,7 @@ pub unsafe fn vabsd_s64(a: i64) -> i64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(abs))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vabs_s64(a: int64x1_t) -> int64x1_t {
     vabs_s64_(a)
 }
@@ -1152,6 +1032,7 @@ pub unsafe fn vabs_s64(a: int64x1_t) -> int64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(abs))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vabsq_s64(a: int64x2_t) -> int64x2_t {
     vabsq_s64_(a)
 }
@@ -1162,6 +1043,7 @@ pub unsafe fn vabsq_s64(a: int64x2_t) -> int64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(bsl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vbsl_f64(a: uint64x1_t, b: float64x1_t, c: float64x1_t) -> float64x1_t {
     simd_select(transmute::<_, int64x1_t>(a), b, c)
 }
@@ -1169,6 +1051,7 @@ pub unsafe fn vbsl_f64(a: uint64x1_t, b: float64x1_t, c: float64x1_t) -> float64
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(bsl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vbsl_p64(a: poly64x1_t, b: poly64x1_t, c: poly64x1_t) -> poly64x1_t {
     simd_select(transmute::<_, int64x1_t>(a), b, c)
 }
@@ -1176,6 +1059,7 @@ pub unsafe fn vbsl_p64(a: poly64x1_t, b: poly64x1_t, c: poly64x1_t) -> poly64x1_
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(bsl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vbslq_f64(a: uint64x2_t, b: float64x2_t, c: float64x2_t) -> float64x2_t {
     simd_select(transmute::<_, int64x2_t>(a), b, c)
 }
@@ -1183,6 +1067,7 @@ pub unsafe fn vbslq_f64(a: uint64x2_t, b: float64x2_t, c: float64x2_t) -> float6
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(bsl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vbslq_p64(a: poly64x2_t, b: poly64x2_t, c: poly64x2_t) -> poly64x2_t {
     simd_select(transmute::<_, int64x2_t>(a), b, c)
 }
@@ -1191,6 +1076,7 @@ pub unsafe fn vbslq_p64(a: poly64x2_t, b: poly64x2_t, c: poly64x2_t) -> poly64x2
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqadd_s8(a: int8x8_t, b: uint8x8_t) -> int8x8_t {
     vuqadd_s8_(a, b)
 }
@@ -1198,6 +1084,7 @@ pub unsafe fn vuqadd_s8(a: int8x8_t, b: uint8x8_t) -> int8x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqaddq_s8(a: int8x16_t, b: uint8x16_t) -> int8x16_t {
     vuqaddq_s8_(a, b)
 }
@@ -1205,6 +1092,7 @@ pub unsafe fn vuqaddq_s8(a: int8x16_t, b: uint8x16_t) -> int8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqadd_s16(a: int16x4_t, b: uint16x4_t) -> int16x4_t {
     vuqadd_s16_(a, b)
 }
@@ -1212,6 +1100,7 @@ pub unsafe fn vuqadd_s16(a: int16x4_t, b: uint16x4_t) -> int16x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqaddq_s16(a: int16x8_t, b: uint16x8_t) -> int16x8_t {
     vuqaddq_s16_(a, b)
 }
@@ -1219,6 +1108,7 @@ pub unsafe fn vuqaddq_s16(a: int16x8_t, b: uint16x8_t) -> int16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqadd_s32(a: int32x2_t, b: uint32x2_t) -> int32x2_t {
     vuqadd_s32_(a, b)
 }
@@ -1226,6 +1116,7 @@ pub unsafe fn vuqadd_s32(a: int32x2_t, b: uint32x2_t) -> int32x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqaddq_s32(a: int32x4_t, b: uint32x4_t) -> int32x4_t {
     vuqaddq_s32_(a, b)
 }
@@ -1233,6 +1124,7 @@ pub unsafe fn vuqaddq_s32(a: int32x4_t, b: uint32x4_t) -> int32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqadd_s64(a: int64x1_t, b: uint64x1_t) -> int64x1_t {
     vuqadd_s64_(a, b)
 }
@@ -1240,6 +1132,7 @@ pub unsafe fn vuqadd_s64(a: int64x1_t, b: uint64x1_t) -> int64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(suqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vuqaddq_s64(a: int64x2_t, b: uint64x2_t) -> int64x2_t {
     vuqaddq_s64_(a, b)
 }
@@ -1248,6 +1141,7 @@ pub unsafe fn vuqaddq_s64(a: int64x2_t, b: uint64x2_t) -> int64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqadd_u8(a: uint8x8_t, b: int8x8_t) -> uint8x8_t {
     vsqadd_u8_(a, b)
 }
@@ -1255,6 +1149,7 @@ pub unsafe fn vsqadd_u8(a: uint8x8_t, b: int8x8_t) -> uint8x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqaddq_u8(a: uint8x16_t, b: int8x16_t) -> uint8x16_t {
     vsqaddq_u8_(a, b)
 }
@@ -1262,6 +1157,7 @@ pub unsafe fn vsqaddq_u8(a: uint8x16_t, b: int8x16_t) -> uint8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqadd_u16(a: uint16x4_t, b: int16x4_t) -> uint16x4_t {
     vsqadd_u16_(a, b)
 }
@@ -1269,6 +1165,7 @@ pub unsafe fn vsqadd_u16(a: uint16x4_t, b: int16x4_t) -> uint16x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqaddq_u16(a: uint16x8_t, b: int16x8_t) -> uint16x8_t {
     vsqaddq_u16_(a, b)
 }
@@ -1276,6 +1173,7 @@ pub unsafe fn vsqaddq_u16(a: uint16x8_t, b: int16x8_t) -> uint16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqadd_u32(a: uint32x2_t, b: int32x2_t) -> uint32x2_t {
     vsqadd_u32_(a, b)
 }
@@ -1283,6 +1181,7 @@ pub unsafe fn vsqadd_u32(a: uint32x2_t, b: int32x2_t) -> uint32x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqaddq_u32(a: uint32x4_t, b: int32x4_t) -> uint32x4_t {
     vsqaddq_u32_(a, b)
 }
@@ -1290,6 +1189,7 @@ pub unsafe fn vsqaddq_u32(a: uint32x4_t, b: int32x4_t) -> uint32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqadd_u64(a: uint64x1_t, b: int64x1_t) -> uint64x1_t {
     vsqadd_u64_(a, b)
 }
@@ -1297,6 +1197,7 @@ pub unsafe fn vsqadd_u64(a: uint64x1_t, b: int64x1_t) -> uint64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(usqadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsqaddq_u64(a: uint64x2_t, b: int64x2_t) -> uint64x2_t {
     vsqaddq_u64_(a, b)
 }
@@ -1305,6 +1206,7 @@ pub unsafe fn vsqaddq_u64(a: uint64x2_t, b: int64x2_t) -> uint64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     vpaddq_s16_(a, b)
 }
@@ -1312,6 +1214,7 @@ pub unsafe fn vpaddq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     transmute(vpaddq_s16_(transmute(a), transmute(b)))
 }
@@ -1319,6 +1222,7 @@ pub unsafe fn vpaddq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vpaddq_s32_(a, b)
 }
@@ -1326,6 +1230,7 @@ pub unsafe fn vpaddq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
     transmute(vpaddq_s32_(transmute(a), transmute(b)))
 }
@@ -1333,6 +1238,23 @@ pub unsafe fn vpaddq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vpaddq_s64(a: int64x2_t, b: int64x2_t) -> int64x2_t {
+    vpaddq_s64_(a, b)
+}
+/// Add pairwise
+#[inline]
+#[target_feature(enable = "neon")]
+#[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vpaddq_u64(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    transmute(vpaddq_s64_(transmute(a), transmute(b)))
+}
+/// Add pairwise
+#[inline]
+#[target_feature(enable = "neon")]
+#[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
     vpaddq_s8_(a, b)
 }
@@ -1340,6 +1262,7 @@ pub unsafe fn vpaddq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     transmute(vpaddq_s8_(transmute(a), transmute(b)))
 }
@@ -1347,6 +1270,7 @@ pub unsafe fn vpaddq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddd_s64(a: int64x2_t) -> i64 {
     transmute(vaddvq_u64_(transmute(a)))
 }
@@ -1354,6 +1278,7 @@ pub unsafe fn vpaddd_s64(a: int64x2_t) -> i64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpaddd_u64(a: uint64x2_t) -> u64 {
     transmute(vaddvq_u64_(transmute(a)))
 }
@@ -1362,97 +1287,124 @@ pub unsafe fn vpaddd_u64(a: uint64x2_t) -> u64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_s16(a: int16x4_t) -> i16 {
     vaddv_s16_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_s32(a: int32x2_t) -> i32 {
     vaddv_s32_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_s8(a: int8x8_t) -> i8 {
     vaddv_s8_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_u16(a: uint16x4_t) -> u16 {
     vaddv_u16_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_u32(a: uint32x2_t) -> u32 {
     vaddv_u32_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddv_u8(a: uint8x8_t) -> u8 {
     vaddv_u8_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_s16(a: int16x8_t) -> i16 {
     vaddvq_s16_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_s32(a: int32x4_t) -> i32 {
     vaddvq_s32_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_s8(a: int8x16_t) -> i8 {
     vaddvq_s8_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_u16(a: uint16x8_t) -> u16 {
     vaddvq_u16_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_u32(a: uint32x4_t) -> u32 {
     vaddvq_u32_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_u8(a: uint8x16_t) -> u8 {
     vaddvq_u8_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_s64(a: int64x2_t) -> i64 {
     vaddvq_s64_(a)
 }
+
 /// Add across vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(addp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddvq_u64(a: uint64x2_t) -> u64 {
     vaddvq_u64_(a)
 }
@@ -1461,27 +1413,34 @@ pub unsafe fn vaddvq_u64(a: uint64x2_t) -> u64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(saddlv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddlv_s8(a: int8x8_t) -> i16 {
     vaddlv_s8_(a) as i16
 }
+
 /// Signed Add Long across Vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(saddlv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddlvq_s8(a: int8x16_t) -> i16 {
     vaddlvq_s8_(a) as i16
 }
+
 /// Unsigned Add Long across Vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uaddlv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddlv_u8(a: uint8x8_t) -> u16 {
     vaddlv_u8_(a) as u16
 }
+
 /// Unsigned Add Long across Vector
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uaddlv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddlvq_u8(a: uint8x16_t) -> u16 {
     vaddlvq_u8_(a) as u16
 }
@@ -1490,6 +1449,7 @@ pub unsafe fn vaddlvq_u8(a: uint8x16_t) -> u16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vadd_f64(a: float64x1_t, b: float64x1_t) -> float64x1_t {
     simd_add(a, b)
 }
@@ -1498,6 +1458,7 @@ pub unsafe fn vadd_f64(a: float64x1_t, b: float64x1_t) -> float64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fadd))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
     simd_add(a, b)
 }
@@ -1506,6 +1467,7 @@ pub unsafe fn vaddq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(add))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vadd_s64(a: int64x1_t, b: int64x1_t) -> int64x1_t {
     simd_add(a, b)
 }
@@ -1514,6 +1476,7 @@ pub unsafe fn vadd_s64(a: int64x1_t, b: int64x1_t) -> int64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(add))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vadd_u64(a: uint64x1_t, b: uint64x1_t) -> uint64x1_t {
     simd_add(a, b)
 }
@@ -1522,6 +1485,7 @@ pub unsafe fn vadd_u64(a: uint64x1_t, b: uint64x1_t) -> uint64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(add))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddd_s64(a: i64, b: i64) -> i64 {
     a.wrapping_add(b)
 }
@@ -1530,6 +1494,7 @@ pub unsafe fn vaddd_s64(a: i64, b: i64) -> i64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(add))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vaddd_u64(a: u64, b: u64) -> u64 {
     a.wrapping_add(b)
 }
@@ -1538,6 +1503,7 @@ pub unsafe fn vaddd_u64(a: u64, b: u64) -> u64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_s8(a: int8x8_t) -> i8 {
     vmaxv_s8_(a)
 }
@@ -1546,6 +1512,7 @@ pub unsafe fn vmaxv_s8(a: int8x8_t) -> i8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_s8(a: int8x16_t) -> i8 {
     vmaxvq_s8_(a)
 }
@@ -1554,6 +1521,7 @@ pub unsafe fn vmaxvq_s8(a: int8x16_t) -> i8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_s16(a: int16x4_t) -> i16 {
     vmaxv_s16_(a)
 }
@@ -1562,6 +1530,7 @@ pub unsafe fn vmaxv_s16(a: int16x4_t) -> i16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_s16(a: int16x8_t) -> i16 {
     vmaxvq_s16_(a)
 }
@@ -1570,6 +1539,7 @@ pub unsafe fn vmaxvq_s16(a: int16x8_t) -> i16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_s32(a: int32x2_t) -> i32 {
     vmaxv_s32_(a)
 }
@@ -1578,6 +1548,7 @@ pub unsafe fn vmaxv_s32(a: int32x2_t) -> i32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_s32(a: int32x4_t) -> i32 {
     vmaxvq_s32_(a)
 }
@@ -1586,6 +1557,7 @@ pub unsafe fn vmaxvq_s32(a: int32x4_t) -> i32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_u8(a: uint8x8_t) -> u8 {
     vmaxv_u8_(a)
 }
@@ -1594,6 +1566,7 @@ pub unsafe fn vmaxv_u8(a: uint8x8_t) -> u8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_u8(a: uint8x16_t) -> u8 {
     vmaxvq_u8_(a)
 }
@@ -1602,6 +1575,7 @@ pub unsafe fn vmaxvq_u8(a: uint8x16_t) -> u8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_u16(a: uint16x4_t) -> u16 {
     vmaxv_u16_(a)
 }
@@ -1610,6 +1584,7 @@ pub unsafe fn vmaxv_u16(a: uint16x4_t) -> u16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_u16(a: uint16x8_t) -> u16 {
     vmaxvq_u16_(a)
 }
@@ -1618,6 +1593,7 @@ pub unsafe fn vmaxvq_u16(a: uint16x8_t) -> u16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_u32(a: uint32x2_t) -> u32 {
     vmaxv_u32_(a)
 }
@@ -1626,6 +1602,7 @@ pub unsafe fn vmaxv_u32(a: uint32x2_t) -> u32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_u32(a: uint32x4_t) -> u32 {
     vmaxvq_u32_(a)
 }
@@ -1634,6 +1611,7 @@ pub unsafe fn vmaxvq_u32(a: uint32x4_t) -> u32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxv_f32(a: float32x2_t) -> f32 {
     vmaxv_f32_(a)
 }
@@ -1642,6 +1620,7 @@ pub unsafe fn vmaxv_f32(a: float32x2_t) -> f32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_f32(a: float32x4_t) -> f32 {
     vmaxvq_f32_(a)
 }
@@ -1650,6 +1629,7 @@ pub unsafe fn vmaxvq_f32(a: float32x4_t) -> f32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmaxvq_f64(a: float64x2_t) -> f64 {
     vmaxvq_f64_(a)
 }
@@ -1658,6 +1638,7 @@ pub unsafe fn vmaxvq_f64(a: float64x2_t) -> f64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_s8(a: int8x8_t) -> i8 {
     vminv_s8_(a)
 }
@@ -1666,6 +1647,7 @@ pub unsafe fn vminv_s8(a: int8x8_t) -> i8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_s8(a: int8x16_t) -> i8 {
     vminvq_s8_(a)
 }
@@ -1674,6 +1656,7 @@ pub unsafe fn vminvq_s8(a: int8x16_t) -> i8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_s16(a: int16x4_t) -> i16 {
     vminv_s16_(a)
 }
@@ -1682,6 +1665,7 @@ pub unsafe fn vminv_s16(a: int16x4_t) -> i16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_s16(a: int16x8_t) -> i16 {
     vminvq_s16_(a)
 }
@@ -1690,6 +1674,7 @@ pub unsafe fn vminvq_s16(a: int16x8_t) -> i16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_s32(a: int32x2_t) -> i32 {
     vminv_s32_(a)
 }
@@ -1698,6 +1683,7 @@ pub unsafe fn vminv_s32(a: int32x2_t) -> i32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_s32(a: int32x4_t) -> i32 {
     vminvq_s32_(a)
 }
@@ -1706,6 +1692,7 @@ pub unsafe fn vminvq_s32(a: int32x4_t) -> i32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_u8(a: uint8x8_t) -> u8 {
     vminv_u8_(a)
 }
@@ -1714,6 +1701,7 @@ pub unsafe fn vminv_u8(a: uint8x8_t) -> u8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_u8(a: uint8x16_t) -> u8 {
     vminvq_u8_(a)
 }
@@ -1722,6 +1710,7 @@ pub unsafe fn vminvq_u8(a: uint8x16_t) -> u8 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_u16(a: uint16x4_t) -> u16 {
     vminv_u16_(a)
 }
@@ -1730,6 +1719,7 @@ pub unsafe fn vminv_u16(a: uint16x4_t) -> u16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_u16(a: uint16x8_t) -> u16 {
     vminvq_u16_(a)
 }
@@ -1738,6 +1728,7 @@ pub unsafe fn vminvq_u16(a: uint16x8_t) -> u16 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_u32(a: uint32x2_t) -> u32 {
     vminv_u32_(a)
 }
@@ -1746,6 +1737,7 @@ pub unsafe fn vminv_u32(a: uint32x2_t) -> u32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_u32(a: uint32x4_t) -> u32 {
     vminvq_u32_(a)
 }
@@ -1754,6 +1746,7 @@ pub unsafe fn vminvq_u32(a: uint32x4_t) -> u32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminv_f32(a: float32x2_t) -> f32 {
     vminv_f32_(a)
 }
@@ -1762,6 +1755,7 @@ pub unsafe fn vminv_f32(a: float32x2_t) -> f32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminv))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_f32(a: float32x4_t) -> f32 {
     vminvq_f32_(a)
 }
@@ -1770,6 +1764,7 @@ pub unsafe fn vminvq_f32(a: float32x4_t) -> f32 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vminvq_f64(a: float64x2_t) -> f64 {
     vminvq_f64_(a)
 }
@@ -1778,6 +1773,7 @@ pub unsafe fn vminvq_f64(a: float64x2_t) -> f64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
     vpminq_s8_(a, b)
 }
@@ -1786,6 +1782,7 @@ pub unsafe fn vpminq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     vpminq_s16_(a, b)
 }
@@ -1794,6 +1791,7 @@ pub unsafe fn vpminq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vpminq_s32_(a, b)
 }
@@ -1802,6 +1800,7 @@ pub unsafe fn vpminq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     vpminq_u8_(a, b)
 }
@@ -1810,6 +1809,7 @@ pub unsafe fn vpminq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     vpminq_u16_(a, b)
 }
@@ -1818,6 +1818,7 @@ pub unsafe fn vpminq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(uminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
     vpminq_u32_(a, b)
 }
@@ -1826,6 +1827,7 @@ pub unsafe fn vpminq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_f32(a: float32x4_t, b: float32x4_t) -> float32x4_t {
     vpminq_f32_(a, b)
 }
@@ -1834,6 +1836,7 @@ pub unsafe fn vpminq_f32(a: float32x4_t, b: float32x4_t) -> float32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpminq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
     vpminq_f64_(a, b)
 }
@@ -1842,6 +1845,7 @@ pub unsafe fn vpminq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
     vpmaxq_s8_(a, b)
 }
@@ -1850,6 +1854,7 @@ pub unsafe fn vpmaxq_s8(a: int8x16_t, b: int8x16_t) -> int8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     vpmaxq_s16_(a, b)
 }
@@ -1858,6 +1863,7 @@ pub unsafe fn vpmaxq_s16(a: int16x8_t, b: int16x8_t) -> int16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(smaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     vpmaxq_s32_(a, b)
 }
@@ -1866,6 +1872,7 @@ pub unsafe fn vpmaxq_s32(a: int32x4_t, b: int32x4_t) -> int32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     vpmaxq_u8_(a, b)
 }
@@ -1874,6 +1881,7 @@ pub unsafe fn vpmaxq_u8(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     vpmaxq_u16_(a, b)
 }
@@ -1882,6 +1890,7 @@ pub unsafe fn vpmaxq_u16(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(umaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
     vpmaxq_u32_(a, b)
 }
@@ -1890,6 +1899,7 @@ pub unsafe fn vpmaxq_u32(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_f32(a: float32x4_t, b: float32x4_t) -> float32x4_t {
     vpmaxq_f32_(a, b)
 }
@@ -1898,6 +1908,7 @@ pub unsafe fn vpmaxq_f32(a: float32x4_t, b: float32x4_t) -> float32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxp))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vpmaxq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
     vpmaxq_f64_(a, b)
 }
@@ -1905,30 +1916,29 @@ pub unsafe fn vpmaxq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
 /// Extract vector from pair of vectors
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(str, N = 0))]
+#[cfg_attr(test, assert_instr(nop, N = 0))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vext_p64<const N: i32>(a: poly64x1_t, _b: poly64x1_t) -> poly64x1_t {
-    if N != 0 {
-        unreachable_unchecked()
-    }
+    static_assert!(N : i32 where N == 0);
     a
 }
 
 /// Extract vector from pair of vectors
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(str, N = 0))]
+#[cfg_attr(test, assert_instr(nop, N = 0))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vext_f64<const N: i32>(a: float64x1_t, _b: float64x1_t) -> float64x1_t {
-    if N != 0 {
-        unreachable_unchecked()
-    }
+    static_assert!(N : i32 where N == 0);
     a
 }
 /// Vector combine
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_s8(low: int8x8_t, high: int8x8_t) -> int8x16_t {
     simd_shuffle16!(
         low,
@@ -1941,6 +1951,7 @@ pub unsafe fn vcombine_s8(low: int8x8_t, high: int8x8_t) -> int8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_s16(low: int16x4_t, high: int16x4_t) -> int16x8_t {
     simd_shuffle8!(low, high, [0, 1, 2, 3, 4, 5, 6, 7])
 }
@@ -1949,6 +1960,7 @@ pub unsafe fn vcombine_s16(low: int16x4_t, high: int16x4_t) -> int16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_s32(low: int32x2_t, high: int32x2_t) -> int32x4_t {
     simd_shuffle4!(low, high, [0, 1, 2, 3])
 }
@@ -1957,6 +1969,7 @@ pub unsafe fn vcombine_s32(low: int32x2_t, high: int32x2_t) -> int32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_s64(low: int64x1_t, high: int64x1_t) -> int64x2_t {
     simd_shuffle2!(low, high, [0, 1])
 }
@@ -1965,6 +1978,7 @@ pub unsafe fn vcombine_s64(low: int64x1_t, high: int64x1_t) -> int64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_u8(low: uint8x8_t, high: uint8x8_t) -> uint8x16_t {
     simd_shuffle16!(
         low,
@@ -1977,6 +1991,7 @@ pub unsafe fn vcombine_u8(low: uint8x8_t, high: uint8x8_t) -> uint8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_u16(low: uint16x4_t, high: uint16x4_t) -> uint16x8_t {
     simd_shuffle8!(low, high, [0, 1, 2, 3, 4, 5, 6, 7])
 }
@@ -1985,6 +2000,7 @@ pub unsafe fn vcombine_u16(low: uint16x4_t, high: uint16x4_t) -> uint16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_u32(low: uint32x2_t, high: uint32x2_t) -> uint32x4_t {
     simd_shuffle4!(low, high, [0, 1, 2, 3])
 }
@@ -1993,6 +2009,7 @@ pub unsafe fn vcombine_u32(low: uint32x2_t, high: uint32x2_t) -> uint32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_u64(low: uint64x1_t, high: uint64x1_t) -> uint64x2_t {
     simd_shuffle2!(low, high, [0, 1])
 }
@@ -2001,6 +2018,7 @@ pub unsafe fn vcombine_u64(low: uint64x1_t, high: uint64x1_t) -> uint64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_p64(low: poly64x1_t, high: poly64x1_t) -> poly64x2_t {
     simd_shuffle2!(low, high, [0, 1])
 }
@@ -2009,6 +2027,7 @@ pub unsafe fn vcombine_p64(low: poly64x1_t, high: poly64x1_t) -> poly64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vdup_n_p64(value: p64) -> poly64x1_t {
     transmute(u64x1::new(value))
 }
@@ -2016,7 +2035,8 @@ pub unsafe fn vdup_n_p64(value: p64) -> poly64x1_t {
 /// Duplicate vector element to vector or scalar
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(ldr))]
+#[cfg_attr(test, assert_instr(nop))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vdup_n_f64(value: f64) -> float64x1_t {
     float64x1_t(value)
 }
@@ -2025,6 +2045,7 @@ pub unsafe fn vdup_n_f64(value: f64) -> float64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(dup))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vdupq_n_p64(value: p64) -> poly64x2_t {
     transmute(u64x2::new(value, value))
 }
@@ -2033,6 +2054,7 @@ pub unsafe fn vdupq_n_p64(value: p64) -> poly64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(dup))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vdupq_n_f64(value: f64) -> float64x2_t {
     float64x2_t(value, value)
 }
@@ -2041,6 +2063,7 @@ pub unsafe fn vdupq_n_f64(value: f64) -> float64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmov_n_p64(value: p64) -> poly64x1_t {
     vdup_n_p64(value)
 }
@@ -2048,7 +2071,8 @@ pub unsafe fn vmov_n_p64(value: p64) -> poly64x1_t {
 /// Duplicate vector element to vector or scalar
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(ldr))]
+#[cfg_attr(test, assert_instr(nop))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmov_n_f64(value: f64) -> float64x1_t {
     vdup_n_f64(value)
 }
@@ -2057,6 +2081,7 @@ pub unsafe fn vmov_n_f64(value: f64) -> float64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(dup))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmovq_n_p64(value: p64) -> poly64x2_t {
     vdupq_n_p64(value)
 }
@@ -2065,6 +2090,7 @@ pub unsafe fn vmovq_n_p64(value: p64) -> poly64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(dup))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vmovq_n_f64(value: f64) -> float64x2_t {
     vdupq_n_f64(value)
 }
@@ -2073,6 +2099,7 @@ pub unsafe fn vmovq_n_f64(value: f64) -> float64x2_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vget_high_f64(a: float64x2_t) -> float64x1_t {
     float64x1_t(simd_extract(a, 1))
 }
@@ -2080,7 +2107,8 @@ pub unsafe fn vget_high_f64(a: float64x2_t) -> float64x1_t {
 /// Duplicate vector element to vector or scalar
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(ldr))]
+#[cfg_attr(test, assert_instr(ext))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vget_high_p64(a: poly64x2_t) -> poly64x1_t {
     transmute(u64x1::new(simd_extract(a, 1)))
 }
@@ -2088,7 +2116,8 @@ pub unsafe fn vget_high_p64(a: poly64x2_t) -> poly64x1_t {
 /// Duplicate vector element to vector or scalar
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(ldr))]
+#[cfg_attr(test, assert_instr(nop))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vget_low_f64(a: float64x2_t) -> float64x1_t {
     float64x1_t(simd_extract(a, 0))
 }
@@ -2096,7 +2125,8 @@ pub unsafe fn vget_low_f64(a: float64x2_t) -> float64x1_t {
 /// Duplicate vector element to vector or scalar
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(ldr))]
+#[cfg_attr(test, assert_instr(nop))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vget_low_p64(a: poly64x2_t) -> poly64x1_t {
     transmute(u64x1::new(simd_extract(a, 0)))
 }
@@ -2105,6 +2135,7 @@ pub unsafe fn vget_low_p64(a: poly64x2_t) -> poly64x1_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 #[cfg_attr(all(test, target_arch = "aarch64"), assert_instr(nop, IMM5 = 0))]
 pub unsafe fn vget_lane_f64<const IMM5: i32>(v: float64x1_t) -> f64 {
     static_assert!(IMM5 : i32 where IMM5 == 0);
@@ -2115,6 +2146,7 @@ pub unsafe fn vget_lane_f64<const IMM5: i32>(v: float64x1_t) -> f64 {
 #[inline]
 #[target_feature(enable = "neon")]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 #[cfg_attr(all(test, target_arch = "aarch64"), assert_instr(nop, IMM5 = 0))]
 pub unsafe fn vgetq_lane_f64<const IMM5: i32>(v: float64x2_t) -> f64 {
     static_assert_imm1!(IMM5);
@@ -2135,6 +2167,7 @@ pub unsafe fn vcombine_f16 ( low: float16x4_t,  high: float16x4_t) -> float16x8_
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_f32(low: float32x2_t, high: float32x2_t) -> float32x4_t {
     simd_shuffle4!(low, high, [0, 1, 2, 3])
 }
@@ -2143,6 +2176,7 @@ pub unsafe fn vcombine_f32(low: float32x2_t, high: float32x2_t) -> float32x4_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_p8(low: poly8x8_t, high: poly8x8_t) -> poly8x16_t {
     simd_shuffle16!(
         low,
@@ -2155,6 +2189,7 @@ pub unsafe fn vcombine_p8(low: poly8x8_t, high: poly8x8_t) -> poly8x16_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_p16(low: poly16x4_t, high: poly16x4_t) -> poly16x8_t {
     simd_shuffle8!(low, high, [0, 1, 2, 3, 4, 5, 6, 7])
 }
@@ -2163,6 +2198,7 @@ pub unsafe fn vcombine_p16(low: poly16x4_t, high: poly16x4_t) -> poly16x8_t {
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(mov))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcombine_f64(low: float64x1_t, high: float64x1_t) -> float64x2_t {
     simd_shuffle2!(low, high, [0, 1])
 }
@@ -2172,6 +2208,7 @@ pub unsafe fn vcombine_f64(low: float64x1_t, high: float64x1_t) -> float64x2_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl1_s8(a: int8x8_t, b: int8x8_t) -> int8x8_t {
     vqtbl1_s8(vcombine_s8(a, zeroed()), transmute(b))
 }
@@ -2181,6 +2218,7 @@ pub unsafe fn vtbl1_s8(a: int8x8_t, b: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl1_u8(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
     vqtbl1_u8(vcombine_u8(a, zeroed()), b)
 }
@@ -2190,6 +2228,7 @@ pub unsafe fn vtbl1_u8(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl1_p8(a: poly8x8_t, b: uint8x8_t) -> poly8x8_t {
     vqtbl1_p8(vcombine_p8(a, zeroed()), b)
 }
@@ -2199,6 +2238,7 @@ pub unsafe fn vtbl1_p8(a: poly8x8_t, b: uint8x8_t) -> poly8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl2_s8(a: int8x8x2_t, b: int8x8_t) -> int8x8_t {
     vqtbl1_s8(vcombine_s8(a.0, a.1), transmute(b))
 }
@@ -2208,6 +2248,7 @@ pub unsafe fn vtbl2_s8(a: int8x8x2_t, b: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl2_u8(a: uint8x8x2_t, b: uint8x8_t) -> uint8x8_t {
     vqtbl1_u8(vcombine_u8(a.0, a.1), b)
 }
@@ -2217,6 +2258,7 @@ pub unsafe fn vtbl2_u8(a: uint8x8x2_t, b: uint8x8_t) -> uint8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl2_p8(a: poly8x8x2_t, b: uint8x8_t) -> poly8x8_t {
     vqtbl1_p8(vcombine_p8(a.0, a.1), b)
 }
@@ -2226,6 +2268,7 @@ pub unsafe fn vtbl2_p8(a: poly8x8x2_t, b: uint8x8_t) -> poly8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl3_s8(a: int8x8x3_t, b: int8x8_t) -> int8x8_t {
     vqtbl2_s8(
         int8x16x2_t(vcombine_s8(a.0, a.1), vcombine_s8(a.2, zeroed())),
@@ -2238,6 +2281,7 @@ pub unsafe fn vtbl3_s8(a: int8x8x3_t, b: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl3_u8(a: uint8x8x3_t, b: uint8x8_t) -> uint8x8_t {
     vqtbl2_u8(
         uint8x16x2_t(vcombine_u8(a.0, a.1), vcombine_u8(a.2, zeroed())),
@@ -2250,6 +2294,7 @@ pub unsafe fn vtbl3_u8(a: uint8x8x3_t, b: uint8x8_t) -> uint8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl3_p8(a: poly8x8x3_t, b: uint8x8_t) -> poly8x8_t {
     vqtbl2_p8(
         poly8x16x2_t(vcombine_p8(a.0, a.1), vcombine_p8(a.2, zeroed())),
@@ -2262,6 +2307,7 @@ pub unsafe fn vtbl3_p8(a: poly8x8x3_t, b: uint8x8_t) -> poly8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl4_s8(a: int8x8x4_t, b: int8x8_t) -> int8x8_t {
     vqtbl2_s8(
         int8x16x2_t(vcombine_s8(a.0, a.1), vcombine_s8(a.2, a.3)),
@@ -2274,6 +2320,7 @@ pub unsafe fn vtbl4_s8(a: int8x8x4_t, b: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl4_u8(a: uint8x8x4_t, b: uint8x8_t) -> uint8x8_t {
     vqtbl2_u8(
         uint8x16x2_t(vcombine_u8(a.0, a.1), vcombine_u8(a.2, a.3)),
@@ -2286,6 +2333,7 @@ pub unsafe fn vtbl4_u8(a: uint8x8x4_t, b: uint8x8_t) -> uint8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbl4_p8(a: poly8x8x4_t, b: uint8x8_t) -> poly8x8_t {
     vqtbl2_p8(
         poly8x16x2_t(vcombine_p8(a.0, a.1), vcombine_p8(a.2, a.3)),
@@ -2298,6 +2346,7 @@ pub unsafe fn vtbl4_p8(a: poly8x8x4_t, b: uint8x8_t) -> poly8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx1_s8(a: int8x8_t, b: int8x8_t, c: int8x8_t) -> int8x8_t {
     let r = vqtbx1_s8(a, vcombine_s8(b, zeroed()), transmute(c));
     let m: int8x8_t = simd_lt(c, transmute(i8x8::splat(8)));
@@ -2309,6 +2358,7 @@ pub unsafe fn vtbx1_s8(a: int8x8_t, b: int8x8_t, c: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx1_u8(a: uint8x8_t, b: uint8x8_t, c: uint8x8_t) -> uint8x8_t {
     let r = vqtbx1_u8(a, vcombine_u8(b, zeroed()), c);
     let m: int8x8_t = simd_lt(c, transmute(u8x8::splat(8)));
@@ -2320,6 +2370,7 @@ pub unsafe fn vtbx1_u8(a: uint8x8_t, b: uint8x8_t, c: uint8x8_t) -> uint8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx1_p8(a: poly8x8_t, b: poly8x8_t, c: uint8x8_t) -> poly8x8_t {
     let r = vqtbx1_p8(a, vcombine_p8(b, zeroed()), c);
     let m: int8x8_t = simd_lt(c, transmute(u8x8::splat(8)));
@@ -2331,6 +2382,7 @@ pub unsafe fn vtbx1_p8(a: poly8x8_t, b: poly8x8_t, c: uint8x8_t) -> poly8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx2_s8(a: int8x8_t, b: int8x8x2_t, c: int8x8_t) -> int8x8_t {
     vqtbx1_s8(a, vcombine_s8(b.0, b.1), transmute(c))
 }
@@ -2340,6 +2392,7 @@ pub unsafe fn vtbx2_s8(a: int8x8_t, b: int8x8x2_t, c: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx2_u8(a: uint8x8_t, b: uint8x8x2_t, c: uint8x8_t) -> uint8x8_t {
     vqtbx1_u8(a, vcombine_u8(b.0, b.1), c)
 }
@@ -2349,6 +2402,7 @@ pub unsafe fn vtbx2_u8(a: uint8x8_t, b: uint8x8x2_t, c: uint8x8_t) -> uint8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx2_p8(a: poly8x8_t, b: poly8x8x2_t, c: uint8x8_t) -> poly8x8_t {
     vqtbx1_p8(a, vcombine_p8(b.0, b.1), c)
 }
@@ -2358,6 +2412,7 @@ pub unsafe fn vtbx2_p8(a: poly8x8_t, b: poly8x8x2_t, c: uint8x8_t) -> poly8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx3_s8(a: int8x8_t, b: int8x8x3_t, c: int8x8_t) -> int8x8_t {
     let r = vqtbx2_s8(
         a,
@@ -2373,6 +2428,7 @@ pub unsafe fn vtbx3_s8(a: int8x8_t, b: int8x8x3_t, c: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx3_u8(a: uint8x8_t, b: uint8x8x3_t, c: uint8x8_t) -> uint8x8_t {
     let r = vqtbx2_u8(
         a,
@@ -2388,6 +2444,7 @@ pub unsafe fn vtbx3_u8(a: uint8x8_t, b: uint8x8x3_t, c: uint8x8_t) -> uint8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx3_p8(a: poly8x8_t, b: poly8x8x3_t, c: uint8x8_t) -> poly8x8_t {
     let r = vqtbx2_p8(
         a,
@@ -2403,6 +2460,7 @@ pub unsafe fn vtbx3_p8(a: poly8x8_t, b: poly8x8x3_t, c: uint8x8_t) -> poly8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx4_s8(a: int8x8_t, b: int8x8x4_t, c: int8x8_t) -> int8x8_t {
     vqtbx2_s8(
         a,
@@ -2416,6 +2474,7 @@ pub unsafe fn vtbx4_s8(a: int8x8_t, b: int8x8x4_t, c: int8x8_t) -> int8x8_t {
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx4_u8(a: uint8x8_t, b: uint8x8x4_t, c: uint8x8_t) -> uint8x8_t {
     vqtbx2_u8(
         a,
@@ -2429,6 +2488,7 @@ pub unsafe fn vtbx4_u8(a: uint8x8_t, b: uint8x8x4_t, c: uint8x8_t) -> uint8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vtbx4_p8(a: poly8x8_t, b: poly8x8x4_t, c: uint8x8_t) -> poly8x8_t {
     vqtbx2_p8(
         a,
@@ -2442,94 +2502,117 @@ pub unsafe fn vtbx4_p8(a: poly8x8_t, b: poly8x8x4_t, c: uint8x8_t) -> poly8x8_t 
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1_s8(t: int8x16_t, idx: uint8x8_t) -> int8x8_t {
     vqtbl1(t, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1q_s8(t: int8x16_t, idx: uint8x16_t) -> int8x16_t {
     vqtbl1q(t, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1_u8(t: uint8x16_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbl1(transmute(t), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1q_u8(t: uint8x16_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbl1q(transmute(t), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1_p8(t: poly8x16_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbl1(transmute(t), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl1q_p8(t: poly8x16_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbl1q(transmute(t), transmute(idx)))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1_s8(a: int8x8_t, t: int8x16_t, idx: uint8x8_t) -> int8x8_t {
     vqtbx1(a, t, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1q_s8(a: int8x16_t, t: int8x16_t, idx: uint8x16_t) -> int8x16_t {
     vqtbx1q(a, t, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1_u8(a: uint8x8_t, t: uint8x16_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbx1(transmute(a), transmute(t), transmute(idx)))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1q_u8(a: uint8x16_t, t: uint8x16_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbx1q(transmute(a), transmute(t), transmute(idx)))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1_p8(a: poly8x8_t, t: poly8x16_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbx1(transmute(a), transmute(t), transmute(idx)))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx1q_p8(a: poly8x16_t, t: poly8x16_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbx1q(transmute(a), transmute(t), transmute(idx)))
 }
@@ -2539,70 +2622,87 @@ pub unsafe fn vqtbx1q_p8(a: poly8x16_t, t: poly8x16_t, idx: uint8x16_t) -> poly8
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2_s8(t: int8x16x2_t, idx: uint8x8_t) -> int8x8_t {
     vqtbl2(t.0, t.1, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2q_s8(t: int8x16x2_t, idx: uint8x16_t) -> int8x16_t {
     vqtbl2q(t.0, t.1, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2_u8(t: uint8x16x2_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbl2(transmute(t.0), transmute(t.1), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2q_u8(t: uint8x16x2_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbl2q(transmute(t.0), transmute(t.1), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2_p8(t: poly8x16x2_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbl2(transmute(t.0), transmute(t.1), transmute(idx)))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl2q_p8(t: poly8x16x2_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbl2q(transmute(t.0), transmute(t.1), transmute(idx)))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2_s8(a: int8x8_t, t: int8x16x2_t, idx: uint8x8_t) -> int8x8_t {
     vqtbx2(a, t.0, t.1, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2q_s8(a: int8x16_t, t: int8x16x2_t, idx: uint8x16_t) -> int8x16_t {
     vqtbx2q(a, t.0, t.1, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2_u8(a: uint8x8_t, t: uint8x16x2_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbx2(
         transmute(a),
@@ -2611,11 +2711,13 @@ pub unsafe fn vqtbx2_u8(a: uint8x8_t, t: uint8x16x2_t, idx: uint8x8_t) -> uint8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2q_u8(a: uint8x16_t, t: uint8x16x2_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbx2q(
         transmute(a),
@@ -2624,11 +2726,13 @@ pub unsafe fn vqtbx2q_u8(a: uint8x16_t, t: uint8x16x2_t, idx: uint8x16_t) -> uin
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2_p8(a: poly8x8_t, t: poly8x16x2_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbx2(
         transmute(a),
@@ -2637,11 +2741,13 @@ pub unsafe fn vqtbx2_p8(a: poly8x8_t, t: poly8x16x2_t, idx: uint8x8_t) -> poly8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx2q_p8(a: poly8x16_t, t: poly8x16x2_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbx2q(
         transmute(a),
@@ -2656,22 +2762,27 @@ pub unsafe fn vqtbx2q_p8(a: poly8x16_t, t: poly8x16x2_t, idx: uint8x16_t) -> pol
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3_s8(t: int8x16x3_t, idx: uint8x8_t) -> int8x8_t {
     vqtbl3(t.0, t.1, t.2, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3q_s8(t: int8x16x3_t, idx: uint8x16_t) -> int8x16_t {
     vqtbl3q(t.0, t.1, t.2, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3_u8(t: uint8x16x3_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbl3(
         transmute(t.0),
@@ -2680,11 +2791,13 @@ pub unsafe fn vqtbl3_u8(t: uint8x16x3_t, idx: uint8x8_t) -> uint8x8_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3q_u8(t: uint8x16x3_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbl3q(
         transmute(t.0),
@@ -2693,11 +2806,13 @@ pub unsafe fn vqtbl3q_u8(t: uint8x16x3_t, idx: uint8x16_t) -> uint8x16_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3_p8(t: poly8x16x3_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbl3(
         transmute(t.0),
@@ -2706,11 +2821,13 @@ pub unsafe fn vqtbl3_p8(t: poly8x16x3_t, idx: uint8x8_t) -> poly8x8_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl3q_p8(t: poly8x16x3_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbl3q(
         transmute(t.0),
@@ -2719,27 +2836,33 @@ pub unsafe fn vqtbl3q_p8(t: poly8x16x3_t, idx: uint8x16_t) -> poly8x16_t {
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3_s8(a: int8x8_t, t: int8x16x3_t, idx: uint8x8_t) -> int8x8_t {
     vqtbx3(a, t.0, t.1, t.2, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3q_s8(a: int8x16_t, t: int8x16x3_t, idx: uint8x16_t) -> int8x16_t {
     vqtbx3q(a, t.0, t.1, t.2, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3_u8(a: uint8x8_t, t: uint8x16x3_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbx3(
         transmute(a),
@@ -2749,11 +2872,13 @@ pub unsafe fn vqtbx3_u8(a: uint8x8_t, t: uint8x16x3_t, idx: uint8x8_t) -> uint8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3q_u8(a: uint8x16_t, t: uint8x16x3_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbx3q(
         transmute(a),
@@ -2763,11 +2888,13 @@ pub unsafe fn vqtbx3q_u8(a: uint8x16_t, t: uint8x16x3_t, idx: uint8x16_t) -> uin
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3_p8(a: poly8x8_t, t: poly8x16x3_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbx3(
         transmute(a),
@@ -2777,11 +2904,13 @@ pub unsafe fn vqtbx3_p8(a: poly8x8_t, t: poly8x16x3_t, idx: uint8x8_t) -> poly8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx3q_p8(a: poly8x16_t, t: poly8x16x3_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbx3q(
         transmute(a),
@@ -2797,22 +2926,27 @@ pub unsafe fn vqtbx3q_p8(a: poly8x16_t, t: poly8x16x3_t, idx: uint8x16_t) -> pol
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4_s8(t: int8x16x4_t, idx: uint8x8_t) -> int8x8_t {
     vqtbl4(t.0, t.1, t.2, t.3, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4q_s8(t: int8x16x4_t, idx: uint8x16_t) -> int8x16_t {
     vqtbl4q(t.0, t.1, t.2, t.3, idx)
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4_u8(t: uint8x16x4_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbl4(
         transmute(t.0),
@@ -2822,11 +2956,13 @@ pub unsafe fn vqtbl4_u8(t: uint8x16x4_t, idx: uint8x8_t) -> uint8x8_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4q_u8(t: uint8x16x4_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbl4q(
         transmute(t.0),
@@ -2836,11 +2972,13 @@ pub unsafe fn vqtbl4q_u8(t: uint8x16x4_t, idx: uint8x16_t) -> uint8x16_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4_p8(t: poly8x16x4_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbl4(
         transmute(t.0),
@@ -2850,11 +2988,13 @@ pub unsafe fn vqtbl4_p8(t: poly8x16x4_t, idx: uint8x8_t) -> poly8x8_t {
         transmute(idx),
     ))
 }
+
 /// Table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbl))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbl4q_p8(t: poly8x16x4_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbl4q(
         transmute(t.0),
@@ -2864,27 +3004,33 @@ pub unsafe fn vqtbl4q_p8(t: poly8x16x4_t, idx: uint8x16_t) -> poly8x16_t {
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4_s8(a: int8x8_t, t: int8x16x4_t, idx: uint8x8_t) -> int8x8_t {
     vqtbx4(a, t.0, t.1, t.2, t.3, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4q_s8(a: int8x16_t, t: int8x16x4_t, idx: uint8x16_t) -> int8x16_t {
     vqtbx4q(a, t.0, t.1, t.2, t.3, idx)
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4_u8(a: uint8x8_t, t: uint8x16x4_t, idx: uint8x8_t) -> uint8x8_t {
     transmute(vqtbx4(
         transmute(a),
@@ -2895,11 +3041,13 @@ pub unsafe fn vqtbx4_u8(a: uint8x8_t, t: uint8x16x4_t, idx: uint8x8_t) -> uint8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4q_u8(a: uint8x16_t, t: uint8x16x4_t, idx: uint8x16_t) -> uint8x16_t {
     transmute(vqtbx4q(
         transmute(a),
@@ -2910,11 +3058,13 @@ pub unsafe fn vqtbx4q_u8(a: uint8x16_t, t: uint8x16x4_t, idx: uint8x16_t) -> uin
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4_p8(a: poly8x8_t, t: poly8x16x4_t, idx: uint8x8_t) -> poly8x8_t {
     transmute(vqtbx4(
         transmute(a),
@@ -2925,11 +3075,13 @@ pub unsafe fn vqtbx4_p8(a: poly8x8_t, t: poly8x16x4_t, idx: uint8x8_t) -> poly8x
         transmute(idx),
     ))
 }
+
 /// Extended table look-up
 #[inline]
 #[cfg(target_endian = "little")]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(tbx))]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vqtbx4q_p8(a: poly8x16_t, t: poly8x16x4_t, idx: uint8x16_t) -> poly8x16_t {
     transmute(vqtbx4q(
         transmute(a),
@@ -2946,6 +3098,7 @@ pub unsafe fn vqtbx4q_p8(a: poly8x16_t, t: poly8x16x4_t, idx: uint8x16_t) -> pol
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vshld_n_s64<const N: i32>(a: i64) -> i64 {
     static_assert_imm6!(N);
     a << N
@@ -2956,6 +3109,7 @@ pub unsafe fn vshld_n_s64<const N: i32>(a: i64) -> i64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vshld_n_u64<const N: i32>(a: u64) -> u64 {
     static_assert_imm6!(N);
     a << N
@@ -2966,9 +3120,11 @@ pub unsafe fn vshld_n_u64<const N: i32>(a: u64) -> u64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vshrd_n_s64<const N: i32>(a: i64) -> i64 {
     static_assert!(N : i32 where N >= 1 && N <= 64);
-    a >> N
+    let n: i32 = if N == 64 { 63 } else { N };
+    a >> n
 }
 
 /// Unsigned shift right
@@ -2976,9 +3132,15 @@ pub unsafe fn vshrd_n_s64<const N: i32>(a: i64) -> i64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(1)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vshrd_n_u64<const N: i32>(a: u64) -> u64 {
     static_assert!(N : i32 where N >= 1 && N <= 64);
-    a >> N
+    let n: i32 = if N == 64 {
+        return 0;
+    } else {
+        N
+    };
+    a >> n
 }
 
 /// Signed shift right and accumulate
@@ -2986,9 +3148,10 @@ pub unsafe fn vshrd_n_u64<const N: i32>(a: u64) -> u64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsrad_n_s64<const N: i32>(a: i64, b: i64) -> i64 {
     static_assert!(N : i32 where N >= 1 && N <= 64);
-    a + (b >> N)
+    a.wrapping_add(vshrd_n_s64::<N>(b))
 }
 
 /// Unsigned shift right and accumulate
@@ -2996,9 +3159,10 @@ pub unsafe fn vsrad_n_s64<const N: i32>(a: i64, b: i64) -> i64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(nop, N = 2))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsrad_n_u64<const N: i32>(a: u64, b: u64) -> u64 {
     static_assert!(N : i32 where N >= 1 && N <= 64);
-    a + (b >> N)
+    a.wrapping_add(vshrd_n_u64::<N>(b))
 }
 
 /// Shift Left and Insert (immediate)
@@ -3006,6 +3170,7 @@ pub unsafe fn vsrad_n_u64<const N: i32>(a: u64, b: u64) -> u64 {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_s8<const N: i32>(a: int8x8_t, b: int8x8_t) -> int8x8_t {
     static_assert_imm3!(N);
     vsli_n_s8_(a, b, N)
@@ -3015,6 +3180,7 @@ pub unsafe fn vsli_n_s8<const N: i32>(a: int8x8_t, b: int8x8_t) -> int8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_s8<const N: i32>(a: int8x16_t, b: int8x16_t) -> int8x16_t {
     static_assert_imm3!(N);
     vsliq_n_s8_(a, b, N)
@@ -3024,6 +3190,7 @@ pub unsafe fn vsliq_n_s8<const N: i32>(a: int8x16_t, b: int8x16_t) -> int8x16_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_s16<const N: i32>(a: int16x4_t, b: int16x4_t) -> int16x4_t {
     static_assert_imm4!(N);
     vsli_n_s16_(a, b, N)
@@ -3033,6 +3200,7 @@ pub unsafe fn vsli_n_s16<const N: i32>(a: int16x4_t, b: int16x4_t) -> int16x4_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_s16<const N: i32>(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     static_assert_imm4!(N);
     vsliq_n_s16_(a, b, N)
@@ -3042,6 +3210,7 @@ pub unsafe fn vsliq_n_s16<const N: i32>(a: int16x8_t, b: int16x8_t) -> int16x8_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_s32<const N: i32>(a: int32x2_t, b: int32x2_t) -> int32x2_t {
     static_assert!(N: i32 where N >= 0 && N <= 31);
     vsli_n_s32_(a, b, N)
@@ -3051,6 +3220,7 @@ pub unsafe fn vsli_n_s32<const N: i32>(a: int32x2_t, b: int32x2_t) -> int32x2_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_s32<const N: i32>(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     static_assert!(N: i32 where N >= 0 && N <= 31);
     vsliq_n_s32_(a, b, N)
@@ -3060,6 +3230,7 @@ pub unsafe fn vsliq_n_s32<const N: i32>(a: int32x4_t, b: int32x4_t) -> int32x4_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_s64<const N: i32>(a: int64x1_t, b: int64x1_t) -> int64x1_t {
     static_assert!(N: i32 where N >= 0 && N <= 63);
     vsli_n_s64_(a, b, N)
@@ -3069,6 +3240,7 @@ pub unsafe fn vsli_n_s64<const N: i32>(a: int64x1_t, b: int64x1_t) -> int64x1_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_s64<const N: i32>(a: int64x2_t, b: int64x2_t) -> int64x2_t {
     static_assert!(N: i32 where N >= 0 && N <= 63);
     vsliq_n_s64_(a, b, N)
@@ -3078,6 +3250,7 @@ pub unsafe fn vsliq_n_s64<const N: i32>(a: int64x2_t, b: int64x2_t) -> int64x2_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_u8<const N: i32>(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
     static_assert_imm3!(N);
     transmute(vsli_n_s8_(transmute(a), transmute(b), N))
@@ -3087,6 +3260,7 @@ pub unsafe fn vsli_n_u8<const N: i32>(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_u8<const N: i32>(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     static_assert_imm3!(N);
     transmute(vsliq_n_s8_(transmute(a), transmute(b), N))
@@ -3096,6 +3270,7 @@ pub unsafe fn vsliq_n_u8<const N: i32>(a: uint8x16_t, b: uint8x16_t) -> uint8x16
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_u16<const N: i32>(a: uint16x4_t, b: uint16x4_t) -> uint16x4_t {
     static_assert_imm4!(N);
     transmute(vsli_n_s16_(transmute(a), transmute(b), N))
@@ -3105,6 +3280,7 @@ pub unsafe fn vsli_n_u16<const N: i32>(a: uint16x4_t, b: uint16x4_t) -> uint16x4
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_u16<const N: i32>(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     static_assert_imm4!(N);
     transmute(vsliq_n_s16_(transmute(a), transmute(b), N))
@@ -3114,6 +3290,7 @@ pub unsafe fn vsliq_n_u16<const N: i32>(a: uint16x8_t, b: uint16x8_t) -> uint16x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_u32<const N: i32>(a: uint32x2_t, b: uint32x2_t) -> uint32x2_t {
     static_assert!(N: i32 where N >= 0 && N <= 31);
     transmute(vsli_n_s32_(transmute(a), transmute(b), N))
@@ -3123,6 +3300,7 @@ pub unsafe fn vsli_n_u32<const N: i32>(a: uint32x2_t, b: uint32x2_t) -> uint32x2
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_u32<const N: i32>(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
     static_assert!(N: i32 where N >= 0 && N <= 31);
     transmute(vsliq_n_s32_(transmute(a), transmute(b), N))
@@ -3132,6 +3310,7 @@ pub unsafe fn vsliq_n_u32<const N: i32>(a: uint32x4_t, b: uint32x4_t) -> uint32x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_u64<const N: i32>(a: uint64x1_t, b: uint64x1_t) -> uint64x1_t {
     static_assert!(N: i32 where N >= 0 && N <= 63);
     transmute(vsli_n_s64_(transmute(a), transmute(b), N))
@@ -3141,6 +3320,7 @@ pub unsafe fn vsli_n_u64<const N: i32>(a: uint64x1_t, b: uint64x1_t) -> uint64x1
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_u64<const N: i32>(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
     static_assert!(N: i32 where N >= 0 && N <= 63);
     transmute(vsliq_n_s64_(transmute(a), transmute(b), N))
@@ -3150,6 +3330,7 @@ pub unsafe fn vsliq_n_u64<const N: i32>(a: uint64x2_t, b: uint64x2_t) -> uint64x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_p8<const N: i32>(a: poly8x8_t, b: poly8x8_t) -> poly8x8_t {
     static_assert_imm3!(N);
     transmute(vsli_n_s8_(transmute(a), transmute(b), N))
@@ -3159,6 +3340,7 @@ pub unsafe fn vsli_n_p8<const N: i32>(a: poly8x8_t, b: poly8x8_t) -> poly8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_p8<const N: i32>(a: poly8x16_t, b: poly8x16_t) -> poly8x16_t {
     static_assert_imm3!(N);
     transmute(vsliq_n_s8_(transmute(a), transmute(b), N))
@@ -3168,6 +3350,7 @@ pub unsafe fn vsliq_n_p8<const N: i32>(a: poly8x16_t, b: poly8x16_t) -> poly8x16
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsli_n_p16<const N: i32>(a: poly16x4_t, b: poly16x4_t) -> poly16x4_t {
     static_assert_imm4!(N);
     transmute(vsli_n_s16_(transmute(a), transmute(b), N))
@@ -3177,16 +3360,37 @@ pub unsafe fn vsli_n_p16<const N: i32>(a: poly16x4_t, b: poly16x4_t) -> poly16x4
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sli, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsliq_n_p16<const N: i32>(a: poly16x8_t, b: poly16x8_t) -> poly16x8_t {
     static_assert_imm4!(N);
     transmute(vsliq_n_s16_(transmute(a), transmute(b), N))
 }
-
+/// Shift Left and Insert (immediate)
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(sli, N = 1))]
+#[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vsli_n_p64<const N: i32>(a: poly64x1_t, b: poly64x1_t) -> poly64x1_t {
+    static_assert!(N: i32 where N >= 0 && N <= 63);
+    transmute(vsli_n_s64_(transmute(a), transmute(b), N))
+}
+/// Shift Left and Insert (immediate)
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(sli, N = 1))]
+#[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vsliq_n_p64<const N: i32>(a: poly64x2_t, b: poly64x2_t) -> poly64x2_t {
+    static_assert!(N: i32 where N >= 0 && N <= 63);
+    transmute(vsliq_n_s64_(transmute(a), transmute(b), N))
+}
 /// Shift Right and Insert (immediate)
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_s8<const N: i32>(a: int8x8_t, b: int8x8_t) -> int8x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     vsri_n_s8_(a, b, N)
@@ -3196,6 +3400,7 @@ pub unsafe fn vsri_n_s8<const N: i32>(a: int8x8_t, b: int8x8_t) -> int8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_s8<const N: i32>(a: int8x16_t, b: int8x16_t) -> int8x16_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     vsriq_n_s8_(a, b, N)
@@ -3205,6 +3410,7 @@ pub unsafe fn vsriq_n_s8<const N: i32>(a: int8x16_t, b: int8x16_t) -> int8x16_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_s16<const N: i32>(a: int16x4_t, b: int16x4_t) -> int16x4_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     vsri_n_s16_(a, b, N)
@@ -3214,6 +3420,7 @@ pub unsafe fn vsri_n_s16<const N: i32>(a: int16x4_t, b: int16x4_t) -> int16x4_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_s16<const N: i32>(a: int16x8_t, b: int16x8_t) -> int16x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     vsriq_n_s16_(a, b, N)
@@ -3223,6 +3430,7 @@ pub unsafe fn vsriq_n_s16<const N: i32>(a: int16x8_t, b: int16x8_t) -> int16x8_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_s32<const N: i32>(a: int32x2_t, b: int32x2_t) -> int32x2_t {
     static_assert!(N: i32 where N >= 1 && N <= 32);
     vsri_n_s32_(a, b, N)
@@ -3232,6 +3440,7 @@ pub unsafe fn vsri_n_s32<const N: i32>(a: int32x2_t, b: int32x2_t) -> int32x2_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_s32<const N: i32>(a: int32x4_t, b: int32x4_t) -> int32x4_t {
     static_assert!(N: i32 where N >= 1 && N <= 32);
     vsriq_n_s32_(a, b, N)
@@ -3241,6 +3450,7 @@ pub unsafe fn vsriq_n_s32<const N: i32>(a: int32x4_t, b: int32x4_t) -> int32x4_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_s64<const N: i32>(a: int64x1_t, b: int64x1_t) -> int64x1_t {
     static_assert!(N: i32 where N >= 1 && N <= 64);
     vsri_n_s64_(a, b, N)
@@ -3250,6 +3460,7 @@ pub unsafe fn vsri_n_s64<const N: i32>(a: int64x1_t, b: int64x1_t) -> int64x1_t 
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_s64<const N: i32>(a: int64x2_t, b: int64x2_t) -> int64x2_t {
     static_assert!(N: i32 where N >= 1 && N <= 64);
     vsriq_n_s64_(a, b, N)
@@ -3259,6 +3470,7 @@ pub unsafe fn vsriq_n_s64<const N: i32>(a: int64x2_t, b: int64x2_t) -> int64x2_t
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_u8<const N: i32>(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     transmute(vsri_n_s8_(transmute(a), transmute(b), N))
@@ -3268,6 +3480,7 @@ pub unsafe fn vsri_n_u8<const N: i32>(a: uint8x8_t, b: uint8x8_t) -> uint8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_u8<const N: i32>(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     transmute(vsriq_n_s8_(transmute(a), transmute(b), N))
@@ -3277,6 +3490,7 @@ pub unsafe fn vsriq_n_u8<const N: i32>(a: uint8x16_t, b: uint8x16_t) -> uint8x16
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_u16<const N: i32>(a: uint16x4_t, b: uint16x4_t) -> uint16x4_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     transmute(vsri_n_s16_(transmute(a), transmute(b), N))
@@ -3286,6 +3500,7 @@ pub unsafe fn vsri_n_u16<const N: i32>(a: uint16x4_t, b: uint16x4_t) -> uint16x4
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_u16<const N: i32>(a: uint16x8_t, b: uint16x8_t) -> uint16x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     transmute(vsriq_n_s16_(transmute(a), transmute(b), N))
@@ -3295,6 +3510,7 @@ pub unsafe fn vsriq_n_u16<const N: i32>(a: uint16x8_t, b: uint16x8_t) -> uint16x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_u32<const N: i32>(a: uint32x2_t, b: uint32x2_t) -> uint32x2_t {
     static_assert!(N: i32 where N >= 1 && N <= 32);
     transmute(vsri_n_s32_(transmute(a), transmute(b), N))
@@ -3304,6 +3520,7 @@ pub unsafe fn vsri_n_u32<const N: i32>(a: uint32x2_t, b: uint32x2_t) -> uint32x2
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_u32<const N: i32>(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
     static_assert!(N: i32 where N >= 1 && N <= 32);
     transmute(vsriq_n_s32_(transmute(a), transmute(b), N))
@@ -3313,6 +3530,7 @@ pub unsafe fn vsriq_n_u32<const N: i32>(a: uint32x4_t, b: uint32x4_t) -> uint32x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_u64<const N: i32>(a: uint64x1_t, b: uint64x1_t) -> uint64x1_t {
     static_assert!(N: i32 where N >= 1 && N <= 64);
     transmute(vsri_n_s64_(transmute(a), transmute(b), N))
@@ -3322,6 +3540,7 @@ pub unsafe fn vsri_n_u64<const N: i32>(a: uint64x1_t, b: uint64x1_t) -> uint64x1
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_u64<const N: i32>(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
     static_assert!(N: i32 where N >= 1 && N <= 64);
     transmute(vsriq_n_s64_(transmute(a), transmute(b), N))
@@ -3331,6 +3550,7 @@ pub unsafe fn vsriq_n_u64<const N: i32>(a: uint64x2_t, b: uint64x2_t) -> uint64x
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_p8<const N: i32>(a: poly8x8_t, b: poly8x8_t) -> poly8x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     transmute(vsri_n_s8_(transmute(a), transmute(b), N))
@@ -3340,6 +3560,7 @@ pub unsafe fn vsri_n_p8<const N: i32>(a: poly8x8_t, b: poly8x8_t) -> poly8x8_t {
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_p8<const N: i32>(a: poly8x16_t, b: poly8x16_t) -> poly8x16_t {
     static_assert!(N: i32 where N >= 1 && N <= 8);
     transmute(vsriq_n_s8_(transmute(a), transmute(b), N))
@@ -3349,6 +3570,7 @@ pub unsafe fn vsriq_n_p8<const N: i32>(a: poly8x16_t, b: poly8x16_t) -> poly8x16
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsri_n_p16<const N: i32>(a: poly16x4_t, b: poly16x4_t) -> poly16x4_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     transmute(vsri_n_s16_(transmute(a), transmute(b), N))
@@ -3358,9 +3580,121 @@ pub unsafe fn vsri_n_p16<const N: i32>(a: poly16x4_t, b: poly16x4_t) -> poly16x4
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(sri, N = 1))]
 #[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vsriq_n_p16<const N: i32>(a: poly16x8_t, b: poly16x8_t) -> poly16x8_t {
     static_assert!(N: i32 where N >= 1 && N <= 16);
     transmute(vsriq_n_s16_(transmute(a), transmute(b), N))
+}
+/// Shift Right and Insert (immediate)
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(sri, N = 1))]
+#[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vsri_n_p64<const N: i32>(a: poly64x1_t, b: poly64x1_t) -> poly64x1_t {
+    static_assert!(N: i32 where N >= 1 && N <= 64);
+    transmute(vsri_n_s64_(transmute(a), transmute(b), N))
+}
+/// Shift Right and Insert (immediate)
+#[inline]
+#[target_feature(enable = "neon,aes")]
+#[cfg_attr(test, assert_instr(sri, N = 1))]
+#[rustc_legacy_const_generics(2)]
+#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+pub unsafe fn vsriq_n_p64<const N: i32>(a: poly64x2_t, b: poly64x2_t) -> poly64x2_t {
+    static_assert!(N: i32 where N >= 1 && N <= 64);
+    transmute(vsriq_n_s64_(transmute(a), transmute(b), N))
+}
+
+/// SM3TT1A
+#[inline]
+#[target_feature(enable = "neon,sm4")]
+#[cfg_attr(test, assert_instr(sm3tt1a, IMM2 = 0))]
+#[rustc_legacy_const_generics(3)]
+pub unsafe fn vsm3tt1aq_u32<const IMM2: i32>(
+    a: uint32x4_t,
+    b: uint32x4_t,
+    c: uint32x4_t,
+) -> uint32x4_t {
+    static_assert_imm2!(IMM2);
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.sm3tt1a")]
+        fn vsm3tt1aq_u32_(a: uint32x4_t, b: uint32x4_t, c: uint32x4_t, imm2: i64) -> uint32x4_t;
+    }
+    vsm3tt1aq_u32_(a, b, c, IMM2 as i64)
+}
+
+/// SM3TT1B
+#[inline]
+#[target_feature(enable = "neon,sm4")]
+#[cfg_attr(test, assert_instr(sm3tt1b, IMM2 = 0))]
+#[rustc_legacy_const_generics(3)]
+pub unsafe fn vsm3tt1bq_u32<const IMM2: i32>(
+    a: uint32x4_t,
+    b: uint32x4_t,
+    c: uint32x4_t,
+) -> uint32x4_t {
+    static_assert_imm2!(IMM2);
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.sm3tt1b")]
+        fn vsm3tt1bq_u32_(a: uint32x4_t, b: uint32x4_t, c: uint32x4_t, imm2: i64) -> uint32x4_t;
+    }
+    vsm3tt1bq_u32_(a, b, c, IMM2 as i64)
+}
+
+/// SM3TT2A
+#[inline]
+#[target_feature(enable = "neon,sm4")]
+#[cfg_attr(test, assert_instr(sm3tt2a, IMM2 = 0))]
+#[rustc_legacy_const_generics(3)]
+pub unsafe fn vsm3tt2aq_u32<const IMM2: i32>(
+    a: uint32x4_t,
+    b: uint32x4_t,
+    c: uint32x4_t,
+) -> uint32x4_t {
+    static_assert_imm2!(IMM2);
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.sm3tt2a")]
+        fn vsm3tt2aq_u32_(a: uint32x4_t, b: uint32x4_t, c: uint32x4_t, imm2: i64) -> uint32x4_t;
+    }
+    vsm3tt2aq_u32_(a, b, c, IMM2 as i64)
+}
+
+/// SM3TT2B
+#[inline]
+#[target_feature(enable = "neon,sm4")]
+#[cfg_attr(test, assert_instr(sm3tt2b, IMM2 = 0))]
+#[rustc_legacy_const_generics(3)]
+pub unsafe fn vsm3tt2bq_u32<const IMM2: i32>(
+    a: uint32x4_t,
+    b: uint32x4_t,
+    c: uint32x4_t,
+) -> uint32x4_t {
+    static_assert_imm2!(IMM2);
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.sm3tt2b")]
+        fn vsm3tt2bq_u32_(a: uint32x4_t, b: uint32x4_t, c: uint32x4_t, imm2: i64) -> uint32x4_t;
+    }
+    vsm3tt2bq_u32_(a, b, c, IMM2 as i64)
+}
+
+/// Exclusive OR and rotate
+#[inline]
+#[target_feature(enable = "neon,sha3")]
+#[cfg_attr(test, assert_instr(xar, IMM6 = 0))]
+#[rustc_legacy_const_generics(2)]
+pub unsafe fn vxarq_u64<const IMM6: i32>(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    static_assert_imm6!(IMM6);
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.xar")]
+        fn vxarq_u64_(a: uint64x2_t, b: uint64x2_t, n: i64) -> uint64x2_t;
+    }
+    vxarq_u64_(a, b, IMM6 as i64)
 }
 
 #[cfg(test)]
@@ -3552,6 +3886,14 @@ mod tests {
         assert_eq!(r, e);
     }
     #[simd_test(enable = "neon")]
+    unsafe fn test_vpaddq_s64() {
+        let a = i64x2::new(1, 2);
+        let b = i64x2::new(0, -1);
+        let r: i64x2 = transmute(vpaddq_s64(transmute(a), transmute(b)));
+        let e = i64x2::new(3, -1);
+        assert_eq!(r, e);
+    }
+    #[simd_test(enable = "neon")]
     unsafe fn test_vpaddq_s8() {
         let a = i8x16::new(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
         let b = i8x16::new(
@@ -3577,6 +3919,14 @@ mod tests {
         let b = u32x4::new(17, 18, 19, 20);
         let r: u32x4 = transmute(vpaddq_u32(transmute(a), transmute(b)));
         let e = u32x4::new(1, 5, 35, 39);
+        assert_eq!(r, e);
+    }
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vpaddq_u64() {
+        let a = u64x2::new(0, 1);
+        let b = u64x2::new(17, 18);
+        let r: u64x2 = transmute(vpaddq_u64(transmute(a), transmute(b)));
+        let e = u64x2::new(1, 35);
         assert_eq!(r, e);
     }
     #[simd_test(enable = "neon")]
@@ -4950,26 +5300,53 @@ mod tests {
     }
 
     #[simd_test(enable = "neon")]
-    unsafe fn test_vst1_p64() {
-        let mut vals = [0_u64; 2];
-        let a = u64x1::new(1);
-
-        vst1_p64(vals[1..].as_mut_ptr(), transmute(a));
-
-        assert_eq!(vals[0], 0);
-        assert_eq!(vals[1], 1);
+    unsafe fn test_vld1_f64() {
+        let a: [f64; 2] = [0., 1.];
+        let e = f64x1::new(1.);
+        let r: f64x1 = transmute(vld1_f64(a[1..].as_ptr()));
+        assert_eq!(r, e)
     }
 
     #[simd_test(enable = "neon")]
-    unsafe fn test_vst1q_p64() {
-        let mut vals = [0_u64; 3];
-        let a = u64x2::new(1, 2);
+    unsafe fn test_vld1q_f64() {
+        let a: [f64; 3] = [0., 1., 2.];
+        let e = f64x2::new(1., 2.);
+        let r: f64x2 = transmute(vld1q_f64(a[1..].as_ptr()));
+        assert_eq!(r, e)
+    }
 
-        vst1q_p64(vals[1..].as_mut_ptr(), transmute(a));
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vld1_dup_f64() {
+        let a: [f64; 2] = [1., 42.];
+        let e = f64x1::new(42.);
+        let r: f64x1 = transmute(vld1_dup_f64(a[1..].as_ptr()));
+        assert_eq!(r, e)
+    }
 
-        assert_eq!(vals[0], 0);
-        assert_eq!(vals[1], 1);
-        assert_eq!(vals[2], 2);
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vld1q_dup_f64() {
+        let elem: f64 = 42.;
+        let e = f64x2::new(42., 42.);
+        let r: f64x2 = transmute(vld1q_dup_f64(&elem));
+        assert_eq!(r, e)
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vld1_lane_f64() {
+        let a = f64x1::new(0.);
+        let elem: f64 = 42.;
+        let e = f64x1::new(42.);
+        let r: f64x1 = transmute(vld1_lane_f64::<0>(&elem, transmute(a)));
+        assert_eq!(r, e)
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vld1q_lane_f64() {
+        let a = f64x2::new(0., 1.);
+        let elem: f64 = 42.;
+        let e = f64x2::new(0., 42.);
+        let r: f64x2 = transmute(vld1q_lane_f64::<1>(&elem, transmute(a)));
+        assert_eq!(r, e)
     }
 
     #[simd_test(enable = "neon")]
@@ -4993,6 +5370,55 @@ mod tests {
         assert_eq!(vals[0], 0.);
         assert_eq!(vals[1], 1.);
         assert_eq!(vals[2], 2.);
+    }
+
+    #[simd_test(enable = "neon,sm4")]
+    unsafe fn test_vsm3tt1aq_u32() {
+        let a: u32x4 = u32x4::new(1, 2, 3, 4);
+        let b: u32x4 = u32x4::new(1, 2, 3, 4);
+        let c: u32x4 = u32x4::new(1, 2, 3, 4);
+        let e: u32x4 = u32x4::new(2, 1536, 4, 16395);
+        let r: u32x4 = transmute(vsm3tt1aq_u32::<0>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon,sm4")]
+    unsafe fn test_vsm3tt1bq_u32() {
+        let a: u32x4 = u32x4::new(1, 2, 3, 4);
+        let b: u32x4 = u32x4::new(1, 2, 3, 4);
+        let c: u32x4 = u32x4::new(1, 2, 3, 4);
+        let e: u32x4 = u32x4::new(2, 1536, 4, 16392);
+        let r: u32x4 = transmute(vsm3tt1bq_u32::<0>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon,sm4")]
+    unsafe fn test_vsm3tt2aq_u32() {
+        let a: u32x4 = u32x4::new(1, 2, 3, 4);
+        let b: u32x4 = u32x4::new(1, 2, 3, 4);
+        let c: u32x4 = u32x4::new(1, 2, 3, 4);
+        let e: u32x4 = u32x4::new(2, 1572864, 4, 1447435);
+        let r: u32x4 = transmute(vsm3tt2aq_u32::<0>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon,sm4")]
+    unsafe fn test_vsm3tt2bq_u32() {
+        let a: u32x4 = u32x4::new(1, 2, 3, 4);
+        let b: u32x4 = u32x4::new(1, 2, 3, 4);
+        let c: u32x4 = u32x4::new(1, 2, 3, 4);
+        let e: u32x4 = u32x4::new(2, 1572864, 4, 1052680);
+        let r: u32x4 = transmute(vsm3tt2bq_u32::<0>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon,sha3")]
+    unsafe fn test_vxarq_u64() {
+        let a: u64x2 = u64x2::new(1, 2);
+        let b: u64x2 = u64x2::new(3, 4);
+        let e: u64x2 = u64x2::new(2, 6);
+        let r: u64x2 = transmute(vxarq_u64::<0>(transmute(a), transmute(b)));
+        assert_eq!(r, e);
     }
 }
 

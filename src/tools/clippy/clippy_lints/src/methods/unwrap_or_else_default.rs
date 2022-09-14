@@ -2,7 +2,8 @@
 
 use super::UNWRAP_OR_ELSE_DEFAULT;
 use clippy_utils::{
-    diagnostics::span_lint_and_sugg, is_trait_item, source::snippet_with_applicability, ty::is_type_diagnostic_item,
+    diagnostics::span_lint_and_sugg, is_default_equivalent_call, source::snippet_with_applicability,
+    ty::is_type_diagnostic_item,
 };
 use rustc_errors::Applicability;
 use rustc_hir as hir;
@@ -19,12 +20,12 @@ pub(super) fn check<'tcx>(
     // ^^^^^^^^^- recv          ^^^^^^^^^^^^^^^^- u_arg
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^- expr
     let recv_ty = cx.typeck_results().expr_ty(recv);
-    let is_option = is_type_diagnostic_item(cx, recv_ty, sym::option_type);
-    let is_result = is_type_diagnostic_item(cx, recv_ty, sym::result_type);
+    let is_option = is_type_diagnostic_item(cx, recv_ty, sym::Option);
+    let is_result = is_type_diagnostic_item(cx, recv_ty, sym::Result);
 
     if_chain! {
         if is_option || is_result;
-        if is_trait_item(cx, u_arg, sym::Default);
+        if is_default_equivalent_call(cx, u_arg);
         then {
             let mut applicability = Applicability::MachineApplicable;
 

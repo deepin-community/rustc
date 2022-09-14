@@ -30,6 +30,7 @@ declare_clippy_lint! {
     /// let mut twins = vec!((1, 1), (2, 2));
     /// twins.sort_by_key(|x| { x.1; });
     /// ```
+    #[clippy::version = "1.47.0"]
     pub UNIT_RETURN_EXPECTING_ORD,
     correctness,
     "fn arguments of type Fn(...) -> Ord returning the unit type ()."
@@ -83,7 +84,8 @@ fn get_args_to_check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Ve
         let partial_ord_preds =
             get_trait_predicates_for_trait_id(cx, generics, cx.tcx.lang_items().partial_ord_trait());
         // Trying to call erase_late_bound_regions on fn_sig.inputs() gives the following error
-        // The trait `rustc::ty::TypeFoldable<'_>` is not implemented for `&[&rustc::ty::TyS<'_>]`
+        // The trait `rustc::ty::TypeFoldable<'_>` is not implemented for
+        // `&[rustc_middle::ty::Ty<'_>]`
         let inputs_output = cx.tcx.erase_late_bound_regions(fn_sig.inputs_and_output());
         inputs_output
             .iter()
@@ -97,9 +99,11 @@ fn get_args_to_check<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Ve
                         if trait_pred.self_ty() == inp;
                         if let Some(return_ty_pred) = get_projection_pred(cx, generics, *trait_pred);
                         then {
-                            if ord_preds.iter().any(|ord| ord.self_ty() == return_ty_pred.ty) {
+                            if ord_preds.iter().any(|ord| Some(ord.self_ty()) == return_ty_pred.term.ty()) {
                                 args_to_check.push((i, "Ord".to_string()));
-                            } else if partial_ord_preds.iter().any(|pord| pord.self_ty() == return_ty_pred.ty) {
+                            } else if partial_ord_preds.iter().any(|pord| {
+                                pord.self_ty() == return_ty_pred.term.ty().unwrap()
+                            }) {
                                 args_to_check.push((i, "PartialOrd".to_string()));
                             }
                         }
@@ -140,7 +144,7 @@ fn check_arg<'tcx>(cx: &LateContext<'tcx>, arg: &'tcx Expr<'tcx>) -> Option<(Spa
 
 impl<'tcx> LateLintPass<'tcx> for UnitReturnExpectingOrd {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) {
-        if let ExprKind::MethodCall(_, _, args, _) = expr.kind {
+        if let ExprKind::MethodCall(_, args, _) = expr.kind {
             let arg_indices = get_args_to_check(cx, expr);
             for (i, trait_name) in arg_indices {
                 if i < args.len() {
@@ -168,7 +172,7 @@ impl<'tcx> LateLintPass<'tcx> for UnitReturnExpectingOrd {
                                     trait_name
                                 ),
                                 Some(last_semi),
-                                &"probably caused by this trailing semicolon".to_string(),
+                                "probably caused by this trailing semicolon",
                             );
                         },
                         None => {},

@@ -51,6 +51,7 @@ declare_clippy_lint! {
     ///     assert_eq!(v.len(), 42);
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub NEEDLESS_PASS_BY_VALUE,
     pedantic,
     "functions taking arguments by value, but not consuming them in its body"
@@ -117,7 +118,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
         let fn_def_id = cx.tcx.hir().local_def_id(hir_id);
 
         let preds = traits::elaborate_predicates(cx.tcx, cx.param_env.caller_bounds().iter())
-            .filter(|p| !p.is_global(cx.tcx))
+            .filter(|p| !p.is_global())
             .filter_map(|obligation| {
                 // Note that we do not want to deal with qualified predicates here.
                 match obligation.predicate.kind().no_bound_vars() {
@@ -206,7 +207,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
 
                         let deref_span = spans_need_deref.get(&canonical_id);
                         if_chain! {
-                            if is_type_diagnostic_item(cx, ty, sym::vec_type);
+                            if is_type_diagnostic_item(cx, ty, sym::Vec);
                             if let Some(clone_spans) =
                                 get_spans(cx, Some(body.id()), idx, &[("clone", ".to_owned()")]);
                             if let TyKind::Path(QPath::Resolved(_, path)) = input.kind;
@@ -245,7 +246,7 @@ impl<'tcx> LateLintPass<'tcx> for NeedlessPassByValue {
                             }
                         }
 
-                        if is_type_diagnostic_item(cx, ty, sym::string_type) {
+                        if is_type_diagnostic_item(cx, ty, sym::String) {
                             if let Some(clone_spans) =
                                 get_spans(cx, Some(body.id()), idx, &[("clone", ".to_string()"), ("as_str", "")]) {
                                 diag.span_suggestion(

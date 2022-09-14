@@ -4,7 +4,7 @@ use clippy_utils::sext;
 use if_chain::if_chain;
 use rustc_hir::{BinOpKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::ty;
+use rustc_middle::ty::{self, Ty};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use std::fmt::Display;
 
@@ -24,6 +24,7 @@ declare_clippy_lint! {
     /// ```rust
     /// let x = -17 % 3;
     /// ```
+    #[clippy::version = "1.42.0"]
     pub MODULO_ARITHMETIC,
     restriction,
     "any modulo arithmetic statement"
@@ -76,7 +77,7 @@ fn floating_point_operand_info<T: Display + PartialOrd + From<f32>>(f: &T) -> Op
     }
 }
 
-fn might_have_negative_value(t: &ty::TyS<'_>) -> bool {
+fn might_have_negative_value(t: Ty<'_>) -> bool {
     t.is_signed() || t.is_floating_point()
 }
 
@@ -128,7 +129,7 @@ impl<'tcx> LateLintPass<'tcx> for ModuloArithmetic {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         match &expr.kind {
             ExprKind::Binary(op, lhs, rhs) | ExprKind::AssignOp(op, lhs, rhs) => {
-                if let BinOpKind::Rem = op.node {
+                if op.node == BinOpKind::Rem {
                     let lhs_operand = analyze_operand(lhs, cx, expr);
                     let rhs_operand = analyze_operand(rhs, cx, expr);
                     if_chain! {

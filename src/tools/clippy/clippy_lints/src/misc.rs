@@ -20,8 +20,8 @@ use rustc_span::symbol::sym;
 use clippy_utils::consts::{constant, Constant};
 use clippy_utils::sugg::Sugg;
 use clippy_utils::{
-    expr_path_res, get_item_name, get_parent_expr, higher, in_constant, is_diag_trait_item, is_integer_const,
-    iter_input_pats, last_path_segment, match_any_def_paths, paths, unsext, SpanlessEq,
+    get_item_name, get_parent_expr, in_constant, is_diag_trait_item, is_integer_const, iter_input_pats,
+    last_path_segment, match_any_def_paths, path_def_id, paths, unsext, SpanlessEq,
 };
 
 declare_clippy_lint! {
@@ -56,6 +56,7 @@ declare_clippy_lint! {
     ///     true
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub TOPLEVEL_REF_ARG,
     style,
     "an entire binding declared as `ref`, in a function argument or a `let` statement"
@@ -79,6 +80,7 @@ declare_clippy_lint! {
     /// // Good
     /// if x.is_nan() { }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub CMP_NAN,
     correctness,
     "comparisons to `NAN`, which will always return false, probably not intended"
@@ -112,8 +114,9 @@ declare_clippy_lint! {
     /// if (y - 1.23f64).abs() < error_margin { }
     /// if (y - x).abs() > error_margin { }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub FLOAT_CMP,
-    correctness,
+    pedantic,
     "using `==` or `!=` on float values instead of comparing difference with an epsilon"
 }
 
@@ -139,6 +142,7 @@ declare_clippy_lint! {
     /// # let y = String::from("foo");
     /// if x == y {}
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub CMP_OWNED,
     perf,
     "creating owned instances for comparing with others, e.g., `x == \"foo\".to_string()`"
@@ -162,6 +166,7 @@ declare_clippy_lint! {
     /// let a = x % 1;
     /// let a = x % -1;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub MODULO_ONE,
     correctness,
     "taking a number modulo +/-1, which can either panic/overflow or always returns 0"
@@ -187,6 +192,7 @@ declare_clippy_lint! {
     /// let y = _x + 1; // Here we are using `_x`, even though it has a leading
     ///                 // underscore. We should rename `_x` to `x`
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub USED_UNDERSCORE_BINDING,
     pedantic,
     "using a binding which is prefixed with an underscore"
@@ -207,6 +213,7 @@ declare_clippy_lint! {
     /// ```rust,ignore
     /// f() && g(); // We should write `if f() { g(); }`.
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub SHORT_CIRCUIT_STATEMENT,
     complexity,
     "using a short circuit boolean condition as a statement"
@@ -228,6 +235,7 @@ declare_clippy_lint! {
     /// // Good
     /// let a = std::ptr::null::<u32>();
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub ZERO_PTR,
     style,
     "using `0 as *{const, mut} T`"
@@ -259,6 +267,7 @@ declare_clippy_lint! {
     /// // let error_margin = std::f64::EPSILON;
     /// if (x - ONE).abs() < error_margin { }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub FLOAT_CMP_CONST,
     restriction,
     "using `==` or `!=` on float constants instead of comparing difference with an epsilon"
@@ -312,7 +321,6 @@ impl<'tcx> LateLintPass<'tcx> for MiscLints {
             if let StmtKind::Local(local) = stmt.kind;
             if let PatKind::Binding(an, .., name, None) = local.pat.kind;
             if let Some(init) = local.init;
-            if !higher::is_from_for_desugar(local);
             if an == BindingAnnotation::Ref || an == BindingAnnotation::RefMut;
             then {
                 // use the macro callsite when the init span (but not the whole local span)
@@ -399,6 +407,7 @@ impl<'tcx> LateLintPass<'tcx> for MiscLints {
             // Don't lint things expanded by #[derive(...)], etc or `await` desugaring
             return;
         }
+        let sym;
         let binding = match expr.kind {
             ExprKind::Path(ref qpath) if !matches!(qpath, hir::QPath::LangItem(..)) => {
                 let binding = last_path_segment(qpath).ident.as_str();
@@ -415,7 +424,8 @@ impl<'tcx> LateLintPass<'tcx> for MiscLints {
                 }
             },
             ExprKind::Field(_, ident) => {
-                let name = ident.as_str();
+                sym = ident.name;
+                let name = sym.as_str();
                 if name.starts_with('_') && !name.starts_with("__") {
                     Some(name)
                 } else {
@@ -513,12 +523,12 @@ fn is_signum(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     }
 
     if_chain! {
-        if let ExprKind::MethodCall(method_name, _, expressions, _) = expr.kind;
+        if let ExprKind::MethodCall(method_name, [ref self_arg, ..], _) = expr.kind;
         if sym!(signum) == method_name.ident.name;
         // Check that the receiver of the signum() is a float (expressions[0] is the receiver of
         // the method call)
         then {
-            return is_float(cx, &expressions[0]);
+            return is_float(cx, self_arg);
         }
     }
     false
@@ -538,6 +548,7 @@ fn is_array(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     matches!(&cx.typeck_results().expr_ty(expr).peel_refs().kind(), ty::Array(_, _))
 }
 
+#[allow(clippy::too_many_lines)]
 fn check_to_owned(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left: bool) {
     #[derive(Default)]
     struct EqImpl {
@@ -572,8 +583,7 @@ fn check_to_owned(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left:
             )
         },
         ExprKind::Call(path, [arg]) => {
-            if expr_path_res(cx, path)
-                .opt_def_id()
+            if path_def_id(cx, path)
                 .and_then(|id| match_any_def_paths(cx, id, &[&paths::FROM_STR_METHOD, &paths::FROM_FROM]))
                 .is_some()
             {
@@ -634,10 +644,26 @@ fn check_to_owned(cx: &LateContext<'_>, expr: &Expr<'_>, other: &Expr<'_>, left:
                 hint = expr_snip;
             } else {
                 span = expr.span.to(other.span);
-                if eq_impl.ty_eq_other {
-                    hint = format!("{} == {}", expr_snip, snippet(cx, other.span, ".."));
+
+                let cmp_span = if other.span < expr.span {
+                    other.span.between(expr.span)
                 } else {
-                    hint = format!("{} == {}", snippet(cx, other.span, ".."), expr_snip);
+                    expr.span.between(other.span)
+                };
+                if eq_impl.ty_eq_other {
+                    hint = format!(
+                        "{}{}{}",
+                        expr_snip,
+                        snippet(cx, cmp_span, ".."),
+                        snippet(cx, other.span, "..")
+                    );
+                } else {
+                    hint = format!(
+                        "{}{}{}",
+                        snippet(cx, other.span, ".."),
+                        snippet(cx, cmp_span, ".."),
+                        expr_snip
+                    );
                 }
             }
 
@@ -707,7 +733,7 @@ fn check_cast(cx: &LateContext<'_>, span: Span, e: &Expr<'_>, ty: &hir::Ty<'_>) 
     }
 }
 
-fn check_binary(
+fn check_binary<'a>(
     cx: &LateContext<'a>,
     expr: &Expr<'_>,
     cmp: &rustc_span::source_map::Spanned<rustc_hir::BinOpKind>,

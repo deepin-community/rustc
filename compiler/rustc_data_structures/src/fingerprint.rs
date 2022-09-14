@@ -3,6 +3,9 @@ use rustc_serialize::{Decodable, Encodable};
 use std::convert::TryInto;
 use std::hash::{Hash, Hasher};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Fingerprint(u64, u64);
@@ -54,7 +57,7 @@ impl Fingerprint {
 
         let c = a.wrapping_add(b);
 
-        Fingerprint((c >> 64) as u64, c as u64)
+        Fingerprint(c as u64, (c >> 64) as u64)
     }
 
     pub fn to_hex(&self) -> String {
@@ -142,17 +145,17 @@ impl_stable_hash_via_hash!(Fingerprint);
 impl<E: rustc_serialize::Encoder> Encodable<E> for Fingerprint {
     #[inline]
     fn encode(&self, s: &mut E) -> Result<(), E::Error> {
-        s.emit_raw_bytes(&self.to_le_bytes()[..])?;
+        s.emit_raw_bytes(&self.to_le_bytes())?;
         Ok(())
     }
 }
 
 impl<D: rustc_serialize::Decoder> Decodable<D> for Fingerprint {
     #[inline]
-    fn decode(d: &mut D) -> Result<Self, D::Error> {
+    fn decode(d: &mut D) -> Self {
         let mut bytes = [0u8; 16];
-        d.read_raw_bytes_into(&mut bytes[..])?;
-        Ok(Fingerprint::from_le_bytes(bytes))
+        d.read_raw_bytes_into(&mut bytes);
+        Fingerprint::from_le_bytes(bytes)
     }
 }
 
@@ -195,8 +198,8 @@ impl<E: rustc_serialize::Encoder> Encodable<E> for PackedFingerprint {
 
 impl<D: rustc_serialize::Decoder> Decodable<D> for PackedFingerprint {
     #[inline]
-    fn decode(d: &mut D) -> Result<Self, D::Error> {
-        Fingerprint::decode(d).map(PackedFingerprint)
+    fn decode(d: &mut D) -> Self {
+        Self(Fingerprint::decode(d))
     }
 }
 

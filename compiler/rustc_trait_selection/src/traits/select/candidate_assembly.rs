@@ -6,14 +6,19 @@
 //!
 //! [rustc dev guide]:https://rustc-dev-guide.rust-lang.org/traits/resolution.html#candidate-assembly
 use rustc_hir as hir;
+use rustc_hir::def_id::DefId;
+use rustc_infer::traits::TraitEngine;
 use rustc_infer::traits::{Obligation, SelectionError, TraitObligation};
+use rustc_lint_defs::builtin::DEREF_INTO_DYN_SUPERTRAIT;
 use rustc_middle::ty::print::with_no_trimmed_paths;
-use rustc_middle::ty::{self, TypeFoldable};
+use rustc_middle::ty::{self, ToPredicate, Ty, TypeFoldable};
 use rustc_target::spec::abi::Abi;
 
+use crate::traits;
 use crate::traits::coherence::Conflict;
+use crate::traits::query::evaluate_obligation::InferCtxtExt;
 use crate::traits::{util, SelectionResult};
-use crate::traits::{Overflow, Unimplemented};
+use crate::traits::{Ambiguous, ErrorReporting, Overflow, Unimplemented};
 
 use super::BuiltinImplConditions;
 use super::IntercrateAmbiguityCause;
@@ -116,7 +121,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             return Ok(None);
         }
 
-        let mut candidates = candidate_set.vec;
+        let candidates = candidate_set.vec;
 
         debug!(?stack, ?candidates, "assembled {} candidates", candidates.len());
 
@@ -128,6 +133,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         // unconstrained type variable. In that case, we'll get a
         // candidate which assumes $0 == int, one that assumes `$0 ==
         // usize`, etc. This spells an ambiguity.
+
+        let mut candidates = self.filter_impls(candidates, stack.obligation);
 
         // If there is more than one candidate, first winnow them down
         // by considering extra conditions (nested obligations and so
@@ -144,7 +151,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         // Instead, we select the right impl now but report "`Bar` does
         // not implement `Clone`".
         if candidates.len() == 1 {
-            return self.filter_impls(candidates.pop().unwrap(), stack.obligation);
+            return self.filter_reservation_impls(candidates.pop().unwrap(), stack.obligation);
         }
 
         // Winnow, but record the exact outcome of evaluation, which
@@ -156,7 +163,8 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                     Ok(Some(EvaluatedCandidate { candidate: c, evaluation: eval }))
                 }
                 Ok(_) => Ok(None),
-                Err(OverflowError) => Err(Overflow),
+                Err(OverflowError::Canonical) => Err(Overflow),
+                Err(OverflowError::ErrorReporting) => Err(ErrorReporting),
             })
             .flat_map(Result::transpose)
             .collect::<Result<Vec<_>, _>>()?;
@@ -164,6 +172,9 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         debug!(?stack, ?candidates, "winnowed to {} candidates", candidates.len());
 
         let needs_infer = stack.obligation.predicate.has_infer_types_or_consts();
+
+        let sized_predicate = self.tcx().lang_items().sized_trait()
+            == Some(stack.obligation.predicate.skip_binder().def_id());
 
         // If there are STILL multiple candidates, we can further
         // reduce the list by dropping duplicates -- including
@@ -173,6 +184,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             while i < candidates.len() {
                 let is_dup = (0..candidates.len()).filter(|&j| i != j).any(|j| {
                     self.candidate_should_be_dropped_in_favor_of(
+                        sized_predicate,
                         &candidates[i],
                         &candidates[j],
                         needs_infer,
@@ -189,7 +201,15 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                     // and report ambiguity.
                     if i > 1 {
                         debug!("multiple matches, ambig");
-                        return Ok(None);
+                        return Err(Ambiguous(
+                            candidates
+                                .into_iter()
+                                .filter_map(|c| match c.candidate {
+                                    SelectionCandidate::ImplCandidate(def_id) => Some(def_id),
+                                    _ => None,
+                                })
+                                .collect(),
+                        ));
                     }
                 }
             }
@@ -217,9 +237,10 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         }
 
         // Just one candidate left.
-        self.filter_impls(candidates.pop().unwrap().candidate, stack.obligation)
+        self.filter_reservation_impls(candidates.pop().unwrap().candidate, stack.obligation)
     }
 
+    #[instrument(skip(self, stack), level = "debug")]
     pub(super) fn assemble_candidates<'o>(
         &mut self,
         stack: &TraitObligationStack<'o, 'tcx>,
@@ -247,70 +268,80 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
 
         let mut candidates = SelectionCandidateSet { vec: Vec::new(), ambiguous: false };
 
-        self.assemble_candidates_for_trait_alias(obligation, &mut candidates);
-
-        // Other bounds. Consider both in-scope bounds from fn decl
-        // and applicable impls. There is a certain set of precedence rules here.
-        let def_id = obligation.predicate.def_id();
-        let lang_items = self.tcx().lang_items();
-
-        if lang_items.copy_trait() == Some(def_id) {
-            debug!(obligation_self_ty = ?obligation.predicate.skip_binder().self_ty());
-
-            // User-defined copy impls are permitted, but only for
-            // structs and enums.
+        // The only way to prove a NotImplemented(T: Foo) predicate is via a negative impl.
+        // There are no compiler built-in rules for this.
+        if obligation.polarity() == ty::ImplPolarity::Negative {
+            self.assemble_candidates_for_trait_alias(obligation, &mut candidates);
             self.assemble_candidates_from_impls(obligation, &mut candidates);
-
-            // For other types, we'll use the builtin rules.
-            let copy_conditions = self.copy_clone_conditions(obligation);
-            self.assemble_builtin_bound_candidates(copy_conditions, &mut candidates);
-        } else if lang_items.discriminant_kind_trait() == Some(def_id) {
-            // `DiscriminantKind` is automatically implemented for every type.
-            candidates.vec.push(DiscriminantKindCandidate);
-        } else if lang_items.pointee_trait() == Some(def_id) {
-            // `Pointee` is automatically implemented for every type.
-            candidates.vec.push(PointeeCandidate);
-        } else if lang_items.sized_trait() == Some(def_id) {
-            // Sized is never implementable by end-users, it is
-            // always automatically computed.
-            let sized_conditions = self.sized_conditions(obligation);
-            self.assemble_builtin_bound_candidates(sized_conditions, &mut candidates);
-        } else if lang_items.unsize_trait() == Some(def_id) {
-            self.assemble_candidates_for_unsizing(obligation, &mut candidates);
         } else {
-            if lang_items.clone_trait() == Some(def_id) {
-                // Same builtin conditions as `Copy`, i.e., every type which has builtin support
-                // for `Copy` also has builtin support for `Clone`, and tuples/arrays of `Clone`
-                // types have builtin support for `Clone`.
-                let clone_conditions = self.copy_clone_conditions(obligation);
-                self.assemble_builtin_bound_candidates(clone_conditions, &mut candidates);
+            self.assemble_candidates_for_trait_alias(obligation, &mut candidates);
+
+            // Other bounds. Consider both in-scope bounds from fn decl
+            // and applicable impls. There is a certain set of precedence rules here.
+            let def_id = obligation.predicate.def_id();
+            let lang_items = self.tcx().lang_items();
+
+            if lang_items.copy_trait() == Some(def_id) {
+                debug!(obligation_self_ty = ?obligation.predicate.skip_binder().self_ty());
+
+                // User-defined copy impls are permitted, but only for
+                // structs and enums.
+                self.assemble_candidates_from_impls(obligation, &mut candidates);
+
+                // For other types, we'll use the builtin rules.
+                let copy_conditions = self.copy_clone_conditions(obligation);
+                self.assemble_builtin_bound_candidates(copy_conditions, &mut candidates);
+            } else if lang_items.discriminant_kind_trait() == Some(def_id) {
+                // `DiscriminantKind` is automatically implemented for every type.
+                candidates.vec.push(DiscriminantKindCandidate);
+            } else if lang_items.pointee_trait() == Some(def_id) {
+                // `Pointee` is automatically implemented for every type.
+                candidates.vec.push(PointeeCandidate);
+            } else if lang_items.sized_trait() == Some(def_id) {
+                // Sized is never implementable by end-users, it is
+                // always automatically computed.
+                let sized_conditions = self.sized_conditions(obligation);
+                self.assemble_builtin_bound_candidates(sized_conditions, &mut candidates);
+            } else if lang_items.unsize_trait() == Some(def_id) {
+                self.assemble_candidates_for_unsizing(obligation, &mut candidates);
+            } else if lang_items.drop_trait() == Some(def_id)
+                && obligation.predicate.is_const_if_const()
+            {
+                self.assemble_const_drop_candidates(obligation, &mut candidates);
+            } else {
+                if lang_items.clone_trait() == Some(def_id) {
+                    // Same builtin conditions as `Copy`, i.e., every type which has builtin support
+                    // for `Copy` also has builtin support for `Clone`, and tuples/arrays of `Clone`
+                    // types have builtin support for `Clone`.
+                    let clone_conditions = self.copy_clone_conditions(obligation);
+                    self.assemble_builtin_bound_candidates(clone_conditions, &mut candidates);
+                }
+
+                self.assemble_generator_candidates(obligation, &mut candidates);
+                self.assemble_closure_candidates(obligation, &mut candidates);
+                self.assemble_fn_pointer_candidates(obligation, &mut candidates);
+                self.assemble_candidates_from_impls(obligation, &mut candidates);
+                self.assemble_candidates_from_object_ty(obligation, &mut candidates);
             }
 
-            self.assemble_generator_candidates(obligation, &mut candidates);
-            self.assemble_closure_candidates(obligation, &mut candidates);
-            self.assemble_fn_pointer_candidates(obligation, &mut candidates);
-            self.assemble_candidates_from_impls(obligation, &mut candidates);
-            self.assemble_candidates_from_object_ty(obligation, &mut candidates);
-        }
-
-        self.assemble_candidates_from_projected_tys(obligation, &mut candidates);
-        self.assemble_candidates_from_caller_bounds(stack, &mut candidates)?;
-        // Auto implementations have lower priority, so we only
-        // consider triggering a default if there is no other impl that can apply.
-        if candidates.vec.is_empty() {
-            self.assemble_candidates_from_auto_impls(obligation, &mut candidates);
+            self.assemble_candidates_from_projected_tys(obligation, &mut candidates);
+            self.assemble_candidates_from_caller_bounds(stack, &mut candidates)?;
+            // Auto implementations have lower priority, so we only
+            // consider triggering a default if there is no other impl that can apply.
+            if candidates.vec.is_empty() {
+                self.assemble_candidates_from_auto_impls(obligation, &mut candidates);
+            }
         }
         debug!("candidate list size: {}", candidates.vec.len());
         Ok(candidates)
     }
 
+    #[tracing::instrument(level = "debug", skip(self, candidates))]
     fn assemble_candidates_from_projected_tys(
         &mut self,
         obligation: &TraitObligation<'tcx>,
         candidates: &mut SelectionCandidateSet<'tcx>,
     ) {
-        debug!(?obligation, "assemble_candidates_from_projected_tys");
-
         // Before we go into the whole placeholder thing, just
         // quickly check if the self-type is a projection at all.
         match obligation.predicate.skip_binder().trait_ref.self_ty().kind() {
@@ -328,36 +359,37 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
             .infcx
             .probe(|_| self.match_projection_obligation_against_definition_bounds(obligation));
 
-        for predicate_index in result {
-            candidates.vec.push(ProjectionCandidate(predicate_index));
-        }
+        candidates.vec.extend(result.into_iter().map(ProjectionCandidate));
     }
 
     /// Given an obligation like `<SomeTrait for T>`, searches the obligations that the caller
     /// supplied to find out whether it is listed among them.
     ///
     /// Never affects the inference environment.
+    #[tracing::instrument(level = "debug", skip(self, stack, candidates))]
     fn assemble_candidates_from_caller_bounds<'o>(
         &mut self,
         stack: &TraitObligationStack<'o, 'tcx>,
         candidates: &mut SelectionCandidateSet<'tcx>,
     ) -> Result<(), SelectionError<'tcx>> {
-        debug!(?stack.obligation, "assemble_candidates_from_caller_bounds");
+        debug!(?stack.obligation);
 
         let all_bounds = stack
             .obligation
             .param_env
             .caller_bounds()
             .iter()
-            .filter_map(|o| o.to_opt_poly_trait_ref());
+            .filter_map(|o| o.to_opt_poly_trait_pred());
 
         // Micro-optimization: filter out predicates relating to different traits.
         let matching_bounds =
-            all_bounds.filter(|p| p.value.def_id() == stack.obligation.predicate.def_id());
+            all_bounds.filter(|p| p.def_id() == stack.obligation.predicate.def_id());
 
         // Keep only those bounds which may apply, and propagate overflow if it occurs.
         for bound in matching_bounds {
-            let wc = self.evaluate_where_clause(stack, bound.value)?;
+            // FIXME(oli-obk): it is suspicious that we are dropping the constness and
+            // polarity here.
+            let wc = self.evaluate_where_clause(stack, bound.map_bound(|t| t.trait_ref))?;
             if wc.may_apply() {
                 candidates.vec.push(ParamCandidate(bound));
             }
@@ -465,7 +497,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                     ..
                 } = self_ty.fn_sig(self.tcx()).skip_binder()
                 {
-                    candidates.vec.push(FnPointerCandidate);
+                    candidates.vec.push(FnPointerCandidate { is_const: false });
                 }
             }
             // Provide an impl for suitable functions, rejecting `#[target_feature]` functions (RFC 2396).
@@ -478,7 +510,9 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                 } = self_ty.fn_sig(self.tcx()).skip_binder()
                 {
                     if self.tcx().codegen_fn_attrs(def_id).target_features.is_empty() {
-                        candidates.vec.push(FnPointerCandidate);
+                        candidates
+                            .vec
+                            .push(FnPointerCandidate { is_const: self.tcx().is_const_fn(def_id) });
                     }
                 }
             }
@@ -500,7 +534,10 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         // This helps us avoid overflow: see issue #72839
         // Since compilation is already guaranteed to fail, this is just
         // to try to show the 'nicest' possible errors to the user.
-        if obligation.references_error() {
+        // We don't check for errors in the `ParamEnv` - in practice,
+        // it seems to cause us to be overly aggressive in deciding
+        // to give up searching for candidates, leading to spurious errors.
+        if obligation.predicate.references_error() {
             return;
         }
 
@@ -659,6 +696,53 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         })
     }
 
+    /// Temporary migration for #89190
+    fn need_migrate_deref_output_trait_object(
+        &mut self,
+        ty: Ty<'tcx>,
+        cause: &traits::ObligationCause<'tcx>,
+        param_env: ty::ParamEnv<'tcx>,
+    ) -> Option<(Ty<'tcx>, DefId)> {
+        let tcx = self.tcx();
+        if tcx.features().trait_upcasting {
+            return None;
+        }
+
+        // <ty as Deref>
+        let trait_ref = ty::TraitRef {
+            def_id: tcx.lang_items().deref_trait()?,
+            substs: tcx.mk_substs_trait(ty, &[]),
+        };
+
+        let obligation = traits::Obligation::new(
+            cause.clone(),
+            param_env,
+            ty::Binder::dummy(trait_ref).without_const().to_predicate(tcx),
+        );
+        if !self.infcx.predicate_may_hold(&obligation) {
+            return None;
+        }
+
+        let mut fulfillcx = traits::FulfillmentContext::new_in_snapshot();
+        let normalized_ty = fulfillcx.normalize_projection_type(
+            &self.infcx,
+            param_env,
+            ty::ProjectionTy {
+                item_def_id: tcx.lang_items().deref_target()?,
+                substs: trait_ref.substs,
+            },
+            cause.clone(),
+        );
+
+        let ty::Dynamic(data, ..) = normalized_ty.kind() else {
+            return None;
+        };
+
+        let def_id = data.principal_def_id()?;
+
+        return Some((normalized_ty, def_id));
+    }
+
     /// Searches for unsizing that might apply to `obligation`.
     fn assemble_candidates_for_unsizing(
         &mut self,
@@ -719,6 +803,30 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
                         let principal_a = data_a.principal().unwrap();
                         let target_trait_did = principal_def_id_b.unwrap();
                         let source_trait_ref = principal_a.with_self_ty(self.tcx(), source);
+                        if let Some((deref_output_ty, deref_output_trait_did)) = self
+                            .need_migrate_deref_output_trait_object(
+                                source,
+                                &obligation.cause,
+                                obligation.param_env,
+                            )
+                        {
+                            if deref_output_trait_did == target_trait_did {
+                                self.tcx().struct_span_lint_hir(
+                                    DEREF_INTO_DYN_SUPERTRAIT,
+                                    obligation.cause.body_id,
+                                    obligation.cause.span,
+                                    |lint| {
+                                        lint.build(&format!(
+                                            "`{}` implements `Deref` with supertrait `{}` as output",
+                                            source,
+                                            deref_output_ty
+                                        )).emit();
+                                    },
+                                );
+                                return;
+                            }
+                        }
+
                         for (idx, upcast_trait_ref) in
                             util::supertraits(self.tcx(), source_trait_ref).enumerate()
                         {
@@ -766,6 +874,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
         };
     }
 
+    #[tracing::instrument(level = "debug", skip(self, obligation, candidates))]
     fn assemble_candidates_for_trait_alias(
         &mut self,
         obligation: &TraitObligation<'tcx>,
@@ -773,7 +882,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
     ) {
         // Okay to skip binder here because the tests we do below do not involve bound regions.
         let self_ty = obligation.self_ty().skip_binder();
-        debug!(?self_ty, "assemble_candidates_for_trait_alias");
+        debug!(?self_ty);
 
         let def_id = obligation.predicate.def_id();
 
@@ -784,6 +893,7 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
 
     /// Assembles the trait which are built-in to the language itself:
     /// `Copy`, `Clone` and `Sized`.
+    #[tracing::instrument(level = "debug", skip(self, candidates))]
     fn assemble_builtin_bound_candidates(
         &mut self,
         conditions: BuiltinImplConditions<'tcx>,
@@ -791,14 +901,86 @@ impl<'cx, 'tcx> SelectionContext<'cx, 'tcx> {
     ) {
         match conditions {
             BuiltinImplConditions::Where(nested) => {
-                debug!(?nested, "builtin_bound");
                 candidates
                     .vec
                     .push(BuiltinCandidate { has_nested: !nested.skip_binder().is_empty() });
             }
             BuiltinImplConditions::None => {}
             BuiltinImplConditions::Ambiguous => {
-                debug!("assemble_builtin_bound_candidates: ambiguous builtin");
+                candidates.ambiguous = true;
+            }
+        }
+    }
+
+    fn assemble_const_drop_candidates(
+        &mut self,
+        obligation: &TraitObligation<'tcx>,
+        candidates: &mut SelectionCandidateSet<'tcx>,
+    ) {
+        // If the predicate is `~const Drop` in a non-const environment, we don't actually need
+        // to check anything. We'll short-circuit checking any obligations in confirmation, too.
+        if obligation.param_env.constness() == hir::Constness::NotConst {
+            candidates.vec.push(ConstDropCandidate(None));
+            return;
+        }
+
+        let self_ty = self.infcx().shallow_resolve(obligation.self_ty());
+        match self_ty.skip_binder().kind() {
+            ty::Opaque(..)
+            | ty::Dynamic(..)
+            | ty::Error(_)
+            | ty::Bound(..)
+            | ty::Param(_)
+            | ty::Placeholder(_)
+            | ty::Projection(_) => {
+                // We don't know if these are `~const Drop`, at least
+                // not structurally... so don't push a candidate.
+            }
+
+            ty::Bool
+            | ty::Char
+            | ty::Int(_)
+            | ty::Uint(_)
+            | ty::Float(_)
+            | ty::Infer(ty::IntVar(_))
+            | ty::Infer(ty::FloatVar(_))
+            | ty::Str
+            | ty::RawPtr(_)
+            | ty::Ref(..)
+            | ty::FnDef(..)
+            | ty::FnPtr(_)
+            | ty::Never
+            | ty::Foreign(_)
+            | ty::Array(..)
+            | ty::Slice(_)
+            | ty::Closure(..)
+            | ty::Generator(..)
+            | ty::Tuple(_)
+            | ty::GeneratorWitness(_) => {
+                // These are built-in, and cannot have a custom `impl const Drop`.
+                candidates.vec.push(ConstDropCandidate(None));
+            }
+
+            ty::Adt(..) => {
+                // Find a custom `impl Drop` impl, if it exists
+                let relevant_impl = self.tcx().find_map_relevant_impl(
+                    obligation.predicate.def_id(),
+                    obligation.predicate.skip_binder().trait_ref.self_ty(),
+                    Some,
+                );
+
+                if let Some(impl_def_id) = relevant_impl {
+                    // Check that `impl Drop` is actually const, if there is a custom impl
+                    if self.tcx().impl_constness(impl_def_id) == hir::Constness::Const {
+                        candidates.vec.push(ConstDropCandidate(Some(impl_def_id)));
+                    }
+                } else {
+                    // Otherwise check the ADT like a built-in type (structurally)
+                    candidates.vec.push(ConstDropCandidate(None));
+                }
+            }
+
+            ty::Infer(_) => {
                 candidates.ambiguous = true;
             }
         }

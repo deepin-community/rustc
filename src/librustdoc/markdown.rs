@@ -7,10 +7,12 @@ use rustc_span::source_map::DUMMY_SP;
 use rustc_span::Symbol;
 
 use crate::config::{Options, RenderOptions};
-use crate::doctest::{Collector, TestOptions};
+use crate::doctest::{Collector, GlobalTestOptions};
 use crate::html::escape::Escape;
 use crate::html::markdown;
-use crate::html::markdown::{find_testable_code, ErrorCodes, IdMap, Markdown, MarkdownWithToc};
+use crate::html::markdown::{
+    find_testable_code, ErrorCodes, HeadingOffset, IdMap, Markdown, MarkdownWithToc,
+};
 
 /// Separate any lines at the start of the file that begin with `# ` or `%`.
 fn extract_leading_metadata(s: &str) -> (Vec<&str>, &str) {
@@ -70,7 +72,16 @@ crate fn render<P: AsRef<Path>>(
     let text = if !options.markdown_no_toc {
         MarkdownWithToc(text, &mut ids, error_codes, edition, &playground).into_string()
     } else {
-        Markdown(text, &[], &mut ids, error_codes, edition, &playground).into_string()
+        Markdown {
+            content: text,
+            links: &[],
+            ids: &mut ids,
+            error_codes,
+            edition,
+            playground: &playground,
+            heading_offset: HeadingOffset::H1,
+        }
+        .into_string()
     };
 
     let err = write!(
@@ -118,9 +129,8 @@ crate fn render<P: AsRef<Path>>(
 crate fn test(options: Options) -> Result<(), String> {
     let input_str = read_to_string(&options.input)
         .map_err(|err| format!("{}: {}", options.input.display(), err))?;
-    let mut opts = TestOptions::default();
+    let mut opts = GlobalTestOptions::default();
     opts.no_crate_inject = true;
-    opts.display_warnings = options.display_warnings;
     let mut collector = Collector::new(
         Symbol::intern(&options.input.display().to_string()),
         options.clone(),
@@ -135,11 +145,6 @@ crate fn test(options: Options) -> Result<(), String> {
 
     find_testable_code(&input_str, &mut collector, codes, options.enable_per_target_ignores, None);
 
-    crate::doctest::run_tests(
-        options.test_args,
-        options.nocapture,
-        options.display_warnings,
-        collector.tests,
-    );
+    crate::doctest::run_tests(options.test_args, options.nocapture, collector.tests);
     Ok(())
 }

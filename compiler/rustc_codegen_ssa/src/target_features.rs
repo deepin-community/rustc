@@ -19,6 +19,8 @@ const ARM_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     ("crypto", Some(sym::arm_target_feature)),
     ("aes", Some(sym::arm_target_feature)),
     ("sha2", Some(sym::arm_target_feature)),
+    ("i8mm", Some(sym::arm_target_feature)),
+    ("dotprod", Some(sym::arm_target_feature)),
     ("v5te", Some(sym::arm_target_feature)),
     ("v6", Some(sym::arm_target_feature)),
     ("v6k", Some(sym::arm_target_feature)),
@@ -33,9 +35,10 @@ const ARM_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     // since it should be enabled per-function using #[instruction_set], not
     // #[target_feature].
     ("thumb-mode", Some(sym::arm_target_feature)),
+    ("thumb2", Some(sym::arm_target_feature)),
+    ("reserve-r9", Some(sym::arm_target_feature)),
 ];
 
-// Commented features are not available in LLVM 10.0, or have since been renamed
 const AARCH64_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     // FEAT_AdvSimd
     ("neon", Some(sym::aarch64_target_feature)),
@@ -66,13 +69,15 @@ const AARCH64_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     // FEAT_DIT
     ("dit", Some(sym::aarch64_target_feature)),
     // FEAT_FLAGM
-    // ("flagm", Some(sym::aarch64_target_feature)),
+    ("flagm", Some(sym::aarch64_target_feature)),
     // FEAT_SSBS
     ("ssbs", Some(sym::aarch64_target_feature)),
     // FEAT_SB
     ("sb", Some(sym::aarch64_target_feature)),
-    // FEAT_PAUTH
-    // ("pauth", Some(sym::aarch64_target_feature)),
+    // FEAT_PAUTH (address authentication)
+    ("paca", Some(sym::aarch64_target_feature)),
+    // FEAT_PAUTH (generic authentication)
+    ("pacg", Some(sym::aarch64_target_feature)),
     // FEAT_DPB
     ("dpb", Some(sym::aarch64_target_feature)),
     // FEAT_DPB2
@@ -90,13 +95,13 @@ const AARCH64_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     // FEAT_FRINTTS
     ("frintts", Some(sym::aarch64_target_feature)),
     // FEAT_I8MM
-    // ("i8mm", Some(sym::aarch64_target_feature)),
+    ("i8mm", Some(sym::aarch64_target_feature)),
     // FEAT_F32MM
-    // ("f32mm", Some(sym::aarch64_target_feature)),
+    ("f32mm", Some(sym::aarch64_target_feature)),
     // FEAT_F64MM
-    // ("f64mm", Some(sym::aarch64_target_feature)),
+    ("f64mm", Some(sym::aarch64_target_feature)),
     // FEAT_BF16
-    // ("bf16", Some(sym::aarch64_target_feature)),
+    ("bf16", Some(sym::aarch64_target_feature)),
     // FEAT_RAND
     ("rand", Some(sym::aarch64_target_feature)),
     // FEAT_BTI
@@ -115,14 +120,26 @@ const AARCH64_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     ("sha3", Some(sym::aarch64_target_feature)),
     // FEAT_SM3 & FEAT_SM4
     ("sm4", Some(sym::aarch64_target_feature)),
+    // FEAT_PAN
+    ("pan", Some(sym::aarch64_target_feature)),
+    // FEAT_LOR
+    ("lor", Some(sym::aarch64_target_feature)),
+    // FEAT_VHE
+    ("vh", Some(sym::aarch64_target_feature)),
+    // FEAT_PMUv3
+    ("pmuv3", Some(sym::aarch64_target_feature)),
+    // FEAT_SPE
+    ("spe", Some(sym::aarch64_target_feature)),
     ("v8.1a", Some(sym::aarch64_target_feature)),
     ("v8.2a", Some(sym::aarch64_target_feature)),
     ("v8.3a", Some(sym::aarch64_target_feature)),
     ("v8.4a", Some(sym::aarch64_target_feature)),
     ("v8.5a", Some(sym::aarch64_target_feature)),
-    // ("v8.6a", Some(sym::aarch64_target_feature)),
-    // ("v8.7a", Some(sym::aarch64_target_feature)),
+    ("v8.6a", Some(sym::aarch64_target_feature)),
+    ("v8.7a", Some(sym::aarch64_target_feature)),
 ];
+
+const AARCH64_TIED_FEATURES: &[&[&str]] = &[&["paca", "pacg"]];
 
 const X86_ALLOWED_FEATURES: &[(&str, Option<Symbol>)] = &[
     ("adx", Some(sym::adx_target_feature)),
@@ -239,6 +256,13 @@ pub fn supported_target_features(sess: &Session) -> &'static [(&'static str, Opt
         "riscv32" | "riscv64" => RISCV_ALLOWED_FEATURES,
         "wasm32" | "wasm64" => WASM_ALLOWED_FEATURES,
         "bpf" => BPF_ALLOWED_FEATURES,
+        _ => &[],
+    }
+}
+
+pub fn tied_target_features(sess: &Session) -> &'static [&'static [&'static str]] {
+    match &*sess.target.arch {
+        "aarch64" => AARCH64_TIED_FEATURES,
         _ => &[],
     }
 }

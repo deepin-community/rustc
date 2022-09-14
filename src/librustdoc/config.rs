@@ -24,7 +24,8 @@ use crate::html::markdown::IdMap;
 use crate::html::render::StylePath;
 use crate::html::static_files;
 use crate::opts;
-use crate::passes::{self, Condition, DefaultPassOption};
+use crate::passes::{self, Condition};
+use crate::scrape_examples::{AllCallLocations, ScrapeExamplesOptions};
 use crate::theme;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -127,17 +128,6 @@ crate struct Options {
     crate test_builder: Option<PathBuf>,
 
     // Options that affect the documentation process
-    /// The selected default set of passes to use.
-    ///
-    /// Be aware: This option can come both from the CLI and from crate attributes!
-    crate default_passes: DefaultPassOption,
-    /// Any passes manually selected by the user.
-    ///
-    /// Be aware: This option can come both from the CLI and from crate attributes!
-    crate manual_passes: Vec<String>,
-    /// Whether to display warnings during doc generation or while gathering doctests. By default,
-    /// all non-rustdoc-specific lints are allowed when generating docs.
-    crate display_warnings: bool,
     /// Whether to run the `calculate-doc-coverage` pass, which counts the number of public items
     /// with and without documentation.
     crate show_coverage: bool,
@@ -158,6 +148,10 @@ crate struct Options {
     crate json_unused_externs: bool,
     /// Whether to skip capturing stdout and stderr of tests.
     crate nocapture: bool,
+
+    /// Configuration for scraping examples from the current crate. If this option is Some(..) then
+    /// the compiler will scrape examples and not generate documentation.
+    crate scrape_examples_options: Option<ScrapeExamplesOptions>,
 }
 
 impl fmt::Debug for Options {
@@ -190,9 +184,6 @@ impl fmt::Debug for Options {
             .field("test_args", &self.test_args)
             .field("test_run_directory", &self.test_run_directory)
             .field("persist_doctests", &self.persist_doctests)
-            .field("default_passes", &self.default_passes)
-            .field("manual_passes", &self.manual_passes)
-            .field("display_warnings", &self.display_warnings)
             .field("show_coverage", &self.show_coverage)
             .field("crate_version", &self.crate_version)
             .field("render_options", &self.render_options)
@@ -202,6 +193,7 @@ impl fmt::Debug for Options {
             .field("run_check", &self.run_check)
             .field("no_run", &self.no_run)
             .field("nocapture", &self.nocapture)
+            .field("scrape_examples_options", &self.scrape_examples_options)
             .finish()
     }
 }
@@ -265,9 +257,6 @@ crate struct RenderOptions {
     /// If present, playground URL to use in the "Run" button added to code samples generated from
     /// standalone Markdown files. If not present, `playground_url` is used.
     crate markdown_playground_url: Option<String>,
-    /// If false, the `select` element to have search filtering by crates on rendered docs
-    /// won't be generated.
-    crate generate_search_filter: bool,
     /// Document items that have lower than `pub` visibility.
     crate document_private: bool,
     /// Document items that have `doc(hidden)`.
@@ -280,6 +269,10 @@ crate struct RenderOptions {
     crate emit: Vec<EmitType>,
     /// If `true`, HTML source pages will generate links for items to their definition.
     crate generate_link_to_definition: bool,
+    /// Set of function-call locations to include as examples
+    crate call_locations: AllCallLocations,
+    /// If `true`, Context::init will not emit shared files.
+    crate no_emit_shared: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -314,15 +307,28 @@ impl Options {
     /// been printed, returns `Err` with the exit code.
     crate fn from_matches(matches: &getopts::Matches) -> Result<Options, i32> {
         // Check for unstable options.
-        nightly_options::check_nightly_options(&matches, &opts());
+        nightly_options::check_nightly_options(matches, &opts());
 
         if matches.opt_present("h") || matches.opt_present("help") {
             crate::usage("rustdoc");
             return Err(0);
         } else if matches.opt_present("version") {
-            rustc_driver::version("rustdoc", &matches);
+            rustc_driver::version("rustdoc", matches);
             return Err(0);
         }
+
+        let color = config::parse_color(matches);
+        let config::JsonConfig { json_rendered, json_unused_externs, .. } =
+            config::parse_json(matches);
+        let error_format = config::parse_error_format(matches, color, json_rendered);
+
+        let codegen_options = CodegenOptions::build(matches, error_format);
+        let debugging_opts = DebuggingOptions::build(matches, error_format);
+
+        let diag = new_handler(error_format, None, &debugging_opts);
+
+        // check for deprecated options
+        check_deprecated_options(matches, &diag);
 
         if matches.opt_strs("passes") == ["list"] {
             println!("Available passes for running rustdoc:");
@@ -355,19 +361,6 @@ impl Options {
 
             return Err(0);
         }
-
-        let color = config::parse_color(&matches);
-        let config::JsonConfig { json_rendered, json_unused_externs, .. } =
-            config::parse_json(&matches);
-        let error_format = config::parse_error_format(&matches, color, json_rendered);
-
-        let codegen_options = CodegenOptions::build(matches, error_format);
-        let debugging_opts = DebuggingOptions::build(matches, error_format);
-
-        let diag = new_handler(error_format, None, &debugging_opts);
-
-        // check for deprecated options
-        check_deprecated_options(&matches, &diag);
 
         let mut emit = Vec::new();
         for list in matches.opt_strs("emit") {
@@ -433,8 +426,8 @@ impl Options {
             .iter()
             .map(|s| SearchPath::from_cli_opt(s, error_format))
             .collect();
-        let externs = parse_externs(&matches, &debugging_opts, error_format);
-        let extern_html_root_urls = match parse_extern_html_roots(&matches) {
+        let externs = parse_externs(matches, &debugging_opts, error_format);
+        let extern_html_root_urls = match parse_extern_html_roots(matches) {
             Ok(ex) => ex,
             Err(err) => {
                 diag.struct_err(err).emit();
@@ -446,13 +439,12 @@ impl Options {
             matches
                 .opt_str("default-theme")
                 .iter()
-                .map(|theme| {
+                .flat_map(|theme| {
                     vec![
                         ("use-system-theme".to_string(), "false".to_string()),
                         ("theme".to_string(), theme.to_string()),
                     ]
                 })
-                .flatten()
                 .collect(),
             matches
                 .opt_strs("default-setting")
@@ -501,8 +493,18 @@ impl Options {
             return Err(1);
         }
 
-        let output =
-            matches.opt_str("o").map(|s| PathBuf::from(&s)).unwrap_or_else(|| PathBuf::from("doc"));
+        let out_dir = matches.opt_str("out-dir").map(|s| PathBuf::from(&s));
+        let output = matches.opt_str("output").map(|s| PathBuf::from(&s));
+        let output = match (out_dir, output) {
+            (Some(_), Some(_)) => {
+                diag.struct_err("cannot use both 'out-dir' and 'output' at once").emit();
+                return Err(1);
+            }
+            (Some(out_dir), None) => out_dir,
+            (None, Some(output)) => output,
+            (None, None) => PathBuf::from("doc"),
+        };
+
         let cfgs = matches.opt_strs("cfg");
 
         let extension_css = matches.opt_str("e").map(|s| PathBuf::from(&s));
@@ -549,11 +551,11 @@ impl Options {
                     ))
                     .emit();
                 }
-                themes.push(StylePath { path: theme_file, disabled: true });
+                themes.push(StylePath { path: theme_file });
             }
         }
 
-        let edition = config::parse_crate_edition(&matches);
+        let edition = config::parse_crate_edition(matches);
 
         let mut id_map = html::markdown::IdMap::new();
         let external_html = match ExternalHtml::load(
@@ -562,7 +564,7 @@ impl Options {
             &matches.opt_strs("html-after-content"),
             &matches.opt_strs("markdown-before-content"),
             &matches.opt_strs("markdown-after-content"),
-            nightly_options::match_is_nightly_build(&matches),
+            nightly_options::match_is_nightly_build(matches),
             &diag,
             &mut id_map,
             edition,
@@ -591,15 +593,6 @@ impl Options {
         let target = parse_target_triple(matches, error_format);
 
         let show_coverage = matches.opt_present("show-coverage");
-
-        let default_passes = if matches.opt_present("no-defaults") {
-            passes::DefaultPassOption::None
-        } else if show_coverage {
-            passes::DefaultPassOption::Coverage
-        } else {
-            passes::DefaultPassOption::Default
-        };
-        let manual_passes = matches.opt_strs("passes");
 
         let crate_types = match parse_crate_types_from_list(matches.opt_strs("crate-type")) {
             Ok(types) => types,
@@ -632,7 +625,6 @@ impl Options {
         let proc_macro_crate = crate_types.contains(&CrateType::ProcMacro);
         let playground_url = matches.opt_str("playground-url");
         let maybe_sysroot = matches.opt_str("sysroot").map(PathBuf::from);
-        let display_warnings = matches.opt_present("display-warnings");
         let sort_modules_alphabetically = !matches.opt_present("sort-modules-by-appearance");
         let resource_suffix = matches.opt_str("resource-suffix").unwrap_or_default();
         let enable_minification = !matches.opt_present("disable-minification");
@@ -642,7 +634,6 @@ impl Options {
         let crate_version = matches.opt_str("crate-version");
         let enable_index_page = matches.opt_present("enable-index-page") || index_page.is_some();
         let static_root_path = matches.opt_str("static-root-path");
-        let generate_search_filter = !matches.opt_present("disable-per-crate-search");
         let test_run_directory = matches.opt_str("test-run-directory").map(PathBuf::from);
         let persist_doctests = matches.opt_str("persist-doctests").map(PathBuf::from);
         let test_builder = matches.opt_str("test-builder").map(PathBuf::from);
@@ -671,6 +662,10 @@ impl Options {
             return Err(1);
         }
 
+        let scrape_examples_options = ScrapeExamplesOptions::new(&matches, &diag)?;
+        let with_examples = matches.opt_strs("with-examples");
+        let call_locations = crate::scrape_examples::load_call_locations(with_examples, &diag)?;
+
         let (lint_opts, describe_lints, lint_cap) = get_cmd_lint_options(matches, error_format);
 
         Ok(Options {
@@ -694,9 +689,6 @@ impl Options {
             lint_cap,
             should_test,
             test_args,
-            default_passes,
-            manual_passes,
-            display_warnings,
             show_coverage,
             crate_version,
             test_run_directory,
@@ -727,7 +719,6 @@ impl Options {
                 markdown_no_toc,
                 markdown_css,
                 markdown_playground_url,
-                generate_search_filter,
                 document_private,
                 document_hidden,
                 generate_redirect_map,
@@ -737,10 +728,13 @@ impl Options {
                 ),
                 emit,
                 generate_link_to_definition,
+                call_locations,
+                no_emit_shared: false,
             },
             crate_name,
             output_format,
             json_unused_externs,
+            scrape_examples_options,
         })
     }
 
@@ -752,31 +746,36 @@ impl Options {
 
 /// Prints deprecation warnings for deprecated options
 fn check_deprecated_options(matches: &getopts::Matches, diag: &rustc_errors::Handler) {
-    let deprecated_flags = ["input-format", "no-defaults", "passes"];
+    let deprecated_flags = [];
 
-    for flag in deprecated_flags.iter() {
+    for &flag in deprecated_flags.iter() {
         if matches.opt_present(flag) {
-            let mut err = diag.struct_warn(&format!("the `{}` flag is deprecated", flag));
-            err.note(
-                "see issue #44136 <https://github.com/rust-lang/rust/issues/44136> \
-                 for more information",
-            );
-
-            if *flag == "no-defaults" {
-                err.help("you may want to use --document-private-items");
-            }
-
-            err.emit();
+            diag.struct_warn(&format!("the `{}` flag is deprecated", flag))
+                .note(
+                    "see issue #44136 <https://github.com/rust-lang/rust/issues/44136> \
+                    for more information",
+                )
+                .emit();
         }
     }
 
-    let removed_flags = ["plugins", "plugin-path"];
+    let removed_flags = ["plugins", "plugin-path", "no-defaults", "passes", "input-format"];
 
     for &flag in removed_flags.iter() {
         if matches.opt_present(flag) {
-            diag.struct_warn(&format!("the '{}' flag no longer functions", flag))
-                .warn("see CVE-2018-1000622")
-                .emit();
+            let mut err = diag.struct_warn(&format!("the `{}` flag no longer functions", flag));
+            err.note(
+                "see issue #44136 <https://github.com/rust-lang/rust/issues/44136> \
+                for more information",
+            );
+
+            if flag == "no-defaults" || flag == "passes" {
+                err.help("you may want to use --document-private-items");
+            } else if flag == "plugins" || flag == "plugin-path" {
+                err.warn("see CVE-2018-1000622");
+            }
+
+            err.emit();
         }
     }
 }

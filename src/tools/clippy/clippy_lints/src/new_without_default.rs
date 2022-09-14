@@ -8,7 +8,6 @@ use rustc_hir as hir;
 use rustc_hir::HirIdSet;
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
-use rustc_middle::ty::TyS;
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::sym;
 
@@ -45,6 +44,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub NEW_WITHOUT_DEFAULT,
     style,
     "`fn new() -> Self` method without `Default` implementation"
@@ -69,7 +69,7 @@ impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
         }) = item.kind
         {
             for assoc_item in items {
-                if let hir::AssocItemKind::Fn { has_self: false } = assoc_item.kind {
+                if assoc_item.kind == (hir::AssocItemKind::Fn { has_self: false }) {
                     let impl_item = cx.tcx.hir().impl_item(assoc_item.id);
                     if in_external_macro(cx.sess(), impl_item.span) {
                         return;
@@ -100,9 +100,9 @@ impl<'tcx> LateLintPass<'tcx> for NewWithoutDefault {
                             if sig.decl.inputs.is_empty();
                             if name == sym::new;
                             if cx.access_levels.is_reachable(impl_item.def_id);
-                            let self_def_id = cx.tcx.hir().local_def_id(cx.tcx.hir().get_parent_item(id));
+                            let self_def_id = cx.tcx.hir().get_parent_item(id);
                             let self_ty = cx.tcx.type_of(self_def_id);
-                            if TyS::same_type(self_ty, return_ty(cx, id));
+                            if self_ty == return_ty(cx, id);
                             if let Some(default_trait_id) = cx.tcx.get_diagnostic_item(sym::Default);
                             then {
                                 if self.impling_types.is_none() {

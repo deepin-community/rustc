@@ -275,12 +275,16 @@ pub fn unsetenv(n: &OsStr) -> io::Result<()> {
 }
 
 pub fn temp_dir() -> PathBuf {
-    super::fill_utf16_buf(|buf, sz| unsafe { c::GetTempPathW(sz, buf) }, super::os2path).unwrap()
+    super::fill_utf16_buf(|buf, sz| unsafe { c::GetTempPath2W(sz, buf) }, super::os2path).unwrap()
 }
 
 #[cfg(not(target_vendor = "uwp"))]
 fn home_dir_crt() -> Option<PathBuf> {
     unsafe {
+        // The magic constant -4 can be used as the token passed to GetUserProfileDirectoryW below
+        // instead of us having to go through these multiple steps to get a token. However this is
+        // not implemented on Windows 7, only Windows 8 and up. When we drop support for Windows 7
+        // we can simplify this code. See #90144 for details.
         use crate::sys::handle::Handle;
 
         let me = c::GetCurrentProcess();

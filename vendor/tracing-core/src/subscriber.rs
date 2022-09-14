@@ -101,7 +101,7 @@ pub trait Subscriber: 'static {
     ///
     /// `Subscriber`s which require their filters to be run every time an event
     /// occurs or a span is entered/exited should return `Interest::sometimes`.
-    /// If a subscriber returns `Interest::sometimes`, then its' [`enabled`] method
+    /// If a subscriber returns `Interest::sometimes`, then its [`enabled`] method
     /// will be called every time an event or span is created from that callsite.
     ///
     /// For example, suppose a sampling subscriber is implemented by
@@ -246,8 +246,7 @@ pub trait Subscriber: 'static {
     /// but values for them won't be recorded at this time.
     ///
     /// ```rust,ignore
-    /// #[macro_use]
-    /// extern crate tracing;
+    /// # use tracing::span;
     ///
     /// let mut span = span!("my_span", foo = 3, bar, baz);
     ///
@@ -363,7 +362,7 @@ pub trait Subscriber: 'static {
     #[deprecated(since = "0.1.2", note = "use `Subscriber::try_close` instead")]
     fn drop_span(&self, _id: span::Id) {}
 
-    /// Notifies the subscriber that a [`span ID`] has been dropped, and returns
+    /// Notifies the subscriber that a [span ID] has been dropped, and returns
     /// `true` if there are now 0 IDs that refer to that span.
     ///
     /// Higher-level libraries providing functionality for composing multiple
@@ -562,6 +561,38 @@ impl Interest {
             Interest::sometimes()
         }
     }
+}
+
+/// A no-op [`Subscriber`].
+///
+/// [`NoSubscriber`] implements the [`Subscriber`] trait by never being enabled,
+/// never being interested in any callsite, and dropping all spans and events.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct NoSubscriber(());
+
+impl Subscriber for NoSubscriber {
+    #[inline]
+    fn register_callsite(&self, _: &'static Metadata<'static>) -> Interest {
+        Interest::never()
+    }
+
+    fn new_span(&self, _: &span::Attributes<'_>) -> span::Id {
+        span::Id::from_u64(0xDEAD)
+    }
+
+    fn event(&self, _event: &Event<'_>) {}
+
+    fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {}
+
+    #[inline]
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        false
+    }
+
+    fn enter(&self, _span: &span::Id) {}
+    fn exit(&self, _span: &span::Id) {}
 }
 
 impl Subscriber for Box<dyn Subscriber + Send + Sync + 'static> {

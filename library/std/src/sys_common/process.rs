@@ -39,22 +39,6 @@ impl CommandEnv {
         result
     }
 
-    // Apply these changes directly to the current environment
-    pub fn apply(&self) {
-        if self.clear {
-            for (k, _) in env::vars_os() {
-                env::remove_var(k);
-            }
-        }
-        for (key, maybe_val) in self.vars.iter() {
-            if let Some(ref val) = maybe_val {
-                env::set_var(key, val);
-            } else {
-                env::remove_var(key);
-            }
-        }
-    }
-
     pub fn is_unchanged(&self) -> bool {
         !self.clear && self.vars.is_empty()
     }
@@ -106,13 +90,14 @@ impl CommandEnv {
 /// This struct is created by
 /// [`Command::get_envs`][crate::process::Command::get_envs]. See its
 /// documentation for more.
-#[unstable(feature = "command_access", issue = "44434")]
+#[must_use = "iterators are lazy and do nothing unless consumed"]
+#[stable(feature = "command_access", since = "1.57.0")]
 #[derive(Debug)]
 pub struct CommandEnvs<'a> {
     iter: crate::collections::btree_map::Iter<'a, EnvKey, Option<OsString>>,
 }
 
-#[unstable(feature = "command_access", issue = "44434")]
+#[stable(feature = "command_access", since = "1.57.0")]
 impl<'a> Iterator for CommandEnvs<'a> {
     type Item = (&'a OsStr, Option<&'a OsStr>);
     fn next(&mut self) -> Option<Self::Item> {
@@ -123,7 +108,7 @@ impl<'a> Iterator for CommandEnvs<'a> {
     }
 }
 
-#[unstable(feature = "command_access", issue = "44434")]
+#[stable(feature = "command_access", since = "1.57.0")]
 impl<'a> ExactSizeIterator for CommandEnvs<'a> {
     fn len(&self) -> usize {
         self.iter.len()

@@ -42,6 +42,7 @@ use rustc_serialize::json::{Json, ToJson};
 use rustc_span::symbol::{sym, Symbol};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
+use std::iter::FromIterator;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -75,6 +76,7 @@ mod netbsd_base;
 mod openbsd_base;
 mod redox_base;
 mod solaris_base;
+mod solid_base;
 mod thumb_base;
 mod uefi_msvc_base;
 mod vxworks_base;
@@ -88,6 +90,7 @@ mod windows_uwp_msvc_base;
 pub enum LinkerFlavor {
     Em,
     Gcc,
+    L4Bender,
     Ld,
     Msvc,
     Lld(LldFlavor),
@@ -158,6 +161,7 @@ macro_rules! flavor_mappings {
 flavor_mappings! {
     ((LinkerFlavor::Em), "em"),
     ((LinkerFlavor::Gcc), "gcc"),
+    ((LinkerFlavor::L4Bender), "l4-bender"),
     ((LinkerFlavor::Ld), "ld"),
     ((LinkerFlavor::Msvc), "msvc"),
     ((LinkerFlavor::PtxLinker), "ptx-linker"),
@@ -287,6 +291,7 @@ impl ToJson for MergeFunctions {
 pub enum RelocModel {
     Static,
     Pic,
+    Pie,
     DynamicNoPic,
     Ropi,
     Rwpi,
@@ -300,6 +305,7 @@ impl FromStr for RelocModel {
         Ok(match s {
             "static" => RelocModel::Static,
             "pic" => RelocModel::Pic,
+            "pie" => RelocModel::Pie,
             "dynamic-no-pic" => RelocModel::DynamicNoPic,
             "ropi" => RelocModel::Ropi,
             "rwpi" => RelocModel::Rwpi,
@@ -314,6 +320,7 @@ impl ToJson for RelocModel {
         match *self {
             RelocModel::Static => "static",
             RelocModel::Pic => "pic",
+            RelocModel::Pie => "pie",
             RelocModel::DynamicNoPic => "dynamic-no-pic",
             RelocModel::Ropi => "ropi",
             RelocModel::Rwpi => "rwpi",
@@ -474,7 +481,7 @@ pub enum SplitDebuginfo {
     ///
     /// * Windows - not supported
     /// * macOS - supported, scattered object files
-    /// * ELF - supported, scattered `*.dwo` files
+    /// * ELF - supported, scattered `*.dwo` or `*.o` files (see `SplitDwarfKind`)
     Unpacked,
 }
 
@@ -569,15 +576,15 @@ impl ToJson for StackProbeType {
     fn to_json(&self) -> Json {
         Json::Object(match self {
             StackProbeType::None => {
-                vec![(String::from("kind"), "none".to_json())].into_iter().collect()
+                [(String::from("kind"), "none".to_json())].into_iter().collect()
             }
             StackProbeType::Inline => {
-                vec![(String::from("kind"), "inline".to_json())].into_iter().collect()
+                [(String::from("kind"), "inline".to_json())].into_iter().collect()
             }
             StackProbeType::Call => {
-                vec![(String::from("kind"), "call".to_json())].into_iter().collect()
+                [(String::from("kind"), "call".to_json())].into_iter().collect()
             }
-            StackProbeType::InlineOrCall { min_llvm_version_for_inline } => vec![
+            StackProbeType::InlineOrCall { min_llvm_version_for_inline } => [
                 (String::from("kind"), "inline-or-call".to_json()),
                 (
                     String::from("min-llvm-version-for-inline"),
@@ -598,6 +605,8 @@ bitflags::bitflags! {
         const MEMORY  = 1 << 2;
         const THREAD  = 1 << 3;
         const HWADDRESS = 1 << 4;
+        const CFI     = 1 << 5;
+        const MEMTAG  = 1 << 6;
     }
 }
 
@@ -608,8 +617,10 @@ impl SanitizerSet {
     fn as_str(self) -> Option<&'static str> {
         Some(match self {
             SanitizerSet::ADDRESS => "address",
+            SanitizerSet::CFI => "cfi",
             SanitizerSet::LEAK => "leak",
             SanitizerSet::MEMORY => "memory",
+            SanitizerSet::MEMTAG => "memtag",
             SanitizerSet::THREAD => "thread",
             SanitizerSet::HWADDRESS => "hwaddress",
             _ => return None,
@@ -640,8 +651,10 @@ impl IntoIterator for SanitizerSet {
     fn into_iter(self) -> Self::IntoIter {
         [
             SanitizerSet::ADDRESS,
+            SanitizerSet::CFI,
             SanitizerSet::LEAK,
             SanitizerSet::MEMORY,
+            SanitizerSet::MEMTAG,
             SanitizerSet::THREAD,
             SanitizerSet::HWADDRESS,
         ]
@@ -705,6 +718,59 @@ impl ToJson for FramePointer {
     }
 }
 
+/// Controls use of stack canaries.
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub enum StackProtector {
+    /// Disable stack canary generation.
+    None,
+
+    /// On LLVM, mark all generated LLVM functions with the `ssp` attribute (see
+    /// llvm/docs/LangRef.rst). This triggers stack canary generation in
+    /// functions which contain an array of a byte-sized type with more than
+    /// eight elements.
+    Basic,
+
+    /// On LLVM, mark all generated LLVM functions with the `sspstrong`
+    /// attribute (see llvm/docs/LangRef.rst). This triggers stack canary
+    /// generation in functions which either contain an array, or which take
+    /// the address of a local variable.
+    Strong,
+
+    /// Generate stack canaries in all functions.
+    All,
+}
+
+impl StackProtector {
+    fn as_str(&self) -> &'static str {
+        match self {
+            StackProtector::None => "none",
+            StackProtector::Basic => "basic",
+            StackProtector::Strong => "strong",
+            StackProtector::All => "all",
+        }
+    }
+}
+
+impl FromStr for StackProtector {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<StackProtector, ()> {
+        Ok(match s {
+            "none" => StackProtector::None,
+            "basic" => StackProtector::Basic,
+            "strong" => StackProtector::Strong,
+            "all" => StackProtector::All,
+            _ => return Err(()),
+        })
+    }
+}
+
+impl fmt::Display for StackProtector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 macro_rules! supported_targets {
     ( $(($( $triple:literal, )+ $module:ident ),)+ ) => {
         $(mod $module;)+
@@ -742,6 +808,7 @@ supported_targets! {
     ("x86_64-unknown-linux-gnux32", x86_64_unknown_linux_gnux32),
     ("i686-unknown-linux-gnu", i686_unknown_linux_gnu),
     ("i586-unknown-linux-gnu", i586_unknown_linux_gnu),
+    ("m68k-unknown-linux-gnu", m68k_unknown_linux_gnu),
     ("mips-unknown-linux-gnu", mips_unknown_linux_gnu),
     ("mips64-unknown-linux-gnuabi64", mips64_unknown_linux_gnuabi64),
     ("mips64el-unknown-linux-gnuabi64", mips64el_unknown_linux_gnuabi64),
@@ -805,6 +872,7 @@ supported_targets! {
     ("powerpc-unknown-freebsd", powerpc_unknown_freebsd),
     ("powerpc64-unknown-freebsd", powerpc64_unknown_freebsd),
     ("powerpc64le-unknown-freebsd", powerpc64le_unknown_freebsd),
+    ("riscv64gc-unknown-freebsd", riscv64gc_unknown_freebsd),
     ("x86_64-unknown-freebsd", x86_64_unknown_freebsd),
 
     ("x86_64-unknown-dragonfly", x86_64_unknown_dragonfly),
@@ -899,6 +967,7 @@ supported_targets! {
     ("aarch64-unknown-hermit", aarch64_unknown_hermit),
     ("x86_64-unknown-hermit", x86_64_unknown_hermit),
 
+    ("aarch64-unknown-none-hermitkernel", aarch64_unknown_none_hermitkernel),
     ("x86_64-unknown-none-hermitkernel", x86_64_unknown_none_hermitkernel),
 
     ("riscv32i-unknown-none-elf", riscv32i_unknown_none_elf),
@@ -931,6 +1000,10 @@ supported_targets! {
     ("powerpc-wrs-vxworks-spe", powerpc_wrs_vxworks_spe),
     ("powerpc64-wrs-vxworks", powerpc64_wrs_vxworks),
 
+    ("aarch64-kmc-solid_asp3", aarch64_kmc_solid_asp3),
+    ("armv7a-kmc-solid_asp3-eabi", armv7a_kmc_solid_asp3_eabi),
+    ("armv7a-kmc-solid_asp3-eabihf", armv7a_kmc_solid_asp3_eabihf),
+
     ("mipsel-sony-psp", mipsel_sony_psp),
     ("mipsel-unknown-none", mipsel_unknown_none),
     ("thumbv4t-none-eabi", thumbv4t_none_eabi),
@@ -941,6 +1014,15 @@ supported_targets! {
 
     ("bpfeb-unknown-none", bpfeb_unknown_none),
     ("bpfel-unknown-none", bpfel_unknown_none),
+
+    ("armv6k-nintendo-3ds", armv6k_nintendo_3ds),
+
+    ("armv7-unknown-linux-uclibceabi", armv7_unknown_linux_uclibceabi),
+    ("armv7-unknown-linux-uclibceabihf", armv7_unknown_linux_uclibceabihf),
+
+    ("x86_64-unknown-none", x86_64_unknown_none),
+
+    ("mips64-openwrt-linux-musl", mips64_openwrt_linux_musl),
 }
 
 /// Warnings encountered when parsing the target `json`.
@@ -1206,9 +1288,8 @@ pub struct TargetOptions {
     /// `argc` and `argv` values.
     pub main_needs_argc_argv: bool,
 
-    /// Flag indicating whether ELF TLS (e.g., #[thread_local]) is available for
-    /// this target.
-    pub has_elf_tls: bool,
+    /// Flag indicating whether #[thread_local] is available for this target.
+    pub has_thread_local: bool,
     // This is mainly for easy compatibility with emscripten.
     // If we give emcc .o files that are actually .bc files it
     // will 'just work'.
@@ -1339,6 +1420,13 @@ pub struct TargetOptions {
 
     /// Minimum number of bits in #[repr(C)] enum. Defaults to 32.
     pub c_enum_min_bits: u64,
+
+    /// Whether or not the DWARF `.debug_aranges` section should be generated.
+    pub generate_arange_section: bool,
+
+    /// Whether the target supports stack canary checks. `true` by default,
+    /// since this is most common among tier 1 and tier 2 targets.
+    pub supports_stack_protector: bool,
 }
 
 impl Default for TargetOptions {
@@ -1407,7 +1495,7 @@ impl Default for TargetOptions {
             archive_format: "gnu".to_string(),
             main_needs_argc_argv: true,
             allow_asm: true,
-            has_elf_tls: false,
+            has_thread_local: false,
             obj_is_bitcode: false,
             forces_embed_bitcode: false,
             bitcode_llvm_cmdline: String::new(),
@@ -1444,6 +1532,8 @@ impl Default for TargetOptions {
             supported_sanitizers: SanitizerSet::empty(),
             default_adjusted_cabi: None,
             c_enum_min_bits: 32,
+            generate_arange_section: true,
+            supports_stack_protector: true,
         }
     }
 }
@@ -1454,11 +1544,13 @@ impl Default for TargetOptions {
 impl Deref for Target {
     type Target = TargetOptions;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.options
     }
 }
 impl DerefMut for Target {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.options
     }
@@ -1473,15 +1565,15 @@ impl Target {
                 Abi::Stdcall { unwind }
             }
             Abi::System { unwind } => Abi::C { unwind },
-            Abi::EfiApi if self.arch == "x86_64" => Abi::Win64,
+            Abi::EfiApi if self.arch == "x86_64" => Abi::Win64 { unwind: false },
             Abi::EfiApi => Abi::C { unwind: false },
 
             // See commentary in `is_abi_supported`.
             Abi::Stdcall { .. } | Abi::Thiscall { .. } if self.arch == "x86" => abi,
             Abi::Stdcall { unwind } | Abi::Thiscall { unwind } => Abi::C { unwind },
-            Abi::Fastcall if self.arch == "x86" => abi,
-            Abi::Vectorcall if ["x86", "x86_64"].contains(&&self.arch[..]) => abi,
-            Abi::Fastcall | Abi::Vectorcall => Abi::C { unwind: false },
+            Abi::Fastcall { .. } if self.arch == "x86" => abi,
+            Abi::Vectorcall { .. } if ["x86", "x86_64"].contains(&&self.arch[..]) => abi,
+            Abi::Fastcall { unwind } | Abi::Vectorcall { unwind } => Abi::C { unwind },
 
             abi => abi,
         }
@@ -1498,17 +1590,18 @@ impl Target {
             | RustCall
             | PlatformIntrinsic
             | Unadjusted
-            | Cdecl
+            | Cdecl { .. }
             | EfiApi => true,
             X86Interrupt => ["x86", "x86_64"].contains(&&self.arch[..]),
-            Aapcs => "arm" == self.arch,
+            Aapcs { .. } => "arm" == self.arch,
             CCmseNonSecureCall => ["arm", "aarch64"].contains(&&self.arch[..]),
-            Win64 | SysV64 => self.arch == "x86_64",
+            Win64 { .. } | SysV64 { .. } => self.arch == "x86_64",
             PtxKernel => self.arch == "nvptx64",
             Msp430Interrupt => self.arch == "msp430",
             AmdGpuKernel => self.arch == "amdgcn",
             AvrInterrupt | AvrNonBlockingInterrupt => self.arch == "avr",
             Wasm => ["wasm32", "wasm64"].contains(&&self.arch[..]),
+            Thiscall { .. } => self.arch == "x86",
             // On windows these fall-back to platform native calling convention (C) when the
             // architecture is not supported.
             //
@@ -1539,15 +1632,13 @@ impl Target {
             // > convention is used.
             //
             // -- https://docs.microsoft.com/en-us/cpp/cpp/argument-passing-and-naming-conventions
-            Stdcall { .. } | Fastcall | Thiscall { .. } | Vectorcall if self.is_like_windows => {
-                true
-            }
+            Stdcall { .. } | Fastcall { .. } | Vectorcall { .. } if self.is_like_windows => true,
             // Outside of Windows we want to only support these calling conventions for the
             // architectures for which these calling conventions are actually well defined.
-            Stdcall { .. } | Fastcall | Thiscall { .. } if self.arch == "x86" => true,
-            Vectorcall if ["x86", "x86_64"].contains(&&self.arch[..]) => true,
+            Stdcall { .. } | Fastcall { .. } if self.arch == "x86" => true,
+            Vectorcall { .. } if ["x86", "x86_64"].contains(&&self.arch[..]) => true,
             // Return a `None` for other cases so that we know to emit a future compat lint.
-            Stdcall { .. } | Fastcall | Thiscall { .. } | Vectorcall => return None,
+            Stdcall { .. } | Fastcall { .. } | Vectorcall { .. } => return None,
         })
     }
 
@@ -1792,8 +1883,10 @@ impl Target {
                         for s in a {
                             base.$key_name |= match s.as_string() {
                                 Some("address") => SanitizerSet::ADDRESS,
+                                Some("cfi") => SanitizerSet::CFI,
                                 Some("leak") => SanitizerSet::LEAK,
                                 Some("memory") => SanitizerSet::MEMORY,
+                                Some("memtag") => SanitizerSet::MEMTAG,
                                 Some("thread") => SanitizerSet::THREAD,
                                 Some("hwaddress") => SanitizerSet::HWADDRESS,
                                 Some(s) => return Err(format!("unknown sanitizer {}", s)),
@@ -1992,7 +2085,7 @@ impl Target {
         key!(archive_format);
         key!(allow_asm, bool);
         key!(main_needs_argc_argv, bool);
-        key!(has_elf_tls, bool);
+        key!(has_thread_local, bool);
         key!(obj_is_bitcode, bool);
         key!(forces_embed_bitcode, bool);
         key!(bitcode_llvm_cmdline);
@@ -2029,6 +2122,8 @@ impl Target {
         key!(supported_sanitizers, SanitizerSet)?;
         key!(default_adjusted_cabi, Option<Abi>)?;
         key!(c_enum_min_bits, u64);
+        key!(generate_arange_section, bool);
+        key!(supports_stack_protector, bool);
 
         if base.is_builtin {
             // This can cause unfortunate ICEs later down the line.
@@ -2053,15 +2148,15 @@ impl Target {
     /// JSON decoding.
     pub fn search(
         target_triple: &TargetTriple,
-        sysroot: &PathBuf,
+        sysroot: &Path,
     ) -> Result<(Target, TargetWarnings), String> {
         use rustc_serialize::json;
         use std::env;
         use std::fs;
 
         fn load_file(path: &Path) -> Result<(Target, TargetWarnings), String> {
-            let contents = fs::read(path).map_err(|e| e.to_string())?;
-            let obj = json::from_reader(&mut &contents[..]).map_err(|e| e.to_string())?;
+            let contents = fs::read_to_string(path).map_err(|e| e.to_string())?;
+            let obj = json::from_str(&contents).map_err(|e| e.to_string())?;
             Target::from_json(obj)
         }
 
@@ -2091,12 +2186,11 @@ impl Target {
                 // Additionally look in the sysroot under `lib/rustlib/<triple>/target.json`
                 // as a fallback.
                 let rustlib_path = crate::target_rustlib_path(&sysroot, &target_triple);
-                let p = std::array::IntoIter::new([
+                let p = PathBuf::from_iter([
                     Path::new(sysroot),
                     Path::new(&rustlib_path),
                     Path::new("target.json"),
-                ])
-                .collect::<PathBuf>();
+                ]);
                 if p.is_file() {
                     return load_file(&p);
                 }
@@ -2232,7 +2326,7 @@ impl ToJson for Target {
         target_option_val!(archive_format);
         target_option_val!(allow_asm);
         target_option_val!(main_needs_argc_argv);
-        target_option_val!(has_elf_tls);
+        target_option_val!(has_thread_local);
         target_option_val!(obj_is_bitcode);
         target_option_val!(forces_embed_bitcode);
         target_option_val!(bitcode_llvm_cmdline);
@@ -2268,6 +2362,8 @@ impl ToJson for Target {
         target_option_val!(split_debuginfo);
         target_option_val!(supported_sanitizers);
         target_option_val!(c_enum_min_bits);
+        target_option_val!(generate_arange_section);
+        target_option_val!(supports_stack_protector);
 
         if let Some(abi) = self.default_adjusted_cabi {
             d.insert("default-adjusted-cabi".to_string(), Abi::name(abi).to_json());

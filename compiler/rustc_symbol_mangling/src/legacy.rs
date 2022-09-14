@@ -1,19 +1,19 @@
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_hir::def_id::CrateNum;
 use rustc_hir::definitions::{DefPathData, DisambiguatedDefPathData};
-use rustc_middle::ich::NodeIdHashingMode;
 use rustc_middle::mir::interpret::{ConstValue, Scalar};
 use rustc_middle::ty::print::{PrettyPrinter, Print, Printer};
 use rustc_middle::ty::subst::{GenericArg, GenericArgKind};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeFoldable};
 use rustc_middle::util::common::record_time;
+use rustc_query_system::ich::NodeIdHashingMode;
 
 use tracing::debug;
 
 use std::fmt::{self, Write};
 use std::mem::{self, discriminant};
 
-pub(super) fn mangle(
+pub(super) fn mangle<'tcx>(
     tcx: TyCtxt<'tcx>,
     instance: Instance<'tcx>,
     instantiating_crate: Option<CrateNum>,
@@ -107,35 +107,35 @@ fn get_symbol_hash<'tcx>(
         tcx.def_path_hash(def_id).hash_stable(&mut hcx, &mut hasher);
 
         // Include the main item-type. Note that, in this case, the
-        // assertions about `definitely_needs_subst` may not hold, but this item-type
+        // assertions about `needs_subst` may not hold, but this item-type
         // ought to be the same for every reference anyway.
-        assert!(!item_type.has_erasable_regions(tcx));
+        assert!(!item_type.has_erasable_regions());
         hcx.while_hashing_spans(false, |hcx| {
             hcx.with_node_id_hashing_mode(NodeIdHashingMode::HashDefPath, |hcx| {
                 item_type.hash_stable(hcx, &mut hasher);
+
+                // If this is a function, we hash the signature as well.
+                // This is not *strictly* needed, but it may help in some
+                // situations, see the `run-make/a-b-a-linker-guard` test.
+                if let ty::FnDef(..) = item_type.kind() {
+                    item_type.fn_sig(tcx).hash_stable(hcx, &mut hasher);
+                }
+
+                // also include any type parameters (for generic items)
+                substs.hash_stable(hcx, &mut hasher);
+
+                if let Some(instantiating_crate) = instantiating_crate {
+                    tcx.def_path_hash(instantiating_crate.as_def_id())
+                        .stable_crate_id()
+                        .hash_stable(hcx, &mut hasher);
+                }
+
+                // We want to avoid accidental collision between different types of instances.
+                // Especially, `VtableShim`s and `ReifyShim`s may overlap with their original
+                // instances without this.
+                discriminant(&instance.def).hash_stable(hcx, &mut hasher);
             });
         });
-
-        // If this is a function, we hash the signature as well.
-        // This is not *strictly* needed, but it may help in some
-        // situations, see the `run-make/a-b-a-linker-guard` test.
-        if let ty::FnDef(..) = item_type.kind() {
-            item_type.fn_sig(tcx).hash_stable(&mut hcx, &mut hasher);
-        }
-
-        // also include any type parameters (for generic items)
-        substs.hash_stable(&mut hcx, &mut hasher);
-
-        if let Some(instantiating_crate) = instantiating_crate {
-            tcx.def_path_hash(instantiating_crate.as_def_id())
-                .stable_crate_id()
-                .hash_stable(&mut hcx, &mut hasher);
-        }
-
-        // We want to avoid accidental collision between different types of instances.
-        // Especially, `VtableShim`s and `ReifyShim`s may overlap with their original
-        // instances without this.
-        discriminant(&instance.def).hash_stable(&mut hcx, &mut hasher);
     });
 
     // 64 bits should be enough to avoid collisions.
@@ -199,7 +199,7 @@ struct SymbolPrinter<'tcx> {
 // `PrettyPrinter` aka pretty printing of e.g. types in paths,
 // symbol names should have their own printing machinery.
 
-impl Printer<'tcx> for &mut SymbolPrinter<'tcx> {
+impl<'tcx> Printer<'tcx> for &mut SymbolPrinter<'tcx> {
     type Error = fmt::Error;
 
     type Path = Self;
@@ -243,10 +243,10 @@ impl Printer<'tcx> for &mut SymbolPrinter<'tcx> {
         Ok(self)
     }
 
-    fn print_const(self, ct: &'tcx ty::Const<'tcx>) -> Result<Self::Const, Self::Error> {
+    fn print_const(self, ct: ty::Const<'tcx>) -> Result<Self::Const, Self::Error> {
         // only print integers
-        if let ty::ConstKind::Value(ConstValue::Scalar(Scalar::Int { .. })) = ct.val {
-            if ct.ty.is_integral() {
+        if let ty::ConstKind::Value(ConstValue::Scalar(Scalar::Int { .. })) = ct.val() {
+            if ct.ty().is_integral() {
                 return self.pretty_print_const(ct, true);
             }
         }
@@ -255,7 +255,7 @@ impl Printer<'tcx> for &mut SymbolPrinter<'tcx> {
     }
 
     fn path_crate(self, cnum: CrateNum) -> Result<Self::Path, Self::Error> {
-        self.write_str(&self.tcx.crate_name(cnum).as_str())?;
+        self.write_str(self.tcx.crate_name(cnum).as_str())?;
         Ok(self)
     }
     fn path_qualified(
@@ -311,8 +311,8 @@ impl Printer<'tcx> for &mut SymbolPrinter<'tcx> {
     ) -> Result<Self::Path, Self::Error> {
         self = print_prefix(self)?;
 
-        // Skip `::{{constructor}}` on tuple/unit structs.
-        if let DefPathData::Ctor = disambiguated_data.data {
+        // Skip `::{{extern}}` blocks and `::{{constructor}}` on tuple/unit structs.
+        if let DefPathData::ForeignMod | DefPathData::Ctor = disambiguated_data.data {
             return Ok(self);
         }
 
@@ -345,7 +345,7 @@ impl Printer<'tcx> for &mut SymbolPrinter<'tcx> {
     }
 }
 
-impl PrettyPrinter<'tcx> for &mut SymbolPrinter<'tcx> {
+impl<'tcx> PrettyPrinter<'tcx> for &mut SymbolPrinter<'tcx> {
     fn region_should_not_be_omitted(&self, _region: ty::Region<'_>) -> bool {
         false
     }

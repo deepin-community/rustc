@@ -1,10 +1,11 @@
-pub use self::FileMatch::*;
+//! A module for searching for libraries
 
 use std::env;
 use std::fs;
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 
-use crate::search_paths::{PathKind, SearchPath, SearchPathFile};
+use crate::search_paths::{PathKind, SearchPath};
 use rustc_fs_util::fix_windows_verbatim_for_gcc;
 use tracing::debug;
 
@@ -13,8 +14,6 @@ pub enum FileMatch {
     FileMatches,
     FileDoesntMatch,
 }
-
-// A module for searching for libraries
 
 #[derive(Clone)]
 pub struct FileSearch<'a> {
@@ -42,36 +41,6 @@ impl<'a> FileSearch<'a> {
         self.get_lib_path().join("self-contained")
     }
 
-    pub fn search<F>(&self, mut pick: F)
-    where
-        F: FnMut(&SearchPathFile, PathKind) -> FileMatch,
-    {
-        for search_path in self.search_paths() {
-            debug!("searching {}", search_path.dir.display());
-            fn is_rlib(spf: &SearchPathFile) -> bool {
-                if let Some(f) = &spf.file_name_str { f.ends_with(".rlib") } else { false }
-            }
-            // Reading metadata out of rlibs is faster, and if we find both
-            // an rlib and a dylib we only read one of the files of
-            // metadata, so in the name of speed, bring all rlib files to
-            // the front of the search list.
-            let files1 = search_path.files.iter().filter(|spf| is_rlib(&spf));
-            let files2 = search_path.files.iter().filter(|spf| !is_rlib(&spf));
-            for spf in files1.chain(files2) {
-                debug!("testing {}", spf.path.display());
-                let maybe_picked = pick(spf, search_path.kind);
-                match maybe_picked {
-                    FileMatches => {
-                        debug!("picked {}", spf.path.display());
-                    }
-                    FileDoesntMatch => {
-                        debug!("rejected {}", spf.path.display());
-                    }
-                }
-            }
-        }
-    }
-
     pub fn new(
         sysroot: &'a Path,
         triple: &'a str,
@@ -83,32 +52,19 @@ impl<'a> FileSearch<'a> {
         FileSearch { sysroot, triple, search_paths, tlib_path, kind }
     }
 
-    // Returns just the directories within the search paths.
+    /// Returns just the directories within the search paths.
     pub fn search_path_dirs(&self) -> Vec<PathBuf> {
         self.search_paths().map(|sp| sp.dir.to_path_buf()).collect()
-    }
-
-    // Returns a list of directories where target-specific tool binaries are located.
-    pub fn get_tools_search_paths(&self, self_contained: bool) -> Vec<PathBuf> {
-        let rustlib_path = rustc_target::target_rustlib_path(self.sysroot, &self.triple);
-        let p = std::array::IntoIter::new([
-            Path::new(&self.sysroot),
-            Path::new(&rustlib_path),
-            Path::new("bin"),
-        ])
-        .collect::<PathBuf>();
-        if self_contained { vec![p.clone(), p.join("self-contained")] } else { vec![p] }
     }
 }
 
 pub fn make_target_lib_path(sysroot: &Path, target_triple: &str) -> PathBuf {
     let rustlib_path = rustc_target::target_rustlib_path(sysroot, target_triple);
-    std::array::IntoIter::new([sysroot, Path::new(&rustlib_path), Path::new("lib")])
-        .collect::<PathBuf>()
+    PathBuf::from_iter([sysroot, Path::new(&rustlib_path), Path::new("lib")])
 }
 
-// This function checks if sysroot is found using env::args().next(), and if it
-// is not found, uses env::current_exe() to imply sysroot.
+/// This function checks if sysroot is found using env::args().next(), and if it
+/// is not found, uses env::current_exe() to imply sysroot.
 pub fn get_or_default_sysroot() -> PathBuf {
     // Follow symlinks.  If the resolved path is relative, make it absolute.
     fn canonicalize(path: PathBuf) -> PathBuf {

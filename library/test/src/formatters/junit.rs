@@ -27,9 +27,13 @@ impl<T: Write> JunitFormatter<T> {
 }
 
 impl<T: Write> OutputFormatter for JunitFormatter<T> {
-    fn write_run_start(&mut self, _test_count: usize) -> io::Result<()> {
+    fn write_run_start(
+        &mut self,
+        _test_count: usize,
+        _shuffle_seed: Option<u64>,
+    ) -> io::Result<()> {
         // We write xml header on run start
-        self.write_message(&"<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+        self.write_message("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
     }
 
     fn write_test_start(&mut self, _desc: &TestDesc) -> io::Result<()> {
@@ -50,10 +54,10 @@ impl<T: Write> OutputFormatter for JunitFormatter<T> {
         _stdout: &[u8],
         _state: &ConsoleTestState,
     ) -> io::Result<()> {
-        // Because the testsuit node holds some of the information as attributes, we can't write it
-        // until all of the tests has ran. Instead of writting every result as they come in, we add
+        // Because the testsuite node holds some of the information as attributes, we can't write it
+        // until all of the tests have finished. Instead of writing every result as they come in, we add
         // them to a Vec and write them all at once when run is complete.
-        let duration = exec_time.map(|t| t.0.clone()).unwrap_or_default();
+        let duration = exec_time.map(|t| t.0).unwrap_or_default();
         self.results.push((desc.clone(), result.clone(), duration));
         Ok(())
     }
@@ -117,7 +121,7 @@ impl<T: Write> OutputFormatter for JunitFormatter<T> {
                     ))?;
                 }
 
-                TestResult::TrOk | TestResult::TrAllowedFail => {
+                TestResult::TrOk => {
                     self.write_message(&*format!(
                         "<testcase classname=\"{}\" \
                          name=\"{}\" time=\"{}\"/>",
@@ -132,6 +136,8 @@ impl<T: Write> OutputFormatter for JunitFormatter<T> {
         self.write_message("<system-err/>")?;
         self.write_message("</testsuite>")?;
         self.write_message("</testsuites>")?;
+
+        self.out.write_all(b"\n")?;
 
         Ok(state.failed == 0)
     }

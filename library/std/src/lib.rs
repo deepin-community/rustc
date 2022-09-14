@@ -35,8 +35,8 @@
 //! development you may want to press the `[-]` button near the top of the
 //! page to collapse it into a more skimmable view.
 //!
-//! While you are looking at that `[-]` button also notice the `[src]`
-//! button. Rust's API documentation comes with the source code and you are
+//! While you are looking at that `[-]` button also notice the `source`
+//! link. Rust's API documentation comes with the source code and you are
 //! encouraged to read it. The standard library source is generally high
 //! quality and a peek behind the curtains is often enlightening.
 //!
@@ -195,6 +195,12 @@
     test(no_crate_inject, attr(deny(warnings))),
     test(attr(allow(dead_code, deprecated, unused_variables, unused_mut)))
 )]
+#![doc(cfg_hide(
+    not(test),
+    not(any(test, bootstrap)),
+    no_global_oom_handling,
+    not(no_global_oom_handling)
+))]
 // Don't link to std. We are std.
 #![no_std]
 #![warn(deprecated_in_future)]
@@ -207,10 +213,7 @@
 // std may use features in a platform-specific way
 #![allow(unused_features)]
 #![feature(rustc_allow_const_fn_unstable)]
-#![cfg_attr(
-    test,
-    feature(internal_output_capture, print_internals, update_panic_count, thread_local_const_init)
-)]
+#![cfg_attr(test, feature(internal_output_capture, print_internals, update_panic_count))]
 #![cfg_attr(
     all(target_vendor = "fortanix", target_env = "sgx"),
     feature(slice_index_methods, coerce_unsized, sgx_platform)
@@ -219,6 +222,7 @@
 // std is implemented with unstable features, many of which are internal
 // compiler details that will never be stable
 // NB: the following list is sorted to minimize merge conflicts.
+#![feature(absolute_path)]
 #![feature(alloc_error_handler)]
 #![feature(alloc_layout_extra)]
 #![feature(allocator_api)]
@@ -227,45 +231,46 @@
 #![feature(allow_internal_unstable)]
 #![feature(arbitrary_self_types)]
 #![feature(array_error_internals)]
-#![feature(asm)]
 #![feature(assert_matches)]
 #![feature(associated_type_bounds)]
-#![feature(async_stream)]
+#![feature(async_iterator)]
 #![feature(atomic_mut_ptr)]
 #![feature(auto_traits)]
 #![feature(bench_black_box)]
+#![feature(bool_to_option)]
 #![feature(box_syntax)]
 #![feature(c_unwind)]
 #![feature(c_variadic)]
 #![feature(cfg_accessible)]
 #![feature(cfg_eval)]
-#![feature(cfg_target_has_atomic)]
+#![cfg_attr(bootstrap, feature(cfg_target_has_atomic))]
 #![feature(cfg_target_thread_local)]
 #![feature(char_error_internals)]
 #![feature(char_internals)]
+#![feature(concat_bytes)]
 #![feature(concat_idents)]
-#![feature(const_cstr_unchecked)]
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(const_fn_fn_ptr_basics)]
-#![cfg_attr(bootstrap, feature(const_fn_transmute))]
+#![feature(const_fn_trait_bound)]
 #![feature(const_format_args)]
 #![feature(const_io_structs)]
 #![feature(const_ip)]
 #![feature(const_ipv4)]
 #![feature(const_ipv6)]
 #![feature(const_option)]
-#![feature(const_raw_ptr_deref)]
+#![feature(const_mut_refs)]
 #![feature(const_socketaddr)]
 #![feature(const_trait_impl)]
 #![feature(container_error_extra)]
 #![feature(core_intrinsics)]
+#![feature(core_panic)]
 #![feature(custom_test_frameworks)]
 #![feature(decl_macro)]
 #![feature(doc_cfg)]
-#![feature(doc_keyword)]
+#![feature(doc_cfg_hide)]
+#![feature(rustdoc_internals)]
 #![feature(doc_masked)]
 #![feature(doc_notable_trait)]
-#![cfg_attr(not(bootstrap), feature(doc_primitive))]
 #![feature(dropck_eyepatch)]
 #![feature(duration_checked_float)]
 #![feature(duration_constants)]
@@ -273,29 +278,28 @@
 #![feature(exact_size_is_empty)]
 #![feature(exhaustive_patterns)]
 #![feature(extend_one)]
-#![feature(float_interpolation)]
 #![feature(fn_traits)]
+#![feature(float_minimum_maximum)]
 #![feature(format_args_nl)]
 #![feature(gen_future)]
 #![feature(generator_trait)]
 #![feature(get_mut_unchecked)]
-#![feature(global_asm)]
 #![feature(hashmap_internals)]
 #![feature(int_error_internals)]
 #![feature(integer_atomics)]
 #![feature(int_log)]
 #![feature(into_future)]
 #![feature(intra_doc_pointers)]
-#![feature(iter_zip)]
 #![feature(lang_items)]
 #![feature(linkage)]
-#![feature(llvm_asm)]
 #![feature(log_syntax)]
 #![feature(map_try_insert)]
-#![feature(maybe_uninit_extra)]
 #![feature(maybe_uninit_slice)]
 #![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_write_slice)]
 #![feature(min_specialization)]
+#![feature(mixed_integer_ops)]
+#![feature(must_not_suspend)]
 #![feature(needs_panic_runtime)]
 #![feature(negative_impls)]
 #![feature(never_type)]
@@ -305,13 +309,16 @@
 #![feature(once_cell)]
 #![feature(panic_info_message)]
 #![feature(panic_internals)]
+#![feature(panic_can_unwind)]
 #![feature(panic_unwind)]
 #![feature(pin_static_ref)]
+#![feature(platform_intrinsics)]
+#![feature(portable_simd)]
 #![feature(prelude_import)]
+#![feature(ptr_as_uninit)]
 #![feature(ptr_internals)]
 #![feature(rustc_attrs)]
 #![feature(rustc_private)]
-#![feature(saturating_div)]
 #![feature(saturating_int_impl)]
 #![feature(slice_concat_ext)]
 #![feature(slice_internals)]
@@ -329,12 +336,10 @@
 #![feature(total_cmp)]
 #![feature(trace_macros)]
 #![feature(try_blocks)]
-#![feature(try_reserve)]
 #![feature(try_reserve_kind)]
 #![feature(unboxed_closures)]
 #![feature(unwrap_infallible)]
 #![feature(vec_into_raw_parts)]
-#![feature(vec_spare_capacity)]
 // NB: the above list is sorted to minimize merge conflicts.
 #![default_lib_allocator]
 
@@ -397,15 +402,10 @@ pub use alloc_crate::string;
 pub use alloc_crate::vec;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::any;
-#[stable(feature = "simd_arch", since = "1.27.0")]
-// The `no_inline`-attribute is required to make the documentation of all
-// targets available.
-// See https://github.com/rust-lang/rust/pull/57808#issuecomment-457390549 for
-// more information.
-#[doc(no_inline)] // Note (#82861): required for correct documentation
-pub use core::arch;
 #[stable(feature = "core_array", since = "1.36.0")]
 pub use core::array;
+#[unstable(feature = "async_iterator", issue = "79024")]
+pub use core::async_iter;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::cell;
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -460,8 +460,6 @@ pub use core::pin;
 pub use core::ptr;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::result;
-#[unstable(feature = "async_stream", issue = "79024")]
-pub use core::stream;
 #[stable(feature = "i128", since = "1.26.0")]
 #[allow(deprecated, deprecated_in_future)]
 pub use core::u128;
@@ -506,6 +504,25 @@ pub mod time;
 #[unstable(feature = "once_cell", issue = "74465")]
 pub mod lazy;
 
+// Pull in `std_float` crate  into libstd. The contents of
+// `std_float` are in a different repository: rust-lang/portable-simd.
+#[path = "../../portable-simd/crates/std_float/src/lib.rs"]
+#[allow(missing_debug_implementations, dead_code, unsafe_op_in_unsafe_fn, unused_unsafe)]
+#[allow(rustdoc::bare_urls)]
+#[unstable(feature = "portable_simd", issue = "86656")]
+#[cfg(not(all(miri, doctest)))] // Miri does not support all SIMD intrinsics
+mod std_float;
+
+#[cfg(not(all(miri, doctest)))] // Miri does not support all SIMD intrinsics
+#[doc = include_str!("../../portable-simd/crates/core_simd/src/core_simd_docs.md")]
+#[unstable(feature = "portable_simd", issue = "86656")]
+pub mod simd {
+    #[doc(inline)]
+    pub use crate::std_float::StdFloat;
+    #[doc(inline)]
+    pub use core::simd::*;
+}
+
 #[stable(feature = "futures_api", since = "1.36.0")]
 pub mod task {
     //! Types and Traits for working with asynchronous tasks.
@@ -519,34 +536,49 @@ pub mod task {
     pub use alloc::task::*;
 }
 
-// Platform-abstraction modules
+#[doc = include_str!("../../stdarch/crates/core_arch/src/core_arch_docs.md")]
+#[stable(feature = "simd_arch", since = "1.27.0")]
+pub mod arch {
+    #[stable(feature = "simd_arch", since = "1.27.0")]
+    // The `no_inline`-attribute is required to make the documentation of all
+    // targets available.
+    // See https://github.com/rust-lang/rust/pull/57808#issuecomment-457390549 for
+    // more information.
+    #[doc(no_inline)] // Note (#82861): required for correct documentation
+    pub use core::arch::*;
+
+    #[stable(feature = "simd_aarch64", since = "1.60.0")]
+    pub use std_detect::is_aarch64_feature_detected;
+    #[stable(feature = "simd_x86", since = "1.27.0")]
+    pub use std_detect::is_x86_feature_detected;
+    #[unstable(feature = "stdsimd", issue = "48556")]
+    pub use std_detect::{
+        is_arm_feature_detected, is_mips64_feature_detected, is_mips_feature_detected,
+        is_powerpc64_feature_detected, is_powerpc_feature_detected, is_riscv_feature_detected,
+    };
+}
+
+// This was stabilized in the crate root so we have to keep it there.
+#[stable(feature = "simd_x86", since = "1.27.0")]
+pub use std_detect::is_x86_feature_detected;
+
+// The runtime entry point and a few unstable public functions used by the
+// compiler
 #[macro_use]
-mod sys_common;
+pub mod rt;
+
+// Platform-abstraction modules
 mod sys;
+mod sys_common;
 
 pub mod alloc;
 
 // Private support modules
 mod panicking;
 
-// The runtime entry point and a few unstable public functions used by the
-// compiler
-pub mod rt;
-
 #[path = "../../backtrace/src/lib.rs"]
 #[allow(dead_code, unused_attributes)]
 mod backtrace_rs;
-
-#[stable(feature = "simd_x86", since = "1.27.0")]
-pub use std_detect::is_x86_feature_detected;
-#[doc(hidden)]
-#[unstable(feature = "stdsimd", issue = "48556")]
-pub use std_detect::*;
-#[unstable(feature = "stdsimd", issue = "48556")]
-pub use std_detect::{
-    is_aarch64_feature_detected, is_arm_feature_detected, is_mips64_feature_detected,
-    is_mips_feature_detected, is_powerpc64_feature_detected, is_powerpc_feature_detected,
-};
 
 // Re-export macros defined in libcore.
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -561,9 +593,16 @@ pub use core::{
 #[allow(deprecated)]
 pub use core::{
     assert, assert_matches, cfg, column, compile_error, concat, concat_idents, const_format_args,
-    env, file, format_args, format_args_nl, include, include_bytes, include_str, line, llvm_asm,
-    log_syntax, module_path, option_env, stringify, trace_macros,
+    env, file, format_args, format_args_nl, include, include_bytes, include_str, line, log_syntax,
+    module_path, option_env, stringify, trace_macros,
 };
+
+#[unstable(
+    feature = "concat_bytes",
+    issue = "87555",
+    reason = "`concat_bytes` is not stable enough for use and is subject to change"
+)]
+pub use core::concat_bytes;
 
 #[stable(feature = "core_primitive", since = "1.43.0")]
 pub use core::primitive;

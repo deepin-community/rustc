@@ -1,19 +1,18 @@
 use crate::infer::type_variable::TypeVariableOriginKind;
-use crate::infer::InferCtxt;
+use crate::infer::{InferCtxt, Symbol};
 use rustc_errors::{pluralize, struct_span_err, Applicability, DiagnosticBuilder};
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind, Namespace};
 use rustc_hir::def_id::DefId;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
-use rustc_hir::{Body, Expr, ExprKind, FnRetTy, HirId, Local, Pat};
-use rustc_middle::hir::map::Map;
+use rustc_hir::intravisit::{self, Visitor};
+use rustc_hir::{Body, Expr, ExprKind, FnRetTy, HirId, Local, MatchSource, Pat};
+use rustc_middle::hir::nested_filter;
 use rustc_middle::infer::unify_key::ConstVariableOriginKind;
 use rustc_middle::ty::print::Print;
 use rustc_middle::ty::subst::{GenericArg, GenericArgKind};
-use rustc_middle::ty::{self, DefIdTree, InferConst, Ty, TyCtxt};
-use rustc_span::source_map::DesugaringKind;
+use rustc_middle::ty::{self, Const, DefIdTree, InferConst, Ty, TyCtxt, TypeFoldable, TypeFolder};
 use rustc_span::symbol::kw;
-use rustc_span::Span;
+use rustc_span::{sym, Span};
 use std::borrow::Cow;
 
 struct FindHirNodeVisitor<'a, 'tcx> {
@@ -26,6 +25,7 @@ struct FindHirNodeVisitor<'a, 'tcx> {
     found_closure: Option<&'tcx Expr<'tcx>>,
     found_method_call: Option<&'tcx Expr<'tcx>>,
     found_exact_method_call: Option<&'tcx Expr<'tcx>>,
+    found_for_loop_iter: Option<&'tcx Expr<'tcx>>,
     found_use_diagnostic: Option<UseDiagnostic<'tcx>>,
 }
 
@@ -41,6 +41,7 @@ impl<'a, 'tcx> FindHirNodeVisitor<'a, 'tcx> {
             found_closure: None,
             found_method_call: None,
             found_exact_method_call: None,
+            found_for_loop_iter: None,
             found_use_diagnostic: None,
         }
     }
@@ -51,7 +52,7 @@ impl<'a, 'tcx> FindHirNodeVisitor<'a, 'tcx> {
 
     fn node_ty_contains_target(&self, hir_id: HirId) -> Option<Ty<'tcx>> {
         self.node_type_opt(hir_id).map(|ty| self.infcx.resolve_vars_if_possible(ty)).filter(|ty| {
-            ty.walk(self.infcx.tcx).any(|inner| {
+            ty.walk().any(|inner| {
                 inner == self.target
                     || match (inner.unpack(), self.target.unpack()) {
                         (GenericArgKind::Type(inner_ty), GenericArgKind::Type(target_ty)) => {
@@ -82,10 +83,10 @@ impl<'a, 'tcx> FindHirNodeVisitor<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for FindHirNodeVisitor<'a, 'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.infcx.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.infcx.tcx.hir()
     }
 
     fn visit_local(&mut self, local: &'tcx Local<'tcx>) {
@@ -111,8 +112,17 @@ impl<'a, 'tcx> Visitor<'tcx> for FindHirNodeVisitor<'a, 'tcx> {
     }
 
     fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) {
-        if let ExprKind::MethodCall(_, call_span, exprs, _) = expr.kind {
-            if call_span == self.target_span
+        if let ExprKind::Match(scrutinee, [_, arm], MatchSource::ForLoopDesugar) = expr.kind {
+            if let Some(pat) = arm.pat.for_loop_some() {
+                if let Some(ty) = self.node_ty_contains_target(pat.hir_id) {
+                    self.found_for_loop_iter = Some(scrutinee);
+                    self.found_node_ty = Some(ty);
+                    return;
+                }
+            }
+        }
+        if let ExprKind::MethodCall(segment, exprs, _) = expr.kind {
+            if segment.ident.span == self.target_span
                 && Some(self.target)
                     == self.infcx.in_progress_typeck_results.and_then(|typeck_results| {
                         typeck_results
@@ -295,6 +305,15 @@ pub enum UnderspecifiedArgKind {
     Const { is_parameter: bool },
 }
 
+impl UnderspecifiedArgKind {
+    fn descr(&self) -> &'static str {
+        match self {
+            Self::Type { .. } => "type",
+            Self::Const { .. } => "const",
+        }
+    }
+}
+
 impl InferenceDiagnosticsData {
     /// Generate a label for a generic argument which can't be inferred. When not
     /// much is known about the argument, `use_diag` may be used to describe the
@@ -350,7 +369,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
     pub fn extract_inference_diagnostics_data(
         &self,
         arg: GenericArg<'tcx>,
-        highlight: Option<ty::print::RegionHighlightMode>,
+        highlight: Option<ty::print::RegionHighlightMode<'tcx>>,
     ) -> InferenceDiagnosticsData {
         match arg.unpack() {
             GenericArgKind::Type(ty) => {
@@ -390,36 +409,73 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                 }
             }
             GenericArgKind::Const(ct) => {
-                if let ty::ConstKind::Infer(InferConst::Var(vid)) = ct.val {
-                    let origin =
-                        self.inner.borrow_mut().const_unification_table().probe_value(vid).origin;
-                    if let ConstVariableOriginKind::ConstParameterDefinition(name, def_id) =
-                        origin.kind
-                    {
-                        return InferenceDiagnosticsData {
-                            name: name.to_string(),
-                            span: Some(origin.span),
-                            kind: UnderspecifiedArgKind::Const { is_parameter: true },
-                            parent: InferenceDiagnosticsParentData::for_def_id(self.tcx, def_id),
-                        };
-                    }
+                match ct.val() {
+                    ty::ConstKind::Infer(InferConst::Var(vid)) => {
+                        let origin = self
+                            .inner
+                            .borrow_mut()
+                            .const_unification_table()
+                            .probe_value(vid)
+                            .origin;
+                        if let ConstVariableOriginKind::ConstParameterDefinition(name, def_id) =
+                            origin.kind
+                        {
+                            return InferenceDiagnosticsData {
+                                name: name.to_string(),
+                                span: Some(origin.span),
+                                kind: UnderspecifiedArgKind::Const { is_parameter: true },
+                                parent: InferenceDiagnosticsParentData::for_def_id(
+                                    self.tcx, def_id,
+                                ),
+                            };
+                        }
 
-                    debug_assert!(!origin.span.is_dummy());
-                    let mut s = String::new();
-                    let mut printer =
-                        ty::print::FmtPrinter::new(self.tcx, &mut s, Namespace::ValueNS);
-                    if let Some(highlight) = highlight {
-                        printer.region_highlight_mode = highlight;
+                        debug_assert!(!origin.span.is_dummy());
+                        let mut s = String::new();
+                        let mut printer =
+                            ty::print::FmtPrinter::new(self.tcx, &mut s, Namespace::ValueNS);
+                        if let Some(highlight) = highlight {
+                            printer.region_highlight_mode = highlight;
+                        }
+                        let _ = ct.print(printer);
+                        InferenceDiagnosticsData {
+                            name: s,
+                            span: Some(origin.span),
+                            kind: UnderspecifiedArgKind::Const { is_parameter: false },
+                            parent: None,
+                        }
                     }
-                    let _ = ct.print(printer);
-                    InferenceDiagnosticsData {
-                        name: s,
-                        span: Some(origin.span),
-                        kind: UnderspecifiedArgKind::Const { is_parameter: false },
-                        parent: None,
+                    ty::ConstKind::Unevaluated(ty::Unevaluated { substs, .. }) => {
+                        assert!(substs.has_infer_types_or_consts());
+
+                        // FIXME: We only use the first inference variable we encounter in
+                        // `substs` here, this gives insufficiently informative diagnostics
+                        // in case there are multiple inference variables
+                        for s in substs.iter() {
+                            match s.unpack() {
+                                GenericArgKind::Type(t) => match t.kind() {
+                                    ty::Infer(_) => {
+                                        return self.extract_inference_diagnostics_data(s, None);
+                                    }
+                                    _ => {}
+                                },
+                                GenericArgKind::Const(c) => match c.val() {
+                                    ty::ConstKind::Infer(InferConst::Var(_)) => {
+                                        return self.extract_inference_diagnostics_data(s, None);
+                                    }
+                                    _ => {}
+                                },
+                                _ => {}
+                            }
+                        }
+                        bug!(
+                            "expected an inference variable in substs of unevaluated const {:?}",
+                            ct
+                        );
                     }
-                } else {
-                    bug!("unexpect const: {:?}", ct);
+                    _ => {
+                        bug!("unexpect const: {:?}", ct);
+                    }
                 }
             }
             GenericArgKind::Lifetime(_) => bug!("unexpected lifetime"),
@@ -441,16 +497,32 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         let ty_to_string = |ty: Ty<'tcx>| -> String {
             let mut s = String::new();
             let mut printer = ty::print::FmtPrinter::new(self.tcx, &mut s, Namespace::TypeNS);
-            let mut inner = self.inner.borrow_mut();
-            let ty_vars = inner.type_variables();
-            let getter = move |ty_vid| {
-                let var_origin = ty_vars.var_origin(ty_vid);
-                if let TypeVariableOriginKind::TypeParameterDefinition(name, _) = var_origin.kind {
-                    return Some(name.to_string());
+            let ty_getter = move |ty_vid| {
+                if let TypeVariableOriginKind::TypeParameterDefinition(name, _) =
+                    self.inner.borrow_mut().type_variables().var_origin(ty_vid).kind
+                {
+                    Some(name.to_string())
+                } else {
+                    None
                 }
-                None
             };
-            printer.name_resolver = Some(Box::new(&getter));
+            printer.ty_infer_name_resolver = Some(Box::new(ty_getter));
+            let const_getter = move |ct_vid| {
+                if let ConstVariableOriginKind::ConstParameterDefinition(name, _) = self
+                    .inner
+                    .borrow_mut()
+                    .const_unification_table()
+                    .probe_value(ct_vid)
+                    .origin
+                    .kind
+                {
+                    return Some(name.to_string());
+                } else {
+                    None
+                }
+            };
+            printer.const_infer_name_resolver = Some(Box::new(const_getter));
+
             let _ = if let ty::FnDef(..) = ty.kind() {
                 // We don't want the regular output for `fn`s because it includes its path in
                 // invalid pseudo-syntax, we want the `fn`-pointer output instead.
@@ -475,18 +547,18 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             // 3 |     let _ = x.sum() as f64;
             //   |               ^^^ cannot infer type for `S`
             span
-        } else if let Some(ExprKind::MethodCall(_, call_span, _, _)) =
+        } else if let Some(ExprKind::MethodCall(segment, ..)) =
             local_visitor.found_method_call.map(|e| &e.kind)
         {
             // Point at the call instead of the whole expression:
             // error[E0284]: type annotations needed
             //  --> file.rs:2:5
             //   |
-            // 2 |     vec![Ok(2)].into_iter().collect()?;
-            //   |                             ^^^^^^^ cannot infer type
+            // 2 |     [Ok(2)].into_iter().collect()?;
+            //   |                         ^^^^^^^ cannot infer type
             //   |
             //   = note: cannot resolve `<_ as std::ops::Try>::Ok == _`
-            if span.contains(*call_span) { *call_span } else { span }
+            if span.contains(segment.ident.span) { segment.ident.span } else { span }
         } else {
             span
         };
@@ -497,8 +569,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         let ty_msg = match (local_visitor.found_node_ty, local_visitor.found_exact_method_call) {
             (_, Some(_)) => String::new(),
             (Some(ty), _) if ty.is_closure() => {
-                let substs =
-                    if let ty::Closure(_, substs) = *ty.kind() { substs } else { unreachable!() };
+                let ty::Closure(_, substs) = *ty.kind() else { unreachable!() };
                 let fn_sig = substs.as_closure().sig();
                 let args = closure_args(&fn_sig);
                 let ret = fn_sig.output().skip_binder().to_string();
@@ -538,10 +609,10 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             }
         }
 
+        let param_type = arg_data.kind.descr();
         let suffix = match local_visitor.found_node_ty {
             Some(ty) if ty.is_closure() => {
-                let substs =
-                    if let ty::Closure(_, substs) = *ty.kind() { substs } else { unreachable!() };
+                let ty::Closure(_, substs) = *ty.kind() else { unreachable!() };
                 let fn_sig = substs.as_closure().sig();
                 let ret = fn_sig.output().skip_binder().to_string();
 
@@ -576,13 +647,15 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             }
             Some(ty) if is_named_and_not_impl_trait(ty) && arg_data.name == "_" => {
                 let ty = ty_to_string(ty);
-                format!("the explicit type `{}`, with the type parameters specified", ty)
+                format!("the explicit type `{}`, with the {} parameters specified", ty, param_type)
             }
             Some(ty) if is_named_and_not_impl_trait(ty) && ty.to_string() != arg_data.name => {
+                let ty = ResolvedTypeParamEraser::new(self.tcx).fold_ty(ty);
+                let ty = ErrTypeParamEraser(self.tcx).fold_ty(ty);
                 let ty = ty_to_string(ty);
                 format!(
-                    "the explicit type `{}`, where the type parameter `{}` is specified",
-                    ty, arg_data.name,
+                    "the explicit type `{}`, where the {} parameter `{}` is specified",
+                    ty, param_type, arg_data.name,
                 )
             }
             _ => "a type".to_string(),
@@ -643,17 +716,14 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             let msg = if let Some(simple_ident) = pattern.simple_ident() {
                 match pattern.span.desugaring_kind() {
                     None => format!("consider giving `{}` {}", simple_ident, suffix),
-                    Some(DesugaringKind::ForLoop(_)) => {
-                        "the element type for this iterator is not specified".to_string()
-                    }
-                    _ => format!("this needs {}", suffix),
+                    Some(_) => format!("this needs {}", suffix),
                 }
             } else {
                 format!("consider giving this pattern {}", suffix)
             };
             err.span_label(pattern.span, msg);
         } else if let Some(e) = local_visitor.found_method_call {
-            if let ExprKind::MethodCall(segment, _, exprs, _) = &e.kind {
+            if let ExprKind::MethodCall(segment, exprs, _) = &e.kind {
                 // Suggest impl candidates:
                 //
                 // error[E0283]: type annotations needed
@@ -719,6 +789,11 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                 //    = note: type must be known at this point
                 self.annotate_method_call(segment, e, &mut err);
             }
+        } else if let Some(scrutinee) = local_visitor.found_for_loop_iter {
+            err.span_label(
+                scrutinee.span,
+                "the element type for this iterator is not specified".to_string(),
+            );
         }
         // Instead of the following:
         // error[E0282]: type annotations needed
@@ -854,5 +929,119 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         );
         err.span_label(span, data.cannot_infer_msg(None));
         err
+    }
+}
+
+/// Turn *resolved* type params into `[type error]` to signal we don't want to display them. After
+/// performing that replacement, we'll turn all remaining infer type params to use their name from
+/// their definition, and replace all the `[type error]`s back to being infer so they display in
+/// the output as `_`. If we didn't go through `[type error]`, we would either show all type params
+/// by their name *or* `_`, neither of which is desireable: we want to show all types that we could
+/// infer as `_` to reduce verbosity and avoid telling the user about unnecessary type annotations.
+struct ResolvedTypeParamEraser<'tcx> {
+    tcx: TyCtxt<'tcx>,
+    level: usize,
+}
+
+impl<'tcx> ResolvedTypeParamEraser<'tcx> {
+    fn new(tcx: TyCtxt<'tcx>) -> Self {
+        ResolvedTypeParamEraser { tcx, level: 0 }
+    }
+
+    /// Replace not yet inferred const params with their def name.
+    fn replace_infers(&self, c: Const<'tcx>, index: u32, name: Symbol) -> Const<'tcx> {
+        match c.val() {
+            ty::ConstKind::Infer(..) => self.tcx().mk_const_param(index, name, c.ty()),
+            _ => c,
+        }
+    }
+}
+
+impl<'tcx> TypeFolder<'tcx> for ResolvedTypeParamEraser<'tcx> {
+    fn tcx<'a>(&'a self) -> TyCtxt<'tcx> {
+        self.tcx
+    }
+    fn fold_ty(&mut self, t: Ty<'tcx>) -> Ty<'tcx> {
+        self.level += 1;
+        let t = match t.kind() {
+            // We'll hide this type only if all its type params are hidden as well.
+            ty::Adt(def, substs) => {
+                let generics = self.tcx().generics_of(def.did);
+                // Account for params with default values, like `Vec`, where we
+                // want to show `Vec<T>`, not `Vec<T, _>`. If we replaced that
+                // subst, then we'd get the incorrect output, so we passthrough.
+                let substs: Vec<_> = substs
+                    .iter()
+                    .zip(generics.params.iter())
+                    .map(|(subst, param)| match &(subst.unpack(), &param.kind) {
+                        (_, ty::GenericParamDefKind::Type { has_default: true, .. }) => subst,
+                        (crate::infer::GenericArgKind::Const(c), _) => {
+                            self.replace_infers(*c, param.index, param.name).into()
+                        }
+                        _ => subst.super_fold_with(self),
+                    })
+                    .collect();
+                let should_keep = |subst: &GenericArg<'_>| match subst.unpack() {
+                    ty::subst::GenericArgKind::Type(t) => match t.kind() {
+                        ty::Error(_) => false,
+                        _ => true,
+                    },
+                    // Account for `const` params here, otherwise `doesnt_infer.rs`
+                    // shows `_` instead of `Foo<{ _: u32 }>`
+                    ty::subst::GenericArgKind::Const(_) => true,
+                    _ => false,
+                };
+                if self.level == 1 || substs.iter().any(should_keep) {
+                    let substs = self.tcx().intern_substs(&substs[..]);
+                    self.tcx().mk_ty(ty::Adt(def, substs))
+                } else {
+                    self.tcx().ty_error()
+                }
+            }
+            ty::Ref(_, ty, _) => {
+                let ty = self.fold_ty(*ty);
+                match ty.kind() {
+                    // Avoid `&_`, these can be safely presented as `_`.
+                    ty::Error(_) => self.tcx().ty_error(),
+                    _ => t.super_fold_with(self),
+                }
+            }
+            // We could account for `()` if we wanted to replace it, but it's assured to be short.
+            ty::Tuple(_)
+            | ty::Slice(_)
+            | ty::RawPtr(_)
+            | ty::FnDef(..)
+            | ty::FnPtr(_)
+            | ty::Opaque(..)
+            | ty::Projection(_)
+            | ty::Never => t.super_fold_with(self),
+            ty::Array(ty, c) => {
+                self.tcx().mk_ty(ty::Array(self.fold_ty(*ty), self.replace_infers(*c, 0, sym::N)))
+            }
+            // We don't want to hide type params that haven't been resolved yet.
+            // This would be the type that will be written out with the type param
+            // name in the output.
+            ty::Infer(_) => t,
+            // We don't want to hide the outermost type, only its type params.
+            _ if self.level == 1 => t.super_fold_with(self),
+            // Hide this type
+            _ => self.tcx().ty_error(),
+        };
+        self.level -= 1;
+        t
+    }
+}
+
+/// Replace `[type error]` with `ty::Infer(ty::Var)` to display `_`.
+struct ErrTypeParamEraser<'tcx>(TyCtxt<'tcx>);
+impl<'tcx> TypeFolder<'tcx> for ErrTypeParamEraser<'tcx> {
+    fn tcx<'a>(&'a self) -> TyCtxt<'tcx> {
+        self.0
+    }
+    fn fold_ty(&mut self, t: Ty<'tcx>) -> Ty<'tcx> {
+        match t.kind() {
+            ty::Error(_) => self.tcx().mk_ty_var(ty::TyVid::from_u32(0)),
+            _ => t.super_fold_with(self),
+        }
     }
 }

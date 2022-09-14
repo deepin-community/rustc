@@ -216,7 +216,7 @@ handle names defined _within a macro_. In particular, a hygienic macro system
 prevents errors due to names introduced within a macro. Rust macros are hygienic
 in that they do not allow one to write the sorts of bugs above.
 
-At a high level, hygiene within the rust compiler is accomplished by keeping
+At a high level, hygiene within the Rust compiler is accomplished by keeping
 track of the context where a name is introduced and used. We can then
 disambiguate names based on that context. Future iterations of the macro system
 will allow greater control to the macro author to use that context. For example,
@@ -585,7 +585,7 @@ syntactic sugar and are allowed to be in namespaces.
 
 ## Procedural Macros
 
-Precedural macros are also expanded during parsing, as mentioned above.
+Procedural macros are also expanded during parsing, as mentioned above.
 However, they use a rather different mechanism. Rather than having a parser in
 the compiler, procedural macros are implemented as custom, third-party crates.
 The compiler will compile the proc macro crate and specially annotated

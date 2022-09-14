@@ -1,4 +1,8 @@
+use cranelift_codegen::isa::TargetFrontendConfig;
 use rustc_index::vec::IndexVec;
+use rustc_middle::ty::layout::{
+    FnAbiError, FnAbiOfHelpers, FnAbiRequest, LayoutError, LayoutOfHelpers,
+};
 use rustc_middle::ty::SymbolName;
 use rustc_target::abi::call::FnAbi;
 use rustc_target::abi::{Integer, Primitive};
@@ -57,7 +61,7 @@ fn clif_type_from_ty<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<types::Typ
         },
         ty::FnPtr(_) => pointer_ty(tcx),
         ty::RawPtr(TypeAndMut { ty: pointee_ty, mutbl: _ }) | ty::Ref(_, pointee_ty, _) => {
-            if has_ptr_meta(tcx, pointee_ty) {
+            if has_ptr_meta(tcx, *pointee_ty) {
                 return None;
             } else {
                 pointer_ty(tcx)
@@ -96,7 +100,7 @@ fn clif_pair_type_from_ty<'tcx>(
             (a, b)
         }
         ty::RawPtr(TypeAndMut { ty: pointee_ty, mutbl: _ }) | ty::Ref(_, pointee_ty, _) => {
-            if has_ptr_meta(tcx, pointee_ty) {
+            if has_ptr_meta(tcx, *pointee_ty) {
                 (pointer_ty(tcx), pointer_ty(tcx))
             } else {
                 return None;
@@ -232,13 +236,14 @@ pub(crate) struct FunctionCx<'m, 'clif, 'tcx: 'm> {
     pub(crate) cx: &'clif mut crate::CodegenCx<'tcx>,
     pub(crate) module: &'m mut dyn Module,
     pub(crate) tcx: TyCtxt<'tcx>,
-    pub(crate) pointer_type: Type, // Cached from module
+    pub(crate) target_config: TargetFrontendConfig, // Cached from module
+    pub(crate) pointer_type: Type,                  // Cached from module
     pub(crate) constants_cx: ConstantCx,
 
     pub(crate) instance: Instance<'tcx>,
     pub(crate) symbol_name: SymbolName<'tcx>,
     pub(crate) mir: &'tcx Body<'tcx>,
-    pub(crate) fn_abi: Option<FnAbi<'tcx, Ty<'tcx>>>,
+    pub(crate) fn_abi: Option<&'tcx FnAbi<'tcx, Ty<'tcx>>>,
 
     pub(crate) bcx: FunctionBuilder<'clif>,
     pub(crate) block_map: IndexVec<BasicBlock, Block>,
@@ -252,16 +257,28 @@ pub(crate) struct FunctionCx<'m, 'clif, 'tcx: 'm> {
 
     /// This should only be accessed by `CPlace::new_var`.
     pub(crate) next_ssa_var: u32,
-
-    pub(crate) inline_asm_index: u32,
 }
 
-impl<'tcx> LayoutOf<'tcx> for FunctionCx<'_, '_, 'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = TyAndLayout<'tcx>;
+impl<'tcx> LayoutOfHelpers<'tcx> for FunctionCx<'_, '_, 'tcx> {
+    type LayoutOfResult = TyAndLayout<'tcx>;
 
-    fn layout_of(&self, ty: Ty<'tcx>) -> TyAndLayout<'tcx> {
-        RevealAllLayoutCx(self.tcx).layout_of(ty)
+    #[inline]
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
+        RevealAllLayoutCx(self.tcx).handle_layout_err(err, span, ty)
+    }
+}
+
+impl<'tcx> FnAbiOfHelpers<'tcx> for FunctionCx<'_, '_, 'tcx> {
+    type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
+
+    #[inline]
+    fn handle_fn_abi_err(
+        &self,
+        err: FnAbiError<'tcx>,
+        span: Span,
+        fn_abi_request: FnAbiRequest<'tcx>,
+    ) -> ! {
+        RevealAllLayoutCx(self.tcx).handle_fn_abi_err(err, span, fn_abi_request)
     }
 }
 
@@ -342,10 +359,6 @@ impl<'tcx> FunctionCx<'_, '_, 'tcx> {
         crate::constant::codegen_const_value(self, const_loc, self.tcx.caller_location_ty())
     }
 
-    pub(crate) fn triple(&self) -> &target_lexicon::Triple {
-        self.module.isa().triple()
-    }
-
     pub(crate) fn anonymous_str(&mut self, msg: &str) -> Value {
         let mut data_ctx = DataContext::new();
         data_ctx.define(msg.as_bytes().to_vec().into_boxed_slice());
@@ -364,19 +377,53 @@ impl<'tcx> FunctionCx<'_, '_, 'tcx> {
 
 pub(crate) struct RevealAllLayoutCx<'tcx>(pub(crate) TyCtxt<'tcx>);
 
-impl<'tcx> LayoutOf<'tcx> for RevealAllLayoutCx<'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = TyAndLayout<'tcx>;
+impl<'tcx> LayoutOfHelpers<'tcx> for RevealAllLayoutCx<'tcx> {
+    type LayoutOfResult = TyAndLayout<'tcx>;
 
-    fn layout_of(&self, ty: Ty<'tcx>) -> TyAndLayout<'tcx> {
-        assert!(!ty.still_further_specializable());
-        self.0.layout_of(ParamEnv::reveal_all().and(&ty)).unwrap_or_else(|e| {
-            if let layout::LayoutError::SizeOverflow(_) = e {
-                self.0.sess.fatal(&e.to_string())
-            } else {
-                bug!("failed to get layout for `{}`: {}", ty, e)
+    #[inline]
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
+        if let layout::LayoutError::SizeOverflow(_) = err {
+            self.0.sess.span_fatal(span, &err.to_string())
+        } else {
+            span_bug!(span, "failed to get layout for `{}`: {}", ty, err)
+        }
+    }
+}
+
+impl<'tcx> FnAbiOfHelpers<'tcx> for RevealAllLayoutCx<'tcx> {
+    type FnAbiOfResult = &'tcx FnAbi<'tcx, Ty<'tcx>>;
+
+    #[inline]
+    fn handle_fn_abi_err(
+        &self,
+        err: FnAbiError<'tcx>,
+        span: Span,
+        fn_abi_request: FnAbiRequest<'tcx>,
+    ) -> ! {
+        if let FnAbiError::Layout(LayoutError::SizeOverflow(_)) = err {
+            self.0.sess.span_fatal(span, &err.to_string())
+        } else {
+            match fn_abi_request {
+                FnAbiRequest::OfFnPtr { sig, extra_args } => {
+                    span_bug!(
+                        span,
+                        "`fn_abi_of_fn_ptr({}, {:?})` failed: {}",
+                        sig,
+                        extra_args,
+                        err
+                    );
+                }
+                FnAbiRequest::OfInstance { instance, extra_args } => {
+                    span_bug!(
+                        span,
+                        "`fn_abi_of_instance({}, {:?})` failed: {}",
+                        instance,
+                        extra_args,
+                        err
+                    );
+                }
             }
-        })
+        }
     }
 }
 

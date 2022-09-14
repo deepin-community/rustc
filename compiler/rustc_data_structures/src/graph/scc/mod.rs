@@ -3,12 +3,13 @@
 //! Also computes as the resulting DAG if each SCC is replaced with a
 //! node in the graph. This uses [Tarjan's algorithm](
 //! https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm)
-//! that completes in *O(n)* time.
+//! that completes in *O*(*n*) time.
 
 use crate::fx::FxHashSet;
 use crate::graph::vec_graph::VecGraph;
 use crate::graph::{DirectedGraph, GraphSuccessors, WithNumEdges, WithNumNodes, WithSuccessors};
 use rustc_index::vec::{Idx, IndexVec};
+use std::cmp::Ord;
 use std::ops::Range;
 
 #[cfg(test)]
@@ -38,7 +39,7 @@ struct SccData<S: Idx> {
     all_successors: Vec<S>,
 }
 
-impl<N: Idx, S: Idx> Sccs<N, S> {
+impl<N: Idx, S: Idx + Ord> Sccs<N, S> {
     pub fn new(graph: &(impl DirectedGraph<Node = N> + WithNumNodes + WithSuccessors)) -> Self {
         SccsConstruction::construct(graph)
     }
@@ -85,7 +86,7 @@ impl<N: Idx, S: Idx> DirectedGraph for Sccs<N, S> {
     type Node = S;
 }
 
-impl<N: Idx, S: Idx> WithNumNodes for Sccs<N, S> {
+impl<N: Idx, S: Idx + Ord> WithNumNodes for Sccs<N, S> {
     fn num_nodes(&self) -> usize {
         self.num_sccs()
     }
@@ -97,13 +98,13 @@ impl<N: Idx, S: Idx> WithNumEdges for Sccs<N, S> {
     }
 }
 
-impl<N: Idx, S: Idx> GraphSuccessors<'graph> for Sccs<N, S> {
+impl<'graph, N: Idx, S: Idx> GraphSuccessors<'graph> for Sccs<N, S> {
     type Item = S;
 
     type Iter = std::iter::Cloned<std::slice::Iter<'graph, S>>;
 }
 
-impl<N: Idx, S: Idx> WithSuccessors for Sccs<N, S> {
+impl<N: Idx, S: Idx + Ord> WithSuccessors for Sccs<N, S> {
     fn successors(&self, node: S) -> <Self as GraphSuccessors<'_>>::Iter {
         self.successors(node).iter().cloned()
     }
@@ -405,6 +406,7 @@ where
     /// Call this method when `inspect_node` has returned `None`. Having the
     /// caller decide avoids mutual recursion between the two methods and allows
     /// us to maintain an allocated stack for nodes on the path between calls.
+    #[instrument(skip(self, initial), level = "debug")]
     fn walk_unvisited_node(&mut self, initial: G::Node) -> WalkReturn<S> {
         struct VisitingNodeFrame<G: DirectedGraph, Successors> {
             node: G::Node,
@@ -451,7 +453,7 @@ where
                 Some(iter) => iter,
                 None => {
                     // This None marks that we still have the initialize this node's frame.
-                    debug!("walk_unvisited_node(depth = {:?}, node = {:?})", depth, node);
+                    debug!(?depth, ?node);
 
                     debug_assert!(matches!(self.node_states[node], NodeState::NotVisited));
 
@@ -478,10 +480,7 @@ where
                 return_value.take().into_iter().map(|walk| (*successor_node, Some(walk)));
 
             let successor_walk = successors.by_ref().map(|successor_node| {
-                debug!(
-                    "walk_unvisited_node: node = {:?} successor_ode = {:?}",
-                    node, successor_node
-                );
+                debug!(?node, ?successor_node);
                 (successor_node, self.inspect_node(successor_node))
             });
 
@@ -491,10 +490,7 @@ where
                         // Track the minimum depth we can reach.
                         assert!(successor_min_depth <= depth);
                         if successor_min_depth < *min_depth {
-                            debug!(
-                                "walk_unvisited_node: node = {:?} successor_min_depth = {:?}",
-                                node, successor_min_depth
-                            );
+                            debug!(?node, ?successor_min_depth);
                             *min_depth = successor_min_depth;
                             *min_cycle_root = successor_node;
                         }
@@ -503,16 +499,13 @@ where
                     Some(WalkReturn::Complete { scc_index: successor_scc_index }) => {
                         // Push the completed SCC indices onto
                         // the `successors_stack` for later.
-                        debug!(
-                            "walk_unvisited_node: node = {:?} successor_scc_index = {:?}",
-                            node, successor_scc_index
-                        );
+                        debug!(?node, ?successor_scc_index);
                         successors_stack.push(successor_scc_index);
                     }
 
                     None => {
                         let depth = depth + 1;
-                        debug!("walk_node(depth = {:?}, node = {:?})", depth, successor_node);
+                        debug!(?depth, ?successor_node);
                         // Remember which node the return value will come from.
                         frame.successor_node = successor_node;
                         // Start a new stack frame the step into it.

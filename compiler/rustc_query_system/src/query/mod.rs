@@ -12,9 +12,9 @@ pub use self::caches::{
 };
 
 mod config;
-pub use self::config::{QueryAccessors, QueryConfig, QueryDescription};
+pub use self::config::{QueryConfig, QueryDescription, QueryVtable};
 
-use crate::dep_graph::{DepNode, DepNodeIndex, HasDepContext, SerializedDepNodeIndex};
+use crate::dep_graph::{DepNodeIndex, HasDepContext, SerializedDepNodeIndex};
 
 use rustc_data_structures::sync::Lock;
 use rustc_data_structures::thin_vec::ThinVec;
@@ -117,16 +117,12 @@ impl QuerySideEffects {
 }
 
 pub trait QueryContext: HasDepContext {
+    fn next_job_id(&self) -> QueryJobId;
+
     /// Get the query information from the TLS context.
-    fn current_query_job(&self) -> Option<QueryJobId<Self::DepKind>>;
+    fn current_query_job(&self) -> Option<QueryJobId>;
 
-    fn try_collect_active_jobs(&self) -> Option<QueryMap<Self::DepKind>>;
-
-    /// Load data from the on-disk cache.
-    fn try_load_from_on_disk_cache(&self, dep_node: &DepNode<Self::DepKind>);
-
-    /// Try to force a dep node to execute and see if it's green.
-    fn try_force_from_dep_node(&self, dep_node: &DepNode<Self::DepKind>) -> bool;
+    fn try_collect_active_jobs(&self) -> Option<QueryMap>;
 
     /// Load side effects associated to the node in the previous session.
     fn load_side_effects(&self, prev_dep_node_index: SerializedDepNodeIndex) -> QuerySideEffects;
@@ -146,7 +142,7 @@ pub trait QueryContext: HasDepContext {
     /// captured during execution and the actual result.
     fn start_query<R>(
         &self,
-        token: QueryJobId<Self::DepKind>,
+        token: QueryJobId,
         diagnostics: Option<&Lock<ThinVec<Diagnostic>>>,
         compute: impl FnOnce() -> R,
     ) -> R;

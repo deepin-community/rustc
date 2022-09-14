@@ -1,14 +1,13 @@
 use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::source::snippet_opt;
 use clippy_utils::ty::{implements_trait, is_type_diagnostic_item};
-use clippy_utils::{eq_expr_value, get_trait_def_id, in_macro, paths};
+use clippy_utils::{eq_expr_value, get_trait_def_id, paths};
 use if_chain::if_chain;
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
-use rustc_hir::intravisit::{walk_expr, FnKind, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{walk_expr, FnKind, Visitor};
 use rustc_hir::{BinOpKind, Body, Expr, ExprKind, FnDecl, HirId, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::Span;
 use rustc_span::sym;
@@ -31,6 +30,7 @@ declare_clippy_lint! {
     /// if a && true  // should be: if a
     /// if !(a == b)  // should be: if a != b
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub NONMINIMAL_BOOL,
     complexity,
     "boolean expressions that can be written more concisely"
@@ -52,6 +52,7 @@ declare_clippy_lint! {
     /// if a && b || a { ... }
     /// ```
     /// The `b` is unnecessary, the expression is equivalent to `if a`.
+    #[clippy::version = "pre 1.29.0"]
     pub LOGIC_BUG,
     correctness,
     "boolean expressions that contain terminals which can be eliminated"
@@ -258,10 +259,10 @@ fn simplify_not(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<String> {
                 ))
             })
         },
-        ExprKind::MethodCall(path, _, args, _) if args.len() == 1 => {
+        ExprKind::MethodCall(path, args, _) if args.len() == 1 => {
             let type_of_receiver = cx.typeck_results().expr_ty(&args[0]);
-            if !is_type_diagnostic_item(cx, type_of_receiver, sym::option_type)
-                && !is_type_diagnostic_item(cx, type_of_receiver, sym::result_type)
+            if !is_type_diagnostic_item(cx, type_of_receiver, sym::Option)
+                && !is_type_diagnostic_item(cx, type_of_receiver, sym::Result)
             {
                 return None;
             }
@@ -270,7 +271,7 @@ fn simplify_not(cx: &LateContext<'_>, expr: &Expr<'_>) -> Option<String> {
                 .copied()
                 .flat_map(|(a, b)| vec![(a, b), (b, a)])
                 .find(|&(a, _)| {
-                    let path: &str = &path.ident.name.as_str();
+                    let path: &str = path.ident.name.as_str();
                     a == path
                 })
                 .and_then(|(_, neg_method)| Some(format!("{}.{}()", snippet_opt(cx, args[0].span)?, neg_method)))
@@ -450,28 +451,21 @@ impl<'a, 'tcx> NonminimalBoolVisitor<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for NonminimalBoolVisitor<'a, 'tcx> {
-    type Map = Map<'tcx>;
-
     fn visit_expr(&mut self, e: &'tcx Expr<'_>) {
-        if in_macro(e.span) {
-            return;
-        }
-        match &e.kind {
-            ExprKind::Binary(binop, _, _) if binop.node == BinOpKind::Or || binop.node == BinOpKind::And => {
-                self.bool_expr(e);
-            },
-            ExprKind::Unary(UnOp::Not, inner) => {
-                if self.cx.typeck_results().node_types()[inner.hir_id].is_bool() {
+        if !e.span.from_expansion() {
+            match &e.kind {
+                ExprKind::Binary(binop, _, _) if binop.node == BinOpKind::Or || binop.node == BinOpKind::And => {
                     self.bool_expr(e);
-                } else {
-                    walk_expr(self, e);
-                }
-            },
-            _ => walk_expr(self, e),
+                },
+                ExprKind::Unary(UnOp::Not, inner) => {
+                    if self.cx.typeck_results().node_types()[inner.hir_id].is_bool() {
+                        self.bool_expr(e);
+                    }
+                },
+                _ => {},
+            }
         }
-    }
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
+        walk_expr(self, e);
     }
 }
 
@@ -485,8 +479,6 @@ struct NotSimplificationVisitor<'a, 'tcx> {
 }
 
 impl<'a, 'tcx> Visitor<'tcx> for NotSimplificationVisitor<'a, 'tcx> {
-    type Map = Map<'tcx>;
-
     fn visit_expr(&mut self, expr: &'tcx Expr<'_>) {
         if let ExprKind::Unary(UnOp::Not, inner) = &expr.kind {
             if let Some(suggestion) = simplify_not(self.cx, inner) {
@@ -503,8 +495,5 @@ impl<'a, 'tcx> Visitor<'tcx> for NotSimplificationVisitor<'a, 'tcx> {
         }
 
         walk_expr(self, expr);
-    }
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
     }
 }

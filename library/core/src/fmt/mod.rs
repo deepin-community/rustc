@@ -265,6 +265,27 @@ pub struct ArgumentV1<'a> {
     formatter: fn(&Opaque, &mut Formatter<'_>) -> Result,
 }
 
+/// This struct represents the unsafety of constructing an `Arguments`.
+/// It exists, rather than an unsafe function, in order to simplify the expansion
+/// of `format_args!(..)` and reduce the scope of the `unsafe` block.
+#[allow(missing_debug_implementations)]
+#[doc(hidden)]
+#[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
+pub struct UnsafeArg {
+    _private: (),
+}
+
+impl UnsafeArg {
+    /// See documentation where `UnsafeArg` is required to know when it is safe to
+    /// create and use `UnsafeArg`.
+    #[doc(hidden)]
+    #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
+    #[inline(always)]
+    pub unsafe fn new() -> Self {
+        Self { _private: () }
+    }
+}
+
 // This guarantees a single stable value for the function pointer associated with
 // indices/counts in the formatting infrastructure.
 //
@@ -287,9 +308,21 @@ static USIZE_MARKER: fn(&usize, &mut Formatter<'_>) -> Result = |ptr, _| {
     loop {}
 };
 
+macro_rules! arg_new {
+    ($f: ident, $t: ident) => {
+        #[doc(hidden)]
+        #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
+        #[inline]
+        pub fn $f<'b, T: $t>(x: &'b T) -> ArgumentV1<'_> {
+            Self::new(x, $t::fmt)
+        }
+    };
+}
+
 impl<'a> ArgumentV1<'a> {
     #[doc(hidden)]
     #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
+    #[inline]
     pub fn new<'b, T>(x: &'b T, f: fn(&T, &mut Formatter<'_>) -> Result) -> ArgumentV1<'b> {
         // SAFETY: `mem::transmute(x)` is safe because
         //     1. `&'b T` keeps the lifetime it originated with `'b`
@@ -301,6 +334,16 @@ impl<'a> ArgumentV1<'a> {
         // (as long as `T` is `Sized`)
         unsafe { ArgumentV1 { formatter: mem::transmute(f), value: mem::transmute(x) } }
     }
+
+    arg_new!(new_display, Display);
+    arg_new!(new_debug, Debug);
+    arg_new!(new_octal, Octal);
+    arg_new!(new_lower_hex, LowerHex);
+    arg_new!(new_upper_hex, UpperHex);
+    arg_new!(new_pointer, Pointer);
+    arg_new!(new_binary, Binary);
+    arg_new!(new_lower_exp, LowerExp);
+    arg_new!(new_upper_exp, UpperExp);
 
     #[doc(hidden)]
     #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
@@ -333,21 +376,6 @@ enum FlagV1 {
 impl<'a> Arguments<'a> {
     /// When using the format_args!() macro, this function is used to generate the
     /// Arguments structure.
-    #[cfg(not(bootstrap))]
-    #[doc(hidden)]
-    #[inline]
-    #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
-    #[rustc_const_unstable(feature = "const_fmt_arguments_new", issue = "none")]
-    pub const unsafe fn new_v1(
-        pieces: &'a [&'static str],
-        args: &'a [ArgumentV1<'a>],
-    ) -> Arguments<'a> {
-        if pieces.len() < args.len() || pieces.len() > args.len() + 1 {
-            panic!("invalid args");
-        }
-        Arguments { pieces, fmt: None, args }
-    }
-    #[cfg(bootstrap)]
     #[doc(hidden)]
     #[inline]
     #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
@@ -360,24 +388,14 @@ impl<'a> Arguments<'a> {
     }
 
     /// This function is used to specify nonstandard formatting parameters.
-    /// The `pieces` array must be at least as long as `fmt` to construct
-    /// a valid Arguments structure. Also, any `Count` within `fmt` that is
-    /// `CountIsParam` or `CountIsNextParam` has to point to an argument
-    /// created with `argumentusize`. However, failing to do so doesn't cause
-    /// unsafety, but will ignore invalid .
-    #[cfg(not(bootstrap))]
-    #[doc(hidden)]
-    #[inline]
-    #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
-    #[rustc_const_unstable(feature = "const_fmt_arguments_new", issue = "none")]
-    pub const unsafe fn new_v1_formatted(
-        pieces: &'a [&'static str],
-        args: &'a [ArgumentV1<'a>],
-        fmt: &'a [rt::v1::Argument],
-    ) -> Arguments<'a> {
-        Arguments { pieces, fmt: Some(fmt), args }
-    }
-    #[cfg(bootstrap)]
+    ///
+    /// An `UnsafeArg` is required because the following invariants must be held
+    /// in order for this function to be safe:
+    /// 1. The `pieces` slice must be at least as long as `fmt`.
+    /// 2. Every [`rt::v1::Argument::position`] value within `fmt` must be a
+    ///    valid index of `args`.
+    /// 3. Every [`Count::Param`] within `fmt` must contain a valid index of
+    ///    `args`.
     #[doc(hidden)]
     #[inline]
     #[unstable(feature = "fmt_internals", reason = "internal to format_args!", issue = "none")]
@@ -386,6 +404,7 @@ impl<'a> Arguments<'a> {
         pieces: &'a [&'static str],
         args: &'a [ArgumentV1<'a>],
         fmt: &'a [rt::v1::Argument],
+        _unsafe_arg: UnsafeArg,
     ) -> Arguments<'a> {
         Arguments { pieces, fmt: Some(fmt), args }
     }
@@ -480,6 +499,7 @@ impl<'a> Arguments<'a> {
     /// ```
     #[stable(feature = "fmt_as_str", since = "1.52.0")]
     #[rustc_const_unstable(feature = "const_arguments_as_str", issue = "none")]
+    #[must_use]
     #[inline]
     pub const fn as_str(&self) -> Option<&'static str> {
         match (self.pieces, self.args) {
@@ -572,10 +592,29 @@ impl Display for Arguments<'_> {
 /// There are a number of helper methods on the [`Formatter`] struct to help you with manual
 /// implementations, such as [`debug_struct`].
 ///
+/// [`debug_struct`]: Formatter::debug_struct
+///
+/// Types that do not wish to use the standard suite of debug representations
+/// provided by the `Formatter` trait (`debug_struct`, `debug_tuple`,
+/// `debut_list`, `debug_set`, `debug_map`) can do something totally custom by
+/// manually writing an arbitrary representation to the `Formatter`.
+///
+/// ```
+/// # use std::fmt;
+/// # struct Point {
+/// #     x: i32,
+/// #     y: i32,
+/// # }
+/// #
+/// impl fmt::Debug for Point {
+///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+///         write!(f, "Point [{} {}]", self.x, self.y)
+///     }
+/// }
+/// ```
+///
 /// `Debug` implementations using either `derive` or the debug builder API
 /// on [`Formatter`] support pretty-printing using the alternate flag: `{:#?}`.
-///
-/// [`debug_struct`]: Formatter::debug_struct
 ///
 /// Pretty-printing with `#?`:
 ///
@@ -606,7 +645,8 @@ impl Display for Arguments<'_> {
     label = "`{Self}` cannot be formatted using `{{:?}}` because it doesn't implement `{Debug}`"
 )]
 #[doc(alias = "{:?}")]
-#[rustc_diagnostic_item = "debug_trait"]
+#[rustc_diagnostic_item = "Debug"]
+#[rustc_trivial_field_reads]
 pub trait Debug {
     /// Formats the value using the given formatter.
     ///
@@ -698,7 +738,7 @@ pub use macros::Debug;
     note = "in format strings you may be able to use `{{:?}}` (or {{:#?}} for pretty-print) instead"
 )]
 #[doc(alias = "{}")]
-#[rustc_diagnostic_item = "display_trait"]
+#[rustc_diagnostic_item = "Display"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub trait Display {
     /// Formats the value using the given formatter.
@@ -991,7 +1031,7 @@ pub trait UpperHex {
 /// assert_eq!(&l_ptr[..2], "0x");
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
-#[rustc_diagnostic_item = "pointer_trait"]
+#[rustc_diagnostic_item = "Pointer"]
 pub trait Pointer {
     /// Formats the value using the given formatter.
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -1213,7 +1253,7 @@ unsafe fn getcount(args: &[ArgumentV1<'_>], cnt: &rt::v1::Count) -> Option<usize
 
 /// Padding after the end of something. Returned by `Formatter::padding`.
 #[must_use = "don't forget to write the post padding"]
-struct PostPadding {
+pub(crate) struct PostPadding {
     fill: char,
     padding: usize,
 }
@@ -1224,9 +1264,9 @@ impl PostPadding {
     }
 
     /// Write this post padding.
-    fn write(self, buf: &mut dyn Write) -> Result {
+    pub(crate) fn write(self, f: &mut Formatter<'_>) -> Result {
         for _ in 0..self.padding {
-            buf.write_char(self.fill)?;
+            f.buf.write_char(self.fill)?;
         }
         Ok(())
     }
@@ -1349,7 +1389,7 @@ impl<'a> Formatter<'a> {
                 write_prefix(self, sign, prefix)?;
                 let post_padding = self.padding(min - width, rt::v1::Alignment::Right)?;
                 self.buf.write_str(buf)?;
-                post_padding.write(self.buf)?;
+                post_padding.write(self)?;
                 self.fill = old_fill;
                 self.align = old_align;
                 Ok(())
@@ -1359,7 +1399,7 @@ impl<'a> Formatter<'a> {
                 let post_padding = self.padding(min - width, rt::v1::Alignment::Right)?;
                 write_prefix(self, sign, prefix)?;
                 self.buf.write_str(buf)?;
-                post_padding.write(self.buf)
+                post_padding.write(self)
             }
         }
     }
@@ -1434,7 +1474,7 @@ impl<'a> Formatter<'a> {
                     let align = rt::v1::Alignment::Left;
                     let post_padding = self.padding(width - chars_count, align)?;
                     self.buf.write_str(s)?;
-                    post_padding.write(self.buf)
+                    post_padding.write(self)
                 }
             }
         }
@@ -1443,7 +1483,7 @@ impl<'a> Formatter<'a> {
     /// Write the pre-padding and return the unwritten post-padding. Callers are
     /// responsible for ensuring post-padding is written after the thing that is
     /// being padded.
-    fn padding(
+    pub(crate) fn padding(
         &mut self,
         padding: usize,
         default: rt::v1::Alignment,
@@ -1498,7 +1538,7 @@ impl<'a> Formatter<'a> {
             } else {
                 let post_padding = self.padding(width - len, align)?;
                 self.write_formatted_parts(&formatted)?;
-                post_padding.write(self.buf)
+                post_padding.write(self)
             };
             self.fill = old_fill;
             self.align = old_align;
@@ -1605,6 +1645,7 @@ impl<'a> Formatter<'a> {
     }
 
     /// Flags for formatting
+    #[must_use]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_deprecated(
         since = "1.24.0",
@@ -1642,6 +1683,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:G>3}", Foo), "GGG");
     /// assert_eq!(&format!("{:t>6}", Foo), "tttttt");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn fill(&self) -> char {
         self.fill
@@ -1678,6 +1720,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:^}", Foo), "center");
     /// assert_eq!(&format!("{}", Foo), "into the void");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags_align", since = "1.28.0")]
     pub fn align(&self) -> Option<Alignment> {
         match self.align {
@@ -1712,6 +1755,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:10}", Foo(23)), "Foo(23)   ");
     /// assert_eq!(&format!("{}", Foo(23)), "Foo(23)");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn width(&self) -> Option<usize> {
         self.width
@@ -1742,6 +1786,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:.4}", Foo(23.2)), "Foo(23.2000)");
     /// assert_eq!(&format!("{}", Foo(23.2)), "Foo(23.20)");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn precision(&self) -> Option<usize> {
         self.precision
@@ -1772,6 +1817,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:+}", Foo(23)), "Foo(+23)");
     /// assert_eq!(&format!("{}", Foo(23)), "Foo(23)");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn sign_plus(&self) -> bool {
         self.flags & (1 << FlagV1::SignPlus as u32) != 0
@@ -1800,6 +1846,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:-}", Foo(23)), "-Foo(23)");
     /// assert_eq!(&format!("{}", Foo(23)), "Foo(23)");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn sign_minus(&self) -> bool {
         self.flags & (1 << FlagV1::SignMinus as u32) != 0
@@ -1827,6 +1874,7 @@ impl<'a> Formatter<'a> {
     /// assert_eq!(&format!("{:#}", Foo(23)), "Foo(23)");
     /// assert_eq!(&format!("{}", Foo(23)), "23");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn alternate(&self) -> bool {
         self.flags & (1 << FlagV1::Alternate as u32) != 0
@@ -1852,6 +1900,7 @@ impl<'a> Formatter<'a> {
     ///
     /// assert_eq!(&format!("{:04}", Foo(23)), "23");
     /// ```
+    #[must_use]
     #[stable(feature = "fmt_flags", since = "1.5.0")]
     pub fn sign_aware_zero_pad(&self) -> bool {
         self.flags & (1 << FlagV1::SignAwareZeroPad as u32) != 0
@@ -2178,28 +2227,34 @@ impl Display for char {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: ?Sized> Pointer for *const T {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let old_width = f.width;
-        let old_flags = f.flags;
+        /// Since the formatting will be identical for all pointer types, use a non-monomorphized
+        /// implementation for the actual formatting to reduce the amount of codegen work needed
+        fn inner(ptr: *const (), f: &mut Formatter<'_>) -> Result {
+            let old_width = f.width;
+            let old_flags = f.flags;
 
-        // The alternate flag is already treated by LowerHex as being special-
-        // it denotes whether to prefix with 0x. We use it to work out whether
-        // or not to zero extend, and then unconditionally set it to get the
-        // prefix.
-        if f.alternate() {
-            f.flags |= 1 << (FlagV1::SignAwareZeroPad as u32);
+            // The alternate flag is already treated by LowerHex as being special-
+            // it denotes whether to prefix with 0x. We use it to work out whether
+            // or not to zero extend, and then unconditionally set it to get the
+            // prefix.
+            if f.alternate() {
+                f.flags |= 1 << (FlagV1::SignAwareZeroPad as u32);
 
-            if f.width.is_none() {
-                f.width = Some((usize::BITS / 4) as usize + 2);
+                if f.width.is_none() {
+                    f.width = Some((usize::BITS / 4) as usize + 2);
+                }
             }
+            f.flags |= 1 << (FlagV1::Alternate as u32);
+
+            let ret = LowerHex::fmt(&(ptr as usize), f);
+
+            f.width = old_width;
+            f.flags = old_flags;
+
+            ret
         }
-        f.flags |= 1 << (FlagV1::Alternate as u32);
 
-        let ret = LowerHex::fmt(&(*self as *const () as usize), f);
-
-        f.width = old_width;
-        f.flags = old_flags;
-
-        ret
+        inner(*self as *const (), f)
     }
 }
 

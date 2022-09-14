@@ -60,10 +60,15 @@ impl<T: Write> JsonFormatter<T> {
 }
 
 impl<T: Write> OutputFormatter for JsonFormatter<T> {
-    fn write_run_start(&mut self, test_count: usize) -> io::Result<()> {
+    fn write_run_start(&mut self, test_count: usize, shuffle_seed: Option<u64>) -> io::Result<()> {
+        let shuffle_seed_json = if let Some(shuffle_seed) = shuffle_seed {
+            format!(r#", "shuffle_seed": {}"#, shuffle_seed)
+        } else {
+            String::new()
+        };
         self.writeln_message(&*format!(
-            r#"{{ "type": "suite", "event": "started", "test_count": {} }}"#,
-            test_count
+            r#"{{ "type": "suite", "event": "started", "test_count": {}{} }}"#,
+            test_count, shuffle_seed_json
         ))
     }
 
@@ -119,15 +124,6 @@ impl<T: Write> OutputFormatter for JsonFormatter<T> {
                 self.write_event("test", desc.name.as_slice(), "ignored", exec_time, stdout, None)
             }
 
-            TestResult::TrAllowedFail => self.write_event(
-                "test",
-                desc.name.as_slice(),
-                "allowed_failure",
-                exec_time,
-                stdout,
-                None,
-            ),
-
             TestResult::TrBench(ref bs) => {
                 let median = bs.ns_iter_summ.median as usize;
                 let deviation = (bs.ns_iter_summ.max - bs.ns_iter_summ.min) as usize;
@@ -167,14 +163,12 @@ impl<T: Write> OutputFormatter for JsonFormatter<T> {
              \"event\": \"{}\", \
              \"passed\": {}, \
              \"failed\": {}, \
-             \"allowed_fail\": {}, \
              \"ignored\": {}, \
              \"measured\": {}, \
              \"filtered_out\": {}",
             if state.failed == 0 { "ok" } else { "failed" },
             state.passed,
-            state.failed + state.allowed_fail,
-            state.allowed_fail,
+            state.failed,
             state.ignored,
             state.measured,
             state.filtered_out,

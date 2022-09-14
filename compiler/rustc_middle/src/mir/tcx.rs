@@ -57,7 +57,7 @@ impl<'tcx> PlaceTy<'tcx> {
     /// `PlaceElem`, where we can just use the `Ty` that is already
     /// stored inline on field projection elems.
     pub fn projection_ty(self, tcx: TyCtxt<'tcx>, elem: PlaceElem<'tcx>) -> PlaceTy<'tcx> {
-        self.projection_ty_core(tcx, ty::ParamEnv::empty(), &elem, |_, _, ty| ty)
+        self.projection_ty_core(tcx, ty::ParamEnv::empty(), &elem, |_, _, &ty| ty)
     }
 
     /// `place_ty.projection_ty_core(tcx, elem, |...| { ... })`
@@ -93,11 +93,11 @@ impl<'tcx> PlaceTy<'tcx> {
             ProjectionElem::Subslice { from, to, from_end } => {
                 PlaceTy::from_ty(match self.ty.kind() {
                     ty::Slice(..) => self.ty,
-                    ty::Array(inner, _) if !from_end => tcx.mk_array(inner, (to - from) as u64),
+                    ty::Array(inner, _) if !from_end => tcx.mk_array(*inner, (to - from) as u64),
                     ty::Array(inner, size) if from_end => {
                         let size = size.eval_usize(tcx, param_env);
                         let len = size - (from as u64) - (to as u64);
-                        tcx.mk_array(inner, len)
+                        tcx.mk_array(*inner, len)
                     }
                     _ => bug!("cannot subslice non-array type: `{:?}`", self),
                 })
@@ -195,17 +195,17 @@ impl<'tcx> Rvalue<'tcx> {
             }
             Rvalue::UnaryOp(UnOp::Not | UnOp::Neg, ref operand) => operand.ty(local_decls, tcx),
             Rvalue::Discriminant(ref place) => place.ty(local_decls, tcx).ty.discriminant_ty(tcx),
-            Rvalue::NullaryOp(NullOp::Box, t) => tcx.mk_box(t),
-            Rvalue::NullaryOp(NullOp::SizeOf, _) => tcx.types.usize,
+            Rvalue::NullaryOp(NullOp::SizeOf | NullOp::AlignOf, _) => tcx.types.usize,
             Rvalue::Aggregate(ref ak, ref ops) => match **ak {
                 AggregateKind::Array(ty) => tcx.mk_array(ty, ops.len() as u64),
                 AggregateKind::Tuple => tcx.mk_tup(ops.iter().map(|op| op.ty(local_decls, tcx))),
-                AggregateKind::Adt(def, _, substs, _, _) => tcx.type_of(def.did).subst(tcx, substs),
+                AggregateKind::Adt(did, _, substs, _, _) => tcx.type_of(did).subst(tcx, substs),
                 AggregateKind::Closure(did, substs) => tcx.mk_closure(did, substs),
                 AggregateKind::Generator(did, substs, movability) => {
                     tcx.mk_generator(did, substs, movability)
                 }
             },
+            Rvalue::ShallowInitBox(_, ty) => tcx.mk_box(ty),
         }
     }
 
@@ -214,7 +214,7 @@ impl<'tcx> Rvalue<'tcx> {
     /// whether its only shallowly initialized (`Rvalue::Box`).
     pub fn initialization_state(&self) -> RvalueInitializationState {
         match *self {
-            Rvalue::NullaryOp(NullOp::Box, _) => RvalueInitializationState::Shallow,
+            Rvalue::ShallowInitBox(_, _) => RvalueInitializationState::Shallow,
             _ => RvalueInitializationState::Deep,
         }
     }

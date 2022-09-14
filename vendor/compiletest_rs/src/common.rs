@@ -226,6 +226,9 @@ pub struct Config {
     /// created in `/<build_base>/rustfix_missing_coverage.txt`
     pub rustfix_coverage: bool,
 
+    /// The default Rust edition
+    pub edition: Option<String>,
+
     // Configuration for various run-make tests frobbing things like C compilers
     // or querying about various LLVM component information.
     pub cc: String,
@@ -275,15 +278,18 @@ impl Config {
 
         // Dependencies can be found in the environment variable. Throw everything there into the
         // link flags
-        let lib_paths = env::var(varname).unwrap_or_else(|e| {
-            panic!("Cannot link to dependencies. Problem with env var '{}': {:?}", varname, e)
+        let lib_paths = env::var(varname).unwrap_or_else(|err| match err {
+            env::VarError::NotPresent => String::new(),
+            err => panic!("can't get {} environment variable: {}", varname, err),
         });
 
         // Append to current flags if any are set, otherwise make new String
         let mut flags = self.target_rustcflags.take().unwrap_or_else(String::new);
-        for p in env::split_paths(&lib_paths) {
-            flags += " -L ";
-            flags += p.to_str().unwrap(); // Can't fail. We already know this is unicode
+        if !lib_paths.is_empty() {
+            for p in env::split_paths(&lib_paths) {
+                flags += " -L ";
+                flags += p.to_str().unwrap(); // Can't fail. We already know this is unicode
+            }
         }
 
         self.target_rustcflags = Some(flags);
@@ -413,6 +419,7 @@ impl Default for Config {
             llvm_components: "llvm-components".to_string(),
             llvm_cxxflags: "llvm-cxxflags".to_string(),
             nodejs: None,
+            edition: None,
         }
     }
 }

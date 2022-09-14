@@ -18,10 +18,10 @@ use rustc_ast::walk_list;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir as hir;
 use rustc_hir::def::{DefKind as HirDefKind, Res};
-use rustc_hir::def_id::{DefId, LocalDefId};
+use rustc_hir::def_id::{DefId, LocalDefId, CRATE_DEF_ID};
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir_pretty::{bounds_to_string, fn_to_string, generic_params_to_string, ty_to_string};
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::span_bug;
 use rustc_middle::ty::{self, DefIdTree, TyCtxt};
 use rustc_session::config::Input;
@@ -47,11 +47,10 @@ use rls_data::{
 
 use tracing::{debug, error};
 
+#[rustfmt::skip] // https://github.com/rust-lang/rustfmt/issues/5213
 macro_rules! down_cast_data {
     ($id:ident, $kind:ident, $sp:expr) => {
-        let $id = if let super::Data::$kind(data) = $id {
-            data
-        } else {
+        let super::Data::$kind($id) = $id else {
             span_bug!($sp, "unexpected data kind: {:?}", $id);
         };
     };
@@ -128,7 +127,7 @@ impl<'tcx> DumpVisitor<'tcx> {
         self.save_ctxt.lookup_def_id(ref_id)
     }
 
-    pub fn dump_crate_info(&mut self, name: &str, krate: &hir::Crate<'_>) {
+    pub fn dump_crate_info(&mut self, name: &str) {
         let source_file = self.tcx.sess.local_crate_source_file.as_ref();
         let crate_root = source_file.map(|source_file| {
             let source_file = Path::new(source_file);
@@ -146,7 +145,7 @@ impl<'tcx> DumpVisitor<'tcx> {
             },
             crate_root: crate_root.unwrap_or_else(|| "<no source>".to_owned()),
             external_crates: self.save_ctxt.get_external_crates(),
-            span: self.span_from_span(krate.module().inner),
+            span: self.span_from_span(self.tcx.def_span(CRATE_DEF_ID)),
         };
 
         self.dumper.crate_prelude(data);
@@ -236,7 +235,7 @@ impl<'tcx> DumpVisitor<'tcx> {
                             id,
                             span,
                             name: ident.to_string(),
-                            qualname: format!("{}::{}", qualname, ident.to_string()),
+                            qualname: format!("{}::{}", qualname, ident),
                             value: typ,
                             parent: None,
                             children: vec![],
@@ -263,7 +262,7 @@ impl<'tcx> DumpVisitor<'tcx> {
     ) {
         debug!("process_method: {:?}:{}", def_id, ident);
 
-        let map = &self.tcx.hir();
+        let map = self.tcx.hir();
         let hir_id = map.local_def_id_to_hir_id(def_id);
         self.nest_typeck_results(def_id, |v| {
             if let Some(mut method_data) = v.save_ctxt.get_method_data(hir_id, ident, span) {
@@ -362,7 +361,7 @@ impl<'tcx> DumpVisitor<'tcx> {
         ty_params: &'tcx hir::Generics<'tcx>,
         body: hir::BodyId,
     ) {
-        let map = &self.tcx.hir();
+        let map = self.tcx.hir();
         self.nest_typeck_results(item.def_id, |v| {
             let body = map.body(body);
             if let Some(fn_data) = v.save_ctxt.get_item_data(item) {
@@ -627,7 +626,7 @@ impl<'tcx> DumpVisitor<'tcx> {
             }
         }
 
-        let map = &self.tcx.hir();
+        let map = self.tcx.hir();
         self.nest_typeck_results(item.def_id, |v| {
             v.visit_ty(&impl_.self_ty);
             if let Some(trait_ref) = &impl_.of_trait {
@@ -682,7 +681,7 @@ impl<'tcx> DumpVisitor<'tcx> {
             );
         }
 
-        // super-traits
+        // supertraits
         for super_bound in trait_refs.iter() {
             let (def_id, sub_span) = match *super_bound {
                 hir::GenericBound::Trait(ref trait_ref, _) => (
@@ -693,7 +692,6 @@ impl<'tcx> DumpVisitor<'tcx> {
                     (Some(self.tcx.require_lang_item(lang_item, Some(span))), span)
                 }
                 hir::GenericBound::Outlives(..) => continue,
-                hir::GenericBound::Unsized(_) => continue,
             };
 
             if let Some(id) = def_id {
@@ -718,7 +716,7 @@ impl<'tcx> DumpVisitor<'tcx> {
         // walk generics and methods
         self.process_generic_params(generics, &qualname, item.hir_id());
         for method in methods {
-            let map = &self.tcx.hir();
+            let map = self.tcx.hir();
             self.process_trait_item(map.trait_item(method.id), item.def_id.to_def_id())
         }
     }
@@ -890,7 +888,7 @@ impl<'tcx> DumpVisitor<'tcx> {
 
                     // Rust uses the id of the pattern for var lookups, so we'll use it too.
                     if !self.span.filter_generated(ident.span) {
-                        let qualname = format!("{}${}", ident.to_string(), hir_id);
+                        let qualname = format!("{}${}", ident, hir_id);
                         let id = id_from_hir_id(hir_id, &self.save_ctxt);
                         let span = self.span_from_span(ident.span);
 
@@ -923,7 +921,7 @@ impl<'tcx> DumpVisitor<'tcx> {
                     | HirDefKind::AssocTy,
                     _,
                 )
-                | Res::SelfTy(..) => {
+                | Res::SelfTy { .. } => {
                     self.dump_path_segment_ref(id, &hir::PathSegment::from_ident(ident));
                 }
                 def => {
@@ -1091,13 +1089,13 @@ impl<'tcx> DumpVisitor<'tcx> {
         }
     }
 
-    pub(crate) fn process_crate(&mut self, krate: &'tcx hir::Crate<'tcx>) {
+    pub(crate) fn process_crate(&mut self) {
         let id = hir::CRATE_HIR_ID;
         let qualname =
             format!("::{}", self.tcx.def_path_str(self.tcx.hir().local_def_id(id).to_def_id()));
 
         let sm = self.tcx.sess.source_map();
-        let krate_mod = krate.module();
+        let krate_mod = self.tcx.hir().root_module();
         let filename = sm.span_to_filename(krate_mod.inner);
         let data_id = id_from_hir_id(id, &self.save_ctxt);
         let children =
@@ -1122,7 +1120,7 @@ impl<'tcx> DumpVisitor<'tcx> {
                 attributes: lower_attributes(attrs.to_owned(), &self.save_ctxt),
             },
         );
-        intravisit::walk_crate(self, krate);
+        self.tcx.hir().walk_toplevel_module(self);
     }
 
     fn process_bounds(&mut self, bounds: hir::GenericBounds<'tcx>) {
@@ -1138,10 +1136,10 @@ impl<'tcx> DumpVisitor<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for DumpVisitor<'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::All;
 
-    fn nested_visit_map(&mut self) -> intravisit::NestedVisitorMap<Self::Map> {
-        intravisit::NestedVisitorMap::All(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_item(&mut self, item: &'tcx hir::Item<'tcx>) {
@@ -1327,12 +1325,18 @@ impl<'tcx> Visitor<'tcx> for DumpVisitor<'tcx> {
                 }
                 intravisit::walk_qpath(self, path, t.hir_id, t.span);
             }
-            hir::TyKind::Array(ref ty, ref anon_const) => {
+            hir::TyKind::Array(ref ty, ref length) => {
                 self.visit_ty(ty);
                 let map = self.tcx.hir();
-                self.nest_typeck_results(self.tcx.hir().local_def_id(anon_const.hir_id), |v| {
-                    v.visit_expr(&map.body(anon_const.body).value)
-                });
+                match length {
+                    // FIXME(generic_arg_infer): We probably want to
+                    // output the inferred type here? :shrug:
+                    hir::ArrayLen::Infer(..) => {}
+                    hir::ArrayLen::Body(anon_const) => self
+                        .nest_typeck_results(self.tcx.hir().local_def_id(anon_const.hir_id), |v| {
+                            v.visit_expr(&map.body(anon_const.body).value)
+                        }),
+                }
             }
             hir::TyKind::OpaqueDef(item_id, _) => {
                 let item = self.tcx.hir().item(item_id);
@@ -1358,9 +1362,7 @@ impl<'tcx> Visitor<'tcx> for DumpVisitor<'tcx> {
                 let res = self.save_ctxt.get_path_res(hir_expr.hir_id);
                 self.process_struct_lit(ex, path, fields, adt.variant_of_res(res), *rest)
             }
-            hir::ExprKind::MethodCall(ref seg, _, args, _) => {
-                self.process_method_call(ex, seg, args)
-            }
+            hir::ExprKind::MethodCall(ref seg, args, _) => self.process_method_call(ex, seg, args),
             hir::ExprKind::Field(ref sub_ex, _) => {
                 self.visit_expr(&sub_ex);
 
@@ -1391,12 +1393,18 @@ impl<'tcx> Visitor<'tcx> for DumpVisitor<'tcx> {
                     v.visit_expr(&body.value)
                 });
             }
-            hir::ExprKind::Repeat(ref expr, ref anon_const) => {
+            hir::ExprKind::Repeat(ref expr, ref length) => {
                 self.visit_expr(expr);
                 let map = self.tcx.hir();
-                self.nest_typeck_results(self.tcx.hir().local_def_id(anon_const.hir_id), |v| {
-                    v.visit_expr(&map.body(anon_const.body).value)
-                });
+                match length {
+                    // FIXME(generic_arg_infer): We probably want to
+                    // output the inferred type here? :shrug:
+                    hir::ArrayLen::Infer(..) => {}
+                    hir::ArrayLen::Body(anon_const) => self
+                        .nest_typeck_results(self.tcx.hir().local_def_id(anon_const.hir_id), |v| {
+                            v.visit_expr(&map.body(anon_const.body).value)
+                        }),
+                }
             }
             // In particular, we take this branch for call and path expressions,
             // where we'll index the idents involved just by continuing to walk.

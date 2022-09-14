@@ -1,9 +1,10 @@
 use clippy_utils::diagnostics::span_lint_and_then;
-use clippy_utils::visitors::LocalUsedVisitor;
-use clippy_utils::{higher, is_lang_ctor, is_unit_expr, path_to_local, peel_ref_operators, SpanlessEq};
+use clippy_utils::higher::IfLetOrMatch;
+use clippy_utils::visitors::is_local_used;
+use clippy_utils::{is_lang_ctor, is_unit_expr, path_to_local, peel_blocks_with_stmt, peel_ref_operators, SpanlessEq};
 use if_chain::if_chain;
 use rustc_hir::LangItem::OptionNone;
-use rustc_hir::{Arm, Expr, ExprKind, Guard, HirId, MatchSource, Pat, PatKind, StmtKind};
+use rustc_hir::{Arm, Expr, Guard, HirId, Pat, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::{MultiSpan, Span};
@@ -40,6 +41,7 @@ declare_clippy_lint! {
     ///     };
     /// }
     /// ```
+    #[clippy::version = "1.50.0"]
     pub COLLAPSIBLE_MATCH,
     style,
     "Nested `match` or `if let` expressions where the patterns may be \"collapsed\" together."
@@ -56,11 +58,11 @@ impl<'tcx> LateLintPass<'tcx> for CollapsibleMatch {
                         check_arm(cx, true, arm.pat, arm.body, arm.guard.as_ref(), Some(els_arm.body));
                     }
                 }
-            }
+            },
             Some(IfLetOrMatch::IfLet(_, pat, body, els)) => {
                 check_arm(cx, false, pat, body, None, els);
-            }
-            None => {}
+            },
+            None => {},
         }
     }
 }
@@ -71,9 +73,9 @@ fn check_arm<'tcx>(
     outer_pat: &'tcx Pat<'tcx>,
     outer_then_body: &'tcx Expr<'tcx>,
     outer_guard: Option<&'tcx Guard<'tcx>>,
-    outer_else_body: Option<&'tcx Expr<'tcx>>
+    outer_else_body: Option<&'tcx Expr<'tcx>>,
 ) {
-    let inner_expr = strip_singleton_blocks(outer_then_body);
+    let inner_expr = peel_blocks_with_stmt(outer_then_body);
     if_chain! {
         if let Some(inner) = IfLetOrMatch::parse(cx, inner_expr);
         if let Some((inner_scrutinee, inner_then_pat, inner_else_body)) = match inner {
@@ -106,14 +108,13 @@ fn check_arm<'tcx>(
             (Some(a), Some(b)) => SpanlessEq::new(cx).eq_expr(a, b),
         };
         // the binding must not be used in the if guard
-        let mut used_visitor = LocalUsedVisitor::new(cx, binding_id);
-        if outer_guard.map_or(true, |(Guard::If(e) | Guard::IfLet(_, e))| !used_visitor.check_expr(e));
+        if outer_guard.map_or(true, |(Guard::If(e) | Guard::IfLet(_, e))| !is_local_used(cx, *e, binding_id));
         // ...or anywhere in the inner expression
         if match inner {
             IfLetOrMatch::IfLet(_, _, body, els) => {
-                !used_visitor.check_expr(body) && els.map_or(true, |e| !used_visitor.check_expr(e))
+                !is_local_used(cx, body, binding_id) && els.map_or(true, |e| !is_local_used(cx, e, binding_id))
             },
-            IfLetOrMatch::Match(_, arms, ..) => !arms.iter().any(|arm| used_visitor.check_arm(arm)),
+            IfLetOrMatch::Match(_, arms, ..) => !arms.iter().any(|arm| is_local_used(cx, arm, binding_id)),
         };
         then {
             let msg = format!(
@@ -133,37 +134,6 @@ fn check_arm<'tcx>(
                     diag.span_help(help_span, "the outer pattern can be modified to include the inner pattern");
                 },
             );
-        }
-    }
-}
-
-fn strip_singleton_blocks<'hir>(mut expr: &'hir Expr<'hir>) -> &'hir Expr<'hir> {
-    while let ExprKind::Block(block, _) = expr.kind {
-        match (block.stmts, block.expr) {
-            ([stmt], None) => match stmt.kind {
-                StmtKind::Expr(e) | StmtKind::Semi(e) => expr = e,
-                _ => break,
-            },
-            ([], Some(e)) => expr = e,
-            _ => break,
-        }
-    }
-    expr
-}
-
-enum IfLetOrMatch<'hir> {
-    Match(&'hir Expr<'hir>, &'hir [Arm<'hir>], MatchSource),
-    /// scrutinee, pattern, then block, else block
-    IfLet(&'hir Expr<'hir>, &'hir Pat<'hir>, &'hir Expr<'hir>, Option<&'hir Expr<'hir>>),
-}
-
-impl<'hir> IfLetOrMatch<'hir> {
-    fn parse(cx: &LateContext<'_>, expr: &Expr<'hir>) -> Option<Self> {
-        match expr.kind {
-            ExprKind::Match(expr, arms, source) => Some(Self::Match(expr, arms, source)),
-            _ => higher::IfLet::hir(cx, expr).map(|higher::IfLet { let_expr, let_pat, if_then, if_else }| {
-                Self::IfLet(let_expr, let_pat, if_then, if_else)
-            })
         }
     }
 }

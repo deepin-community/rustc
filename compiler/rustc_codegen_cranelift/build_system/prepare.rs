@@ -28,11 +28,11 @@ pub(crate) fn prepare() {
     );
 
     clone_repo(
-        "stdsimd",
-        "https://github.com/rust-lang/stdsimd",
-        "be96995d8ddec03fac9a0caf4d4c51c7fbc33507",
+        "portable-simd",
+        "https://github.com/rust-lang/portable-simd",
+        "b8d6b6844602f80af79cd96401339ec594d472d8",
     );
-    apply_patches("stdsimd", Path::new("stdsimd"));
+    apply_patches("portable-simd", Path::new("portable-simd"));
 
     clone_repo(
         "simple-raytracer",
@@ -92,7 +92,7 @@ fn prepare_sysroot() {
     clone_repo(
         "build_sysroot/compiler-builtins",
         "https://github.com/rust-lang/compiler-builtins.git",
-        "0.1.46",
+        "0.1.66",
     );
     apply_patches("compiler-builtins", Path::new("build_sysroot/compiler-builtins"));
 }

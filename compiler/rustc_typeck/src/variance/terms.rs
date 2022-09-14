@@ -79,14 +79,14 @@ pub fn determine_parameters_to_be_inferred<'a, 'tcx>(
     //
     // - https://rustc-dev-guide.rust-lang.org/query.html
     // - https://rustc-dev-guide.rust-lang.org/variance.html
-    tcx.hir().krate().visit_all_item_likes(&mut terms_cx);
+    tcx.hir().visit_all_item_likes(&mut terms_cx);
 
     terms_cx
 }
 
 fn lang_items(tcx: TyCtxt<'_>) -> Vec<(hir::HirId, Vec<ty::Variance>)> {
     let lang_items = tcx.lang_items();
-    let all = vec![
+    let all = [
         (lang_items.phantom_data(), vec![ty::Covariant]),
         (lang_items.unsafe_cell_type(), vec![ty::Invariant]),
     ];

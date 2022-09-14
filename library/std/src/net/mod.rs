@@ -17,7 +17,7 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-use crate::io::{self, Error, ErrorKind};
+use crate::io::{self, ErrorKind};
 
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
@@ -25,6 +25,8 @@ pub use self::addr::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 pub use self::ip::{IpAddr, Ipv4Addr, Ipv6Addr, Ipv6MulticastScope};
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use self::parser::AddrParseError;
+#[unstable(feature = "tcplistener_into_incoming", issue = "88339")]
+pub use self::tcp::IntoIncoming;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use self::tcp::{Incoming, TcpListener, TcpStream};
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -44,16 +46,16 @@ mod udp;
 pub enum Shutdown {
     /// The reading portion of the [`TcpStream`] should be shut down.
     ///
-    /// All currently blocked and future [reads] will return [`Ok`]`(0)`.
+    /// All currently blocked and future [reads] will return <code>[Ok]\(0)</code>.
     ///
-    /// [reads]: crate::io::Read
+    /// [reads]: crate::io::Read "io::Read"
     #[stable(feature = "rust1", since = "1.0.0")]
     Read,
     /// The writing portion of the [`TcpStream`] should be shut down.
     ///
     /// All currently blocked and future [writes] will return an error.
     ///
-    /// [writes]: crate::io::Write
+    /// [writes]: crate::io::Write "io::Write"
     #[stable(feature = "rust1", since = "1.0.0")]
     Write,
     /// Both the reading and the writing portions of the [`TcpStream`] should be shut down.
@@ -88,6 +90,6 @@ where
         }
     }
     Err(last_err.unwrap_or_else(|| {
-        Error::new_const(ErrorKind::InvalidInput, &"could not resolve to any addresses")
+        io::const_io_error!(ErrorKind::InvalidInput, "could not resolve to any addresses")
     }))
 }

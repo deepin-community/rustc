@@ -1,6 +1,5 @@
 use clippy_utils::diagnostics::span_lint_and_help;
-use clippy_utils::in_macro;
-use rustc_ast::ast::{AssocItemKind, Extern, FnKind, FnSig, ImplKind, Item, ItemKind, TraitKind, Ty, TyKind};
+use rustc_ast::ast::{AssocItemKind, Extern, Fn, FnSig, Impl, Item, ItemKind, Trait, Ty, TyKind};
 use rustc_lint::{EarlyContext, EarlyLintPass};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::{sym, Span};
@@ -38,6 +37,7 @@ declare_clippy_lint! {
     ///     Finished,
     /// }
     /// ```
+    #[clippy::version = "1.43.0"]
     pub STRUCT_EXCESSIVE_BOOLS,
     pedantic,
     "using too many bools in a struct"
@@ -76,6 +76,7 @@ declare_clippy_lint! {
     ///
     /// fn f(shape: Shape, temperature: Temperature) { ... }
     /// ```
+    #[clippy::version = "1.43.0"]
     pub FN_PARAMS_EXCESSIVE_BOOLS,
     pedantic,
     "using too many bools in function parameters"
@@ -135,7 +136,7 @@ fn is_bool_ty(ty: &Ty) -> bool {
 
 impl EarlyLintPass for ExcessiveBools {
     fn check_item(&mut self, cx: &EarlyContext<'_>, item: &Item) {
-        if in_macro(item.span) {
+        if item.span.from_expansion() {
             return;
         }
         match &item.kind {
@@ -162,17 +163,17 @@ impl EarlyLintPass for ExcessiveBools {
                     );
                 }
             },
-            ItemKind::Impl(box ImplKind {
+            ItemKind::Impl(box Impl {
                 of_trait: None, items, ..
             })
-            | ItemKind::Trait(box TraitKind(.., items)) => {
+            | ItemKind::Trait(box Trait { items, .. }) => {
                 for item in items {
-                    if let AssocItemKind::Fn(box FnKind(_, fn_sig, _, _)) = &item.kind {
-                        self.check_fn_sig(cx, fn_sig, item.span);
+                    if let AssocItemKind::Fn(box Fn { sig, .. }) = &item.kind {
+                        self.check_fn_sig(cx, sig, item.span);
                     }
                 }
             },
-            ItemKind::Fn(box FnKind(_, fn_sig, _, _)) => self.check_fn_sig(cx, fn_sig, item.span),
+            ItemKind::Fn(box Fn { sig, .. }) => self.check_fn_sig(cx, sig, item.span),
             _ => (),
         }
     }

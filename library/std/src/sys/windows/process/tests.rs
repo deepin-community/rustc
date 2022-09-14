@@ -128,3 +128,65 @@ fn windows_env_unicode_case() {
         }
     }
 }
+
+// UWP applications run in a restricted environment which means this test may not work.
+#[cfg(not(target_vendor = "uwp"))]
+#[test]
+fn windows_exe_resolver() {
+    use super::resolve_exe;
+    use crate::io;
+    use crate::sys::fs::symlink;
+    use crate::sys_common::io::test::tmpdir;
+
+    let env_paths = || env::var_os("PATH");
+
+    // Test a full path, with and without the `exe` extension.
+    let mut current_exe = env::current_exe().unwrap();
+    assert!(resolve_exe(current_exe.as_ref(), env_paths, None).is_ok());
+    current_exe.set_extension("");
+    assert!(resolve_exe(current_exe.as_ref(), env_paths, None).is_ok());
+
+    // Test lone file names.
+    assert!(resolve_exe(OsStr::new("cmd"), env_paths, None).is_ok());
+    assert!(resolve_exe(OsStr::new("cmd.exe"), env_paths, None).is_ok());
+    assert!(resolve_exe(OsStr::new("cmd.EXE"), env_paths, None).is_ok());
+    assert!(resolve_exe(OsStr::new("fc"), env_paths, None).is_ok());
+
+    // Invalid file names should return InvalidInput.
+    assert_eq!(
+        resolve_exe(OsStr::new(""), env_paths, None).unwrap_err().kind(),
+        io::ErrorKind::InvalidInput
+    );
+    assert_eq!(
+        resolve_exe(OsStr::new("\0"), env_paths, None).unwrap_err().kind(),
+        io::ErrorKind::InvalidInput
+    );
+    // Trailing slash, therefore there's no file name component.
+    assert_eq!(
+        resolve_exe(OsStr::new(r"C:\Path\to\"), env_paths, None).unwrap_err().kind(),
+        io::ErrorKind::InvalidInput
+    );
+
+    /*
+    Some of the following tests may need to be changed if you are deliberately
+    changing the behaviour of `resolve_exe`.
+    */
+
+    let empty_paths = || None;
+
+    // The resolver looks in system directories even when `PATH` is empty.
+    assert!(resolve_exe(OsStr::new("cmd.exe"), empty_paths, None).is_ok());
+
+    // The application's directory is also searched.
+    let current_exe = env::current_exe().unwrap();
+    assert!(resolve_exe(current_exe.file_name().unwrap().as_ref(), empty_paths, None).is_ok());
+
+    // Create a temporary path and add a broken symlink.
+    let temp = tmpdir();
+    let mut exe_path = temp.path().to_owned();
+    exe_path.push("exists.exe");
+    symlink("<DOES NOT EXIST>".as_ref(), &exe_path).unwrap();
+
+    // A broken symlink should still be resolved.
+    assert!(resolve_exe(OsStr::new("exists.exe"), empty_paths, Some(temp.path().as_ref())).is_ok());
+}

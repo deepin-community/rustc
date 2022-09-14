@@ -54,9 +54,6 @@ impl<'tcx> LateLintPass<'tcx> for DeepCodeInspector {
             ),
             hir::VisibilityKind::Inherited => println!("visibility inherited from outer item"),
         }
-        if item.defaultness.is_default() {
-            println!("default");
-        }
         match item.kind {
             hir::ImplItemKind::Const(_, body_id) => {
                 println!("associated constant");
@@ -142,11 +139,14 @@ fn print_expr(cx: &LateContext<'_>, expr: &hir::Expr<'_>, indent: usize) {
                 print_expr(cx, arg, indent + 1);
             }
         },
-        hir::ExprKind::Let(ref pat, ref expr, _) => {
+        hir::ExprKind::Let(hir::Let { pat, init, ty, .. }) => {
             print_pat(cx, pat, indent + 1);
-            print_expr(cx, expr, indent + 1);
+            if let Some(ty) = ty {
+                println!("{}  type annotation: {:?}", ind, ty);
+            }
+            print_expr(cx, init, indent + 1);
         },
-        hir::ExprKind::MethodCall(path, _, args, _) => {
+        hir::ExprKind::MethodCall(path, args, _) => {
             println!("{}MethodCall", ind);
             println!("{}method name: {}", ind, path.ident.name);
             for arg in args {
@@ -301,19 +301,6 @@ fn print_expr(cx: &LateContext<'_>, expr: &hir::Expr<'_>, indent: usize) {
                 }
             }
         },
-        hir::ExprKind::LlvmInlineAsm(asm) => {
-            let inputs = &asm.inputs_exprs;
-            let outputs = &asm.outputs_exprs;
-            println!("{}LlvmInlineAsm", ind);
-            println!("{}inputs:", ind);
-            for e in inputs.iter() {
-                print_expr(cx, e, indent + 1);
-            }
-            println!("{}outputs:", ind);
-            for e in outputs.iter() {
-                print_expr(cx, e, indent + 1);
-            }
-        },
         hir::ExprKind::Struct(path, fields, ref base) => {
             println!("{}Struct", ind);
             println!("{}path: {:?}", ind, path);
@@ -331,12 +318,17 @@ fn print_expr(cx: &LateContext<'_>, expr: &hir::Expr<'_>, indent: usize) {
             println!("{}anon_const:", ind);
             print_expr(cx, &cx.tcx.hir().body(anon_const.body).value, indent + 1);
         },
-        hir::ExprKind::Repeat(val, ref anon_const) => {
+        hir::ExprKind::Repeat(val, length) => {
             println!("{}Repeat", ind);
             println!("{}value:", ind);
             print_expr(cx, val, indent + 1);
             println!("{}repeat count:", ind);
-            print_expr(cx, &cx.tcx.hir().body(anon_const.body).value, indent + 1);
+            match length {
+                hir::ArrayLen::Infer(_, _) => println!("{}repeat count: _", ind),
+                hir::ArrayLen::Body(anon_const) => {
+                    print_expr(cx, &cx.tcx.hir().body(anon_const.body).value, indent + 1);
+                },
+            }
         },
         hir::ExprKind::Err => {
             println!("{}Err", ind);

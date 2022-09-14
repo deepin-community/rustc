@@ -13,7 +13,6 @@ use rustc_middle::arena::Arena;
 use rustc_middle::dep_graph::DepGraph;
 use rustc_middle::ty::{GlobalCtxt, TyCtxt};
 use rustc_query_impl::Queries as TcxQueries;
-use rustc_serialize::json;
 use rustc_session::config::{self, OutputFilenames, OutputType};
 use rustc_session::{output::find_crate_name, Session};
 use rustc_span::symbol::sym;
@@ -110,7 +109,7 @@ impl<'tcx> Queries<'tcx> {
         &self.compiler.sess
     }
     fn codegen_backend(&self) -> &Lrc<Box<dyn CodegenBackend>> {
-        &self.compiler.codegen_backend()
+        self.compiler.codegen_backend()
     }
 
     fn dep_graph_future(&self) -> Result<&Query<Option<DepGraphFuture>>> {
@@ -135,7 +134,7 @@ impl<'tcx> Queries<'tcx> {
             let krate = self.parse()?.take();
 
             let empty: &(dyn Fn(&Session, &mut LintStore) + Sync + Send) = &|_, _| {};
-            let result = passes::register_plugins(
+            let (krate, lint_store) = passes::register_plugins(
                 self.session(),
                 &*self.codegen_backend().metadata_loader(),
                 self.compiler.register_lints.as_deref().unwrap_or_else(|| empty),
@@ -150,7 +149,7 @@ impl<'tcx> Queries<'tcx> {
             // called, which happens within passes::register_plugins().
             self.dep_graph_future().ok();
 
-            Ok(result)
+            Ok((krate, Lrc::new(lint_store)))
         })
     }
 
@@ -181,7 +180,7 @@ impl<'tcx> Queries<'tcx> {
                 &crate_name,
             );
             let krate = resolver.access(|resolver| {
-                passes::configure_and_expand(&sess, &lint_store, krate, &crate_name, resolver)
+                passes::configure_and_expand(sess, &lint_store, krate, &crate_name, resolver)
             })?;
             Ok((Rc::new(krate), Rc::new(RefCell::new(resolver)), lint_store))
         })
@@ -335,15 +334,18 @@ pub struct Linker {
 
 impl Linker {
     pub fn link(self) -> Result<()> {
-        let (codegen_results, work_products) =
-            self.codegen_backend.join_codegen(self.ongoing_codegen, &self.sess)?;
+        let (codegen_results, work_products) = self.codegen_backend.join_codegen(
+            self.ongoing_codegen,
+            &self.sess,
+            &self.prepare_outputs,
+        )?;
 
         self.sess.compile_status()?;
 
         let sess = &self.sess;
         let dep_graph = self.dep_graph;
         sess.time("serialize_work_products", || {
-            rustc_incremental::save_work_product_index(&sess, &dep_graph, work_products)
+            rustc_incremental::save_work_product_index(sess, &dep_graph, work_products)
         });
 
         let prof = self.sess.prof.clone();
@@ -364,12 +366,10 @@ impl Linker {
         }
 
         if sess.opts.debugging_opts.no_link {
-            // FIXME: use a binary format to encode the `.rlink` file
-            let rlink_data = json::encode(&codegen_results).map_err(|err| {
-                sess.fatal(&format!("failed to encode rlink: {}", err));
-            })?;
+            let mut encoder = rustc_serialize::opaque::Encoder::new(Vec::new());
+            rustc_serialize::Encodable::encode(&codegen_results, &mut encoder).unwrap();
             let rlink_file = self.prepare_outputs.with_extension(config::RLINK_EXT);
-            std::fs::write(&rlink_file, rlink_data).map_err(|err| {
+            std::fs::write(&rlink_file, encoder.into_inner()).map_err(|err| {
                 sess.fatal(&format!("failed to write file {}: {}", rlink_file.display(), err));
             })?;
             return Ok(());
@@ -386,7 +386,7 @@ impl Compiler {
         F: for<'tcx> FnOnce(&'tcx Queries<'tcx>) -> T,
     {
         let mut _timer = None;
-        let queries = Queries::new(&self);
+        let queries = Queries::new(self);
         let ret = f(&queries);
 
         // NOTE: intentionally does not compute the global context if it hasn't been built yet,
@@ -398,10 +398,6 @@ impl Compiler {
                 let _prof_timer =
                     queries.session().prof.generic_activity("self_profile_alloc_query_strings");
                 gcx.enter(rustc_query_impl::alloc_self_profile_query_strings);
-            }
-
-            if self.session().opts.debugging_opts.query_stats {
-                gcx.enter(rustc_query_impl::print_stats);
             }
 
             self.session()

@@ -99,7 +99,7 @@ use crate::cell::UnsafeCell;
 use crate::env;
 use crate::ffi::c_void;
 use crate::fmt;
-use crate::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+use crate::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use crate::sync::Once;
 use crate::sys_common::backtrace::{lock, output_filename};
 use crate::vec::Vec;
@@ -110,6 +110,7 @@ use crate::vec::Vec;
 /// previous point in time. In some instances the `Backtrace` type may
 /// internally be empty due to configuration. For more information see
 /// `Backtrace::capture`.
+#[must_use]
 pub struct Backtrace {
     inner: Inner,
 }
@@ -255,7 +256,7 @@ impl Backtrace {
         // backtrace captures speedy, because otherwise reading environment
         // variables every time can be somewhat slow.
         static ENABLED: AtomicUsize = AtomicUsize::new(0);
-        match ENABLED.load(SeqCst) {
+        match ENABLED.load(Relaxed) {
             0 => {}
             1 => return false,
             _ => return true,
@@ -267,7 +268,7 @@ impl Backtrace {
                 Err(_) => false,
             },
         };
-        ENABLED.store(enabled as usize + 1, SeqCst);
+        ENABLED.store(enabled as usize + 1, Relaxed);
         enabled
     }
 
@@ -355,6 +356,7 @@ impl Backtrace {
     /// Returns the status of this backtrace, indicating whether this backtrace
     /// request was unsupported, disabled, or a stack trace was actually
     /// captured.
+    #[must_use]
     pub fn status(&self) -> BacktraceStatus {
         match self.inner {
             Inner::Unsupported => BacktraceStatus::Unsupported,
@@ -366,6 +368,7 @@ impl Backtrace {
 
 impl<'a> Backtrace {
     /// Returns an iterator over the backtrace frames.
+    #[must_use]
     #[unstable(feature = "backtrace_frames", issue = "79676")]
     pub fn frames(&'a self) -> &'a [BacktraceFrame] {
         if let Inner::Captured(c) = &self.inner { &c.force().frames } else { &[] }

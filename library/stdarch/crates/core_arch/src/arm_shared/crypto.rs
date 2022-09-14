@@ -1,7 +1,7 @@
 use crate::core_arch::arm_shared::{uint32x4_t, uint8x16_t};
 
 #[allow(improper_ctypes)]
-extern "C" {
+extern "unadjusted" {
     #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.crypto.aese")]
     #[cfg_attr(target_arch = "arm", link_name = "llvm.arm.neon.aese")]
     fn vaeseq_u8_(data: uint8x16_t, key: uint8x16_t) -> uint8x16_t;
@@ -50,8 +50,6 @@ extern "C" {
 
 #[cfg(test)]
 use stdarch_test::assert_instr;
-
-// TODO: Use AES for ARM when the minimum LLVM version includes b8baa2a9132498ea286dbb0d03f005760ecc6fdb
 
 /// AES single round encryption.
 #[inline]

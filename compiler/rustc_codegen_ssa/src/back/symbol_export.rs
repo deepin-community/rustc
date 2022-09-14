@@ -11,7 +11,7 @@ use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::middle::exported_symbols::{
     metadata_symbol_name, ExportedSymbol, SymbolExportLevel,
 };
-use rustc_middle::ty::query::Providers;
+use rustc_middle::ty::query::{ExternProviders, Providers};
 use rustc_middle::ty::subst::{GenericArgKind, SubstsRef};
 use rustc_middle::ty::Instance;
 use rustc_middle::ty::{SymbolName, TyCtxt};
@@ -76,7 +76,7 @@ fn reachable_non_generics_provider(tcx: TyCtxt<'_>, cnum: CrateNum) -> DefIdMap<
             //
             // As a result, if this id is an FFI item (foreign item) then we only
             // let it through if it's included statically.
-            match tcx.hir().get(tcx.hir().local_def_id_to_hir_id(def_id)) {
+            match tcx.hir().get_by_def_id(def_id) {
                 Node::ForeignItem(..) => {
                     tcx.is_statically_included_foreign_item(def_id).then_some(def_id)
                 }
@@ -154,7 +154,7 @@ fn is_reachable_non_generic_provider_extern(tcx: TyCtxt<'_>, def_id: DefId) -> b
     tcx.reachable_non_generics(def_id.krate).contains_key(&def_id)
 }
 
-fn exported_symbols_provider_local(
+fn exported_symbols_provider_local<'tcx>(
     tcx: TyCtxt<'tcx>,
     cnum: CrateNum,
 ) -> &'tcx [(ExportedSymbol<'tcx>, SymbolExportLevel)] {
@@ -363,7 +363,7 @@ pub fn provide(providers: &mut Providers) {
     providers.wasm_import_module_map = wasm_import_module_map;
 }
 
-pub fn provide_extern(providers: &mut Providers) {
+pub fn provide_extern(providers: &mut ExternProviders) {
     providers.is_reachable_non_generic = is_reachable_non_generic_provider_extern;
     providers.upstream_monomorphizations_for = upstream_monomorphizations_for_provider;
 }

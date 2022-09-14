@@ -33,6 +33,7 @@ declare_clippy_lint! {
     /// let _micros = dur.subsec_micros();
     /// let _millis = dur.subsec_millis();
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DURATION_SUBSEC,
     complexity,
     "checks for calculation of subsecond microseconds or milliseconds"
@@ -44,11 +45,11 @@ impl<'tcx> LateLintPass<'tcx> for DurationSubsec {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
         if_chain! {
             if let ExprKind::Binary(Spanned { node: BinOpKind::Div, .. }, left, right) = expr.kind;
-            if let ExprKind::MethodCall(method_path, _ , args, _) = left.kind;
+            if let ExprKind::MethodCall(method_path, args, _) = left.kind;
             if match_type(cx, cx.typeck_results().expr_ty(&args[0]).peel_refs(), &paths::DURATION);
             if let Some((Constant::Int(divisor), _)) = constant(cx, cx.typeck_results(), right);
             then {
-                let suggested_fn = match (method_path.ident.as_str().as_ref(), divisor) {
+                let suggested_fn = match (method_path.ident.as_str(), divisor) {
                     ("subsec_micros", 1_000) | ("subsec_nanos", 1_000_000) => "subsec_millis",
                     ("subsec_nanos", 1_000) => "subsec_micros",
                     _ => return,

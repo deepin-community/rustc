@@ -3,10 +3,9 @@ use clippy_utils::diagnostics::{span_lint, span_lint_and_help};
 use clippy_utils::{match_def_path, paths};
 use if_chain::if_chain;
 use rustc_ast::ast::{LitKind, StrStyle};
-use rustc_data_structures::fx::FxHashSet;
-use rustc_hir::{BorrowKind, Expr, ExprKind, HirId};
+use rustc_hir::{BorrowKind, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::{declare_tool_lint, impl_lint_pass};
+use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::{BytePos, Span};
 use std::convert::TryFrom;
 
@@ -23,6 +22,7 @@ declare_clippy_lint! {
     /// ```ignore
     /// Regex::new("|")
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub INVALID_REGEX,
     correctness,
     "invalid regular expressions"
@@ -47,18 +47,13 @@ declare_clippy_lint! {
     /// ```ignore
     /// Regex::new("^foobar")
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub TRIVIAL_REGEX,
     nursery,
     "trivial regular expressions"
 }
 
-#[derive(Clone, Default)]
-pub struct Regex {
-    spans: FxHashSet<Span>,
-    last: Option<HirId>,
-}
-
-impl_lint_pass!(Regex => [INVALID_REGEX, TRIVIAL_REGEX]);
+declare_lint_pass!(Regex => [INVALID_REGEX, TRIVIAL_REGEX]);
 
 impl<'tcx> LateLintPass<'tcx> for Regex {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>) {
@@ -91,7 +86,7 @@ fn str_span(base: Span, c: regex_syntax::ast::Span, offset: u16) -> Span {
     let end = base.lo() + BytePos(u32::try_from(c.end.offset).expect("offset too large") + offset);
     let start = base.lo() + BytePos(u32::try_from(c.start.offset).expect("offset too large") + offset);
     assert!(start <= end);
-    Span::new(start, end, base.ctxt())
+    Span::new(start, end, base.ctxt(), base.parent())
 }
 
 fn const_str<'tcx>(cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) -> Option<String> {
@@ -155,7 +150,7 @@ fn check_regex<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'_>, utf8: bool) {
 
     if let ExprKind::Lit(ref lit) = expr.kind {
         if let LitKind::Str(ref r, style) = lit.node {
-            let r = &r.as_str();
+            let r = r.as_str();
             let offset = if let StrStyle::Raw(n) = style { 2 + n } else { 1 };
             match parser.parse(r) {
                 Ok(r) => {

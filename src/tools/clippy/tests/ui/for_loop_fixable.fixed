@@ -25,11 +25,11 @@ impl Unrelated {
 )]
 #[allow(
     clippy::linkedlist,
-    clippy::shadow_unrelated,
     clippy::unnecessary_mut_passed,
-    clippy::similar_names
+    clippy::similar_names,
+    clippy::needless_borrow
 )]
-#[allow(clippy::many_single_char_names, unused_variables)]
+#[allow(unused_variables)]
 fn main() {
     let mut vec = vec![1, 2, 3, 4];
 

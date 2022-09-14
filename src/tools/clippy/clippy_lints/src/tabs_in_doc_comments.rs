@@ -51,6 +51,7 @@ declare_clippy_lint! {
     ///    second_string: String,
     ///}
     /// ```
+    #[clippy::version = "1.41.0"]
     pub TABS_IN_DOC_COMMENTS,
     style,
     "using tabs in doc comments is not recommended"
@@ -63,12 +64,13 @@ impl TabsInDocComments {
         if let ast::AttrKind::DocComment(_, comment) = attr.kind {
             let comment = comment.as_str();
 
-            for (lo, hi) in get_chunks_of_tabs(&comment) {
+            for (lo, hi) in get_chunks_of_tabs(comment) {
                 // +3 skips the opening delimiter
                 let new_span = Span::new(
                     attr.span.lo() + BytePos(3 + lo),
                     attr.span.lo() + BytePos(3 + hi),
                     attr.span.ctxt(),
+                    attr.span.parent(),
                 );
                 span_lint_and_sugg(
                     cx,

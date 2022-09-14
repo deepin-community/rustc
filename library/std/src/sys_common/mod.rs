@@ -28,8 +28,6 @@ pub mod memchr;
 pub mod mutex;
 pub mod process;
 pub mod remutex;
-#[macro_use]
-pub mod rt;
 pub mod rwlock;
 pub mod thread;
 pub mod thread_info;
@@ -42,7 +40,7 @@ cfg_if::cfg_if! {
     if #[cfg(any(target_os = "l4re",
                  target_os = "hermit",
                  feature = "restricted-std",
-                 all(target_arch = "wasm32", not(target_os = "emscripten")),
+                 all(target_family = "wasm", not(target_os = "emscripten")),
                  all(target_vendor = "fortanix", target_env = "sgx")))] {
         pub use crate::sys::net;
     } else {

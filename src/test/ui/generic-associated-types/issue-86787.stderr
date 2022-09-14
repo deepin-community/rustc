@@ -1,29 +1,13 @@
-error[E0309]: the associated type `<Left as HasChildrenOf>::T` may not live long enough
-  --> $DIR/issue-86787.rs:23:5
+error: missing required bound on `TRef`
+  --> $DIR/issue-86787.rs:11:5
    |
-LL | /     type TRef<'a>
-LL | |
-LL | |
-LL | |     where
-LL | |     <Left as HasChildrenOf>::T: 'a,
-LL | |     <Right as HasChildrenOf>::T: 'a
-   | |                                    - help: consider adding a where clause: `, <Left as HasChildrenOf>::T: 'a`
-LL | |     = Either<&'a Left::T, &'a Right::T>;
-   | |________________________________________^ ...so that the type `<Left as HasChildrenOf>::T` will meet its required lifetime bounds
-
-error[E0309]: the associated type `<Right as HasChildrenOf>::T` may not live long enough
-  --> $DIR/issue-86787.rs:23:5
+LL |     type TRef<'a>;
+   |     ^^^^^^^^^^^^^-
+   |                  |
+   |                  help: add the required where clause: `where Self: 'a`
    |
-LL | /     type TRef<'a>
-LL | |
-LL | |
-LL | |     where
-LL | |     <Left as HasChildrenOf>::T: 'a,
-LL | |     <Right as HasChildrenOf>::T: 'a
-   | |                                    - help: consider adding a where clause: `, <Right as HasChildrenOf>::T: 'a`
-LL | |     = Either<&'a Left::T, &'a Right::T>;
-   | |________________________________________^ ...so that the type `<Right as HasChildrenOf>::T` will meet its required lifetime bounds
+   = note: this bound is currently required to ensure that impls have maximum flexibility
+   = note: we are soliciting feedback, see issue #87479 <https://github.com/rust-lang/rust/issues/87479> for more information
 
-error: aborting due to 2 previous errors
+error: aborting due to previous error
 
-For more information about this error, try `rustc --explain E0309`.

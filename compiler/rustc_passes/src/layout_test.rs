@@ -3,15 +3,16 @@ use rustc_hir as hir;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::itemlikevisit::ItemLikeVisitor;
 use rustc_hir::ItemKind;
-use rustc_middle::ty::layout::{HasParamEnv, HasTyCtxt, TyAndLayout};
+use rustc_middle::ty::layout::{HasParamEnv, HasTyCtxt, LayoutError, LayoutOfHelpers, TyAndLayout};
 use rustc_middle::ty::{ParamEnv, Ty, TyCtxt};
 use rustc_span::symbol::sym;
-use rustc_target::abi::{HasDataLayout, LayoutOf, TargetDataLayout};
+use rustc_span::Span;
+use rustc_target::abi::{HasDataLayout, TargetDataLayout};
 
 pub fn test_layout(tcx: TyCtxt<'_>) {
     if tcx.features().rustc_attrs {
         // if the `rustc_attrs` feature is not enabled, don't bother testing layout
-        tcx.hir().krate().visit_all_item_likes(&mut LayoutTest { tcx });
+        tcx.hir().visit_all_item_likes(&mut LayoutTest { tcx });
     }
 }
 
@@ -19,7 +20,7 @@ struct LayoutTest<'tcx> {
     tcx: TyCtxt<'tcx>,
 }
 
-impl ItemLikeVisitor<'tcx> for LayoutTest<'tcx> {
+impl<'tcx> ItemLikeVisitor<'tcx> for LayoutTest<'tcx> {
     fn visit_item(&mut self, item: &'tcx hir::Item<'tcx>) {
         match item.kind {
             ItemKind::TyAlias(..)
@@ -41,7 +42,7 @@ impl ItemLikeVisitor<'tcx> for LayoutTest<'tcx> {
     fn visit_foreign_item(&mut self, _: &'tcx hir::ForeignItem<'tcx>) {}
 }
 
-impl LayoutTest<'tcx> {
+impl<'tcx> LayoutTest<'tcx> {
     fn dump_layout_of(&self, item_def_id: LocalDefId, item: &hir::Item<'tcx>, attr: &Attribute) {
         let tcx = self.tcx;
         let param_env = self.tcx.param_env(item_def_id);
@@ -113,28 +114,32 @@ struct UnwrapLayoutCx<'tcx> {
     param_env: ParamEnv<'tcx>,
 }
 
-impl LayoutOf<'tcx> for UnwrapLayoutCx<'tcx> {
-    type Ty = Ty<'tcx>;
-    type TyAndLayout = TyAndLayout<'tcx>;
+impl<'tcx> LayoutOfHelpers<'tcx> for UnwrapLayoutCx<'tcx> {
+    type LayoutOfResult = TyAndLayout<'tcx>;
 
-    fn layout_of(&self, ty: Ty<'tcx>) -> Self::TyAndLayout {
-        self.tcx.layout_of(self.param_env.and(ty)).unwrap()
+    fn handle_layout_err(&self, err: LayoutError<'tcx>, span: Span, ty: Ty<'tcx>) -> ! {
+        span_bug!(
+            span,
+            "`#[rustc_layout(..)]` test resulted in `layout_of({}) = Err({})`",
+            ty,
+            err
+        );
     }
 }
 
-impl HasTyCtxt<'tcx> for UnwrapLayoutCx<'tcx> {
+impl<'tcx> HasTyCtxt<'tcx> for UnwrapLayoutCx<'tcx> {
     fn tcx(&self) -> TyCtxt<'tcx> {
         self.tcx
     }
 }
 
-impl HasParamEnv<'tcx> for UnwrapLayoutCx<'tcx> {
+impl<'tcx> HasParamEnv<'tcx> for UnwrapLayoutCx<'tcx> {
     fn param_env(&self) -> ParamEnv<'tcx> {
         self.param_env
     }
 }
 
-impl HasDataLayout for UnwrapLayoutCx<'tcx> {
+impl<'tcx> HasDataLayout for UnwrapLayoutCx<'tcx> {
     fn data_layout(&self) -> &TargetDataLayout {
         self.tcx.data_layout()
     }

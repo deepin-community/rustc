@@ -11,9 +11,9 @@ use super::TOO_MANY_LINES;
 
 pub(super) fn check_fn(
     cx: &LateContext<'_>,
-    kind: FnKind<'tcx>,
+    kind: FnKind<'_>,
     span: Span,
-    body: &'tcx hir::Body<'_>,
+    body: &hir::Body<'_>,
     too_many_lines_threshold: u64,
 ) {
     // Closures must be contained in a parent body, which will be checked for `too_many_lines`.
@@ -56,8 +56,8 @@ pub(super) fn check_fn(
                     continue;
                 }
             } else {
-                let multi_idx = line.find("/*").unwrap_or_else(|| line.len());
-                let single_idx = line.find("//").unwrap_or_else(|| line.len());
+                let multi_idx = line.find("/*").unwrap_or(line.len());
+                let single_idx = line.find("//").unwrap_or(line.len());
                 code_in_line |= multi_idx > 0 && single_idx > 0;
                 // Implies multi_idx is below line.len()
                 if multi_idx < single_idx {

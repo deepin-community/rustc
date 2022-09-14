@@ -1,5 +1,5 @@
 use crate::build::ExprCategory;
-use crate::thir::visit::{self, Visitor};
+use rustc_middle::thir::visit::{self, Visitor};
 
 use rustc_errors::struct_span_err;
 use rustc_hir as hir;
@@ -256,23 +256,22 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             }
             PatKind::Binding { mode: BindingMode::ByRef(borrow_kind), ty, .. } => {
                 if self.inside_adt {
-                    if let ty::Ref(_, ty, _) = ty.kind() {
-                        match borrow_kind {
-                            BorrowKind::Shallow | BorrowKind::Shared | BorrowKind::Unique => {
-                                if !ty.is_freeze(self.tcx.at(pat.span), self.param_env) {
-                                    self.requires_unsafe(pat.span, BorrowOfLayoutConstrainedField);
-                                }
-                            }
-                            BorrowKind::Mut { .. } => {
-                                self.requires_unsafe(pat.span, MutationOfLayoutConstrainedField);
-                            }
-                        }
-                    } else {
+                    let ty::Ref(_, ty, _) = ty.kind() else {
                         span_bug!(
                             pat.span,
                             "BindingMode::ByRef in pattern, but found non-reference type {}",
                             ty
                         );
+                    };
+                    match borrow_kind {
+                        BorrowKind::Shallow | BorrowKind::Shared | BorrowKind::Unique => {
+                            if !ty.is_freeze(self.tcx.at(pat.span), self.param_env) {
+                                self.requires_unsafe(pat.span, BorrowOfLayoutConstrainedField);
+                            }
+                        }
+                        BorrowKind::Mut { .. } => {
+                            self.requires_unsafe(pat.span, MutationOfLayoutConstrainedField);
+                        }
                     }
                 }
                 visit::walk_pat(self, pat);
@@ -330,7 +329,6 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
             | ExprKind::Box { .. }
             | ExprKind::If { .. }
             | ExprKind::InlineAsm { .. }
-            | ExprKind::LlvmInlineAsm { .. }
             | ExprKind::LogicalOp { .. }
             | ExprKind::Use { .. } => {
                 // We don't need to save the old value and restore it
@@ -378,7 +376,7 @@ impl<'a, 'tcx> Visitor<'a, 'tcx> for UnsafetyVisitor<'a, 'tcx> {
                     self.requires_unsafe(expr.span, DerefOfRawPointer);
                 }
             }
-            ExprKind::InlineAsm { .. } | ExprKind::LlvmInlineAsm { .. } => {
+            ExprKind::InlineAsm { .. } => {
                 self.requires_unsafe(expr.span, UseOfInlineAssembly);
             }
             ExprKind::Adt(box Adt {

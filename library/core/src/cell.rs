@@ -240,6 +240,11 @@ pub struct Cell<T: ?Sized> {
 #[stable(feature = "rust1", since = "1.0.0")]
 unsafe impl<T: ?Sized> Send for Cell<T> where T: Send {}
 
+// Note that this negative impl isn't strictly necessary for correctness,
+// as `Cell` wraps `UnsafeCell`, which is itself `!Sync`.
+// However, given how important `Cell`'s `!Sync`-ness is,
+// having an explicit negative impl is nice for documentation purposes
+// and results in nicer error messages.
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: ?Sized> !Sync for Cell<T> {}
 
@@ -308,7 +313,9 @@ impl<T: Ord + Copy> Ord for Cell<T> {
 }
 
 #[stable(feature = "cell_from", since = "1.12.0")]
-impl<T> From<T> for Cell<T> {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<T> for Cell<T> {
+    /// Creates a new `Cell<T>` containing the given value.
     fn from(t: T) -> Cell<T> {
         Cell::new(t)
     }
@@ -349,7 +356,7 @@ impl<T> Cell<T> {
         drop(old);
     }
 
-    /// Swaps the values of two Cells.
+    /// Swaps the values of two `Cell`s.
     /// Difference with `std::mem::swap` is that this function doesn't require `&mut` reference.
     ///
     /// # Examples
@@ -892,7 +899,7 @@ impl<T: ?Sized> RefCell<T> {
                 Ok(Ref { value: unsafe { &*self.value.get() }, borrow: b })
             }
             None => Err(BorrowError {
-                // If a borrow occured, then we must already have an outstanding borrow,
+                // If a borrow occurred, then we must already have an outstanding borrow,
                 // so `borrowed_at` will be `Some`
                 #[cfg(feature = "debug_refcell")]
                 location: self.borrowed_at.get().unwrap(),
@@ -977,7 +984,7 @@ impl<T: ?Sized> RefCell<T> {
                 Ok(RefMut { value: unsafe { &mut *self.value.get() }, borrow: b })
             }
             None => Err(BorrowMutError {
-                // If a borrow occured, then we must already have an outstanding borrow,
+                // If a borrow occurred, then we must already have an outstanding borrow,
                 // so `borrowed_at` will be `Some`
                 #[cfg(feature = "debug_refcell")]
                 location: self.borrowed_at.get().unwrap(),
@@ -1098,7 +1105,7 @@ impl<T: ?Sized> RefCell<T> {
             Ok(unsafe { &*self.value.get() })
         } else {
             Err(BorrowError {
-                // If a borrow occured, then we must already have an outstanding borrow,
+                // If a borrow occurred, then we must already have an outstanding borrow,
                 // so `borrowed_at` will be `Some`
                 #[cfg(feature = "debug_refcell")]
                 location: self.borrowed_at.get().unwrap(),
@@ -1236,7 +1243,9 @@ impl<T: ?Sized + Ord> Ord for RefCell<T> {
 }
 
 #[stable(feature = "cell_from", since = "1.12.0")]
-impl<T> From<T> for RefCell<T> {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<T> for RefCell<T> {
+    /// Creates a new `RefCell<T>` containing the given value.
     fn from(t: T) -> RefCell<T> {
         RefCell::new(t)
     }
@@ -1303,6 +1312,7 @@ impl Clone for BorrowRef<'_> {
 ///
 /// See the [module-level documentation](self) for more.
 #[stable(feature = "rust1", since = "1.0.0")]
+#[must_not_suspend = "holding a Ref across suspend points can cause BorrowErrors"]
 pub struct Ref<'b, T: ?Sized + 'b> {
     value: &'b T,
     borrow: BorrowRef<'b>,
@@ -1328,6 +1338,7 @@ impl<'b, T: ?Sized> Ref<'b, T> {
     /// with the widespread use of `r.borrow().clone()` to clone the contents of
     /// a `RefCell`.
     #[stable(feature = "cell_extras", since = "1.15.0")]
+    #[must_use]
     #[inline]
     pub fn clone(orig: &Ref<'b, T>) -> Ref<'b, T> {
         Ref { value: orig.value, borrow: orig.borrow.clone() }
@@ -1679,6 +1690,7 @@ impl<'b> BorrowRefMut<'b> {
 ///
 /// See the [module-level documentation](self) for more.
 #[stable(feature = "rust1", since = "1.0.0")]
+#[must_not_suspend = "holding a RefMut across suspend points can cause BorrowErrors"]
 pub struct RefMut<'b, T: ?Sized + 'b> {
     value: &'b mut T,
     borrow: BorrowRefMut<'b>,
@@ -1916,7 +1928,8 @@ impl<T: ?Sized> UnsafeCell<T> {
     /// ```
     #[inline(always)]
     #[stable(feature = "unsafe_cell_get_mut", since = "1.50.0")]
-    pub fn get_mut(&mut self) -> &mut T {
+    #[rustc_const_unstable(feature = "const_unsafecell_get_mut", issue = "88836")]
+    pub const fn get_mut(&mut self) -> &mut T {
         &mut self.value
     }
 
@@ -1948,6 +1961,7 @@ impl<T: ?Sized> UnsafeCell<T> {
     /// ```
     #[inline(always)]
     #[stable(feature = "unsafe_cell_raw_get", since = "1.56.0")]
+    #[rustc_const_stable(feature = "unsafe_cell_raw_get", since = "1.56.0")]
     pub const fn raw_get(this: *const Self) -> *mut T {
         // We can just cast the pointer from `UnsafeCell<T>` to `T` because of
         // #[repr(transparent)]. This exploits libstd's special status, there is
@@ -1965,7 +1979,9 @@ impl<T: Default> Default for UnsafeCell<T> {
 }
 
 #[stable(feature = "cell_from", since = "1.12.0")]
-impl<T> From<T> for UnsafeCell<T> {
+#[rustc_const_unstable(feature = "const_convert", issue = "88674")]
+impl<T> const From<T> for UnsafeCell<T> {
+    /// Creates a new `UnsafeCell<T>` containing the given value.
     fn from(t: T) -> UnsafeCell<T> {
         UnsafeCell::new(t)
     }

@@ -1,6 +1,6 @@
 use crate::collect::ItemCtxt;
 use rustc_hir as hir;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::HirId;
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::TraitEngine;
@@ -64,10 +64,6 @@ fn diagnostic_hir_wf_check<'tcx>(
     }
 
     impl<'tcx> Visitor<'tcx> for HirWfCheck<'tcx> {
-        type Map = intravisit::ErasedMap<'tcx>;
-        fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-            NestedVisitorMap::None
-        }
         fn visit_ty(&mut self, ty: &'tcx hir::Ty<'tcx>) {
             self.tcx.infer_ctxt().enter(|infcx| {
                 let mut fulfill = traits::FulfillmentContext::new();
@@ -83,11 +79,13 @@ fn diagnostic_hir_wf_check<'tcx>(
                     traits::Obligation::new(
                         cause,
                         self.param_env,
-                        ty::PredicateKind::WellFormed(tcx_ty.into()).to_predicate(self.tcx),
+                        ty::Binder::dummy(ty::PredicateKind::WellFormed(tcx_ty.into()))
+                            .to_predicate(self.tcx),
                     ),
                 );
 
-                if let Err(errors) = fulfill.select_all_or_error(&infcx) {
+                let errors = fulfill.select_all_or_error(&infcx);
+                if !errors.is_empty() {
                     tracing::debug!("Wf-check got errors for {:?}: {:?}", ty, errors);
                     for error in errors {
                         if error.obligation.predicate == self.predicate {
@@ -182,6 +180,6 @@ impl<'tcx> TypeFolder<'tcx> for EraseAllBoundRegions<'tcx> {
         self.tcx
     }
     fn fold_region(&mut self, r: Region<'tcx>) -> Region<'tcx> {
-        if let ty::ReLateBound(..) = r { &ty::ReErased } else { r }
+        if r.is_late_bound() { self.tcx.lifetimes.re_erased } else { r }
     }
 }

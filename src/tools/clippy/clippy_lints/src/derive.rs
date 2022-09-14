@@ -3,13 +3,12 @@ use clippy_utils::paths;
 use clippy_utils::ty::{implements_trait, is_copy};
 use clippy_utils::{get_trait_def_id, is_automatically_derived, is_lint_allowed, match_def_path};
 use if_chain::if_chain;
-use rustc_hir::def_id::DefId;
-use rustc_hir::intravisit::{walk_expr, walk_fn, walk_item, FnKind, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{walk_expr, walk_fn, walk_item, FnKind, Visitor};
 use rustc_hir::{
     BlockCheckMode, BodyId, Expr, ExprKind, FnDecl, HirId, Impl, Item, ItemKind, TraitRef, UnsafeSource, Unsafety,
 };
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::Span;
@@ -38,6 +37,7 @@ declare_clippy_lint! {
     ///     ...
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DERIVE_HASH_XOR_EQ,
     correctness,
     "deriving `Hash` but implementing `PartialEq` explicitly"
@@ -88,6 +88,7 @@ declare_clippy_lint! {
     /// #[derive(Ord, PartialOrd, PartialEq, Eq)]
     /// struct Foo;
     /// ```
+    #[clippy::version = "1.47.0"]
     pub DERIVE_ORD_XOR_PARTIAL_ORD,
     correctness,
     "deriving `Ord` but implementing `PartialOrd` explicitly"
@@ -105,9 +106,6 @@ declare_clippy_lint! {
     /// nothing more than copy the object, which is what `#[derive(Copy, Clone)]`
     /// gets you.
     ///
-    /// ### Known problems
-    /// Bounds of generic types are sometimes wrong: https://github.com/rust-lang/rust/issues/26925
-    ///
     /// ### Example
     /// ```rust,ignore
     /// #[derive(Copy)]
@@ -117,6 +115,7 @@ declare_clippy_lint! {
     ///     // ..
     /// }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub EXPL_IMPL_CLONE_ON_COPY,
     pedantic,
     "implementing `Clone` explicitly on `Copy` types"
@@ -150,6 +149,7 @@ declare_clippy_lint! {
     ///     }
     /// }
     /// ```
+    #[clippy::version = "1.45.0"]
     pub UNSAFE_DERIVE_DESERIALIZE,
     pedantic,
     "deriving `serde::Deserialize` on a type that has methods using `unsafe`"
@@ -346,11 +346,6 @@ fn check_unsafe_derive_deserialize<'tcx>(
     trait_ref: &TraitRef<'_>,
     ty: Ty<'tcx>,
 ) {
-    fn item_from_def_id<'tcx>(cx: &LateContext<'tcx>, def_id: DefId) -> &'tcx Item<'tcx> {
-        let hir_id = cx.tcx.hir().local_def_id_to_hir_id(def_id.expect_local());
-        cx.tcx.hir().expect_item(hir_id)
-    }
-
     fn has_unsafe<'tcx>(cx: &LateContext<'tcx>, item: &'tcx Item<'_>) -> bool {
         let mut visitor = UnsafeVisitor { cx, has_unsafe: false };
         walk_item(&mut visitor, item);
@@ -366,7 +361,7 @@ fn check_unsafe_derive_deserialize<'tcx>(
         if !is_lint_allowed(cx, UNSAFE_DERIVE_DESERIALIZE, adt_hir_id);
         if cx.tcx.inherent_impls(def.did)
             .iter()
-            .map(|imp_did| item_from_def_id(cx, *imp_did))
+            .map(|imp_did| cx.tcx.hir().expect_item(imp_did.expect_local()))
             .any(|imp| has_unsafe(cx, imp));
         then {
             span_lint_and_help(
@@ -387,7 +382,7 @@ struct UnsafeVisitor<'a, 'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for UnsafeVisitor<'_, 'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::All;
 
     fn visit_fn(&mut self, kind: FnKind<'tcx>, decl: &'tcx FnDecl<'_>, body_id: BodyId, span: Span, id: HirId) {
         if self.has_unsafe {
@@ -396,7 +391,7 @@ impl<'tcx> Visitor<'tcx> for UnsafeVisitor<'_, 'tcx> {
 
         if_chain! {
             if let Some(header) = kind.header();
-            if let Unsafety::Unsafe = header.unsafety;
+            if header.unsafety == Unsafety::Unsafe;
             then {
                 self.has_unsafe = true;
             }
@@ -411,7 +406,7 @@ impl<'tcx> Visitor<'tcx> for UnsafeVisitor<'_, 'tcx> {
         }
 
         if let ExprKind::Block(block, _) = expr.kind {
-            if let BlockCheckMode::UnsafeBlock(UnsafeSource::UserProvided) = block.rules {
+            if block.rules == BlockCheckMode::UnsafeBlock(UnsafeSource::UserProvided) {
                 self.has_unsafe = true;
             }
         }
@@ -419,7 +414,7 @@ impl<'tcx> Visitor<'tcx> for UnsafeVisitor<'_, 'tcx> {
         walk_expr(self, expr);
     }
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::All(self.cx.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.cx.tcx.hir()
     }
 }

@@ -8,10 +8,10 @@ use crate::MemFlags;
 
 use rustc_middle::mir;
 use rustc_middle::mir::tcx::PlaceTy;
-use rustc_middle::ty::layout::{HasTyCtxt, TyAndLayout};
+use rustc_middle::ty::layout::{HasTyCtxt, LayoutOf, TyAndLayout};
 use rustc_middle::ty::{self, Ty};
 use rustc_target::abi::{Abi, Align, FieldsShape, Int, TagEncoding};
-use rustc_target::abi::{LayoutOf, VariantIdx, Variants};
+use rustc_target::abi::{VariantIdx, Variants};
 
 #[derive(Copy, Clone, Debug)]
 pub struct PlaceRef<'tcx, V> {
@@ -99,7 +99,7 @@ impl<'a, 'tcx, V: CodegenObject> PlaceRef<'tcx, V> {
                     // Also handles the first field of Scalar, ScalarPair, and Vector layouts.
                     self.llval
                 }
-                Abi::ScalarPair(ref a, ref b)
+                Abi::ScalarPair(a, b)
                     if offset == a.value.size(bx.cx()).align_to(b.value.align(bx.cx()).abi) =>
                 {
                     // Offset matches second field.
@@ -222,7 +222,7 @@ impl<'a, 'tcx, V: CodegenObject> PlaceRef<'tcx, V> {
                     .map_or(index.as_u32() as u128, |discr| discr.val);
                 return bx.cx().const_uint_big(cast_to, discr_val);
             }
-            Variants::Multiple { ref tag, ref tag_encoding, tag_field, .. } => {
+            Variants::Multiple { tag, ref tag_encoding, tag_field, .. } => {
                 (tag, tag_encoding, tag_field)
             }
         };
@@ -429,87 +429,78 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         let cx = self.cx;
         let tcx = self.cx.tcx();
 
-        let result = match place_ref {
-            mir::PlaceRef { local, projection: [] } => match self.locals[local] {
-                LocalRef::Place(place) => {
-                    return place;
-                }
-                LocalRef::UnsizedPlace(place) => {
-                    return bx.load_operand(place).deref(cx);
-                }
-                LocalRef::Operand(..) => {
-                    bug!("using operand local {:?} as place", place_ref);
-                }
-            },
-            mir::PlaceRef { local, projection: [proj_base @ .., mir::ProjectionElem::Deref] } => {
-                // Load the pointer from its location.
-                self.codegen_consume(bx, mir::PlaceRef { local, projection: proj_base })
+        let mut base = 0;
+        let mut cg_base = match self.locals[place_ref.local] {
+            LocalRef::Place(place) => place,
+            LocalRef::UnsizedPlace(place) => bx.load_operand(place).deref(cx),
+            LocalRef::Operand(..) => {
+                if let Some(elem) = place_ref
+                    .projection
+                    .iter()
+                    .enumerate()
+                    .find(|elem| matches!(elem.1, mir::ProjectionElem::Deref))
+                {
+                    base = elem.0 + 1;
+                    self.codegen_consume(
+                        bx,
+                        mir::PlaceRef { projection: &place_ref.projection[..elem.0], ..place_ref },
+                    )
                     .deref(bx.cx())
-            }
-            mir::PlaceRef { local, projection: &[ref proj_base @ .., elem] } => {
-                // FIXME turn this recursion into iteration
-                let cg_base =
-                    self.codegen_place(bx, mir::PlaceRef { local, projection: proj_base });
-
-                match elem {
-                    mir::ProjectionElem::Deref => bug!(),
-                    mir::ProjectionElem::Field(ref field, _) => {
-                        cg_base.project_field(bx, field.index())
-                    }
-                    mir::ProjectionElem::Index(index) => {
-                        let index = &mir::Operand::Copy(mir::Place::from(index));
-                        let index = self.codegen_operand(bx, index);
-                        let llindex = index.immediate();
-                        cg_base.project_index(bx, llindex)
-                    }
-                    mir::ProjectionElem::ConstantIndex {
-                        offset,
-                        from_end: false,
-                        min_length: _,
-                    } => {
-                        let lloffset = bx.cx().const_usize(offset as u64);
-                        cg_base.project_index(bx, lloffset)
-                    }
-                    mir::ProjectionElem::ConstantIndex {
-                        offset,
-                        from_end: true,
-                        min_length: _,
-                    } => {
-                        let lloffset = bx.cx().const_usize(offset as u64);
-                        let lllen = cg_base.len(bx.cx());
-                        let llindex = bx.sub(lllen, lloffset);
-                        cg_base.project_index(bx, llindex)
-                    }
-                    mir::ProjectionElem::Subslice { from, to, from_end } => {
-                        let mut subslice =
-                            cg_base.project_index(bx, bx.cx().const_usize(from as u64));
-                        let projected_ty =
-                            PlaceTy::from_ty(cg_base.layout.ty).projection_ty(tcx, elem).ty;
-                        subslice.layout = bx.cx().layout_of(self.monomorphize(projected_ty));
-
-                        if subslice.layout.is_unsized() {
-                            assert!(from_end, "slice subslices should be `from_end`");
-                            subslice.llextra = Some(bx.sub(
-                                cg_base.llextra.unwrap(),
-                                bx.cx().const_usize((from as u64) + (to as u64)),
-                            ));
-                        }
-
-                        // Cast the place pointer type to the new
-                        // array or slice type (`*[%_; new_len]`).
-                        subslice.llval = bx.pointercast(
-                            subslice.llval,
-                            bx.cx().type_ptr_to(bx.cx().backend_type(subslice.layout)),
-                        );
-
-                        subslice
-                    }
-                    mir::ProjectionElem::Downcast(_, v) => cg_base.project_downcast(bx, v),
+                } else {
+                    bug!("using operand local {:?} as place", place_ref);
                 }
             }
         };
-        debug!("codegen_place(place={:?}) => {:?}", place_ref, result);
-        result
+        for elem in place_ref.projection[base..].iter() {
+            cg_base = match elem.clone() {
+                mir::ProjectionElem::Deref => bx.load_operand(cg_base).deref(bx.cx()),
+                mir::ProjectionElem::Field(ref field, _) => {
+                    cg_base.project_field(bx, field.index())
+                }
+                mir::ProjectionElem::Index(index) => {
+                    let index = &mir::Operand::Copy(mir::Place::from(index));
+                    let index = self.codegen_operand(bx, index);
+                    let llindex = index.immediate();
+                    cg_base.project_index(bx, llindex)
+                }
+                mir::ProjectionElem::ConstantIndex { offset, from_end: false, min_length: _ } => {
+                    let lloffset = bx.cx().const_usize(offset as u64);
+                    cg_base.project_index(bx, lloffset)
+                }
+                mir::ProjectionElem::ConstantIndex { offset, from_end: true, min_length: _ } => {
+                    let lloffset = bx.cx().const_usize(offset as u64);
+                    let lllen = cg_base.len(bx.cx());
+                    let llindex = bx.sub(lllen, lloffset);
+                    cg_base.project_index(bx, llindex)
+                }
+                mir::ProjectionElem::Subslice { from, to, from_end } => {
+                    let mut subslice = cg_base.project_index(bx, bx.cx().const_usize(from as u64));
+                    let projected_ty =
+                        PlaceTy::from_ty(cg_base.layout.ty).projection_ty(tcx, *elem).ty;
+                    subslice.layout = bx.cx().layout_of(self.monomorphize(projected_ty));
+
+                    if subslice.layout.is_unsized() {
+                        assert!(from_end, "slice subslices should be `from_end`");
+                        subslice.llextra = Some(bx.sub(
+                            cg_base.llextra.unwrap(),
+                            bx.cx().const_usize((from as u64) + (to as u64)),
+                        ));
+                    }
+
+                    // Cast the place pointer type to the new
+                    // array or slice type (`*[%_; new_len]`).
+                    subslice.llval = bx.pointercast(
+                        subslice.llval,
+                        bx.cx().type_ptr_to(bx.cx().backend_type(subslice.layout)),
+                    );
+
+                    subslice
+                }
+                mir::ProjectionElem::Downcast(_, v) => cg_base.project_downcast(bx, v),
+            };
+        }
+        debug!("codegen_place(place={:?}) => {:?}", place_ref, cg_base);
+        cg_base
     }
 
     pub fn monomorphized_place_ty(&self, place_ref: mir::PlaceRef<'tcx>) -> Ty<'tcx> {

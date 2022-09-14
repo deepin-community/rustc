@@ -1,5 +1,10 @@
 # needs-profiler-support
-# min-llvm-version: 11.0
+
+# Rust coverage maps support LLVM Coverage Mapping Format versions 5 and 6,
+# corresponding with LLVM versions 12 and 13, respectively.
+# When upgrading LLVM versions, consider whether to enforce a minimum LLVM
+# version during testing, with an additional directive at the top of this file
+# that sets, for example: `min-llvm-version: 12.0`
 
 -include ../coverage/coverage_tools.mk
 
@@ -52,7 +57,7 @@ all: test_llvm_ir
 test_llvm_ir:
 	# Compile the test program with non-experimental coverage instrumentation, and generate LLVM IR
 	$(RUSTC) $(BASEDIR)/testprog.rs \
-			-Zinstrument-coverage \
+			-Cinstrument-coverage \
 			--emit=llvm-ir
 
 	cat "$(TMPDIR)"/testprog.ll | \

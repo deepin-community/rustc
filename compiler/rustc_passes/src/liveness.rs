@@ -90,10 +90,10 @@ use rustc_errors::Applicability;
 use rustc_hir as hir;
 use rustc_hir::def::*;
 use rustc_hir::def_id::LocalDefId;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{Expr, HirId, HirIdMap, HirIdSet};
 use rustc_index::vec::IndexVec;
-use rustc_middle::hir::map::Map;
+use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::{self, DefIdTree, RootVariableMinCaptureList, Ty, TyCtxt};
 use rustc_session::lint;
@@ -103,7 +103,6 @@ use rustc_span::Span;
 use std::collections::VecDeque;
 use std::io;
 use std::io::prelude::*;
-use std::iter;
 use std::rc::Rc;
 
 mod rwu_table;
@@ -198,7 +197,7 @@ struct IrMaps<'tcx> {
     lnks: IndexVec<LiveNode, LiveNodeKind>,
 }
 
-impl IrMaps<'tcx> {
+impl<'tcx> IrMaps<'tcx> {
     fn new(tcx: TyCtxt<'tcx>) -> IrMaps<'tcx> {
         IrMaps {
             tcx,
@@ -265,12 +264,13 @@ impl IrMaps<'tcx> {
         self.capture_info_map.insert(hir_id, Rc::new(cs));
     }
 
-    fn add_from_pat(&mut self, pat: &hir::Pat<'tcx>) {
+    fn collect_shorthand_field_ids(&self, pat: &hir::Pat<'tcx>) -> HirIdSet {
         // For struct patterns, take note of which fields used shorthand
         // (`x` rather than `x: x`).
         let mut shorthand_field_ids = HirIdSet::default();
         let mut pats = VecDeque::new();
         pats.push_back(pat);
+
         while let Some(pat) = pats.pop_front() {
             use rustc_hir::PatKind::*;
             match &pat.kind {
@@ -278,8 +278,10 @@ impl IrMaps<'tcx> {
                     pats.extend(inner_pat.iter());
                 }
                 Struct(_, fields, _) => {
-                    let ids = fields.iter().filter(|f| f.is_shorthand).map(|f| f.pat.hir_id);
-                    shorthand_field_ids.extend(ids);
+                    let (short, not_short): (Vec<&_>, Vec<&_>) =
+                        fields.iter().partition(|f| f.is_shorthand);
+                    shorthand_field_ids.extend(short.iter().map(|f| f.pat.hir_id));
+                    pats.extend(not_short.iter().map(|f| f.pat));
                 }
                 Ref(inner_pat, _) | Box(inner_pat) => {
                     pats.push_back(inner_pat);
@@ -296,6 +298,12 @@ impl IrMaps<'tcx> {
             }
         }
 
+        return shorthand_field_ids;
+    }
+
+    fn add_from_pat(&mut self, pat: &hir::Pat<'tcx>) {
+        let shorthand_field_ids = self.collect_shorthand_field_ids(pat);
+
         pat.each_binding(|_, hir_id, _, ident| {
             self.add_live_node_for_node(hir_id, VarDefNode(ident.span, hir_id));
             self.add_variable(Local(LocalInfo {
@@ -308,10 +316,10 @@ impl IrMaps<'tcx> {
 }
 
 impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
-    type Map = Map<'tcx>;
+    type NestedFilter = nested_filter::OnlyBodies;
 
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::OnlyBodies(self.tcx.hir())
+    fn nested_visit_map(&mut self) -> Self::Map {
+        self.tcx.hir()
     }
 
     fn visit_body(&mut self, body: &'tcx hir::Body<'tcx>) {
@@ -373,15 +381,13 @@ impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
     }
 
     fn visit_param(&mut self, param: &'tcx hir::Param<'tcx>) {
+        let shorthand_field_ids = self.collect_shorthand_field_ids(param.pat);
         param.pat.each_binding(|_bm, hir_id, _x, ident| {
             let var = match param.pat.kind {
-                rustc_hir::PatKind::Struct(_, fields, _) => Local(LocalInfo {
+                rustc_hir::PatKind::Struct(..) => Local(LocalInfo {
                     id: hir_id,
                     name: ident.name,
-                    is_shorthand: fields
-                        .iter()
-                        .find(|f| f.ident == ident)
-                        .map_or(false, |f| f.is_shorthand),
+                    is_shorthand: shorthand_field_ids.contains(&hir_id),
                 }),
                 _ => Param(hir_id, ident.name),
             };
@@ -422,8 +428,8 @@ impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
                 intravisit::walk_expr(self, expr);
             }
 
-            hir::ExprKind::Let(ref pat, ..) => {
-                self.add_from_pat(pat);
+            hir::ExprKind::Let(let_expr) => {
+                self.add_from_pat(let_expr.pat);
                 intravisit::walk_expr(self, expr);
             }
 
@@ -463,7 +469,6 @@ impl<'tcx> Visitor<'tcx> for IrMaps<'tcx> {
             | hir::ExprKind::Struct(..)
             | hir::ExprKind::Repeat(..)
             | hir::ExprKind::InlineAsm(..)
-            | hir::ExprKind::LlvmInlineAsm(..)
             | hir::ExprKind::Box(..)
             | hir::ExprKind::Type(..)
             | hir::ExprKind::Err
@@ -719,7 +724,7 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
                             );
                             self.acc(self.exit_ln, var, ACC_READ | ACC_USE);
                         }
-                        ty::UpvarCapture::ByValue(_) => {}
+                        ty::UpvarCapture::ByValue => {}
                     }
                 }
             }
@@ -775,7 +780,7 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
         if blk.targeted_by_break {
             self.break_ln.insert(blk.hir_id, succ);
         }
-        let succ = self.propagate_through_opt_expr(blk.expr.as_deref(), succ);
+        let succ = self.propagate_through_opt_expr(blk.expr, succ);
         blk.stmts.iter().rev().fold(succ, |succ, stmt| self.propagate_through_stmt(stmt, succ))
     }
 
@@ -796,7 +801,7 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
                 // initialization, which is mildly more complex than checking
                 // once at the func header but otherwise equivalent.
 
-                let succ = self.propagate_through_opt_expr(local.init.as_deref(), succ);
+                let succ = self.propagate_through_opt_expr(local.init, succ);
                 self.define_bindings_in_pat(&local.pat, succ)
             }
             hir::StmtKind::Item(..) => succ,
@@ -849,9 +854,9 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
                 })
             }
 
-            hir::ExprKind::Let(ref pat, ref scrutinee, _) => {
-                let succ = self.propagate_through_expr(scrutinee, succ);
-                self.define_bindings_in_pat(pat, succ)
+            hir::ExprKind::Let(let_expr) => {
+                let succ = self.propagate_through_expr(let_expr.init, succ);
+                self.define_bindings_in_pat(let_expr.pat, succ)
             }
 
             // Note that labels have been resolved, so we don't need to look
@@ -1084,26 +1089,6 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
                 succ
             }
 
-            hir::ExprKind::LlvmInlineAsm(ref asm) => {
-                let ia = &asm.inner;
-                let outputs = asm.outputs_exprs;
-                let inputs = asm.inputs_exprs;
-                let succ = iter::zip(&ia.outputs, outputs).rev().fold(succ, |succ, (o, output)| {
-                    // see comment on places
-                    // in propagate_through_place_components()
-                    if o.is_indirect {
-                        self.propagate_through_expr(output, succ)
-                    } else {
-                        let acc = if o.is_rw { ACC_WRITE | ACC_READ } else { ACC_WRITE };
-                        let succ = self.write_place(output, succ, acc);
-                        self.propagate_through_place_components(output, succ)
-                    }
-                });
-
-                // Inputs are executed first. Propagate last because of rev order
-                self.propagate_through_exprs(inputs, succ)
-            }
-
             hir::ExprKind::Lit(..)
             | hir::ExprKind::ConstBlock(..)
             | hir::ExprKind::Err
@@ -1320,12 +1305,6 @@ impl<'a, 'tcx> Liveness<'a, 'tcx> {
 // Checking for error conditions
 
 impl<'a, 'tcx> Visitor<'tcx> for Liveness<'a, 'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
     fn visit_local(&mut self, local: &'tcx hir::Local<'tcx>) {
         self.check_unused_vars_in_pat(&local.pat, None, |spans, hir_id, ln, var| {
             if local.init.is_some() {
@@ -1380,22 +1359,8 @@ fn check_expr<'tcx>(this: &mut Liveness<'_, 'tcx>, expr: &'tcx Expr<'tcx>) {
             }
         }
 
-        hir::ExprKind::LlvmInlineAsm(ref asm) => {
-            for input in asm.inputs_exprs {
-                this.visit_expr(input);
-            }
-
-            // Output operands must be places
-            for (o, output) in iter::zip(&asm.inner.outputs, asm.outputs_exprs) {
-                if !o.is_indirect {
-                    this.check_place(output);
-                }
-                this.visit_expr(output);
-            }
-        }
-
-        hir::ExprKind::Let(ref pat, ..) => {
-            this.check_unused_vars_in_pat(pat, None, |_, _, _, _| {});
+        hir::ExprKind::Let(let_expr) => {
+            this.check_unused_vars_in_pat(let_expr.pat, None, |_, _, _, _| {});
         }
 
         // no correctness conditions related to liveness
@@ -1457,7 +1422,7 @@ impl<'tcx> Liveness<'_, 'tcx> {
         if name == kw::Empty {
             return None;
         }
-        let name: &str = &name.as_str();
+        let name = name.as_str();
         if name.as_bytes()[0] == b'_' {
             return None;
         }
@@ -1474,7 +1439,7 @@ impl<'tcx> Liveness<'_, 'tcx> {
         for (&var_hir_id, min_capture_list) in closure_min_captures {
             for captured_place in min_capture_list {
                 match captured_place.info.capture_kind {
-                    ty::UpvarCapture::ByValue(_) => {}
+                    ty::UpvarCapture::ByValue => {}
                     ty::UpvarCapture::ByRef(..) => continue,
                 };
                 let span = captured_place.get_capture_kind_span(self.ir.tcx);

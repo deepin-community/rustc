@@ -1,8 +1,10 @@
 //! checks for attributes
 
 use clippy_utils::diagnostics::{span_lint, span_lint_and_help, span_lint_and_sugg, span_lint_and_then};
-use clippy_utils::match_panic_def_id;
+use clippy_utils::macros::{is_panic, macro_backtrace};
+use clippy_utils::msrvs;
 use clippy_utils::source::{first_line_of_span, is_present_in_source, snippet_opt, without_block_comments};
+use clippy_utils::{extract_msrv_attr, meets_msrv};
 use if_chain::if_chain;
 use rustc_ast::{AttrKind, AttrStyle, Attribute, Lit, LitKind, MetaItemKind, NestedMetaItem};
 use rustc_errors::Applicability;
@@ -12,10 +14,11 @@ use rustc_hir::{
 use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty;
-use rustc_session::{declare_lint_pass, declare_tool_lint};
+use rustc_semver::RustcVersion;
+use rustc_session::{declare_lint_pass, declare_tool_lint, impl_lint_pass};
 use rustc_span::source_map::Span;
 use rustc_span::sym;
-use rustc_span::symbol::{Symbol, SymbolStr};
+use rustc_span::symbol::Symbol;
 use semver::Version;
 
 static UNIX_SYSTEMS: &[&str] = &[
@@ -64,6 +67,7 @@ declare_clippy_lint! {
     /// #[inline(always)]
     /// fn not_quite_hot_code(..) { ... }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub INLINE_ALWAYS,
     pedantic,
     "use of `#[inline(always)]`"
@@ -98,6 +102,7 @@ declare_clippy_lint! {
     /// #[macro_use]
     /// extern crate baz;
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub USELESS_ATTRIBUTE,
     correctness,
     "use of lint attributes on `extern crate` items"
@@ -117,6 +122,7 @@ declare_clippy_lint! {
     /// #[deprecated(since = "forever")]
     /// fn something_else() { /* ... */ }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub DEPRECATED_SEMVER,
     correctness,
     "use of `#[deprecated(since = \"x\")]` where x is not semver"
@@ -154,6 +160,7 @@ declare_clippy_lint! {
     /// #[allow(dead_code)]
     /// fn this_is_fine_too() { }
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub EMPTY_LINE_AFTER_OUTER_ATTR,
     nursery,
     "empty line after outer attribute"
@@ -177,6 +184,7 @@ declare_clippy_lint! {
     /// ```rust
     /// #![deny(clippy::as_conversions)]
     /// ```
+    #[clippy::version = "1.47.0"]
     pub BLANKET_CLIPPY_RESTRICTION_LINTS,
     suspicious,
     "enabling the complete restriction group"
@@ -208,6 +216,7 @@ declare_clippy_lint! {
     /// #[rustfmt::skip]
     /// fn main() { }
     /// ```
+    #[clippy::version = "1.32.0"]
     pub DEPRECATED_CFG_ATTR,
     complexity,
     "usage of `cfg_attr(rustfmt)` instead of tool attributes"
@@ -240,6 +249,7 @@ declare_clippy_lint! {
     /// fn conditional() { }
     /// ```
     /// Check the [Rust Reference](https://doc.rust-lang.org/reference/conditional-compilation.html#target_os) for more details.
+    #[clippy::version = "1.45.0"]
     pub MISMATCHED_TARGET_OS,
     correctness,
     "usage of `cfg(operating_system)` instead of `cfg(target_os = \"operating_system\")`"
@@ -301,8 +311,10 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
                                             || is_word(lint, sym::deprecated)
                                             || is_word(lint, sym!(unreachable_pub))
                                             || is_word(lint, sym!(unused))
-                                            || extract_clippy_lint(lint).map_or(false, |s| s == "wildcard_imports")
-                                            || extract_clippy_lint(lint).map_or(false, |s| s == "enum_glob_use")
+                                            || extract_clippy_lint(lint)
+                                                .map_or(false, |s| s.as_str() == "wildcard_imports")
+                                            || extract_clippy_lint(lint)
+                                                .map_or(false, |s| s.as_str() == "enum_glob_use")
                                         {
                                             return;
                                         }
@@ -361,7 +373,7 @@ impl<'tcx> LateLintPass<'tcx> for Attributes {
 }
 
 /// Returns the lint name if it is clippy lint.
-fn extract_clippy_lint(lint: &NestedMetaItem) -> Option<SymbolStr> {
+fn extract_clippy_lint(lint: &NestedMetaItem) -> Option<Symbol> {
     if_chain! {
         if let Some(meta_item) = lint.meta_item();
         if meta_item.path.segments.len() > 1;
@@ -369,7 +381,7 @@ fn extract_clippy_lint(lint: &NestedMetaItem) -> Option<SymbolStr> {
         if tool_name.name == sym::clippy;
         then {
             let lint_name = meta_item.path.segments.last().unwrap().ident.name;
-            return Some(lint_name.as_str());
+            return Some(lint_name);
         }
     }
     None
@@ -378,7 +390,7 @@ fn extract_clippy_lint(lint: &NestedMetaItem) -> Option<SymbolStr> {
 fn check_clippy_lint_names(cx: &LateContext<'_>, name: Symbol, items: &[NestedMetaItem]) {
     for lint in items {
         if let Some(lint_name) = extract_clippy_lint(lint) {
-            if lint_name == "restriction" && name != sym::allow {
+            if lint_name.as_str() == "restriction" && name != sym::allow {
                 span_lint_and_help(
                     cx,
                     BLANKET_CLIPPY_RESTRICTION_LINTS,
@@ -432,20 +444,15 @@ fn is_relevant_block(cx: &LateContext<'_>, typeck_results: &ty::TypeckResults<'_
 }
 
 fn is_relevant_expr(cx: &LateContext<'_>, typeck_results: &ty::TypeckResults<'_>, expr: &Expr<'_>) -> bool {
+    if macro_backtrace(expr.span).last().map_or(false, |macro_call| {
+        is_panic(cx, macro_call.def_id) || cx.tcx.item_name(macro_call.def_id) == sym::unreachable
+    }) {
+        return false;
+    }
     match &expr.kind {
         ExprKind::Block(block, _) => is_relevant_block(cx, typeck_results, block),
         ExprKind::Ret(Some(e)) => is_relevant_expr(cx, typeck_results, e),
         ExprKind::Ret(None) | ExprKind::Break(_, None) => false,
-        ExprKind::Call(path_expr, _) => {
-            if let ExprKind::Path(qpath) = &path_expr.kind {
-                typeck_results
-                    .qpath_res(qpath, path_expr.hir_id)
-                    .opt_def_id()
-                    .map_or(true, |fun_id| !match_panic_def_id(cx, fun_id))
-            } else {
-                true
-            }
-        },
         _ => true,
     }
 }
@@ -477,7 +484,7 @@ fn check_attrs(cx: &LateContext<'_>, span: Span, name: Symbol, attrs: &[Attribut
 
 fn check_semver(cx: &LateContext<'_>, span: Span, lit: &Lit) {
     if let LitKind::Str(is, _) = lit.kind {
-        if Version::parse(&is.as_str()).is_ok() {
+        if Version::parse(is.as_str()).is_ok() {
             return;
         }
     }
@@ -497,7 +504,11 @@ fn is_word(nmi: &NestedMetaItem, expected: Symbol) -> bool {
     }
 }
 
-declare_lint_pass!(EarlyAttributes => [
+pub struct EarlyAttributes {
+    pub msrv: Option<RustcVersion>,
+}
+
+impl_lint_pass!(EarlyAttributes => [
     DEPRECATED_CFG_ATTR,
     MISMATCHED_TARGET_OS,
     EMPTY_LINE_AFTER_OUTER_ATTR,
@@ -509,9 +520,11 @@ impl EarlyLintPass for EarlyAttributes {
     }
 
     fn check_attribute(&mut self, cx: &EarlyContext<'_>, attr: &Attribute) {
-        check_deprecated_cfg_attr(cx, attr);
+        check_deprecated_cfg_attr(cx, attr, self.msrv);
         check_mismatched_target_os(cx, attr);
     }
+
+    extract_msrv_attr!(EarlyContext);
 }
 
 fn check_empty_line_after_outer_attr(cx: &EarlyContext<'_>, item: &rustc_ast::Item) {
@@ -527,8 +540,8 @@ fn check_empty_line_after_outer_attr(cx: &EarlyContext<'_>, item: &rustc_ast::It
                 return;
             }
 
-            let begin_of_attr_to_item = Span::new(attr.span.lo(), item.span.lo(), item.span.ctxt());
-            let end_of_attr_to_item = Span::new(attr.span.hi(), item.span.lo(), item.span.ctxt());
+            let begin_of_attr_to_item = Span::new(attr.span.lo(), item.span.lo(), item.span.ctxt(), item.span.parent());
+            let end_of_attr_to_item = Span::new(attr.span.hi(), item.span.lo(), item.span.ctxt(), item.span.parent());
 
             if let Some(snippet) = snippet_opt(cx, end_of_attr_to_item) {
                 let lines = snippet.split('\n').collect::<Vec<_>>();
@@ -548,8 +561,9 @@ fn check_empty_line_after_outer_attr(cx: &EarlyContext<'_>, item: &rustc_ast::It
     }
 }
 
-fn check_deprecated_cfg_attr(cx: &EarlyContext<'_>, attr: &Attribute) {
+fn check_deprecated_cfg_attr(cx: &EarlyContext<'_>, attr: &Attribute, msrv: Option<RustcVersion>) {
     if_chain! {
+        if meets_msrv(msrv.as_ref(), &msrvs::TOOL_ATTRIBUTES);
         // check cfg_attr
         if attr.has_name(sym::cfg_attr);
         if let Some(items) = attr.meta_item_list();
@@ -563,7 +577,7 @@ fn check_deprecated_cfg_attr(cx: &EarlyContext<'_>, attr: &Attribute) {
             skip_item.path.segments.last().expect("empty path in attribute").ident.name == sym::skip;
         // Only lint outer attributes, because custom inner attributes are unstable
         // Tracking issue: https://github.com/rust-lang/rust/issues/54726
-        if let AttrStyle::Outer = attr.style;
+        if attr.style == AttrStyle::Outer;
         then {
             span_lint_and_sugg(
                 cx,
@@ -603,7 +617,7 @@ fn check_mismatched_target_os(cx: &EarlyContext<'_>, attr: &Attribute) {
                     MetaItemKind::Word => {
                         if_chain! {
                             if let Some(ident) = meta.ident();
-                            if let Some(os) = find_os(&*ident.name.as_str());
+                            if let Some(os) = find_os(ident.name.as_str());
                             then {
                                 mismatched.push((os, ident.span));
                             }

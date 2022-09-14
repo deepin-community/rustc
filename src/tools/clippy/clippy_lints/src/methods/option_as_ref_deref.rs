@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_sugg;
 use clippy_utils::source::snippet;
 use clippy_utils::ty::is_type_diagnostic_item;
-use clippy_utils::{match_def_path, meets_msrv, msrvs, path_to_local_id, paths, remove_blocks};
+use clippy_utils::{match_def_path, meets_msrv, msrvs, path_to_local_id, paths, peel_blocks};
 use if_chain::if_chain;
 use rustc_errors::Applicability;
 use rustc_hir as hir;
@@ -28,7 +28,7 @@ pub(super) fn check<'tcx>(
     let same_mutability = |m| (is_mut && m == &hir::Mutability::Mut) || (!is_mut && m == &hir::Mutability::Not);
 
     let option_ty = cx.typeck_results().expr_ty(as_ref_recv);
-    if !is_type_diagnostic_item(cx, option_ty, sym::option_type) {
+    if !is_type_diagnostic_item(cx, option_ty, sym::Option) {
         return;
     }
 
@@ -53,10 +53,10 @@ pub(super) fn check<'tcx>(
             }),
         hir::ExprKind::Closure(_, _, body_id, _, _) => {
             let closure_body = cx.tcx.hir().body(body_id);
-            let closure_expr = remove_blocks(&closure_body.value);
+            let closure_expr = peel_blocks(&closure_body.value);
 
             match &closure_expr.kind {
-                hir::ExprKind::MethodCall(_, _, args, _) => {
+                hir::ExprKind::MethodCall(_, args, _) => {
                     if_chain! {
                         if args.len() == 1;
                         if path_to_local_id(&args[0], closure_body.params[0].pat.hir_id);

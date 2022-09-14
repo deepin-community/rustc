@@ -732,3 +732,33 @@ fn bench_flat_map_collect(b: &mut Bencher) {
     let v = vec![777u32; 500000];
     b.iter(|| v.iter().flat_map(|color| color.rotate_left(8).to_be_bytes()).collect::<Vec<_>>());
 }
+
+/// Reference benchmark that `retain` has to compete with.
+#[bench]
+fn bench_retain_iter_100000(b: &mut Bencher) {
+    let mut v = Vec::with_capacity(100000);
+
+    b.iter(|| {
+        let mut tmp = std::mem::take(&mut v);
+        tmp.clear();
+        tmp.extend(black_box(1..=100000));
+        v = tmp.into_iter().filter(|x| x & 1 == 0).collect();
+    });
+}
+
+#[bench]
+fn bench_retain_100000(b: &mut Bencher) {
+    let mut v = Vec::with_capacity(100000);
+
+    b.iter(|| {
+        v.clear();
+        v.extend(black_box(1..=100000));
+        v.retain(|x| x & 1 == 0)
+    });
+}
+
+#[bench]
+fn bench_retain_whole_100000(b: &mut Bencher) {
+    let mut v = black_box(vec![826u32; 100000]);
+    b.iter(|| v.retain(|x| *x == 826u32));
+}

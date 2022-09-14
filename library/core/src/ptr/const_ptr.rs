@@ -48,6 +48,64 @@ impl<T: ?Sized> *const T {
         self as _
     }
 
+    /// Changes constness without changing the type.
+    ///
+    /// This is a bit safer than `as` because it wouldn't silently change the type if the code is
+    /// refactored.
+    #[unstable(feature = "ptr_const_cast", issue = "92675")]
+    #[rustc_const_unstable(feature = "ptr_const_cast", issue = "92675")]
+    pub const fn as_mut(self) -> *mut T {
+        self as _
+    }
+
+    /// Casts a pointer to its raw bits.
+    ///
+    /// This is equivalent to `as usize`, but is more specific to enhance readability.
+    /// The inverse method is [`from_bits`](#method.from_bits).
+    ///
+    /// In particular, `*p as usize` and `p as usize` will both compile for
+    /// pointers to numeric types but do very different things, so using this
+    /// helps emphasize that reading the bits was intentional.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(ptr_to_from_bits)]
+    /// let array = [13, 42];
+    /// let p0: *const i32 = &array[0];
+    /// assert_eq!(<*const _>::from_bits(p0.to_bits()), p0);
+    /// let p1: *const i32 = &array[1];
+    /// assert_eq!(p1.to_bits() - p0.to_bits(), 4);
+    /// ```
+    #[unstable(feature = "ptr_to_from_bits", issue = "91126")]
+    pub fn to_bits(self) -> usize
+    where
+        T: Sized,
+    {
+        self as usize
+    }
+
+    /// Creates a pointer from its raw bits.
+    ///
+    /// This is equivalent to `as *const T`, but is more specific to enhance readability.
+    /// The inverse method is [`to_bits`](#method.to_bits).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(ptr_to_from_bits)]
+    /// use std::ptr::NonNull;
+    /// let dangling: *const u8 = NonNull::dangling().as_ptr();
+    /// assert_eq!(<*const u8>::from_bits(1), dangling);
+    /// ```
+    #[unstable(feature = "ptr_to_from_bits", issue = "91126")]
+    pub fn from_bits(bits: usize) -> Self
+    where
+        T: Sized,
+    {
+        bits as Self
+    }
+
     /// Decompose a (possibly wide) pointer into its address and metadata components.
     ///
     /// The pointer can be later reconstructed with [`from_raw_parts`].
@@ -71,7 +129,7 @@ impl<T: ?Sized> *const T {
     ///
     /// * The pointer must be properly aligned.
     ///
-    /// * It must be "dereferencable" in the sense defined in [the module documentation].
+    /// * It must be "dereferenceable" in the sense defined in [the module documentation].
     ///
     /// * The pointer must point to an initialized instance of `T`.
     ///
@@ -115,8 +173,9 @@ impl<T: ?Sized> *const T {
     /// }
     /// ```
     #[stable(feature = "ptr_as_ref", since = "1.9.0")]
+    #[rustc_const_unstable(feature = "const_ptr_as_ref", issue = "91822")]
     #[inline]
-    pub unsafe fn as_ref<'a>(self) -> Option<&'a T> {
+    pub const unsafe fn as_ref<'a>(self) -> Option<&'a T> {
         // SAFETY: the caller must guarantee that `self` is valid
         // for a reference if it isn't null.
         if self.is_null() { None } else { unsafe { Some(&*self) } }
@@ -135,7 +194,7 @@ impl<T: ?Sized> *const T {
     ///
     /// * The pointer must be properly aligned.
     ///
-    /// * It must be "dereferencable" in the sense defined in [the module documentation].
+    /// * It must be "dereferenceable" in the sense defined in [the module documentation].
     ///
     /// * You must enforce Rust's aliasing rules, since the returned lifetime `'a` is
     ///   arbitrarily chosen and does not necessarily reflect the actual lifetime of the data.
@@ -163,7 +222,8 @@ impl<T: ?Sized> *const T {
     /// ```
     #[inline]
     #[unstable(feature = "ptr_as_uninit", issue = "75402")]
-    pub unsafe fn as_uninit_ref<'a>(self) -> Option<&'a MaybeUninit<T>>
+    #[rustc_const_unstable(feature = "const_ptr_as_ref", issue = "91822")]
+    pub const unsafe fn as_uninit_ref<'a>(self) -> Option<&'a MaybeUninit<T>>
     where
         T: Sized,
     {
@@ -379,7 +439,7 @@ impl<T: ?Sized> *const T {
     /// }
     /// ```
     #[stable(feature = "ptr_offset_from", since = "1.47.0")]
-    #[rustc_const_unstable(feature = "const_ptr_offset_from", issue = "41079")]
+    #[rustc_const_unstable(feature = "const_ptr_offset_from", issue = "92980")]
     #[inline]
     pub const unsafe fn offset_from(self, origin: *const T) -> isize
     where
@@ -879,15 +939,30 @@ impl<T: ?Sized> *const T {
     /// # } }
     /// ```
     #[stable(feature = "align_offset", since = "1.36.0")]
-    pub fn align_offset(self, align: usize) -> usize
+    #[rustc_const_unstable(feature = "const_align_offset", issue = "90962")]
+    pub const fn align_offset(self, align: usize) -> usize
     where
         T: Sized,
     {
         if !align.is_power_of_two() {
             panic!("align_offset: align is not a power-of-two");
         }
-        // SAFETY: `align` has been checked to be a power of 2 above
-        unsafe { align_offset(self, align) }
+
+        fn rt_impl<T>(p: *const T, align: usize) -> usize {
+            // SAFETY: `align` has been checked to be a power of 2 above
+            unsafe { align_offset(p, align) }
+        }
+
+        const fn ctfe_impl<T>(_: *const T, _: usize) -> usize {
+            usize::MAX
+        }
+
+        // SAFETY:
+        // It is permisseble for `align_offset` to always return `usize::MAX`,
+        // algorithm correctness can not depend on `align_offset` returning non-max values.
+        //
+        // As such the behaviour can't change after replacing `align_offset` with `usize::MAX`, only performance can.
+        unsafe { intrinsics::const_eval_select((self, align), ctfe_impl, rt_impl) }
     }
 }
 
@@ -940,7 +1015,7 @@ impl<T> *const [T] {
     /// Returns a raw pointer to an element or subslice, without doing bounds
     /// checking.
     ///
-    /// Calling this method with an out-of-bounds index or when `self` is not dereferencable
+    /// Calling this method with an out-of-bounds index or when `self` is not dereferenceable
     /// is *[undefined behavior]* even if the resulting pointer is not used.
     ///
     /// [undefined behavior]: https://doc.rust-lang.org/reference/behavior-considered-undefined.html
@@ -962,7 +1037,7 @@ impl<T> *const [T] {
     where
         I: SliceIndex<[T]>,
     {
-        // SAFETY: the caller ensures that `self` is dereferencable and `index` in-bounds.
+        // SAFETY: the caller ensures that `self` is dereferenceable and `index` in-bounds.
         unsafe { index.get_unchecked(self) }
     }
 
@@ -1005,7 +1080,8 @@ impl<T> *const [T] {
     /// [allocated object]: crate::ptr#allocated-object
     #[inline]
     #[unstable(feature = "ptr_as_uninit", issue = "75402")]
-    pub unsafe fn as_uninit_slice<'a>(self) -> Option<&'a [MaybeUninit<T>]> {
+    #[rustc_const_unstable(feature = "const_ptr_as_ref", issue = "91822")]
+    pub const unsafe fn as_uninit_slice<'a>(self) -> Option<&'a [MaybeUninit<T>]> {
         if self.is_null() {
             None
         } else {

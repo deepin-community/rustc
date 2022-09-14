@@ -46,7 +46,7 @@ pub(crate) fn check_constants(fx: &mut FunctionCx<'_, '_, '_>) -> bool {
             ConstantKind::Ty(ct) => ct,
             ConstantKind::Val(..) => continue,
         };
-        match const_.val {
+        match const_.val() {
             ConstKind::Value(_) => {}
             ConstKind::Unevaluated(unevaluated) => {
                 if let Err(err) =
@@ -127,15 +127,15 @@ pub(crate) fn codegen_constant<'tcx>(
         ConstantKind::Ty(ct) => ct,
         ConstantKind::Val(val, ty) => return codegen_const_value(fx, val, ty),
     };
-    let const_val = match const_.val {
+    let const_val = match const_.val() {
         ConstKind::Value(const_val) => const_val,
-        ConstKind::Unevaluated(uv)
-            if fx.tcx.is_static(uv.def.did) =>
+        ConstKind::Unevaluated(ty::Unevaluated { def, substs, promoted })
+            if fx.tcx.is_static(def.did) =>
         {
-            assert!(uv.substs(fx.tcx).is_empty());
-            assert!(uv.promoted.is_none());
+            assert!(substs.is_empty());
+            assert!(promoted.is_none());
 
-            return codegen_static_ref(fx, uv.def.did, fx.layout_of(const_.ty)).to_cvalue(fx);
+            return codegen_static_ref(fx, def.did, fx.layout_of(const_.ty())).to_cvalue(fx);
         }
         ConstKind::Unevaluated(unevaluated) => {
             match fx.tcx.const_eval_resolve(ParamEnv::reveal_all(), unevaluated, None) {
@@ -152,7 +152,7 @@ pub(crate) fn codegen_constant<'tcx>(
         | ConstKind::Error(_) => unreachable!("{:?}", const_),
     };
 
-    codegen_const_value(fx, const_val, const_.ty)
+    codegen_const_value(fx, const_val, const_.ty())
 }
 
 pub(crate) fn codegen_const_value<'tcx>(
@@ -371,7 +371,7 @@ fn define_all_allocs(tcx: TyCtxt<'_>, module: &mut dyn Module, cx: &mut Constant
             TodoItem::Static(def_id) => {
                 //println!("static {:?}", def_id);
 
-                let section_name = tcx.codegen_fn_attrs(def_id).link_section.map(|s| s.as_str());
+                let section_name = tcx.codegen_fn_attrs(def_id).link_section;
 
                 let alloc = tcx.eval_static_initializer(def_id).unwrap();
 
@@ -390,6 +390,7 @@ fn define_all_allocs(tcx: TyCtxt<'_>, module: &mut dyn Module, cx: &mut Constant
 
         if let Some(section_name) = section_name {
             let (segment_name, section_name) = if tcx.sess.target.is_like_osx {
+                let section_name = section_name.as_str();
                 if let Some(names) = section_name.split_once(',') {
                     names
                 } else {
@@ -399,7 +400,7 @@ fn define_all_allocs(tcx: TyCtxt<'_>, module: &mut dyn Module, cx: &mut Constant
                     ));
                 }
             } else {
-                ("", &*section_name)
+                ("", section_name.as_str())
             };
             data_ctx.set_segment_section(segment_name, section_name);
         }
@@ -464,7 +465,7 @@ pub(crate) fn mir_operand_get_const_val<'tcx>(
     match operand {
         Operand::Constant(const_) => match const_.literal {
             ConstantKind::Ty(const_) => {
-                fx.monomorphize(const_).eval(fx.tcx, ParamEnv::reveal_all()).val.try_to_value()
+                fx.monomorphize(const_).eval(fx.tcx, ParamEnv::reveal_all()).val().try_to_value()
             }
             ConstantKind::Val(val, _) => Some(val),
         },
@@ -489,7 +490,7 @@ pub(crate) fn mir_operand_get_const_val<'tcx>(
                                         return None;
                                     }
                                     let const_val = mir_operand_get_const_val(fx, operand)?;
-                                    if fx.layout_of(ty).size
+                                    if fx.layout_of(*ty).size
                                         != const_val.try_to_scalar_int()?.size()
                                     {
                                         return None;
@@ -507,7 +508,7 @@ pub(crate) fn mir_operand_get_const_val<'tcx>(
                         {
                             return None;
                         }
-                        StatementKind::LlvmInlineAsm(_) | StatementKind::CopyNonOverlapping(_) => {
+                        StatementKind::CopyNonOverlapping(_) => {
                             return None;
                         } // conservative handling
                         StatementKind::Assign(_)

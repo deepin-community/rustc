@@ -32,6 +32,8 @@ impl<'tcx, N: fmt::Debug> fmt::Debug for traits::ImplSource<'tcx, N> {
             super::ImplSource::TraitAlias(ref d) => write!(f, "{:?}", d),
 
             super::ImplSource::TraitUpcasting(ref d) => write!(f, "{:?}", d),
+
+            super::ImplSource::ConstDrop(ref d) => write!(f, "{:?}", d),
         }
     }
 }
@@ -72,7 +74,7 @@ impl<N: fmt::Debug> fmt::Debug for traits::ImplSourceBuiltinData<N> {
     }
 }
 
-impl<N: fmt::Debug> fmt::Debug for traits::ImplSourceTraitUpcastingData<'tcx, N> {
+impl<'tcx, N: fmt::Debug> fmt::Debug for traits::ImplSourceTraitUpcastingData<'tcx, N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -115,6 +117,12 @@ impl<'tcx, N: fmt::Debug> fmt::Debug for traits::ImplSourceTraitAliasData<'tcx, 
             "ImplSourceTraitAliasData(alias_def_id={:?}, substs={:?}, nested={:?})",
             self.alias_def_id, self.substs, self.nested
         )
+    }
+}
+
+impl<N: fmt::Debug> fmt::Debug for traits::ImplSourceConstDropData<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ImplSourceConstDropData(nested={:?})", self.nested)
     }
 }
 

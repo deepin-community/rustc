@@ -22,6 +22,7 @@ declare_clippy_lint! {
     ///
     /// OpenOptions::new().read(true).truncate(true);
     /// ```
+    #[clippy::version = "pre 1.29.0"]
     pub NONSENSICAL_OPEN_OPTIONS,
     correctness,
     "nonsensical combination of options for opening a file"
@@ -31,11 +32,11 @@ declare_lint_pass!(OpenOptions => [NONSENSICAL_OPEN_OPTIONS]);
 
 impl<'tcx> LateLintPass<'tcx> for OpenOptions {
     fn check_expr(&mut self, cx: &LateContext<'tcx>, e: &'tcx Expr<'_>) {
-        if let ExprKind::MethodCall(path, _, arguments, _) = e.kind {
-            let obj_ty = cx.typeck_results().expr_ty(&arguments[0]).peel_refs();
+        if let ExprKind::MethodCall(path, [self_arg, ..], _) = &e.kind {
+            let obj_ty = cx.typeck_results().expr_ty(self_arg).peel_refs();
             if path.ident.name == sym!(open) && match_type(cx, obj_ty, &paths::OPEN_OPTIONS) {
                 let mut options = Vec::new();
-                get_open_options(cx, &arguments[0], &mut options);
+                get_open_options(cx, self_arg, &mut options);
                 check_open_options(cx, &options, e.span);
             }
         }
@@ -59,7 +60,7 @@ enum OpenOption {
 }
 
 fn get_open_options(cx: &LateContext<'_>, argument: &Expr<'_>, options: &mut Vec<(OpenOption, Argument)>) {
-    if let ExprKind::MethodCall(path, _, arguments, _) = argument.kind {
+    if let ExprKind::MethodCall(path, arguments, _) = argument.kind {
         let obj_ty = cx.typeck_results().expr_ty(&arguments[0]).peel_refs();
 
         // Only proceed if this is a call on some object of type std::fs::OpenOptions
@@ -81,7 +82,7 @@ fn get_open_options(cx: &LateContext<'_>, argument: &Expr<'_>, options: &mut Vec
                 _ => Argument::Unknown,
             };
 
-            match &*path.ident.as_str() {
+            match path.ident.as_str() {
                 "create" => {
                     options.push((OpenOption::Create, argument_option));
                 },

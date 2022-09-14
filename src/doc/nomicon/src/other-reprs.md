@@ -62,11 +62,16 @@ whole struct is guaranteed to be the same as that one field.
 
 The goal is to make it possible to transmute between the single field and the
 struct. An example of that is [`UnsafeCell`], which can be transmuted into
-the type it wraps.
+the type it wraps ([`UnsafeCell`] also uses the unstable [no_niche][no-niche-pull],
+so its ABI is not actually guaranteed to be the same when nested in other types).
 
 Also, passing the struct through FFI where the inner field type is expected on
 the other side is guaranteed to work. In particular, this is necessary for `struct
 Foo(f32)` to always have the same ABI as `f32`.
+
+This repr is only considered part of the public ABI of a type if either the single
+field is `pub`, or if its layout is documented in prose. Otherwise, the layout should
+not be relied upon by other crates.
 
 More details are in the [RFC][rfc-transparent].
 
@@ -91,7 +96,7 @@ manipulate its tag and fields. See [the RFC][really-tagged] for details.
 
 These `repr`s have no effect on a struct.
 
-Adding an explicit `repr(u*)`, `repr(i*)`, or `repr(C)` to an enum suppresses the null-pointer optimization, like:
+Adding an explicit `repr(u*)`, `repr(i*)`, or `repr(C)` to an enum with fields suppresses the null-pointer optimization, like:
 
 ```rust
 # use std::mem::size_of;
@@ -109,6 +114,8 @@ enum MyReprOption<T> {
 assert_eq!(8, size_of::<MyOption<&u16>>());
 assert_eq!(16, size_of::<MyReprOption<&u16>>());
 ```
+
+This optimization still applies to fieldless enums with an explicit `repr(u*)`, `repr(i*)`, or `repr(C)`.
 
 ## repr(packed)
 
@@ -151,3 +158,4 @@ This is a modifier on `repr(C)` and `repr(Rust)`. It is incompatible with
 [really-tagged]: https://github.com/rust-lang/rfcs/blob/master/text/2195-really-tagged-unions.md
 [rust-bindgen]: https://rust-lang.github.io/rust-bindgen/
 [cbindgen]: https://github.com/eqrion/cbindgen
+[no-niche-pull]: https://github.com/rust-lang/rust/pull/68491

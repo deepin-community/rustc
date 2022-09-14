@@ -2,10 +2,9 @@ use crate::cgu_reuse_tracker::CguReuseTracker;
 use crate::code_stats::CodeStats;
 pub use crate::code_stats::{DataTypeKind, FieldInfo, SizeKind, VariantInfo};
 use crate::config::{self, CrateType, OutputType, SwitchWithOptPath};
-use crate::filesearch;
-use crate::lint::{self, LintId};
 use crate::parse::ParseSess;
 use crate::search_paths::{PathKind, SearchPath};
+use crate::{filesearch, lint};
 
 pub use rustc_ast::attr::MarkedAttrs;
 pub use rustc_ast::Attribute;
@@ -28,7 +27,9 @@ use rustc_span::source_map::{FileLoader, MultiSpan, RealFileLoader, SourceMap, S
 use rustc_span::{sym, SourceFileHashAlgorithm, Symbol};
 use rustc_target::asm::InlineAsmArch;
 use rustc_target::spec::{CodeModel, PanicStrategy, RelocModel, RelroLevel};
-use rustc_target::spec::{SanitizerSet, SplitDebuginfo, Target, TargetTriple, TlsModel};
+use rustc_target::spec::{
+    SanitizerSet, SplitDebuginfo, StackProtector, Target, TargetTriple, TlsModel,
+};
 
 use std::cell::{self, RefCell};
 use std::env;
@@ -36,14 +37,10 @@ use std::fmt;
 use std::io::Write;
 use std::num::NonZeroU32;
 use std::ops::{Div, Mul};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-
-pub trait SessionLintStore: sync::Send + sync::Sync {
-    fn name_to_lint(&self, lint_name: &str) -> LintId;
-}
 
 pub struct OptimizationFuel {
     /// If `-zfuel=crate=n` is specified, initially set to `n`, otherwise `0`.
@@ -131,9 +128,8 @@ pub struct Session {
     pub target: Target,
     pub host: Target,
     pub opts: config::Options,
-    pub host_tlib_path: SearchPath,
-    /// `None` if the host and target are the same.
-    pub target_tlib_path: Option<SearchPath>,
+    pub host_tlib_path: Lrc<SearchPath>,
+    pub target_tlib_path: Lrc<SearchPath>,
     pub parse_sess: ParseSess,
     pub sysroot: PathBuf,
     /// The name of the root source file of the crate, in the local file system.
@@ -153,8 +149,6 @@ pub struct Session {
     pub stable_crate_id: OnceCell<StableCrateId>,
 
     features: OnceCell<rustc_feature::Features>,
-
-    lint_store: OnceCell<Lrc<dyn SessionLintStore>>,
 
     incr_comp_session: OneThread<RefCell<IncrCompSession>>,
     /// Used for incremental compilation tests. Will only be populated if
@@ -182,10 +176,6 @@ pub struct Session {
 
     /// Cap lint level specified by a driver specifically.
     pub driver_lint_caps: FxHashMap<lint::LintId, lint::Level>,
-
-    /// Mapping from ident span to path span for paths that don't exist as written, but that
-    /// exist under `std`. For example, wrote `str::from_utf8` instead of `std::str::from_utf8`.
-    pub confused_type_with_std_module: Lock<FxHashMap<Span, Span>>,
 
     /// Tracks the current behavior of the CTFE engine when an error occurs.
     /// Options range from returning the error without a backtrace to returning an error
@@ -290,7 +280,7 @@ impl Session {
     }
 
     fn emit_future_breakage(&self) {
-        if !self.opts.debugging_opts.emit_future_incompat_report {
+        if !self.opts.json_future_incompat {
             return;
         }
 
@@ -423,7 +413,7 @@ impl Session {
         self.diagnostic().abort_if_errors();
     }
     pub fn compile_status(&self) -> Result<(), ErrorReported> {
-        if self.has_errors() {
+        if self.diagnostic().has_errors_or_lint_errors() {
             self.diagnostic().emit_stashed_diagnostics();
             Err(ErrorReported)
         } else {
@@ -484,10 +474,6 @@ impl Session {
     #[inline]
     pub fn diagnostic(&self) -> &rustc_errors::Handler {
         &self.parse_sess.span_diagnostic
-    }
-
-    pub fn with_disabled_diagnostic<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.parse_sess.span_diagnostic.with_disabled_diagnostic(f)
     }
 
     /// Analogous to calling methods on the given `DiagnosticBuilder`, but
@@ -572,10 +558,7 @@ impl Session {
         self.opts.debugging_opts.binary_dep_depinfo
     }
     pub fn mir_opt_level(&self) -> usize {
-        self.opts
-            .debugging_opts
-            .mir_opt_level
-            .unwrap_or_else(|| if self.opts.optimize != config::OptLevel::No { 2 } else { 1 })
+        self.opts.mir_opt_level()
     }
 
     /// Gets the features enabled for the current compilation session.
@@ -591,13 +574,6 @@ impl Session {
             Ok(()) => {}
             Err(_) => panic!("`features` was initialized twice"),
         }
-    }
-
-    pub fn init_lint_store(&self, lint_store: Lrc<dyn SessionLintStore>) {
-        self.lint_store
-            .set(lint_store)
-            .map_err(|_| ())
-            .expect("`lint_store` was initialized twice");
     }
 
     /// Calculates the flavor of LTO to use for this compilation.
@@ -691,12 +667,11 @@ impl Session {
     pub fn is_nightly_build(&self) -> bool {
         self.opts.unstable_features.is_nightly_build()
     }
+    pub fn is_sanitizer_cfi_enabled(&self) -> bool {
+        self.opts.debugging_opts.sanitizer.contains(SanitizerSet::CFI)
+    }
     pub fn overflow_checks(&self) -> bool {
-        self.opts
-            .cg
-            .overflow_checks
-            .or(self.opts.debugging_opts.force_overflow_checks)
-            .unwrap_or(self.opts.debug_assertions)
+        self.opts.cg.overflow_checks.unwrap_or(self.opts.debug_assertions)
     }
 
     /// Check whether this compile session and crate type use static crt.
@@ -748,6 +723,14 @@ impl Session {
         self.opts.cg.split_debuginfo.unwrap_or(self.target.split_debuginfo)
     }
 
+    pub fn stack_protector(&self) -> StackProtector {
+        if self.target.options.supports_stack_protector {
+            self.opts.debugging_opts.stack_protector
+        } else {
+            StackProtector::None
+        }
+    }
+
     pub fn target_can_use_split_dwarf(&self) -> bool {
         !self.target.is_like_windows && !self.target.is_like_osx
     }
@@ -788,8 +771,7 @@ impl Session {
             &self.sysroot,
             self.opts.target_triple.triple(),
             &self.opts.search_paths,
-            // `target_tlib_path == None` means it's the same as `host_tlib_path`.
-            self.target_tlib_path.as_ref().unwrap_or(&self.host_tlib_path),
+            &self.target_tlib_path,
             kind,
         )
     }
@@ -801,6 +783,17 @@ impl Session {
             &self.host_tlib_path,
             kind,
         )
+    }
+
+    /// Returns a list of directories where target-specific tool binaries are located.
+    pub fn get_tools_search_paths(&self, self_contained: bool) -> Vec<PathBuf> {
+        let rustlib_path = rustc_target::target_rustlib_path(&self.sysroot, &config::host_triple());
+        let p = PathBuf::from_iter([
+            Path::new(&self.sysroot),
+            Path::new(&rustlib_path),
+            Path::new("bin"),
+        ]);
+        if self_contained { vec![p.clone(), p.join("self-contained")] } else { vec![p] }
     }
 
     pub fn init_incr_comp_session(
@@ -887,13 +880,18 @@ impl Session {
     /// This expends fuel if applicable, and records fuel if applicable.
     pub fn consider_optimizing<T: Fn() -> String>(&self, crate_name: &str, msg: T) -> bool {
         let mut ret = true;
-        if let Some(c) = self.opts.debugging_opts.fuel.as_ref().map(|i| &i.0) {
+        if let Some((ref c, _)) = self.opts.debugging_opts.fuel {
             if c == crate_name {
                 assert_eq!(self.threads(), 1);
                 let mut fuel = self.optimization_fuel.lock();
                 ret = fuel.remaining != 0;
                 if fuel.remaining == 0 && !fuel.out_of_fuel {
-                    self.warn(&format!("optimization-fuel-exhausted: {}", msg()));
+                    if self.diagnostic().can_emit_warnings() {
+                        // We only call `msg` in case we can actually emit warnings.
+                        // Otherwise, this could cause a `delay_good_path_bug` to
+                        // trigger (issue #79546).
+                        self.warn(&format!("optimization-fuel-exhausted: {}", msg()));
+                    }
                     fuel.out_of_fuel = true;
                 } else if fuel.remaining > 0 {
                     fuel.remaining -= 1;
@@ -1041,18 +1039,15 @@ impl Session {
     }
 
     pub fn instrument_coverage(&self) -> bool {
-        self.opts.debugging_opts.instrument_coverage.unwrap_or(config::InstrumentCoverage::Off)
-            != config::InstrumentCoverage::Off
+        self.opts.instrument_coverage()
     }
 
     pub fn instrument_coverage_except_unused_generics(&self) -> bool {
-        self.opts.debugging_opts.instrument_coverage.unwrap_or(config::InstrumentCoverage::Off)
-            == config::InstrumentCoverage::ExceptUnusedGenerics
+        self.opts.instrument_coverage_except_unused_generics()
     }
 
     pub fn instrument_coverage_except_unused_functions(&self) -> bool {
-        self.opts.debugging_opts.instrument_coverage.unwrap_or(config::InstrumentCoverage::Off)
-            == config::InstrumentCoverage::ExceptUnusedFunctions
+        self.opts.instrument_coverage_except_unused_functions()
     }
 
     pub fn is_proc_macro_attr(&self, attr: &Attribute) -> bool {
@@ -1246,11 +1241,13 @@ pub fn build_session(
 
     let host_triple = config::host_triple();
     let target_triple = sopts.target_triple.triple();
-    let host_tlib_path = SearchPath::from_sysroot_and_triple(&sysroot, host_triple);
+    let host_tlib_path = Lrc::new(SearchPath::from_sysroot_and_triple(&sysroot, host_triple));
     let target_tlib_path = if host_triple == target_triple {
-        None
+        // Use the same `SearchPath` if host and target triple are identical to avoid unnecessary
+        // rescanning of the target lib path and an unnecessary allocation.
+        host_tlib_path.clone()
     } else {
-        Some(SearchPath::from_sysroot_and_triple(&sysroot, target_triple))
+        Lrc::new(SearchPath::from_sysroot_and_triple(&sysroot, target_triple))
     };
 
     let file_path_mapping = sopts.file_path_mapping();
@@ -1298,7 +1295,6 @@ pub fn build_session(
         crate_types: OnceCell::new(),
         stable_crate_id: OnceCell::new(),
         features: OnceCell::new(),
-        lint_store: OnceCell::new(),
         incr_comp_session: OneThread::new(RefCell::new(IncrCompSession::NotInitialized)),
         cgu_reuse_tracker,
         prof,
@@ -1313,7 +1309,6 @@ pub fn build_session(
         print_fuel,
         jobserver: jobserver::client(),
         driver_lint_caps,
-        confused_type_with_std_module: Lock::new(Default::default()),
         ctfe_backtrace,
         miri_unleashed_features: Lock::new(Default::default()),
         asm_arch,
@@ -1356,6 +1351,16 @@ fn validate_commandline_args_with_session_available(sess: &Session) {
         }
     }
 
+    // Do the same for sample profile data.
+    if let Some(ref path) = sess.opts.debugging_opts.profile_sample_use {
+        if !path.exists() {
+            sess.err(&format!(
+                "File `{}` passed to `-C profile-sample-use` does not exist.",
+                path.display()
+            ));
+        }
+    }
+
     // Unwind tables cannot be disabled if the target requires them.
     if let Some(include_uwtables) = sess.opts.cg.force_unwind_tables {
         if sess.target.requires_uwtable && !include_uwtables {
@@ -1387,9 +1392,28 @@ fn validate_commandline_args_with_session_available(sess: &Session) {
     // Cannot enable crt-static with sanitizers on Linux
     if sess.crt_static(None) && !sess.opts.debugging_opts.sanitizer.is_empty() {
         sess.err(
-            "Sanitizer is incompatible with statically linked libc, \
+            "sanitizer is incompatible with statically linked libc, \
                                 disable it using `-C target-feature=-crt-static`",
         );
+    }
+
+    // LLVM CFI requires LTO.
+    if sess.is_sanitizer_cfi_enabled() {
+        if sess.opts.cg.lto == config::LtoCli::Unspecified
+            || sess.opts.cg.lto == config::LtoCli::No
+            || sess.opts.cg.lto == config::LtoCli::Thin
+        {
+            sess.err("`-Zsanitizer=cfi` requires `-Clto`");
+        }
+    }
+
+    if sess.opts.debugging_opts.stack_protector != StackProtector::None {
+        if !sess.target.options.supports_stack_protector {
+            sess.warn(&format!(
+                "`-Z stack-protector={}` is not supported for target {} and will be ignored",
+                sess.opts.debugging_opts.stack_protector, sess.opts.target_triple
+            ))
+        }
     }
 }
 

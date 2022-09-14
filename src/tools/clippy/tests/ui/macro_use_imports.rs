@@ -1,4 +1,3 @@
-// compile-flags: --edition 2018
 // aux-build:macro_rules.rs
 // aux-build:macro_use_helper.rs
 // aux-build:proc_macro_derive.rs
@@ -41,7 +40,7 @@ mod a {
     }
 }
 
-// issue #7015, ICE due to calling `item_children` with local `DefId`
+// issue #7015, ICE due to calling `module_children` with local `DefId`
 #[macro_use]
 use a as b;
 

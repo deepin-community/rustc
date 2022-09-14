@@ -5,7 +5,7 @@ use crate::alloc::Allocator;
 use crate::cmp;
 use crate::fmt;
 use crate::io::{
-    self, BufRead, Error, ErrorKind, Initializer, IoSlice, IoSliceMut, Read, Seek, SeekFrom, Write,
+    self, BufRead, ErrorKind, IoSlice, IoSliceMut, Read, ReadBuf, Seek, SeekFrom, Write,
 };
 use crate::mem;
 
@@ -20,6 +20,11 @@ impl<R: Read + ?Sized> Read for &mut R {
     }
 
     #[inline]
+    fn read_buf(&mut self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        (**self).read_buf(buf)
+    }
+
+    #[inline]
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         (**self).read_vectored(bufs)
     }
@@ -27,11 +32,6 @@ impl<R: Read + ?Sized> Read for &mut R {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         (**self).is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        (**self).initializer()
     }
 
     #[inline]
@@ -124,6 +124,11 @@ impl<R: Read + ?Sized> Read for Box<R> {
     }
 
     #[inline]
+    fn read_buf(&mut self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        (**self).read_buf(buf)
+    }
+
+    #[inline]
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         (**self).read_vectored(bufs)
     }
@@ -131,11 +136,6 @@ impl<R: Read + ?Sized> Read for Box<R> {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         (**self).is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        (**self).initializer()
     }
 
     #[inline]
@@ -248,6 +248,17 @@ impl Read for &[u8] {
     }
 
     #[inline]
+    fn read_buf(&mut self, buf: &mut ReadBuf<'_>) -> io::Result<()> {
+        let amt = cmp::min(buf.remaining(), self.len());
+        let (a, b) = self.split_at(amt);
+
+        buf.append(a);
+
+        *self = b;
+        Ok(())
+    }
+
+    #[inline]
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         let mut nread = 0;
         for buf in bufs {
@@ -266,14 +277,12 @@ impl Read for &[u8] {
     }
 
     #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        Initializer::nop()
-    }
-
-    #[inline]
     fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
         if buf.len() > self.len() {
-            return Err(Error::new_const(ErrorKind::UnexpectedEof, &"failed to fill whole buffer"));
+            return Err(io::const_io_error!(
+                ErrorKind::UnexpectedEof,
+                "failed to fill whole buffer"
+            ));
         }
         let (a, b) = self.split_at(buf.len());
 
@@ -355,7 +364,7 @@ impl Write for &mut [u8] {
         if self.write(data)? == data.len() {
             Ok(())
         } else {
-            Err(Error::new_const(ErrorKind::WriteZero, &"failed to write whole buffer"))
+            Err(io::const_io_error!(ErrorKind::WriteZero, "failed to write whole buffer"))
         }
     }
 

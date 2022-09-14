@@ -1,6 +1,7 @@
 use crate::cmp::{self, Ordering};
-use crate::ops::{ControlFlow, Try};
+use crate::ops::{ChangeOutputType, ControlFlow, FromResidual, Residual, Try};
 
+use super::super::try_process;
 use super::super::TrustedRandomAccessNoCoerce;
 use super::super::{Chain, Cloned, Copied, Cycle, Enumerate, Filter, FilterMap, Fuse};
 use super::super::{FlatMap, Flatten};
@@ -96,7 +97,7 @@ pub trait Iterator {
     /// Specifically, `size_hint()` returns a tuple where the first element
     /// is the lower bound, and the second element is the upper bound.
     ///
-    /// The second half of the tuple that is returned is an [`Option`]`<`[`usize`]`>`.
+    /// The second half of the tuple that is returned is an <code>[Option]<[usize]></code>.
     /// A [`None`] here means that either there is no known upper bound, or the
     /// upper bound is larger than [`usize`].
     ///
@@ -115,10 +116,8 @@ pub trait Iterator {
     /// That said, the implementation should provide a correct estimation,
     /// because otherwise it would be a violation of the trait's protocol.
     ///
-    /// The default implementation returns `(0, `[`None`]`)` which is correct for any
+    /// The default implementation returns <code>(0, [None])</code> which is correct for any
     /// iterator.
-    ///
-    /// [`usize`]: type@usize
     ///
     /// # Examples
     ///
@@ -248,8 +247,11 @@ pub trait Iterator {
     /// of elements the iterator is advanced by before running out of elements (i.e. the
     /// length of the iterator). Note that `k` is always less than `n`.
     ///
-    /// Calling `advance_by(0)` does not consume any elements and always returns [`Ok(())`][Ok].
+    /// Calling `advance_by(0)` can do meaningful work, for example [`Flatten`]
+    /// can advance its outer iterator until it finds an inner iterator that is not empty, which
+    /// then often allows it to return a more accurate `size_hint()` than in its initial state.
     ///
+    /// [`Flatten`]: crate::iter::Flatten
     /// [`next`]: Iterator::next
     ///
     /// # Examples
@@ -457,8 +459,10 @@ pub trait Iterator {
     /// In other words, it zips two iterators together, into a single one.
     ///
     /// If either iterator returns [`None`], [`next`] from the zipped iterator
-    /// will return [`None`]. If the first iterator returns [`None`], `zip` will
-    /// short-circuit and `next` will not be called on the second iterator.
+    /// will return [`None`].
+    /// If the zipped iterator has no more elements to return then each further attempt to advance
+    /// it will first try to advance the first iterator at most one time and if it still yielded an item
+    /// try to advance the second iterator at most one time.
     ///
     /// # Examples
     ///
@@ -512,8 +516,44 @@ pub trait Iterator {
     /// assert_eq!((2, 'o'), zipper[2]);
     /// ```
     ///
+    /// If both iterators have roughly equivalent syntax, it may be more readable to use [`zip`]:
+    ///
+    /// ```
+    /// use std::iter::zip;
+    ///
+    /// let a = [1, 2, 3];
+    /// let b = [2, 3, 4];
+    ///
+    /// let mut zipped = zip(
+    ///     a.into_iter().map(|x| x * 2).skip(1),
+    ///     b.into_iter().map(|x| x * 2).skip(1),
+    /// );
+    ///
+    /// assert_eq!(zipped.next(), Some((4, 6)));
+    /// assert_eq!(zipped.next(), Some((6, 8)));
+    /// assert_eq!(zipped.next(), None);
+    /// ```
+    ///
+    /// compared to:
+    ///
+    /// ```
+    /// # let a = [1, 2, 3];
+    /// # let b = [2, 3, 4];
+    /// #
+    /// let mut zipped = a
+    ///     .into_iter()
+    ///     .map(|x| x * 2)
+    ///     .skip(1)
+    ///     .zip(b.into_iter().map(|x| x * 2).skip(1));
+    /// #
+    /// # assert_eq!(zipped.next(), Some((4, 6)));
+    /// # assert_eq!(zipped.next(), Some((6, 8)));
+    /// # assert_eq!(zipped.next(), None);
+    /// ```
+    ///
     /// [`enumerate`]: Iterator::enumerate
     /// [`next`]: Iterator::next
+    /// [`zip`]: crate::iter::zip
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     fn zip<U>(self, other: U) -> Zip<Self, U::IntoIter>
@@ -587,7 +627,7 @@ pub trait Iterator {
     /// #[derive(PartialEq, Debug)]
     /// struct NotClone(usize);
     ///
-    /// let v = vec![NotClone(0), NotClone(1), NotClone(2)];
+    /// let v = [NotClone(0), NotClone(1), NotClone(2)];
     /// let mut it = v.into_iter().intersperse_with(|| NotClone(99));
     ///
     /// assert_eq!(it.next(), Some(NotClone(0)));  // The first element from `v`.
@@ -870,7 +910,6 @@ pub trait Iterator {
     /// The returned iterator might panic if the to-be-returned index would
     /// overflow a [`usize`].
     ///
-    /// [`usize`]: type@usize
     /// [`zip`]: Iterator::zip
     ///
     /// # Examples
@@ -1021,6 +1060,7 @@ pub trait Iterator {
     /// assert_eq!(iter.next(), None);
     /// ```
     #[inline]
+    #[doc(alias = "drop_while")]
     #[stable(feature = "rust1", since = "1.0.0")]
     fn skip_while<P>(self, predicate: P) -> SkipWhile<Self, P>
     where
@@ -1122,7 +1162,6 @@ pub trait Iterator {
     /// Basic usage:
     ///
     /// ```
-    /// #![feature(iter_map_while)]
     /// let a = [-1i32, 4, 0, 1];
     ///
     /// let mut iter = a.iter().map_while(|x| 16i32.checked_div(*x));
@@ -1153,9 +1192,6 @@ pub trait Iterator {
     /// Stopping after an initial [`None`]:
     ///
     /// ```
-    /// #![feature(iter_map_while)]
-    /// use std::convert::TryFrom;
-    ///
     /// let a = [0, 1, 2, -3, 4, 5, -6];
     ///
     /// let iter = a.iter().map_while(|x| u32::try_from(*x).ok());
@@ -1171,9 +1207,6 @@ pub trait Iterator {
     /// removed:
     ///
     /// ```
-    /// #![feature(iter_map_while)]
-    /// use std::convert::TryFrom;
-    ///
     /// let a = [1, 2, -3, 4];
     /// let mut iter = a.iter();
     ///
@@ -1197,7 +1230,7 @@ pub trait Iterator {
     ///
     /// [`fuse`]: Iterator::fuse
     #[inline]
-    #[unstable(feature = "iter_map_while", reason = "recently added", issue = "68537")]
+    #[stable(feature = "iter_map_while", since = "1.57.0")]
     fn map_while<B, P>(self, predicate: P) -> MapWhile<Self, P>
     where
         Self: Sized,
@@ -1274,7 +1307,7 @@ pub trait Iterator {
     /// `take` will limit itself to the size of the underlying iterator:
     ///
     /// ```
-    /// let v = vec![1, 2];
+    /// let v = [1, 2];
     /// let mut iter = v.into_iter().take(5);
     /// assert_eq!(iter.next(), Some(1));
     /// assert_eq!(iter.next(), Some(2));
@@ -1608,7 +1641,7 @@ pub trait Iterator {
     /// Basic usage:
     ///
     /// ```
-    /// let mut words = vec!["hello", "world", "of", "Rust"].into_iter();
+    /// let mut words = ["hello", "world", "of", "Rust"].into_iter();
     ///
     /// // Take the first two words.
     /// let hello_world: Vec<_> = words.by_ref().take(2).collect();
@@ -1745,6 +1778,87 @@ pub trait Iterator {
         FromIterator::from_iter(self)
     }
 
+    /// Fallibly transforms an iterator into a collection, short circuiting if
+    /// a failure is encountered.
+    ///
+    /// `try_collect()` is a variation of [`collect()`][`collect`] that allows fallible
+    /// conversions during collection. Its main use case is simplifying conversions from
+    /// iterators yielding [`Option<T>`][`Option`] into `Option<Collection<T>>`, or similarly for other [`Try`]
+    /// types (e.g. [`Result`]).
+    ///
+    /// Importantly, `try_collect()` doesn't require that the outer [`Try`] type also implements [`FromIterator`];
+    /// only the inner type produced on `Try::Output` must implement it. Concretely,
+    /// this means that collecting into `ControlFlow<_, Vec<i32>>` is valid because `Vec<i32>` implements
+    /// [`FromIterator`], even though [`ControlFlow`] doesn't.
+    ///
+    /// Also, if a failure is encountered during `try_collect()`, the iterator is still valid and
+    /// may continue to be used, in which case it will continue iterating starting after the element that
+    /// triggered the failure. See the last example below for an example of how this works.
+    ///
+    /// # Examples
+    /// Successfully collecting an iterator of `Option<i32>` into `Option<Vec<i32>>`:
+    /// ```
+    /// #![feature(iterator_try_collect)]
+    ///
+    /// let u = vec![Some(1), Some(2), Some(3)];
+    /// let v = u.into_iter().try_collect::<Vec<i32>>();
+    /// assert_eq!(v, Some(vec![1, 2, 3]));
+    /// ```
+    ///
+    /// Failing to collect in the same way:
+    /// ```
+    /// #![feature(iterator_try_collect)]
+    ///
+    /// let u = vec![Some(1), Some(2), None, Some(3)];
+    /// let v = u.into_iter().try_collect::<Vec<i32>>();
+    /// assert_eq!(v, None);
+    /// ```
+    ///
+    /// A similar example, but with `Result`:
+    /// ```
+    /// #![feature(iterator_try_collect)]
+    ///
+    /// let u: Vec<Result<i32, ()>> = vec![Ok(1), Ok(2), Ok(3)];
+    /// let v = u.into_iter().try_collect::<Vec<i32>>();
+    /// assert_eq!(v, Ok(vec![1, 2, 3]));
+    ///
+    /// let u = vec![Ok(1), Ok(2), Err(()), Ok(3)];
+    /// let v = u.into_iter().try_collect::<Vec<i32>>();
+    /// assert_eq!(v, Err(()));
+    /// ```
+    ///
+    /// Finally, even [`ControlFlow`] works, despite the fact that it
+    /// doesn't implement [`FromIterator`]. Note also that the iterator can
+    /// continue to be used, even if a failure is encountered:
+    ///
+    /// ```
+    /// #![feature(iterator_try_collect)]
+    ///
+    /// use core::ops::ControlFlow::{Break, Continue};
+    ///
+    /// let u = [Continue(1), Continue(2), Break(3), Continue(4), Continue(5)];
+    /// let mut it = u.into_iter();
+    ///
+    /// let v = it.try_collect::<Vec<_>>();
+    /// assert_eq!(v, Break(3));
+    ///
+    /// let v = it.try_collect::<Vec<_>>();
+    /// assert_eq!(v, Continue(vec![4, 5]));
+    /// ```
+    ///
+    /// [`collect`]: Iterator::collect
+    #[inline]
+    #[unstable(feature = "iterator_try_collect", issue = "94047")]
+    fn try_collect<B>(&mut self) -> ChangeOutputType<Self::Item, B>
+    where
+        Self: Sized,
+        <Self as Iterator>::Item: Try,
+        <<Self as Iterator>::Item as Try>::Residual: Residual<B>,
+        B: FromIterator<<Self::Item as Try>::Output>,
+    {
+        try_process(self, |i| i.collect())
+    }
+
     /// Consumes an iterator, creating two collections from it.
     ///
     /// The predicate passed to `partition()` can return `true`, or `false`.
@@ -1807,10 +1921,11 @@ pub trait Iterator {
     /// The relative order of partitioned items is not maintained.
     ///
     /// # Current implementation
+    ///
     /// Current algorithms tries finding the first element for which the predicate evaluates
     /// to false, and the last element for which it evaluates to true and repeatedly swaps them.
     ///
-    /// Time Complexity: *O*(*N*)
+    /// Time complexity: *O*(*n*)
     ///
     /// See also [`is_partitioned()`] and [`partition()`].
     ///
@@ -2178,8 +2293,9 @@ pub trait Iterator {
     /// If the iterator is empty, returns [`None`]; otherwise, returns the
     /// result of the reduction.
     ///
+    /// The reducing function is a closure with two arguments: an 'accumulator', and an element.
     /// For iterators with at least one element, this is the same as [`fold()`]
-    /// with the first element of the iterator as the initial value, folding
+    /// with the first element of the iterator as the initial accumulator value, folding
     /// every subsequent element into it.
     ///
     /// [`fold()`]: Iterator::fold
@@ -2193,8 +2309,8 @@ pub trait Iterator {
     ///     where I: Iterator,
     ///           I::Item: Ord,
     /// {
-    ///     iter.reduce(|a, b| {
-    ///         if a >= b { a } else { b }
+    ///     iter.reduce(|accum, item| {
+    ///         if accum >= item { accum } else { item }
     ///     })
     /// }
     /// let a = [10, 20, 5, -23, 0];
@@ -2212,6 +2328,86 @@ pub trait Iterator {
     {
         let first = self.next()?;
         Some(self.fold(first, f))
+    }
+
+    /// Reduces the elements to a single one by repeatedly applying a reducing operation. If the
+    /// closure returns a failure, the failure is propagated back to the caller immediately.
+    ///
+    /// The return type of this method depends on the return type of the closure. If the closure
+    /// returns `Result<Self::Item, E>`, then this function will return `Result<Option<Self::Item>,
+    /// E>`. If the closure returns `Option<Self::Item>`, then this function will return
+    /// `Option<Option<Self::Item>>`.
+    ///
+    /// When called on an empty iterator, this function will return either `Some(None)` or
+    /// `Ok(None)` depending on the type of the provided closure.
+    ///
+    /// For iterators with at least one element, this is essentially the same as calling
+    /// [`try_fold()`] with the first element of the iterator as the initial accumulator value.
+    ///
+    /// [`try_fold()`]: Iterator::try_fold
+    ///
+    /// # Examples
+    ///
+    /// Safely calculate the sum of a series of numbers:
+    ///
+    /// ```
+    /// #![feature(iterator_try_reduce)]
+    ///
+    /// let numbers: Vec<usize> = vec![10, 20, 5, 23, 0];
+    /// let sum = numbers.into_iter().try_reduce(|x, y| x.checked_add(y));
+    /// assert_eq!(sum, Some(Some(58)));
+    /// ```
+    ///
+    /// Determine when a reduction short circuited:
+    ///
+    /// ```
+    /// #![feature(iterator_try_reduce)]
+    ///
+    /// let numbers = vec![1, 2, 3, usize::MAX, 4, 5];
+    /// let sum = numbers.into_iter().try_reduce(|x, y| x.checked_add(y));
+    /// assert_eq!(sum, None);
+    /// ```
+    ///
+    /// Determine when a reduction was not performed because there are no elements:
+    ///
+    /// ```
+    /// #![feature(iterator_try_reduce)]
+    ///
+    /// let numbers: Vec<usize> = Vec::new();
+    /// let sum = numbers.into_iter().try_reduce(|x, y| x.checked_add(y));
+    /// assert_eq!(sum, Some(None));
+    /// ```
+    ///
+    /// Use a [`Result`] instead of an [`Option`]:
+    ///
+    /// ```
+    /// #![feature(iterator_try_reduce)]
+    ///
+    /// let numbers = vec!["1", "2", "3", "4", "5"];
+    /// let max: Result<Option<_>, <usize as std::str::FromStr>::Err> =
+    ///     numbers.into_iter().try_reduce(|x, y| {
+    ///         if x.parse::<usize>()? > y.parse::<usize>()? { Ok(x) } else { Ok(y) }
+    ///     });
+    /// assert_eq!(max, Ok(Some("5")));
+    /// ```
+    #[inline]
+    #[unstable(feature = "iterator_try_reduce", reason = "new API", issue = "87053")]
+    fn try_reduce<F, R>(&mut self, f: F) -> ChangeOutputType<R, Option<R::Output>>
+    where
+        Self: Sized,
+        F: FnMut(Self::Item, Self::Item) -> R,
+        R: Try<Output = Self::Item>,
+        R::Residual: Residual<Option<Self::Item>>,
+    {
+        let first = match self.next() {
+            Some(i) => i,
+            None => return Try::from_output(None),
+        };
+
+        match self.try_fold(first, f).branch() {
+            ControlFlow::Break(r) => FromResidual::from_residual(r),
+            ControlFlow::Continue(i) => Try::from_output(Some(i)),
+        }
     }
 
     /// Tests if every element of the iterator matches a predicate.
@@ -2416,6 +2612,10 @@ pub trait Iterator {
     /// Applies function to the elements of iterator and returns
     /// the first true result or the first error.
     ///
+    /// The return type of this method depends on the return type of the closure.
+    /// If you return `Result<bool, E>` from the closure, you'll get a `Result<Option<Self::Item>; E>`.
+    /// If you return `Option<bool>` from the closure, you'll get an `Option<Option<Self::Item>>`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -2433,32 +2633,48 @@ pub trait Iterator {
     /// let result = a.iter().try_find(|&&s| is_my_num(s, 5));
     /// assert!(result.is_err());
     /// ```
+    ///
+    /// This also supports other types which implement `Try`, not just `Result`.
+    /// ```
+    /// #![feature(try_find)]
+    ///
+    /// use std::num::NonZeroU32;
+    /// let a = [3, 5, 7, 4, 9, 0, 11];
+    /// let result = a.iter().try_find(|&&x| NonZeroU32::new(x).map(|y| y.is_power_of_two()));
+    /// assert_eq!(result, Some(Some(&4)));
+    /// let result = a.iter().take(3).try_find(|&&x| NonZeroU32::new(x).map(|y| y.is_power_of_two()));
+    /// assert_eq!(result, Some(None));
+    /// let result = a.iter().rev().try_find(|&&x| NonZeroU32::new(x).map(|y| y.is_power_of_two()));
+    /// assert_eq!(result, None);
+    /// ```
     #[inline]
     #[unstable(feature = "try_find", reason = "new API", issue = "63178")]
-    fn try_find<F, R, E>(&mut self, f: F) -> Result<Option<Self::Item>, E>
+    fn try_find<F, R>(&mut self, f: F) -> ChangeOutputType<R, Option<Self::Item>>
     where
         Self: Sized,
         F: FnMut(&Self::Item) -> R,
         R: Try<Output = bool>,
-        // FIXME: This bound is rather strange, but means minimal breakage on nightly.
-        // See #85115 for the issue tracking a holistic solution for this and try_map.
-        R: Try<Residual = Result<crate::convert::Infallible, E>>,
+        R::Residual: Residual<Option<Self::Item>>,
     {
         #[inline]
-        fn check<F, T, R, E>(mut f: F) -> impl FnMut((), T) -> ControlFlow<Result<T, E>>
+        fn check<I, V, R>(
+            mut f: impl FnMut(&I) -> V,
+        ) -> impl FnMut((), I) -> ControlFlow<R::TryType>
         where
-            F: FnMut(&T) -> R,
-            R: Try<Output = bool>,
-            R: Try<Residual = Result<crate::convert::Infallible, E>>,
+            V: Try<Output = bool, Residual = R>,
+            R: Residual<Option<I>>,
         {
             move |(), x| match f(&x).branch() {
                 ControlFlow::Continue(false) => ControlFlow::CONTINUE,
-                ControlFlow::Continue(true) => ControlFlow::Break(Ok(x)),
-                ControlFlow::Break(Err(x)) => ControlFlow::Break(Err(x)),
+                ControlFlow::Continue(true) => ControlFlow::Break(Try::from_output(Some(x))),
+                ControlFlow::Break(r) => ControlFlow::Break(FromResidual::from_residual(r)),
             }
         }
 
-        self.try_fold((), check(f)).break_value().transpose()
+        match self.try_fold((), check(f)) {
+            ControlFlow::Break(x) => x,
+            ControlFlow::Continue(()) => Try::from_output(None),
+        }
     }
 
     /// Searches for an element in an iterator, returning its index.
@@ -2602,7 +2818,7 @@ pub trait Iterator {
     /// incomparable. You can work around this by using [`Iterator::reduce`]:
     /// ```
     /// assert_eq!(
-    ///     vec![2.4, f32::NAN, 1.3]
+    ///     [2.4, f32::NAN, 1.3]
     ///         .into_iter()
     ///         .reduce(f32::max)
     ///         .unwrap(),
@@ -2640,7 +2856,7 @@ pub trait Iterator {
     /// incomparable. You can work around this by using [`Iterator::reduce`]:
     /// ```
     /// assert_eq!(
-    ///     vec![2.4, f32::NAN, 1.3]
+    ///     [2.4, f32::NAN, 1.3]
     ///         .into_iter()
     ///         .reduce(f32::min)
     ///         .unwrap(),
@@ -2835,12 +3051,12 @@ pub trait Iterator {
     /// Basic usage:
     ///
     /// ```
-    /// let a = [(1, 2), (3, 4)];
+    /// let a = [(1, 2), (3, 4), (5, 6)];
     ///
     /// let (left, right): (Vec<_>, Vec<_>) = a.iter().cloned().unzip();
     ///
-    /// assert_eq!(left, [1, 3]);
-    /// assert_eq!(right, [2, 4]);
+    /// assert_eq!(left, [1, 3, 5]);
+    /// assert_eq!(right, [2, 4, 6]);
     ///
     /// // you can also unzip multiple nested tuples at once
     /// let a = [(1, (2, 3)), (4, (5, 6))];
@@ -2926,7 +3142,8 @@ pub trait Iterator {
     ///
     /// Instead of stopping at [`None`], the iterator will instead start again,
     /// from the beginning. After iterating again, it will start at the
-    /// beginning again. And again. And again. Forever.
+    /// beginning again. And again. And again. Forever. Note that in case the
+    /// original iterator is empty, the resulting iterator will also be empty.
     ///
     /// # Examples
     ///
@@ -3458,6 +3675,7 @@ pub trait Iterator {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<I: Iterator + ?Sized> Iterator for &mut I {
     type Item = I::Item;
+    #[inline]
     fn next(&mut self) -> Option<I::Item> {
         (**self).next()
     }

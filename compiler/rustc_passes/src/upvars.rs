@@ -3,7 +3,7 @@
 use rustc_data_structures::fx::{FxHashSet, FxIndexMap};
 use rustc_hir as hir;
 use rustc_hir::def::Res;
-use rustc_hir::intravisit::{self, NestedVisitorMap, Visitor};
+use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{self, HirId};
 use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::TyCtxt;
@@ -42,13 +42,7 @@ struct LocalCollector {
     locals: FxHashSet<HirId>,
 }
 
-impl Visitor<'tcx> for LocalCollector {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
+impl<'tcx> Visitor<'tcx> for LocalCollector {
     fn visit_pat(&mut self, pat: &'tcx hir::Pat<'tcx>) {
         if let hir::PatKind::Binding(_, hir_id, ..) = pat.kind {
             self.locals.insert(hir_id);
@@ -71,13 +65,7 @@ impl CaptureCollector<'_, '_> {
     }
 }
 
-impl Visitor<'tcx> for CaptureCollector<'a, 'tcx> {
-    type Map = intravisit::ErasedMap<'tcx>;
-
-    fn nested_visit_map(&mut self) -> NestedVisitorMap<Self::Map> {
-        NestedVisitorMap::None
-    }
-
+impl<'tcx> Visitor<'tcx> for CaptureCollector<'_, 'tcx> {
     fn visit_path(&mut self, path: &'tcx hir::Path<'tcx>, _: hir::HirId) {
         if let Res::Local(var_id) = path.res {
             self.visit_local_use(var_id, path.span);

@@ -12,7 +12,7 @@ pub fn expand_concat_idents<'cx>(
     tts: TokenStream,
 ) -> Box<dyn base::MacResult + 'cx> {
     if tts.is_empty() {
-        cx.span_err(sp, "concat_idents! takes 1 or more arguments.");
+        cx.span_err(sp, "concat_idents! takes 1 or more arguments");
         return DummyResult::any(sp);
     }
 
@@ -22,19 +22,19 @@ pub fn expand_concat_idents<'cx>(
             match e {
                 TokenTree::Token(Token { kind: token::Comma, .. }) => {}
                 _ => {
-                    cx.span_err(sp, "concat_idents! expecting comma.");
+                    cx.span_err(sp, "concat_idents! expecting comma");
                     return DummyResult::any(sp);
                 }
             }
         } else {
             if let TokenTree::Token(token) = e {
                 if let Some((ident, _)) = token.ident() {
-                    res_str.push_str(&ident.name.as_str());
+                    res_str.push_str(ident.name.as_str());
                     continue;
                 }
             }
 
-            cx.span_err(sp, "concat_idents! requires ident args.");
+            cx.span_err(sp, "concat_idents! requires ident args");
             return DummyResult::any(sp);
         }
     }

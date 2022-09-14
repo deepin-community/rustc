@@ -6,7 +6,7 @@ mod tests;
 use crate::io::prelude::*;
 
 use crate::fmt;
-use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::io::{self, IoSlice, IoSliceMut};
 use crate::net::{Shutdown, SocketAddr, ToSocketAddrs};
 use crate::sys_common::net as net_imp;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
@@ -90,10 +90,23 @@ pub struct TcpListener(net_imp::TcpListener);
 /// See its documentation for more.
 ///
 /// [`accept`]: TcpListener::accept
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[derive(Debug)]
 pub struct Incoming<'a> {
     listener: &'a TcpListener,
+}
+
+/// An iterator that infinitely [`accept`]s connections on a [`TcpListener`].
+///
+/// This `struct` is created by the [`TcpListener::into_incoming`] method.
+/// See its documentation for more.
+///
+/// [`accept`]: TcpListener::accept
+#[derive(Debug)]
+#[unstable(feature = "tcplistener_into_incoming", issue = "88339")]
+pub struct IntoIncoming {
+    listener: TcpListener,
 }
 
 impl TcpStream {
@@ -392,7 +405,7 @@ impl TcpStream {
     /// use std::net::TcpStream;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:8000")
-    ///                        .expect("couldn't bind to address");
+    ///                        .expect("Couldn't connect to the server...");
     /// let mut buf = [0; 10];
     /// let len = stream.peek(&mut buf).expect("peek failed");
     /// ```
@@ -613,12 +626,6 @@ impl Read for TcpStream {
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
     }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        unsafe { Initializer::nop() }
-    }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
 impl Write for TcpStream {
@@ -652,12 +659,6 @@ impl Read for &TcpStream {
     #[inline]
     fn is_read_vectored(&self) -> bool {
         self.0.is_read_vectored()
-    }
-
-    #[inline]
-    unsafe fn initializer(&self) -> Initializer {
-        // SAFETY: Read is guaranteed to work on uninitialized memory
-        unsafe { Initializer::nop() }
     }
 }
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -845,6 +846,38 @@ impl TcpListener {
         Incoming { listener: self }
     }
 
+    /// Turn this into an iterator over the connections being received on this
+    /// listener.
+    ///
+    /// The returned iterator will never return [`None`] and will also not yield
+    /// the peer's [`SocketAddr`] structure. Iterating over it is equivalent to
+    /// calling [`TcpListener::accept`] in a loop.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// #![feature(tcplistener_into_incoming)]
+    /// use std::net::{TcpListener, TcpStream};
+    ///
+    /// fn listen_on(port: u16) -> impl Iterator<Item = TcpStream> {
+    ///     let listener = TcpListener::bind("127.0.0.1:80").unwrap();
+    ///     listener.into_incoming()
+    ///         .filter_map(Result::ok) /* Ignore failed connections */
+    /// }
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     for stream in listen_on(80) {
+    ///         /* handle the connection here */
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    #[must_use = "`self` will be dropped if the result is not used"]
+    #[unstable(feature = "tcplistener_into_incoming", issue = "88339")]
+    pub fn into_incoming(self) -> IntoIncoming {
+        IntoIncoming { listener: self }
+    }
+
     /// Sets the value for the `IP_TTL` option on this socket.
     ///
     /// This value sets the time-to-live field that is used in every packet sent
@@ -976,6 +1009,14 @@ impl TcpListener {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a> Iterator for Incoming<'a> {
+    type Item = io::Result<TcpStream>;
+    fn next(&mut self) -> Option<io::Result<TcpStream>> {
+        Some(self.listener.accept().map(|p| p.0))
+    }
+}
+
+#[unstable(feature = "tcplistener_into_incoming", issue = "88339")]
+impl Iterator for IntoIncoming {
     type Item = io::Result<TcpStream>;
     fn next(&mut self) -> Option<io::Result<TcpStream>> {
         Some(self.listener.accept().map(|p| p.0))

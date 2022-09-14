@@ -27,6 +27,7 @@ pub use self::arch::{blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};
 #[cfg(any(
     target_arch = "x86",
     target_arch = "le32",
+    target_arch = "m68k",
     target_arch = "powerpc",
     target_arch = "sparc",
     target_arch = "arm",
@@ -238,6 +239,7 @@ mod arch {
     target_arch = "riscv32"
 ))]
 mod arch {
+    #[stable(feature = "raw_ext", since = "1.1.0")]
     pub use libc::{blkcnt_t, blksize_t, ino_t, nlink_t, off_t, stat, time_t};
 }
 

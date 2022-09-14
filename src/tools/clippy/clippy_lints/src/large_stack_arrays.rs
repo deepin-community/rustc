@@ -4,10 +4,9 @@ use if_chain::if_chain;
 use rustc_hir::{Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir::interpret::ConstValue;
+use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, ConstKind};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
-
-use crate::rustc_target::abi::LayoutOf;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -20,6 +19,7 @@ declare_clippy_lint! {
     /// ```rust,ignore
     /// let a = [0u32; 1_000_000];
     /// ```
+    #[clippy::version = "1.41.0"]
     pub LARGE_STACK_ARRAYS,
     pedantic,
     "allocating large arrays on stack may cause stack overflow"
@@ -43,9 +43,9 @@ impl<'tcx> LateLintPass<'tcx> for LargeStackArrays {
         if_chain! {
             if let ExprKind::Repeat(_, _) = expr.kind;
             if let ty::Array(element_type, cst) = cx.typeck_results().expr_ty(expr).kind();
-            if let ConstKind::Value(ConstValue::Scalar(element_count)) = cst.val;
+            if let ConstKind::Value(ConstValue::Scalar(element_count)) = cst.val();
             if let Ok(element_count) = element_count.to_machine_usize(&cx.tcx);
-            if let Ok(element_size) = cx.layout_of(element_type).map(|l| l.size.bytes());
+            if let Ok(element_size) = cx.layout_of(*element_type).map(|l| l.size.bytes());
             if self.maximum_allowed_size < element_count * element_size;
             then {
                 span_lint_and_help(

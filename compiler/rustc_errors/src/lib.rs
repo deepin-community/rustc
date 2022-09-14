@@ -6,17 +6,18 @@
 #![feature(crate_visibility_modifier)]
 #![feature(backtrace)]
 #![feature(if_let_guard)]
-#![feature(format_args_capture)]
-#![feature(iter_zip)]
+#![feature(let_else)]
 #![feature(nll)]
-#![cfg_attr(bootstrap, allow(incomplete_features))] // if_let_guard
+#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 #[macro_use]
 extern crate rustc_macros;
 
+#[macro_use]
+extern crate tracing;
+
 pub use emitter::ColorConfig;
 
-use tracing::debug;
 use Level::*;
 
 use emitter::{is_case_difference, Emitter, EmitterWriter};
@@ -54,9 +55,11 @@ pub use snippet::Style;
 pub type PResult<'a, T> = Result<T, DiagnosticBuilder<'a>>;
 
 // `PResult` is used a lot. Make sure it doesn't unintentionally get bigger.
-// (See also the comment on `DiagnosticBuilderInner`.)
+// (See also the comment on `DiagnosticBuilder`'s `diagnostic` field.)
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-rustc_data_structures::static_assert_size!(PResult<'_, bool>, 16);
+rustc_data_structures::static_assert_size!(PResult<'_, ()>, 16);
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+rustc_data_structures::static_assert_size!(PResult<'_, bool>, 24);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Encodable, Decodable)]
 pub enum SuggestionStyle {
@@ -99,8 +102,8 @@ impl Hash for ToolMetadata {
 
 // Doesn't really need to round-trip
 impl<D: Decoder> Decodable<D> for ToolMetadata {
-    fn decode(_d: &mut D) -> Result<Self, D::Error> {
-        Ok(ToolMetadata(None))
+    fn decode(_d: &mut D) -> Self {
+        ToolMetadata(None)
     }
 }
 
@@ -340,7 +343,7 @@ impl CodeSuggestion {
                     });
                     buf.push_str(&part.snippet);
                     let cur_hi = sm.lookup_char_pos(part.span.hi());
-                    if prev_hi.line == cur_lo.line {
+                    if prev_hi.line == cur_lo.line && cur_hi.line == cur_lo.line {
                         // Account for the difference between the width of the current code and the
                         // snippet being suggested, so that the *later* suggestions are correctly
                         // aligned on the screen.
@@ -409,6 +412,8 @@ pub struct Handler {
 /// as well as inconsistent state observation.
 struct HandlerInner {
     flags: HandlerFlags,
+    /// The number of lint errors that have been emitted.
+    lint_err_count: usize,
     /// The number of errors that have been emitted, including duplicates.
     ///
     /// This is not necessarily the count that's reported to the user once
@@ -443,9 +448,6 @@ struct HandlerInner {
     deduplicated_warn_count: usize,
 
     future_breakage_diagnostics: Vec<Diagnostic>,
-
-    /// If set to `true`, no warning or error will be emitted.
-    quiet: bool,
 }
 
 /// A key denoting where from a diagnostic was stashed.
@@ -548,6 +550,7 @@ impl Handler {
             flags,
             inner: Lock::new(HandlerInner {
                 flags,
+                lint_err_count: 0,
                 err_count: 0,
                 warn_count: 0,
                 deduplicated_err_count: 0,
@@ -560,17 +563,8 @@ impl Handler {
                 emitted_diagnostics: Default::default(),
                 stashed_diagnostics: Default::default(),
                 future_breakage_diagnostics: Vec::new(),
-                quiet: false,
             }),
         }
-    }
-
-    pub fn with_disabled_diagnostic<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        let prev = self.inner.borrow_mut().quiet;
-        self.inner.borrow_mut().quiet = true;
-        let ret = f();
-        self.inner.borrow_mut().quiet = prev;
-        ret
     }
 
     // This is here to not allow mutation of flags;
@@ -724,7 +718,13 @@ impl Handler {
     /// Construct a builder at the `Error` level with the `msg`.
     // FIXME: This method should be removed (every error should have an associated error code).
     pub fn struct_err(&self, msg: &str) -> DiagnosticBuilder<'_> {
-        DiagnosticBuilder::new(self, Level::Error, msg)
+        DiagnosticBuilder::new(self, Level::Error { lint: false }, msg)
+    }
+
+    /// This should only be used by `rustc_middle::lint::struct_lint_level`. Do not use it for hard errors.
+    #[doc(hidden)]
+    pub fn struct_err_lint(&self, msg: &str) -> DiagnosticBuilder<'_> {
+        DiagnosticBuilder::new(self, Level::Error { lint: true }, msg)
     }
 
     /// Construct a builder at the `Error` level with the `msg` and the `code`.
@@ -788,11 +788,14 @@ impl Handler {
     }
 
     pub fn span_err(&self, span: impl Into<MultiSpan>, msg: &str) {
-        self.emit_diag_at_span(Diagnostic::new(Error, msg), span);
+        self.emit_diag_at_span(Diagnostic::new(Error { lint: false }, msg), span);
     }
 
     pub fn span_err_with_code(&self, span: impl Into<MultiSpan>, msg: &str, code: DiagnosticId) {
-        self.emit_diag_at_span(Diagnostic::new_with_code(Error, Some(code), msg), span);
+        self.emit_diag_at_span(
+            Diagnostic::new_with_code(Error { lint: false }, Some(code), msg),
+            span,
+        );
     }
 
     pub fn span_warn(&self, span: impl Into<MultiSpan>, msg: &str) {
@@ -859,6 +862,9 @@ impl Handler {
 
     pub fn has_errors(&self) -> bool {
         self.inner.borrow().has_errors()
+    }
+    pub fn has_errors_or_lint_errors(&self) -> bool {
+        self.inner.borrow().has_errors_or_lint_errors()
     }
     pub fn has_errors_or_delayed_span_bugs(&self) -> bool {
         self.inner.borrow().has_errors_or_delayed_span_bugs()
@@ -931,7 +937,7 @@ impl HandlerInner {
     }
 
     fn emit_diagnostic(&mut self, diagnostic: &Diagnostic) {
-        if diagnostic.cancelled() || self.quiet {
+        if diagnostic.cancelled() {
             return;
         }
 
@@ -977,7 +983,11 @@ impl HandlerInner {
             }
         }
         if diagnostic.is_error() {
-            self.bump_err_count();
+            if matches!(diagnostic.level, Level::Error { lint: true }) {
+                self.bump_lint_err_count();
+            } else {
+                self.bump_err_count();
+            }
         } else {
             self.bump_warn_count();
         }
@@ -992,7 +1002,9 @@ impl HandlerInner {
     }
 
     fn treat_err_as_bug(&self) -> bool {
-        self.flags.treat_err_as_bug.map_or(false, |c| self.err_count() >= c.get())
+        self.flags
+            .treat_err_as_bug
+            .map_or(false, |c| self.err_count() + self.lint_err_count >= c.get())
     }
 
     fn print_error_count(&mut self, registry: &Registry) {
@@ -1029,15 +1041,13 @@ impl HandlerInner {
             let mut error_codes = self
                 .emitted_diagnostic_codes
                 .iter()
-                .filter_map(|x| {
-                    match &x {
+                .filter_map(|x| match &x {
                     DiagnosticId::Error(s)
-                        if let Ok(Some(_explanation)) = registry.try_find_description(s) =>
+                        if registry.try_find_description(s).map_or(false, |o| o.is_some()) =>
                     {
                         Some(s.clone())
                     }
                     _ => None,
-                }
                 })
                 .collect::<Vec<_>>();
             if !error_codes.is_empty() {
@@ -1073,11 +1083,14 @@ impl HandlerInner {
     fn has_errors(&self) -> bool {
         self.err_count() > 0
     }
+    fn has_errors_or_lint_errors(&self) -> bool {
+        self.has_errors() || self.lint_err_count > 0
+    }
     fn has_errors_or_delayed_span_bugs(&self) -> bool {
         self.has_errors() || !self.delayed_span_bugs.is_empty()
     }
     fn has_any_message(&self) -> bool {
-        self.err_count() > 0 || self.warn_count > 0
+        self.err_count() > 0 || self.lint_err_count > 0 || self.warn_count > 0
     }
 
     fn abort_if_errors(&mut self) {
@@ -1131,7 +1144,7 @@ impl HandlerInner {
     }
 
     fn err(&mut self, msg: &str) {
-        self.emit_error(Error, msg);
+        self.emit_error(Error { lint: false }, msg);
     }
 
     /// Emit an error; level should be `Error` or `Fatal`.
@@ -1148,9 +1161,6 @@ impl HandlerInner {
     }
 
     fn delay_as_bug(&mut self, diagnostic: Diagnostic) {
-        if self.quiet {
-            return;
-        }
         if self.flags.report_delayed_bugs {
             self.emit_diagnostic(&diagnostic);
         }
@@ -1167,6 +1177,11 @@ impl HandlerInner {
         }
     }
 
+    fn bump_lint_err_count(&mut self) {
+        self.lint_err_count += 1;
+        self.panic_if_treat_err_as_bug();
+    }
+
     fn bump_err_count(&mut self) {
         self.err_count += 1;
         self.panic_if_treat_err_as_bug();
@@ -1178,7 +1193,10 @@ impl HandlerInner {
 
     fn panic_if_treat_err_as_bug(&self) {
         if self.treat_err_as_bug() {
-            match (self.err_count(), self.flags.treat_err_as_bug.map(|c| c.get()).unwrap_or(0)) {
+            match (
+                self.err_count() + self.lint_err_count,
+                self.flags.treat_err_as_bug.map(|c| c.get()).unwrap_or(0),
+            ) {
                 (1, 1) => panic!("aborting due to `-Z treat-err-as-bug=1`"),
                 (0, _) | (1, _) => {}
                 (count, as_bug) => panic!(
@@ -1210,7 +1228,10 @@ impl DelayedDiagnostic {
 pub enum Level {
     Bug,
     Fatal,
-    Error,
+    Error {
+        /// If this error comes from a lint, don't abort compilation even when abort_if_errors() is called.
+        lint: bool,
+    },
     Warning,
     Note,
     Help,
@@ -1229,7 +1250,7 @@ impl Level {
     fn color(self) -> ColorSpec {
         let mut spec = ColorSpec::new();
         match self {
-            Bug | Fatal | Error => {
+            Bug | Fatal | Error { .. } => {
                 spec.set_fg(Some(Color::Red)).set_intense(true);
             }
             Warning => {
@@ -1250,7 +1271,7 @@ impl Level {
     pub fn to_str(self) -> &'static str {
         match self {
             Bug => "error: internal compiler error",
-            Fatal | Error => "error",
+            Fatal | Error { .. } => "error",
             Warning => "warning",
             Note => "note",
             Help => "help",

@@ -28,7 +28,7 @@ struct ConfirmContext<'a, 'tcx> {
 impl<'a, 'tcx> Deref for ConfirmContext<'a, 'tcx> {
     type Target = FnCtxt<'a, 'tcx>;
     fn deref(&self) -> &Self::Target {
-        &self.fcx
+        self.fcx
     }
 }
 
@@ -120,7 +120,12 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
         // We won't add these if we encountered an illegal sized bound, so that we can use
         // a custom error in that case.
         if illegal_sized_bound.is_none() {
-            self.add_obligations(self.tcx.mk_fn_ptr(method_sig), all_substs, method_predicates);
+            self.add_obligations(
+                self.tcx.mk_fn_ptr(method_sig),
+                all_substs,
+                method_predicates,
+                pick.item.def_id,
+            );
         }
 
         // Create the final `MethodCallee`.
@@ -144,7 +149,7 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
         // time writing the results into the various typeck results.
         let mut autoderef =
             self.autoderef_overloaded_span(self.span, unadjusted_self_ty, self.call_expr.span);
-        let (_, n) = match autoderef.nth(pick.autoderefs) {
+        let (ty, n) = match autoderef.nth(pick.autoderefs) {
             Some(n) => n,
             None => {
                 return self.tcx.ty_error_with_message(
@@ -156,14 +161,15 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
         assert_eq!(n, pick.autoderefs);
 
         let mut adjustments = self.adjust_steps(&autoderef);
+        let mut target = self.structurally_resolved_type(autoderef.span(), ty);
 
-        let mut target =
-            self.structurally_resolved_type(autoderef.span(), autoderef.final_ty(false));
-
-        match &pick.autoref_or_ptr_adjustment {
+        match pick.autoref_or_ptr_adjustment {
             Some(probe::AutorefOrPtrAdjustment::Autoref { mutbl, unsize }) => {
-                let region = self.next_region_var(infer::Autoref(self.span, pick.item));
-                target = self.tcx.mk_ref(region, ty::TypeAndMut { mutbl: *mutbl, ty: target });
+                let region = self.next_region_var(infer::Autoref(self.span));
+                // Type we're wrapping in a reference, used later for unsizing
+                let base_ty = target;
+
+                target = self.tcx.mk_ref(region, ty::TypeAndMut { mutbl, ty: target });
                 let mutbl = match mutbl {
                     hir::Mutability::Not => AutoBorrowMutability::Not,
                     hir::Mutability::Mut => AutoBorrowMutability::Mut {
@@ -177,18 +183,26 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
                     target,
                 });
 
-                if let Some(unsize_target) = unsize {
+                if unsize {
+                    let unsized_ty = if let ty::Array(elem_ty, _) = base_ty.kind() {
+                        self.tcx.mk_slice(*elem_ty)
+                    } else {
+                        bug!(
+                            "AutorefOrPtrAdjustment's unsize flag should only be set for array ty, found {}",
+                            base_ty
+                        )
+                    };
                     target = self
                         .tcx
-                        .mk_ref(region, ty::TypeAndMut { mutbl: mutbl.into(), ty: unsize_target });
+                        .mk_ref(region, ty::TypeAndMut { mutbl: mutbl.into(), ty: unsized_ty });
                     adjustments
                         .push(Adjustment { kind: Adjust::Pointer(PointerCast::Unsize), target });
                 }
             }
             Some(probe::AutorefOrPtrAdjustment::ToConstPtr) => {
                 target = match target.kind() {
-                    ty::RawPtr(ty::TypeAndMut { ty, mutbl }) => {
-                        assert_eq!(*mutbl, hir::Mutability::Mut);
+                    &ty::RawPtr(ty::TypeAndMut { ty, mutbl }) => {
+                        assert_eq!(mutbl, hir::Mutability::Mut);
                         self.tcx.mk_ptr(ty::TypeAndMut { mutbl: hir::Mutability::Not, ty })
                     }
                     other => panic!("Cannot adjust receiver type {:?} to const ptr", other),
@@ -290,7 +304,7 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
             .autoderef(self.span, self_ty)
             .include_raw_pointers()
             .find_map(|(ty, _)| match ty.kind() {
-                ty::Dynamic(ref data, ..) => Some(closure(
+                ty::Dynamic(data, ..) => Some(closure(
                     self,
                     ty,
                     data.principal().unwrap_or_else(|| {
@@ -323,7 +337,7 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
             self.tcx,
             self.span,
             pick.item.def_id,
-            &generics,
+            generics,
             seg,
             IsMethodCall::Yes,
         );
@@ -343,7 +357,7 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
                 def_id: DefId,
             ) -> (Option<&'a hir::GenericArgs<'a>>, bool) {
                 if def_id == self.pick.item.def_id {
-                    if let Some(ref data) = self.seg.args {
+                    if let Some(data) = self.seg.args {
                         return (Some(data), false);
                     }
                 }
@@ -471,16 +485,23 @@ impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
         fty: Ty<'tcx>,
         all_substs: SubstsRef<'tcx>,
         method_predicates: ty::InstantiatedPredicates<'tcx>,
+        def_id: DefId,
     ) {
         debug!(
-            "add_obligations: fty={:?} all_substs={:?} method_predicates={:?}",
-            fty, all_substs, method_predicates
+            "add_obligations: fty={:?} all_substs={:?} method_predicates={:?} def_id={:?}",
+            fty, all_substs, method_predicates, def_id
         );
 
-        self.add_obligations_for_parameters(
-            traits::ObligationCause::misc(self.span, self.body_id),
+        // FIXME: could replace with the following, but we already calculated `method_predicates`,
+        // so we just call `predicates_for_generics` directly to avoid redoing work.
+        // `self.add_required_obligations(self.span, def_id, &all_substs);`
+        for obligation in traits::predicates_for_generics(
+            traits::ObligationCause::new(self.span, self.body_id, traits::ItemObligation(def_id)),
+            self.param_env,
             method_predicates,
-        );
+        ) {
+            self.register_predicate(obligation);
+        }
 
         // this is a projection from a trait reference, so we have to
         // make sure that the trait reference inputs are well-formed.

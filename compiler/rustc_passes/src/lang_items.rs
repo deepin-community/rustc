@@ -10,16 +10,14 @@
 use crate::check_attr::target_from_impl_item;
 use crate::weak_lang_items;
 
-use rustc_middle::middle::cstore::ExternCrate;
-use rustc_middle::ty::TyCtxt;
-
-use rustc_ast::Attribute;
 use rustc_errors::{pluralize, struct_span_err};
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::itemlikevisit::ItemLikeVisitor;
 use rustc_hir::lang_items::{extract, GenericRequirement, ITEM_REFS};
 use rustc_hir::{HirId, LangItem, LanguageItems, Target};
+use rustc_middle::ty::TyCtxt;
+use rustc_session::cstore::ExternCrate;
 use rustc_span::Span;
 
 use rustc_middle::ty::query::Providers;
@@ -29,7 +27,7 @@ struct LanguageItemCollector<'tcx> {
     tcx: TyCtxt<'tcx>,
 }
 
-impl ItemLikeVisitor<'v> for LanguageItemCollector<'tcx> {
+impl<'v, 'tcx> ItemLikeVisitor<'v> for LanguageItemCollector<'tcx> {
     fn visit_item(&mut self, item: &hir::Item<'_>) {
         self.check_for_lang(Target::from_item(item), item.hir_id());
 
@@ -51,15 +49,14 @@ impl ItemLikeVisitor<'v> for LanguageItemCollector<'tcx> {
     fn visit_foreign_item(&mut self, _: &hir::ForeignItem<'_>) {}
 }
 
-impl LanguageItemCollector<'tcx> {
+impl<'tcx> LanguageItemCollector<'tcx> {
     fn new(tcx: TyCtxt<'tcx>) -> LanguageItemCollector<'tcx> {
         LanguageItemCollector { tcx, items: LanguageItems::new() }
     }
 
     fn check_for_lang(&mut self, actual_target: Target, hir_id: HirId) {
         let attrs = self.tcx.hir().attrs(hir_id);
-        let check_name = |attr: &Attribute, sym| attr.has_name(sym);
-        if let Some((value, span)) = extract(check_name, &attrs) {
+        if let Some((value, span)) = extract(&attrs) {
             match ITEM_REFS.get(&value).cloned() {
                 // Known lang item with attribute on correct target.
                 Some((item_index, expected_target)) if actual_target == expected_target => {
@@ -262,7 +259,7 @@ fn get_lang_items(tcx: TyCtxt<'_>, (): ()) -> LanguageItems {
     }
 
     // Collect lang items in this crate.
-    tcx.hir().krate().visit_all_item_likes(&mut collector);
+    tcx.hir().visit_all_item_likes(&mut collector);
 
     // Extract out the found lang items.
     let LanguageItemCollector { mut items, .. } = collector;

@@ -1,13 +1,12 @@
 use crate::consts::{constant_context, constant_simple};
-use crate::differing_macro_contexts;
 use crate::source::snippet_opt;
 use rustc_ast::ast::InlineAsmTemplatePiece;
 use rustc_data_structures::fx::FxHasher;
 use rustc_hir::def::Res;
 use rustc_hir::HirIdMap;
 use rustc_hir::{
-    BinOpKind, Block, BodyId, Expr, ExprField, ExprKind, FnRetTy, GenericArg, GenericArgs, Guard, HirId,
-    InlineAsmOperand, Lifetime, LifetimeName, ParamName, Pat, PatField, PatKind, Path, PathSegment, QPath, Stmt,
+    ArrayLen, BinOpKind, Block, BodyId, Expr, ExprField, ExprKind, FnRetTy, GenericArg, GenericArgs, Guard, HirId,
+    InlineAsmOperand, Let, Lifetime, LifetimeName, ParamName, Pat, PatField, PatKind, Path, PathSegment, QPath, Stmt,
     StmtKind, Ty, TyKind, TypeBinding,
 };
 use rustc_lexer::{tokenize, TokenKind};
@@ -41,6 +40,7 @@ impl<'a, 'tcx> SpanlessEq<'a, 'tcx> {
     }
 
     /// Consider expressions containing potential side effects as not equal.
+    #[must_use]
     pub fn deny_side_effects(self) -> Self {
         Self {
             allow_side_effects: false,
@@ -48,6 +48,7 @@ impl<'a, 'tcx> SpanlessEq<'a, 'tcx> {
         }
     }
 
+    #[must_use]
     pub fn expr_fallback(self, expr_fallback: impl FnMut(&Expr<'_>, &Expr<'_>) -> bool + 'a) -> Self {
         Self {
             expr_fallback: Some(Box::new(expr_fallback)),
@@ -100,7 +101,7 @@ impl HirEqInterExpr<'_, '_, '_> {
                 if let Some(typeck) = self.inner.maybe_typeck_results {
                     let l_ty = typeck.pat_ty(l.pat);
                     let r_ty = typeck.pat_ty(r.pat);
-                    if !rustc_middle::ty::TyS::same_type(l_ty, r_ty) {
+                    if l_ty != r_ty {
                         return false;
                     }
                 }
@@ -168,6 +169,14 @@ impl HirEqInterExpr<'_, '_, '_> {
         }
     }
 
+    pub fn eq_array_length(&mut self, left: ArrayLen, right: ArrayLen) -> bool {
+        match (left, right) {
+            (ArrayLen::Infer(..), ArrayLen::Infer(..)) => true,
+            (ArrayLen::Body(l_ct), ArrayLen::Body(r_ct)) => self.eq_body(l_ct.body, r_ct.body),
+            (_, _) => false,
+        }
+    }
+
     pub fn eq_body(&mut self, left: BodyId, right: BodyId) -> bool {
         let cx = self.inner.cx;
         let eval_const = |body| constant_context(cx, cx.tcx.typeck_body(body)).expr(&cx.tcx.hir().body(body).value);
@@ -176,7 +185,7 @@ impl HirEqInterExpr<'_, '_, '_> {
 
     #[allow(clippy::similar_names)]
     pub fn eq_expr(&mut self, left: &Expr<'_>, right: &Expr<'_>) -> bool {
-        if !self.inner.allow_side_effects && differing_macro_contexts(left.span, right.span) {
+        if !self.inner.allow_side_effects && left.span.ctxt() != right.span.ctxt() {
             return false;
         }
 
@@ -192,8 +201,8 @@ impl HirEqInterExpr<'_, '_, '_> {
         }
 
         let is_eq = match (
-            &reduce_exprkind(self.inner.cx, &left.kind),
-            &reduce_exprkind(self.inner.cx, &right.kind),
+            reduce_exprkind(self.inner.cx, &left.kind),
+            reduce_exprkind(self.inner.cx, &right.kind),
         ) {
             (&ExprKind::AddrOf(lb, l_mut, le), &ExprKind::AddrOf(rb, r_mut, re)) => {
                 lb == rb && l_mut == r_mut && self.eq_expr(le, re)
@@ -230,10 +239,10 @@ impl HirEqInterExpr<'_, '_, '_> {
             },
             (&ExprKind::Index(la, li), &ExprKind::Index(ra, ri)) => self.eq_expr(la, ra) && self.eq_expr(li, ri),
             (&ExprKind::If(lc, lt, ref le), &ExprKind::If(rc, rt, ref re)) => {
-                self.eq_expr(lc, rc) && self.eq_expr(&**lt, &**rt) && both(le, re, |l, r| self.eq_expr(l, r))
+                self.eq_expr(lc, rc) && self.eq_expr(lt, rt) && both(le, re, |l, r| self.eq_expr(l, r))
             },
-            (&ExprKind::Let(ref lp, ref le, _), &ExprKind::Let(ref rp, ref re, _)) => {
-                self.eq_pat(lp, rp) && self.eq_expr(le, re)
+            (&ExprKind::Let(l), &ExprKind::Let(r)) => {
+                self.eq_pat(l.pat, r.pat) && both(&l.ty, &r.ty, |l, r| self.eq_ty(l, r)) && self.eq_expr(l.init, r.init)
             },
             (&ExprKind::Lit(ref l), &ExprKind::Lit(ref r)) => l.node == r.node,
             (&ExprKind::Loop(lb, ref ll, ref lls, _), &ExprKind::Loop(rb, ref rl, ref rls, _)) => {
@@ -248,11 +257,11 @@ impl HirEqInterExpr<'_, '_, '_> {
                             && self.eq_expr(l.body, r.body)
                     })
             },
-            (&ExprKind::MethodCall(l_path, _, l_args, _), &ExprKind::MethodCall(r_path, _, r_args, _)) => {
+            (&ExprKind::MethodCall(l_path, l_args, _), &ExprKind::MethodCall(r_path, r_args, _)) => {
                 self.inner.allow_side_effects && self.eq_path_segment(l_path, r_path) && self.eq_exprs(l_args, r_args)
             },
-            (&ExprKind::Repeat(le, ref ll_id), &ExprKind::Repeat(re, ref rl_id)) => {
-                self.eq_expr(le, re) && self.eq_body(ll_id.body, rl_id.body)
+            (&ExprKind::Repeat(le, ll), &ExprKind::Repeat(re, rl)) => {
+                self.eq_expr(le, re) && self.eq_array_length(ll, rl)
             },
             (&ExprKind::Ret(ref l), &ExprKind::Ret(ref r)) => both(l, r, |l, r| self.eq_expr(l, r)),
             (&ExprKind::Path(ref l), &ExprKind::Path(ref r)) => self.eq_qpath(l, r),
@@ -348,7 +357,7 @@ impl HirEqInterExpr<'_, '_, '_> {
             (&QPath::TypeRelative(lty, lseg), &QPath::TypeRelative(rty, rseg)) => {
                 self.eq_ty(lty, rty) && self.eq_path_segment(lseg, rseg)
             },
-            (&QPath::LangItem(llang_item, _), &QPath::LangItem(rlang_item, _)) => llang_item == rlang_item,
+            (&QPath::LangItem(llang_item, ..), &QPath::LangItem(rlang_item, ..)) => llang_item == rlang_item,
             _ => false,
         }
     }
@@ -386,12 +395,10 @@ impl HirEqInterExpr<'_, '_, '_> {
     }
 
     #[allow(clippy::similar_names)]
-    fn eq_ty(&mut self, left: &Ty<'_>, right: &Ty<'_>) -> bool {
+    pub fn eq_ty(&mut self, left: &Ty<'_>, right: &Ty<'_>) -> bool {
         match (&left.kind, &right.kind) {
             (&TyKind::Slice(l_vec), &TyKind::Slice(r_vec)) => self.eq_ty(l_vec, r_vec),
-            (&TyKind::Array(lt, ref ll_id), &TyKind::Array(rt, ref rl_id)) => {
-                self.eq_ty(lt, rt) && self.eq_body(ll_id.body, rl_id.body)
-            },
+            (&TyKind::Array(lt, ll), &TyKind::Array(rt, rl)) => self.eq_ty(lt, rt) && self.eq_array_length(ll, rl),
             (&TyKind::Ptr(ref l_mut), &TyKind::Ptr(ref r_mut)) => {
                 l_mut.mutbl == r_mut.mutbl && self.eq_ty(&*l_mut.ty, &*r_mut.ty)
             },
@@ -542,7 +549,7 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
         std::mem::discriminant(&b.rules).hash(&mut self.s);
     }
 
-    #[allow(clippy::many_single_char_names, clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)]
     pub fn hash_expr(&mut self, e: &Expr<'_>) {
         let simple_const = self
             .maybe_typeck_results
@@ -668,11 +675,14 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
                     }
                 }
             },
-            ExprKind::Let(ref pat, ref expr, _) => {
-                self.hash_expr(expr);
+            ExprKind::Let(Let { pat, init, ty, .. }) => {
+                self.hash_expr(init);
+                if let Some(ty) = ty {
+                    self.hash_ty(ty);
+                }
                 self.hash_pat(pat);
             },
-            ExprKind::LlvmInlineAsm(..) | ExprKind::Err => {},
+            ExprKind::Err => {},
             ExprKind::Lit(ref l) => {
                 l.node.hash(&mut self.s);
             },
@@ -702,16 +712,16 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
 
                 s.hash(&mut self.s);
             },
-            ExprKind::MethodCall(path, ref _tys, args, ref _fn_span) => {
+            ExprKind::MethodCall(path, args, ref _fn_span) => {
                 self.hash_name(path.ident.name);
                 self.hash_exprs(args);
             },
             ExprKind::ConstBlock(ref l_id) => {
                 self.hash_body(l_id.body);
             },
-            ExprKind::Repeat(e, ref l_id) => {
+            ExprKind::Repeat(e, len) => {
                 self.hash_expr(e);
-                self.hash_body(l_id.body);
+                self.hash_array_length(len);
             },
             ExprKind::Ret(ref e) => {
                 if let Some(e) = *e {
@@ -840,6 +850,8 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
     pub fn hash_path(&mut self, path: &Path<'_>) {
         match path.res {
             // constant hash since equality is dependant on inter-expression context
+            // e.g. The expressions `if let Some(x) = foo() {}` and `if let Some(y) = foo() {}` are considered equal
+            // even though the binding names are different and they have different `HirId`s.
             Res::Local(_) => 1_usize.hash(&mut self.s),
             _ => {
                 for seg in path.segments {
@@ -901,9 +913,9 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
             TyKind::Slice(ty) => {
                 self.hash_ty(ty);
             },
-            TyKind::Array(ty, anon_const) => {
+            &TyKind::Array(ty, len) => {
                 self.hash_ty(ty);
-                self.hash_body(anon_const.body);
+                self.hash_array_length(len);
             },
             TyKind::Ptr(ref mut_ty) => {
                 self.hash_ty(mut_ty.ty);
@@ -945,6 +957,13 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
                 self.hash_body(anon_const.body);
             },
             TyKind::Err | TyKind::Infer | TyKind::Never => {},
+        }
+    }
+
+    pub fn hash_array_length(&mut self, length: ArrayLen) {
+        match length {
+            ArrayLen::Infer(..) => {},
+            ArrayLen::Body(anon_const) => self.hash_body(anon_const.body),
         }
     }
 

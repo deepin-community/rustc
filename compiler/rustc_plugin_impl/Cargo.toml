@@ -2,12 +2,13 @@
 name = "rustc_plugin_impl"
 version = "0.0.0"
 build = false
-edition = "2018"
+edition = "2021"
 
 [lib]
 doctest = false
 
 [dependencies]
+libloading = "0.7.1"
 rustc_middle = { path = "../rustc_middle" }
 rustc_errors = { path = "../rustc_errors" }
 rustc_hir = { path = "../rustc_hir" }
