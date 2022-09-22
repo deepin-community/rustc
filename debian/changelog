@@ -1,3 +1,9 @@
+rustc (1.61.0+dfsg1-1) unstable; urgency=medium
+
+  * Upload to unstable (Closes: #1020394)
+
+ -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 22 Sep 2022 09:00:21 +0200
+
 rustc (1.61.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
