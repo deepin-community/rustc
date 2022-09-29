@@ -9,7 +9,6 @@ vendor/itertools*/examples/iris.data
 vendor/regex/tests/unicode.rs
 vendor/regex/tests/suffix_reverse.rs
 vendor/term/src/terminfo/parser/names.rs
-vendor/term-0.6.1/src/terminfo/parser/names.rs
 
 # False-positive, "verylongtext" but OK
 README.md
@@ -59,6 +58,7 @@ vendor/*/*/LICENSE
 vendor/*/*/*/LICENSE
 vendor/ahash/FAQ.md
 vendor/ammonia/src/lib.rs
+vendor/clap/examples/derive_ref/README.md
 vendor/clap-2.34.0/SPONSORS.md
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
@@ -74,6 +74,7 @@ vendor/tracing-subscriber/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
 vendor/unicode-normalization/src/stream_safe.rs
 vendor/winapi/src/lib.rs
+vendor/windows-sys/readme.md
 vendor/windows-sys/src/Windows/Win32/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*.rs
@@ -141,10 +142,11 @@ src/librustdoc/html/static/images/favicon-*.png
 src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
 vendor/mdbook/src/theme/favicon.svg
 vendor/mdbook/src/theme/favicon.png
-vendor/pretty_assertions/examples/*.png
+vendor/pretty_assertions-0.7.2/examples/*.png
 
 # Example code
 vendor/html5ever/examples/capi/tokenize.c
+vendor/sysinfo/examples/simple.c
 
 # Test data
 library/portable-simd/crates/core_simd/webdriver.json
@@ -161,6 +163,7 @@ src/test/mir-opt/*.mir
 src/test/mir-opt/*.diff
 src/test/mir-opt/*/*.mir
 src/test/mir-opt/*/*.diff
+src/test/rustdoc/tuples.link2_i32.html
 src/test/*/*.rs
 src/test/*/issues/*.rs
 src/test/*/*/issue-*.rs
@@ -185,6 +188,7 @@ src/tools/rustfmt/tests/writemode/target/*.xml
 src/tools/rustfmt/tests/source/*.rs
 src/tools/rustfmt/tests/source/*/*.rs
 src/tools/rustfmt/tests/target/issue-5088/very_long_comment_wrap_comments_false.rs
+vendor/annotate-snippets/tests/fixtures/no-color/strip_line_non_ws.toml
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/dissimilar/benches/*.txt
@@ -223,8 +227,8 @@ vendor/sha-1-0*/tests/data/*.bin
 vendor/sha-1-0*/tests/data/*.blb
 vendor/sha-1/tests/data/*.blb
 vendor/sha2/tests/data/*.blb
-vendor/term-0*/tests/data/*
 vendor/term/tests/data/*
+vendor/unicode-ident/tests/fst/*.fst
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/yaml-rust-0*/tests/specexamples.rs.inc
@@ -295,6 +299,7 @@ vendor/rustc-rayon/tests/sort-panic-safe.rs
 vendor/url/src/parser.rs
 vendor/utf-8/tests/unit.rs
 vendor/rustversion/src/attr.rs
+vendor/env_logger/src/fmt/writer/mod.rs
 vendor/env_logger-0.*/src/fmt/writer/mod.rs
 vendor/pest_generator/src/generator.rs
 vendor/digest/src/dev.rs
@@ -302,8 +307,6 @@ vendor/proc-macro2/src/parse.rs
 vendor/xz2/src/stream.rs
 vendor/xz2/src/bufread.rs
 vendor/digest-0.8.1/src/dev.rs
-vendor/structopt/tests/custom-string-parsers.rs
-vendor/structopt/tests/non_literal_attributes.rs
 vendor/pulldown-cmark/tests/lib.rs
 vendor/pulldown-cmark/src/linklabel.rs
 vendor/pulldown-cmark/benches/html_rendering.rs
