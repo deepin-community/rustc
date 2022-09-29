@@ -9,11 +9,19 @@ this is what rustc_workspace_hack does in the upstream build.
  src/tools/rustfmt/Cargo.toml | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index a86a9e6..b2ce615 100644
---- a/src/tools/clippy/Cargo.toml
-+++ b/src/tools/clippy/Cargo.toml
-@@ -41,7 +41,7 @@ if_chain = "1.0"
+Index: rust/src/tools/clippy/Cargo.toml
+===================================================================
+--- rust.orig/src/tools/clippy/Cargo.toml
++++ rust/src/tools/clippy/Cargo.toml
+@@ -22,6 +22,7 @@ path = "src/driver.rs"
+ 
+ [dependencies]
+ clippy_lints = { path = "clippy_lints" }
++memchr = { version = "2.5.0", features = ["use_std"] } # rustfmt sync!
+ semver = "1.0"
+ rustc_tools_util = { path = "rustc_tools_util" }
+ tempfile = { version = "3.2", optional = true }
+@@ -41,7 +42,7 @@ if_chain = "1.0"
  itertools = "0.10.1"
  quote = "1.0"
  serde = { version = "1.0.125", features = ["derive"] }
@@ -22,10 +30,10 @@ index a86a9e6..b2ce615 100644
  futures = "0.3"
  parking_lot = "0.12"
  tokio = { version = "1", features = ["io-util"] }
-diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 27b91f2..12d1567 100644
---- a/src/tools/rustfmt/Cargo.toml
-+++ b/src/tools/rustfmt/Cargo.toml
+Index: rust/src/tools/rustfmt/Cargo.toml
+===================================================================
+--- rust.orig/src/tools/rustfmt/Cargo.toml
++++ rust/src/tools/rustfmt/Cargo.toml
 @@ -49,7 +49,7 @@ lazy_static = "1.4"
  log = "0.4"
  regex = "1.5"
