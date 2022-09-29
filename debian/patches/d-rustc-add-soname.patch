@@ -28,7 +28,7 @@ diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codege
 index 04ec1e7..67296ca 100644
 --- a/compiler/rustc_codegen_ssa/src/back/link.rs
 +++ b/compiler/rustc_codegen_ssa/src/back/link.rs
-@@ -2123,6 +2123,13 @@ fn add_order_independent_options(
+@@ -2131,6 +2131,13 @@ fn add_order_independent_options(
      }
  
      add_rpath_args(cmd, sess, codegen_results, out_filename);
@@ -41,4 +41,4 @@ index 04ec1e7..67296ca 100644
 +    }
  }
  
- // Write the debugger visualizer files for each crate to the temp directory and gather the file paths.
+ // Write the NatVis debugger visualizer files for each crate to the temp directory and gather the file paths.

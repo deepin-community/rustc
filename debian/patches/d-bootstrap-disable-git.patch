@@ -31,7 +31,7 @@ diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
 index 6181a61..5fe3600 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -881,7 +881,10 @@ impl Step for PlainSourceTarball {
+@@ -883,7 +883,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
@@ -40,6 +40,6 @@ index 6181a61..5fe3600 100644
 +        // Debian: disabling this block because the debian package is also in a git
 +        //         repository, but cargo-vendor should not be installed or run.
 +        if false && builder.rust_info.is_git() {
-             // Vendor all Cargo dependencies
-             let mut cmd = Command::new(&builder.initial_cargo);
-             cmd.arg("vendor")
+             // Ensure we have the submodules checked out.
+             builder.update_submodule(Path::new("src/tools/rust-analyzer"));
+ 

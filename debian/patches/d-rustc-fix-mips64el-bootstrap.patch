@@ -42,7 +42,7 @@ diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
 index 92d29d6..23c0764 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -867,6 +867,8 @@ class RustBuild(object):
+@@ -768,6 +768,8 @@ class RustBuild(object):
  
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")

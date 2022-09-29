@@ -13,7 +13,7 @@ diff --git a/src/librustdoc/html/render/write_shared.rs b/src/librustdoc/html/re
 index 68f2a54..86f7487 100644
 --- a/src/librustdoc/html/render/write_shared.rs
 +++ b/src/librustdoc/html/render/write_shared.rs
-@@ -32,8 +32,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap<&str, &[u8]>> = Lazy::new(|| {
+@@ -33,8 +33,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap
          "SourceCodePro-Semibold.ttf.woff2" => static_files::source_code_pro::SEMIBOLD,
          "SourceCodePro-It.ttf.woff2" => static_files::source_code_pro::ITALIC,
          "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
@@ -46,7 +46,7 @@ index bec5c08..1f6ccf2 100644
 --- a/src/librustdoc/html/static_files.rs
 +++ b/src/librustdoc/html/static_files.rs
 @@ -138,29 +138,6 @@ crate mod source_code_pro {
-     crate static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
+     pub(crate) static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
  }
  
 -/// Files related to the Nanum Barun Gothic font.
@@ -64,14 +64,14 @@ index bec5c08..1f6ccf2 100644
 -/// --unicodes=U+AC00-D7AF,U+1100-11FF,U+3130-318F,U+A960-A97F,U+D7B0-D7FF \
 -/// --output-file=NanumBarunGothic.ttf.woff2 --flavor=woff2
 -/// ```
--crate mod nanum_barun_gothic {
+-pub(crate) mod nanum_barun_gothic {
 -    /// The file `NanumBarunGothic.ttf.woff2`, the Regular variant of the Nanum Barun Gothic font.
--    crate static REGULAR: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff2");
+-    pub(crate) static REGULAR: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff2");
 -
 -    /// The file `NanumBarunGothic-LICENSE.txt`, the license text of the Nanum Barun Gothic font.
--    crate static LICENSE: &[u8] = include_bytes!("static/fonts/NanumBarunGothic-LICENSE.txt");
+-    pub(crate) static LICENSE: &[u8] = include_bytes!("static/fonts/NanumBarunGothic-LICENSE.txt");
 -}
 -
  /// Files related to the sidebar in rustdoc sources.
- crate mod sidebar {
+ pub(crate) mod sidebar {
      /// File script to handle sidebar.

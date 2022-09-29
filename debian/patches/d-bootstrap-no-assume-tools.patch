@@ -11,7 +11,7 @@ diff --git a/src/bootstrap/builder/tests.rs b/src/bootstrap/builder/tests.rs
 index 4ab502e..5ce7fc8 100644
 --- a/src/bootstrap/builder/tests.rs
 +++ b/src/bootstrap/builder/tests.rs
-@@ -309,9 +309,13 @@ mod dist {
+@@ -348,9 +348,13 @@ mod dist {
      fn dist_only_cross_host() {
          let a = TargetSelection::from_user("A");
          let b = TargetSelection::from_user("B");

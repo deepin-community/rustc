@@ -12,7 +12,7 @@ diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
 index ddc92ba..259b56e 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -1003,10 +1003,9 @@ impl Build {
+@@ -1024,10 +1024,9 @@ impl Build {
  
          match which {
              GitRepo::Rustc => {
