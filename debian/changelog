@@ -1,3 +1,9 @@
+rustc (1.63.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+
+  * New upstream release
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Tue, 15 Nov 2022 19:44:30 +0100
+
 rustc (1.62.1+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable
