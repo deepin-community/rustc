@@ -1,59 +1,55 @@
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 Date: Sat, 2 Oct 2021 01:08:00 +0100
-Subject: d-0002-pkg-config-no-special-snowflake
+Subject: d-0001-pkg-config-no-special-snowflake
 
 ---
- vendor/pkg-config/src/lib.rs    | 22 ++++++++++------------
+ vendor/pkg-config/src/lib.rs    | 25 ++++++++++---------------
  vendor/pkg-config/tests/test.rs |  2 --
- 2 files changed, 10 insertions(+), 14 deletions(-)
+ 2 files changed, 10 insertions(+), 17 deletions(-)
 
 diff --git a/vendor/pkg-config/src/lib.rs b/vendor/pkg-config/src/lib.rs
-index 2be11b3..0975563 100644
+index a28304e..11f9460 100644
 --- a/vendor/pkg-config/src/lib.rs
 +++ b/vendor/pkg-config/src/lib.rs
-@@ -9,8 +9,6 @@
- //! A number of environment variables are available to globally configure how
- //! this crate will invoke `pkg-config`:
- //!
--//! * `PKG_CONFIG_ALLOW_CROSS` - if this variable is not set, then `pkg-config`
--//!   will automatically be disabled for all cross compiles.
- //! * `FOO_NO_PKG_CONFIG` - if set, this will disable running `pkg-config` when
- //!   probing for the library named `foo`.
- //!
-@@ -106,9 +104,8 @@ pub enum Error {
+@@ -111,11 +111,8 @@ pub enum Error {
      /// Contains the name of the responsible environment variable.
      EnvNoPkgConfig(String),
  
--    /// Cross compilation detected.
+-    /// Detected cross compilation without a custom sysroot.
 -    ///
--    /// Override with `PKG_CONFIG_ALLOW_CROSS=1`.
+-    /// Ignore the error with `PKG_CONFIG_ALLOW_CROSS=1`,
+-    /// which may let `pkg-config` select libraries
+-    /// for the host's architecture instead of the target's.
 +    /// Cross compilation detected. Kept for compatibility;
 +    /// the Debian package never emits this.
      CrossCompilation,
  
      /// Failed to run `pkg-config`.
-@@ -132,11 +129,6 @@ impl fmt::Display for Error {
+@@ -155,14 +152,6 @@ impl fmt::Display for Error {
      fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
          match *self {
              Error::EnvNoPkgConfig(ref name) => write!(f, "Aborted because {} is set", name),
--            Error::CrossCompilation => write!(
--                f,
--                "Cross compilation detected. \
--                 Use PKG_CONFIG_ALLOW_CROSS=1 to override"
+-            Error::CrossCompilation => f.write_str(
+-                "pkg-config has not been configured to support cross-compilation.\n\
+-                \n\
+-                Install a sysroot for the target platform and configure it via\n\
+-                PKG_CONFIG_SYSROOT_DIR and PKG_CONFIG_PATH, or install a\n\
+-                cross-compiling wrapper for pkg-config and set it via\n\
+-                PKG_CONFIG environment variable.",
 -            ),
              Error::Command {
                  ref command,
                  ref cause,
-@@ -160,7 +152,7 @@ impl fmt::Display for Error {
-                 }
-                 Ok(())
+@@ -219,7 +208,7 @@ impl fmt::Display for Error {
+                 )?;
+                 format_output(output, f)
              }
 -            Error::__Nonexhaustive => panic!(),
 +            Error::CrossCompilation | Error::__Nonexhaustive => panic!(),
          }
      }
  }
-@@ -321,6 +313,8 @@ impl Config {
+@@ -411,6 +400,8 @@ impl Config {
          if host == target {
              return true;
          }
@@ -62,10 +58,10 @@ index 2be11b3..0975563 100644
  
          // pkg-config may not be aware of cross-compilation, and require
          // a wrapper script that sets up platform-specific prefixes.
-@@ -380,7 +374,11 @@ impl Config {
+@@ -470,7 +461,11 @@ impl Config {
      fn command(&self, name: &str, args: &[&str]) -> Command {
          let exe = self
-             .env_var_os("PKG_CONFIG")
+             .targetted_env_var("PKG_CONFIG")
 -            .unwrap_or_else(|| OsString::from("pkg-config"));
 +            .unwrap_or_else(|| {
 +                self.env_var_os("DEB_HOST_GNU_TYPE")
@@ -76,7 +72,7 @@ index 2be11b3..0975563 100644
          if self.is_static(name) {
              cmd.arg("--static");
 diff --git a/vendor/pkg-config/tests/test.rs b/vendor/pkg-config/tests/test.rs
-index 33a623c..0f934c4 100644
+index 4e04ac0..f884e46 100644
 --- a/vendor/pkg-config/tests/test.rs
 +++ b/vendor/pkg-config/tests/test.rs
 @@ -34,7 +34,6 @@ fn find(name: &str) -> Result<pkg_config::Library, Error> {

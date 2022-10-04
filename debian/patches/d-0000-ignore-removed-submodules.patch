@@ -3,21 +3,21 @@ Date: Sat, 2 Oct 2021 01:07:59 +0100
 Subject: d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                   | 29 -----------------------------
- src/bootstrap/bootstrap.py   | 15 ---------------
+ Cargo.toml                   | 36 ++++++++----------------------------
+ src/bootstrap/bootstrap.py   |  4 ----
  src/bootstrap/builder.rs     |  7 +------
  src/bootstrap/doc.rs         |  1 -
  src/bootstrap/test.rs        | 12 +-----------
  src/tools/clippy/Cargo.toml  |  5 -----
  src/tools/rustfmt/Cargo.toml |  5 -----
  src/tools/tidy/src/deps.rs   |  2 +-
- 8 files changed, 3 insertions(+), 73 deletions(-)
+ 8 files changed, 11 insertions(+), 61 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 4e78399..4a87674 100644
+index ffc886d..7231b60 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -18,25 +18,14 @@ members = [
+@@ -16,25 +16,14 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -43,9 +43,9 @@ index 4e78399..4a87674 100644
    "src/tools/lld-wrapper",
  ]
  
-@@ -106,25 +95,7 @@ debug = 0
- # Only use debuginfo=1 to further reduce compile times.
- bootstrap.debug = 1
+@@ -96,25 +85,16 @@ gimli.debug = 0
+ miniz_oxide.debug = 0
+ object.debug = 0
  
 -# We want the RLS to use the version of Cargo that we've got vendored in this
 -# repository to ensure that the same exact version of Cargo is used by both the
@@ -61,7 +61,15 @@ index 4e78399..4a87674 100644
 -# that we're shipping as well (to ensure that the rustfmt in RLS and the
 -# `rustfmt` executable are the same exact version).
 -rustfmt-nightly = { path = "src/tools/rustfmt" }
--
++# The only package that ever uses debug builds is bootstrap.
++# We care a lot about bootstrap's compile times, so don't include debug info for
++# dependencies, only bootstrap itself.
++[profile.dev]
++debug = 0
++[profile.dev.package]
++# Only use debuginfo=1 to further reduce compile times.
++bootstrap.debug = 1
+ 
  [patch.crates-io]
 -# See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
 -# here
@@ -70,10 +78,10 @@ index 4e78399..4a87674 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 40d478a..126b74c 100644
+index 03eec02..c40811f 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -793,10 +793,6 @@ class RustBuild(object):
+@@ -759,10 +759,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(0, self.verbose):
              args.append("--verbose")
@@ -84,37 +92,47 @@ index 40d478a..126b74c 100644
          if self.get_toml("metrics", "build"):
              args.append("--features")
              args.append("build-metrics")
-@@ -854,17 +850,6 @@ class RustBuild(object):
-     def update_submodules(self):
-         """Update submodules"""
-         has_git = os.path.exists(os.path.join(self.rust_root, ".git"))
--        # This just arbitrarily checks for cargo, but any workspace member in
--        # a submodule would work.
--        has_submodules = os.path.exists(os.path.join(self.rust_root, "src/tools/cargo/Cargo.toml"))
--        if not has_git and not has_submodules:
--            print("This is not a git repository, and the requisite git submodules were not found.")
--            print("If you downloaded the source from https://github.com/rust-lang/rust/releases,")
--            print("those sources will not work. Instead, consider downloading from the source")
--            print("releases linked at")
--            print("https://forge.rust-lang.org/infra/other-installation-methods.html#source-code")
--            print("or clone the repository at https://github.com/rust-lang/rust/.")
--            raise SystemExit(1)
-         if not has_git or self.get_toml('submodules') == "false":
-             return
- 
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 62b5416..144aefa 100644
+index 0ab4824..629e1bb 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -692,7 +692,6 @@ impl<'a> Builder<'a> {
+@@ -600,8 +600,6 @@ impl<'a> Builder<'a> {
+                 tool::RustInstaller,
+                 tool::Cargo,
+                 tool::Rls,
+-                tool::RustAnalyzer,
+-                tool::RustAnalyzerProcMacroSrv,
+                 tool::RustDemangler,
+                 tool::Rustdoc,
+                 tool::Clippy,
+@@ -622,7 +620,6 @@ impl<'a> Builder<'a> {
+                 check::Clippy,
+                 check::Miri,
+                 check::Rls,
+-                check::RustAnalyzer,
+                 check::Rustfmt,
+                 check::Bootstrap
+             ),
+@@ -650,7 +647,6 @@ impl<'a> Builder<'a> {
+                 test::Cargotest,
+                 test::Cargo,
+                 test::Rls,
+-                test::RustAnalyzer,
+                 test::ErrorIndex,
+                 test::Distcheck,
+                 test::RunMakeFullDeps,
+@@ -698,10 +694,8 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
 -                doc::CargoBook,
                  doc::Clippy,
+                 doc::ClippyBook,
+-                doc::Miri,
                  doc::EmbeddedBook,
                  doc::EditionGuide,
-@@ -715,7 +714,6 @@ impl<'a> Builder<'a> {
+             ),
+@@ -723,7 +717,6 @@ impl<'a> Builder<'a> {
                  dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
@@ -122,7 +140,7 @@ index 62b5416..144aefa 100644
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -2049,10 +2047,7 @@ impl<'a> Builder<'a> {
+@@ -2054,10 +2047,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -135,7 +153,7 @@ index 62b5416..144aefa 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index be6655d..91e0772 100644
+index 2852442..5faa8e5 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -73,7 +73,6 @@ macro_rules! book {
@@ -143,14 +161,14 @@ index be6655d..91e0772 100644
  // and checking against it?).
  book!(
 -    CargoBook, "src/tools/cargo/src/doc", "cargo", submodule = "src/tools/cargo";
+     ClippyBook, "src/tools/clippy/book", "clippy";
      EditionGuide, "src/doc/edition-guide", "edition-guide", submodule;
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
-     Nomicon, "src/doc/nomicon", "nomicon", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 9958306..4e4945b 100644
+index c0fa8c9..8fbc390 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1842,17 +1842,7 @@ impl Step for RustcGuide {
+@@ -1910,17 +1910,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -170,10 +188,10 @@ index 9958306..4e4945b 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index e4060ce..a86a9e6 100644
+index 1c875c3..1aad7cf 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -34,11 +34,6 @@ regex = "1.5"
+@@ -36,11 +36,6 @@ walkdir = "2.3"
  # This is used by the `collect-metadata` alias.
  filetime = "0.2"
  
@@ -202,10 +220,10 @@ index 7a4e02d..27b91f2 100644
  
  [package.metadata.rust-analyzer]
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index 7775bbb..ae0489e 100644
+index 333f85f..4df2b54 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -294,7 +294,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -306,7 +306,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
      // These two crates take quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.
@@ -214,3 +232,36 @@ index 7775bbb..ae0489e 100644
  ];
  
  /// Dependency checks.
+Index: rust/src/bootstrap/dist.rs
+===================================================================
+--- rust.orig/src/bootstrap/dist.rs
++++ rust/src/bootstrap/dist.rs
+@@ -362,17 +362,17 @@ impl Step for Rustc {
+ 
+             builder.install(&builder.rustdoc(compiler), &image.join("bin"), 0o755);
+ 
+-            let ra_proc_macro_srv = builder
+-                .ensure(tool::RustAnalyzerProcMacroSrv {
+-                    compiler: builder.compiler_for(
+-                        compiler.stage,
+-                        builder.config.build,
+-                        compiler.host,
+-                    ),
+-                    target: compiler.host,
+-                })
+-                .expect("rust-analyzer-proc-macro-server always builds");
+-            builder.install(&ra_proc_macro_srv, &image.join("libexec"), 0o755);
++            //let ra_proc_macro_srv = builder
++            //    .ensure(tool::RustAnalyzerProcMacroSrv {
++            //        compiler: builder.compiler_for(
++            //            compiler.stage,
++            //            builder.config.build,
++            //            compiler.host,
++            //        ),
++            //        target: compiler.host,
++            //    })
++            //    .expect("rust-analyzer-proc-macro-server always builds");
++            //builder.install(&ra_proc_macro_srv, &image.join("libexec"), 0o755);
+ 
+             let libdir_relative = builder.libdir_relative(compiler);
+ 

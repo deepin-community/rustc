@@ -1,6 +1,6 @@
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 Date: Sat, 2 Oct 2021 01:08:00 +0100
-Subject: d-0004-cc-psm-rebuild-wasm32
+Subject: d-0003-cc-psm-rebuild-wasm32
 
 ---
  vendor/cc/src/lib.rs | 2 +-

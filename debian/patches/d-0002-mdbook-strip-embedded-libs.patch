@@ -1,6 +1,6 @@
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 Date: Sat, 2 Oct 2021 01:08:00 +0100
-Subject: d-0003-mdbook-strip-embedded-libs
+Subject: d-0002-mdbook-strip-embedded-libs
 
 Comment: Use https://github.com/infinity0/mdBook/tree/debian to help you rebase the patch on top of a newer version. . Make sure the paths here match the ones in debian/rust-doc.links
 ---
@@ -14,7 +14,7 @@ Comment: Use https://github.com/infinity0/mdBook/tree/debian to help you rebase 
  7 files changed, 35 insertions(+), 203 deletions(-)
 
 diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
-index c9b1649..a22dc5f 100644
+index a7c78d8..22927f8 100644
 --- a/src/tools/linkchecker/main.rs
 +++ b/src/tools/linkchecker/main.rs
 @@ -183,7 +183,17 @@ impl Checker {
@@ -84,7 +84,7 @@ index 264c113..2b0ff3a 100644
      }
  
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
-index 3d2d1af..6017a6a 100644
+index b933a35..09b4a7a 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 @@ -3,7 +3,7 @@ use crate::config::{BookConfig, Config, HtmlConfig, Playground, RustEdition};
@@ -191,10 +191,10 @@ index 3d2d1af..6017a6a 100644
          Ok(())
      }
 diff --git a/vendor/mdbook/src/renderer/html_handlebars/search.rs b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-index 5dd063d..3a983b5 100644
+index c3b944c..d4bbe35 100644
 --- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
 +++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
-@@ -34,8 +34,6 @@ pub fn create_files(search_config: &Search, destination: &Path, book: &Book) ->
+@@ -52,8 +52,6 @@ pub fn create_files(search_config: &Search, destination: &Path, book: &Book) ->
              format!("Object.assign(window.search, {});", index).as_bytes(),
          )?;
          utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
