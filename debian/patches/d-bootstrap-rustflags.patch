@@ -11,7 +11,7 @@ diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
 index 23ea2fe..b2b1c54 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -1502,6 +1502,18 @@ impl<'a> Builder<'a> {
+@@ -1505,6 +1505,18 @@ impl<'a> Builder<'a> {
              }
          }
  

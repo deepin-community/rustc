@@ -22,7 +22,7 @@ index 8628868..13d22ac 100644
 +// ignore-test
  // stderr-per-bitwidth
  #![feature(never_type)]
- #![allow(const_err)] // make sure we cannot allow away the errors tested here
+ 
 diff --git a/src/test/ui/consts/const-eval/ub-int-array.rs b/src/test/ui/consts/const-eval/ub-int-array.rs
 index 7e0fb33..a54f618 100644
 --- a/src/test/ui/consts/const-eval/ub-int-array.rs
@@ -49,7 +49,7 @@ index 1887cb2..14b15f6 100644
 +// ignore-test
  // ignore-tidy-linelength
  // stderr-per-bitwidth
- #![allow(const_err, invalid_value)] // make sure we cannot allow away the errors tested here
+ #![allow(invalid_value)]
 diff --git a/src/test/ui/consts/const-eval/ub-uninhabit.rs b/src/test/ui/consts/const-eval/ub-uninhabit.rs
 index 33fbd14..022192f 100644
 --- a/src/test/ui/consts/const-eval/ub-uninhabit.rs

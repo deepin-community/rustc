@@ -11,25 +11,27 @@ diff --git a/src/bootstrap/lib.rs b/src/bootstrap/lib.rs
 index 68d387b..ddc92ba 100644
 --- a/src/bootstrap/lib.rs
 +++ b/src/bootstrap/lib.rs
-@@ -1267,15 +1267,13 @@ impl Build {
+@@ -1266,14 +1266,15 @@ impl Build {
              return s;
          }
  
 -        // Figure out how many merge commits happened since we branched off master.
 -        // That's our beta number!
 -        // (Note that we use a `..` range, not the `...` symmetric difference.)
+-        let count =
+-            output(self.config.git().arg("rev-list").arg("--count").arg("--merges").arg(format!(
+-                "refs/remotes/origin/{}..HEAD",
+-                self.config.stage0_metadata.config.nightly_branch
+-            )));
 +        // Debian: read beta number from "version" file, this is only available
 +        // in the rustc upstream tarballs and not their git
-         let count = output(
--            Command::new("git")
--                .arg("rev-list")
--                .arg("--count")
--                .arg("--merges")
--                .arg("refs/remotes/origin/master..HEAD")
++        let count = output(
 +            Command::new("sed")
 +                .arg("-re")
 +                .arg(r"s/[0-9]+.[0-9]+.[0-9]+-beta.([0-9]+) \(.*\)/\1/g")
 +                .arg("version")
-                 .current_dir(&self.src),
-         );
++                .current_dir(&self.src),
++            );
          let n = count.trim().parse().unwrap();
+         self.prerelease_version.set(Some(n));
+         n
