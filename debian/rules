@@ -277,13 +277,10 @@ FAILURES_ALLOWED = 8
 ifneq (,$(filter $(DEB_BUILD_ARCH), armhf))
   FAILURES_ALLOWED = 12
 endif
-ifneq (,$(filter $(DEB_BUILD_ARCH), mips64el))
-  FAILURES_ALLOWED = 15
-endif
-ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel ppc64))
+ifneq (,$(filter $(DEB_BUILD_ARCH), armel mips mipsel mips64el))
   FAILURES_ALLOWED = 24
 endif
-ifneq (,$(filter $(DEB_BUILD_ARCH), s390x))
+ifneq (,$(filter $(DEB_BUILD_ARCH), ppc64 s390x))
   FAILURES_ALLOWED = 40
 endif
 ifneq (,$(filter $(DEB_BUILD_ARCH), powerpc powerpcspe riscv64 sparc64 x32))
