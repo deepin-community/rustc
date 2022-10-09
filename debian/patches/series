@@ -5,6 +5,9 @@ u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 
+# should be replaced with a proper fix once fixed upstream
+u-hack-armel-no-kernel-user-helpers.patch
+
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
 u-ignore-bpf-test.patch
