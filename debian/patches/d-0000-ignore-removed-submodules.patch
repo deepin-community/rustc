@@ -96,15 +96,14 @@ diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
 index 0ab4824..629e1bb 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -600,8 +600,6 @@ impl<'a> Builder<'a> {
+@@ -600,7 +600,6 @@ impl<'a> Builder<'a> {
                  tool::RustInstaller,
                  tool::Cargo,
                  tool::Rls,
 -                tool::RustAnalyzer,
--                tool::RustAnalyzerProcMacroSrv,
+                 tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-                 tool::Clippy,
 @@ -622,7 +620,6 @@ impl<'a> Builder<'a> {
                  check::Clippy,
                  check::Miri,
@@ -232,36 +231,23 @@ index 333f85f..4df2b54 100644
  ];
  
  /// Dependency checks.
-Index: rust/src/bootstrap/dist.rs
-===================================================================
---- rust.orig/src/bootstrap/dist.rs
-+++ rust/src/bootstrap/dist.rs
-@@ -362,17 +362,17 @@ impl Step for Rustc {
+diff --git a/src/tools/rust-analyzer/Cargo.toml b/src.tools/rust-analyzer/Cargo.toml
+index 6b68ca82389..7bc5d1bc5a0 100644
+--- a/src/tools/rust-analyzer/Cargo.toml
++++ b/src/tools/rust-analyzer/Cargo.toml
+@@ -1,5 +1,14 @@
+ [workspace]
+-members = ["xtask/", "lib/*", "crates/*"]
++members = [
++  "xtask/",
++  "lib/*",
++  "crates/proc-macro-srv",
++  "crates/proc-macro-srv-cli",
++  "crates/tt",
++  "crates/mbe",
++  "crates/paths",
++  "crates/proc-macro-api",
++]
+ exclude = ["crates/proc-macro-test/imp"]
  
-             builder.install(&builder.rustdoc(compiler), &image.join("bin"), 0o755);
- 
--            let ra_proc_macro_srv = builder
--                .ensure(tool::RustAnalyzerProcMacroSrv {
--                    compiler: builder.compiler_for(
--                        compiler.stage,
--                        builder.config.build,
--                        compiler.host,
--                    ),
--                    target: compiler.host,
--                })
--                .expect("rust-analyzer-proc-macro-server always builds");
--            builder.install(&ra_proc_macro_srv, &image.join("libexec"), 0o755);
-+            //let ra_proc_macro_srv = builder
-+            //    .ensure(tool::RustAnalyzerProcMacroSrv {
-+            //        compiler: builder.compiler_for(
-+            //            compiler.stage,
-+            //            builder.config.build,
-+            //            compiler.host,
-+            //        ),
-+            //        target: compiler.host,
-+            //    })
-+            //    .expect("rust-analyzer-proc-macro-server always builds");
-+            //builder.install(&ra_proc_macro_srv, &image.join("libexec"), 0o755);
- 
-             let libdir_relative = builder.libdir_relative(compiler);
- 
+ [profile.dev]

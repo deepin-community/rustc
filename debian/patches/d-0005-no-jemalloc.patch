@@ -24,3 +24,23 @@ index 27ee3dd..87fb29f 100644
  llvm = ['rustc_driver/llvm']
  max_level_info = ['rustc_driver/max_level_info']
  rustc_use_parallel_compiler = ['rustc_driver/rustc_use_parallel_compiler']
+diff --git a/src/tools/rust-analyzer/crates/profile/Cargo.toml b/src/tools/rust-analyzer/crates/profile/Cargo.toml
+index 99d4179dc20..0b78a45a24b 100644
+--- a/src/tools/rust-analyzer/crates/profile/Cargo.toml
++++ b/src/tools/rust-analyzer/crates/profile/Cargo.toml
+@@ -15,7 +15,6 @@ cfg-if = "1.0.0"
+ libc = "0.2.126"
+ la-arena = { version = "0.3.0", path = "../../lib/la-arena" }
+ countme = { version = "3.0.1", features = ["enable"] }
+-jemalloc-ctl = { version = "0.5.0", package = "tikv-jemalloc-ctl", optional = true }
+ 
+ [target.'cfg(target_os = "linux")'.dependencies]
+ perf-event = "0.4.7"
+@@ -24,7 +25,6 @@ winapi = { version = "0.3.9", features = ["processthreadsapi", "psapi"] }
+ 
+ [features]
+ cpu_profiler = []
+-jemalloc = ["jemalloc-ctl"]
+ 
+ # Uncomment to enable for the whole crate graph
+ # default = [ "cpu_profiler" ]

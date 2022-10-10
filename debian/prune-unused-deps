@@ -16,7 +16,8 @@ done
 
 test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
 test -f src/bootstrap/Cargo.lock.orig || cp src/bootstrap/Cargo.lock src/bootstrap/Cargo.lock.orig
-rm -f Cargo.lock src/bootstrap/Cargo.lock
+test -f src/tools/rust-analyzer/Cargo.lock.orig || cp src/tools/rust-analyzer/Cargo.lock src/tools/rust-analyzer/Cargo.lock.orig
+rm -f Cargo.lock src/bootstrap/Cargo.lock src/tools/rust-analyzer/Cargo.lock
 
 find vendor -name .cargo-checksum.json -execdir "$scriptdir/debian/prune-checksums" "{}" +
 
@@ -26,8 +27,13 @@ cargo update --offline
 # re-generate src/bootstrap/Cargo.lock after patching
 (cd src/bootstrap && cargo update --offline)
 
+# re-generate src/tools/rust-analyzer/Cargo.lock after patching
+( cd src/tools/rust-analyzer; cargo update --offline )
+
 needed_crates() {
-	cat Cargo.lock src/bootstrap/Cargo.lock \
+	cat Cargo.lock \
+	    src/bootstrap/Cargo.lock \
+	    src/tools/rust-analyzer/Cargo.lock \
 	  | sed -z -e 's/\nname = /name = /g' -e 's/\nversion = /version = /g' \
 	  | sed -ne 's/\[\[package\]\]name = "\(.*\)"version = "\(.*\)"/\1 \2/gp'
 }
