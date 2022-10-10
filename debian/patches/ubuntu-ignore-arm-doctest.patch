@@ -1,0 +1,38 @@
+Description: Disable the doctests for the instruction_set errors
+ The fix is as described in the upstream issue.
+Author: Simon Chopin <simon.chopin@canonical.com>
+Bug: https://github.com/rust-lang/rust/issues/83453
+Last-Update: 2022-02-23
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/compiler/rustc_error_codes/src/error_codes/E0778.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0778.md
+@@ -16,7 +16,7 @@
+ ```
+ #![feature(isa_attribute)]
+ 
+-#[cfg_attr(target_arch="arm", instruction_set(arm::a32))]
++#[cfg_attr(all(target_arch="arm", target_os="none"), instruction_set(arm::a32))]
+ fn something() {}
+ ```
+ 
+@@ -25,7 +25,7 @@
+ ```
+ #![feature(isa_attribute)]
+ 
+-#[cfg_attr(target_arch="arm", instruction_set(arm::t32))]
++#[cfg_attr(all(target_arch="arm", target_os="none"), instruction_set(arm::t32))]
+ fn something() {}
+ ```
+ 
+--- a/compiler/rustc_error_codes/src/error_codes/E0779.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0779.md
+@@ -21,7 +21,7 @@
+ ```
+ #![feature(isa_attribute)]
+ 
+-#[cfg_attr(target_arch="arm", instruction_set(arm::a32))] // ok!
++#[cfg_attr(all(target_arch="arm", target_os="none"), instruction_set(arm::a32))] // ok!
+ pub fn something() {}
+ fn main() {}
+ ```
