@@ -1,3 +1,18 @@
+rustc (1.61.0+dfsg1-2) UNRELEASED; urgency=medium
+
+  [ Ximin Luo]
+  * Improve cross-building documentation
+
+  [ Adrian Bunk ]
+  * Disable kernel_user_helpers on armel (duplicate symbols)
+  * Increase allowed failures on armel/mips64el/ppc64 (Closes: #1020860)
+
+  [ Fabian Grünbichler ]
+  * cherry-pick patches from Ubuntu
+  * fix rebuild of 1.61 with 1.61
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Mon, 10 Oct 2022 20:19:05 +0200
+
 rustc (1.61.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable (Closes: #1020394)
