@@ -22,20 +22,21 @@ Cross-compiling
 Rust supports cross-compiling to many different architectures, and we expose
 this feature as fully as feasible in Debian, including to wasm and windows.
 
-Introduction
-------------
+Introduction and terminology
+----------------------------
 
 Rust uses LLVM, so cross-compiling works a bit differently from the GNU
 toolchain. The most important difference is that there are no "cross"
-compilers, every compiler is already a cross compiler. All you need to do is
-install the standard libraries for each target architecture you want to compile
-to.
+compilers, every compiler is already a cross compiler. For cross-compiling, all
+you need to do (on the rustc / LLVM side) is to install the standard libraries
+for each target architecture you want to compile to, i.e. libstd-rust-dev.
 
-The rust ecosystem generally uses the term "host" for the native architecture
-running the compiler, equivalent to DEB_BUILD_RUST_TYPE or "build" in GNU
-terminology, and "target" for the foreign architecture that the build products
-run on, equivalent to DEB_HOST_RUST_TYPE or "host" in GNU terminology. For
-example, rustc --version --verbose will output something like:
+Before we go further, we must clarify some terminology. The rust ecosystem
+generally uses the term "host" for the native architecture running the
+compiler, equivalent to DEB_BUILD_RUST_TYPE or "build" in GNU terminology, and
+"target" for the foreign architecture that the build products run on,
+equivalent to DEB_HOST_RUST_TYPE or "host" in GNU terminology. For example,
+rustc --version --verbose will output something like:
 
     rustc 1.16.0
     [..]
@@ -72,8 +73,69 @@ target  DEB_TARGET_{ARCH,RUST_TYPE}     N/A             target(s)
   cross-compiler itself builds for                        to build "std" for
 --------------------------------------- --------------- ------------------------
 
-wasm32
-------
+General case for other Debian platforms
+---------------------------------------
+
+To manually use the Debian rustc binary for cross-compiling:
+
+0. If you haven't done so previously, run:
+
+   dpkg --add-architecture ${DEB_TARGET_ARCH}
+   apt-get update
+
+   (This is something that you need to do for all Debian crossbuilding or
+   multi-architecture installing.)
+
+1. Install crossbuild-essential-${DEB_TARGET_ARCH} e.g. arm64.
+
+   (This is something that you need to do for all Debian crossbuilding.)
+
+   For certain (HOST, TARGET) pairs you can instead install gcc-multilib, e.g.
+   when compiling from amd64 to i386.
+
+2. Install libstd-rust-dev:${DEB_TARGET_ARCH}.
+
+3. Add the following flags to your rustc invocation:
+
+   -C linker=${DEB_TARGET_GNU_TYPE}-gcc # e.g. aarch64-linux-gnu
+   --target ${DEB_TARGET_RUST_TYPE} # e.g. aarch64-unknown-linux-gnu
+
+   For certain (HOST, TARGET) pairs, namely the same ones as above that are
+   supported by gcc-multilib, you can omit the linker flag since the default
+   ``gcc`` linker (with multilib support) will work.
+
+You can find the right TARGET vars to use in dpkg-architecture(1) and/or
+/usr/share/rustc/architecture.mk and/or possibly on the Debian wiki.
+
+These steps are different when cross-building a Debian package, or preparing
+one for cross-compiling. (1) is performed automatically by cross-building tools
+such as sbuild, and (3) is performed automatically by our cargo wrapper script.
+The details of how to do (2) correctly are explained in the section below
+called "Using rustc in a Debian package".
+
+Foreign non-Debian platforms
+----------------------------
+
+Targetting a non-Debian platform is not a common Debian crossbuilding pattern,
+so we do something ad-hoc for our Debian rust packages.
+
+Instead of libstd-rust-dev:$arch (for an $arch that is not in Debian), we
+provide a libstd-rust-dev-$platform:$arch package. For example,
+libstd-rust-dev-windows:i386. For VM platforms such as WASM, $arch is omitted.
+
+Instead of implicitly relying on crossbuild-essential-$arch (for an $arch that
+is not in Debian), we have the libstd-rust-dev-$platform:$arch package
+Recommend the appropriate linker. For example, Clang or MinGW.
+
+To use these for manual crossbuilding:
+
+1. Install the appropriate library package, as well as the corresponding linker
+   package from its Recommends if it isn't pulled in automatically.
+
+2. Pass in the appropriate ``-C linker`` and ``--target`` flags to ``rustc``.
+
+WASM
+~~~~
 
 We ship two different wasm32 targets - wasm32-unknown-unknown and wasm32-wasi -
 in the libstd-rust-dev-wasm32 package.
@@ -101,8 +163,8 @@ To run the generated wasm, you can either:
    - https://github.com/bytecodealliance/lucet
    - https://github.com/wasmerio/wasmer
 
-windows
--------
+Windows
+~~~~~~~
 
 We ship the following targets:
 
@@ -147,8 +209,17 @@ You'll probably also want to add
     include /usr/share/rustc/architecture.mk
 
 to your debian/rules. This sets some useful variables like DEB_HOST_RUST_TYPE.
-
 See the cargo package for an example.
+
+If your build uses cargo, you'll want to add:
+
+    Build-Depends:
+     [..]
+     cargo:native,
+     [..]
+
+and use our cargo wrapper script instead of /usr/bin/cargo directly. See
+/usr/share/cargo/bin/cargo for details on how to use it.
 
 
 Porting to new architectures (on the same distro)
