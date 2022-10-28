@@ -1,3 +1,9 @@
+rustc (1.62.1+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Fri, 28 Oct 2022 11:35:48 +0200
+
 rustc (1.61.0+dfsg1-2) unstable; urgency=medium
 
   [ Ximin Luo]
