@@ -1,3 +1,10 @@
+rustc (1.62.1+dfsg1-1) unstable; urgency=medium
+
+  * Upload to unstable
+  * Fix armhf build
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Mon, 31 Oct 2022 14:19:34 +0100
+
 rustc (1.62.1+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
