@@ -291,7 +291,7 @@ FAILED_TESTS = grep "FAILED\|^command did not execute successfully" $(TEST_LOG) 
 # ignore debuginfo failures on armhf due to regression in GDB 11.2
 # https://sourceware.org/bugzilla/show_bug.cgi?id=29272
 ifneq (,$(filter $(DEB_BUILD_ARCH), armhf))
-  FAILED_TESTS += | grep -v '^test \[debuginfo-gdb\] debuginfo/'
+  FAILED_TESTS += | grep -v '^test \[debuginfo-gdb\] src/test/debuginfo/'
 endif
 override_dh_auto_test-arch:
 	# ensure that rustc_llvm is actually dynamically linked to libLLVM
