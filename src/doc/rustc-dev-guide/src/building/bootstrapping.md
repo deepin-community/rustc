@@ -218,7 +218,7 @@ Stage N `std` is pretty much necessary for any useful work with the stage N comp
 Without it, you can only compile programs with `#![no_core]` -- not terribly useful!
 
 The reason these need to be different is because they aren't necessarily ABI-compatible:
-there could be a new layout optimizations, changes to MIR, or other changes
+there could be new layout optimizations, changes to MIR, or other changes
 to Rust metadata on nightly that aren't present in beta.
 
 This is also where `--keep-stage 1 library/std` comes into play. Since most
@@ -359,7 +359,7 @@ The following tables indicate the outputs of various stage actions:
 | `stage0` builds `test`/`std`                              | `build/HOST/stage0-std/TARGET`               |
 | copy `stage0-std` (HOST only)                             | `build/HOST/stage0-sysroot/lib/rustlib/HOST` |
 | `stage0` builds `rustc` with `stage0-sysroot`             | `build/HOST/stage0-rustc/HOST`               |
-| copy `stage0-rustc (except executable)`                   | `build/HOST/stage0-sysroot/lib/rustlib/HOST` |
+| copy `stage0-rustc` (except executable)                   | `build/HOST/stage0-sysroot/lib/rustlib/HOST` |
 | build `llvm`                                              | `build/HOST/llvm`                            |
 | `stage0` builds `codegen` with `stage0-sysroot`           | `build/HOST/stage0-codegen/HOST`             |
 | `stage0` builds `rustdoc`, `clippy`, `miri`, with `stage0-sysroot` | `build/HOST/stage0-tools/HOST`      |

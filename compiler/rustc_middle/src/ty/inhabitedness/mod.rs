@@ -56,7 +56,9 @@ impl<'tcx> TyCtxt<'tcx> {
     /// Checks whether a type is visibly uninhabited from a particular module.
     ///
     /// # Example
-    /// ```rust
+    /// ```
+    /// #![feature(never_type)]
+    /// # fn main() {}
     /// enum Void {}
     /// mod a {
     ///     pub mod b {
@@ -67,6 +69,7 @@ impl<'tcx> TyCtxt<'tcx> {
     /// }
     ///
     /// mod c {
+    ///     use super::Void;
     ///     pub struct AlsoSecretlyUninhabited {
     ///         _priv: Void,
     ///     }
@@ -84,7 +87,7 @@ impl<'tcx> TyCtxt<'tcx> {
     /// contain `Foo`.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore (illustrative)
     /// let foo_result: Result<T, Foo> = ... ;
     /// let Ok(t) = foo_result;
     /// ```
@@ -105,21 +108,21 @@ impl<'tcx> TyCtxt<'tcx> {
     }
 }
 
-impl<'tcx> AdtDef {
+impl<'tcx> AdtDef<'tcx> {
     /// Calculates the forest of `DefId`s from which this ADT is visibly uninhabited.
     fn uninhabited_from(
-        &self,
+        self,
         tcx: TyCtxt<'tcx>,
         substs: SubstsRef<'tcx>,
         param_env: ty::ParamEnv<'tcx>,
     ) -> DefIdForest<'tcx> {
         // Non-exhaustive ADTs from other crates are always considered inhabited.
-        if self.is_variant_list_non_exhaustive() && !self.did.is_local() {
+        if self.is_variant_list_non_exhaustive() && !self.did().is_local() {
             DefIdForest::empty()
         } else {
             DefIdForest::intersection(
                 tcx,
-                self.variants
+                self.variants()
                     .iter()
                     .map(|v| v.uninhabited_from(tcx, substs, self.adt_kind(), param_env)),
             )
@@ -191,7 +194,7 @@ impl<'tcx> Ty<'tcx> {
         tcx: TyCtxt<'tcx>,
         param_env: ty::ParamEnv<'tcx>,
     ) -> DefIdForest<'tcx> {
-        tcx.type_uninhabited_from(param_env.and(self)).clone()
+        tcx.type_uninhabited_from(param_env.and(self))
     }
 }
 
@@ -207,10 +210,9 @@ pub(crate) fn type_uninhabited_from<'tcx>(
 
         Never => DefIdForest::full(),
 
-        Tuple(ref tys) => DefIdForest::union(
-            tcx,
-            tys.iter().map(|ty| ty.expect_ty().uninhabited_from(tcx, param_env)),
-        ),
+        Tuple(ref tys) => {
+            DefIdForest::union(tcx, tys.iter().map(|ty| ty.uninhabited_from(tcx, param_env)))
+        }
 
         Array(ty, len) => match len.try_eval_usize(tcx, param_env) {
             Some(0) | None => DefIdForest::empty(),

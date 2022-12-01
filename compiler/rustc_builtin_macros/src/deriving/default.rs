@@ -46,18 +46,7 @@ pub fn expand_deriving_default(
                     StaticStruct(_, fields) => {
                         default_struct_substructure(cx, trait_span, substr, fields)
                     }
-                    StaticEnum(enum_def, _) => {
-                        if !cx.sess.features_untracked().derive_default_enum {
-                            rustc_session::parse::feature_err(
-                                cx.parse_sess(),
-                                sym::derive_default_enum,
-                                span,
-                                "deriving `Default` on enums is experimental",
-                            )
-                            .emit();
-                        }
-                        default_enum_substructure(cx, trait_span, enum_def)
-                    }
+                    StaticEnum(enum_def, _) => default_enum_substructure(cx, trait_span, enum_def),
                     _ => cx.span_bug(trait_span, "method in `derive(Default)`"),
                 }
             })),
@@ -101,9 +90,8 @@ fn default_enum_substructure(
     trait_span: Span,
     enum_def: &EnumDef,
 ) -> P<Expr> {
-    let default_variant = match extract_default_variant(cx, enum_def, trait_span) {
-        Ok(value) => value,
-        Err(()) => return DummyResult::raw_expr(trait_span, true),
+    let Ok(default_variant) = extract_default_variant(cx, enum_def, trait_span) else {
+        return DummyResult::raw_expr(trait_span, true);
     };
 
     // At this point, we know that there is exactly one variant with a `#[default]` attribute. The
@@ -247,7 +235,7 @@ fn validate_default_attribute(
             .span_suggestion_hidden(
                 attr.span,
                 "try using `#[default]`",
-                "#[default]".into(),
+                "#[default]",
                 Applicability::MaybeIncorrect,
             )
             .emit();

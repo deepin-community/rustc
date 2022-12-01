@@ -43,11 +43,19 @@ function fetch_github_commit_archive {
         curl -f -sSL -o $cached $2"
     mkdir $module
     touch "$module/.git"
+    # On Windows, the default behavior is to emulate symlinks by copying
+    # files. However, that ends up being order-dependent while extracting,
+    # which can cause a failure if the symlink comes first. This env var
+    # causes tar to use real symlinks instead, which are allowed to dangle.
+    export MSYS=winsymlinks:nativestrict
     tar -C $module --strip-components=1 -xf $cached
     rm $cached
 }
 
-included="src/llvm-project src/doc/book src/doc/rust-by-example"
+# Archive downloads are temporarily disabled due to sudden 504
+# gateway timeout errors.
+# included="src/llvm-project src/doc/book src/doc/rust-by-example"
+included=""
 modules="$(git config --file .gitmodules --get-regexp '\.path$' | cut -d' ' -f2)"
 modules=($modules)
 use_git=""
@@ -62,6 +70,7 @@ for i in ${!modules[@]}; do
         url=${urls[$i]}
         url=${url/\.git/}
         fetch_github_commit_archive $module "$url/archive/$commit.tar.gz" &
+        bg_pids[${i}]=$!
         continue
     else
         use_git="$use_git $module"
@@ -69,5 +78,10 @@ for i in ${!modules[@]}; do
 done
 retry sh -c "git submodule deinit -f $use_git && \
     git submodule sync && \
-    git submodule update -j 16 --init --recursive $use_git"
-wait
+    git submodule update -j 16 --init --recursive --depth 1 $use_git"
+# STATUS=0
+# for pid in ${bg_pids[*]}
+# do
+#     wait $pid || STATUS=1
+# done
+# exit ${STATUS}

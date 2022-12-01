@@ -5,11 +5,11 @@ use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::TraitEngineExt as _;
 use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::subst::{InternalSubsts, Subst};
-use rustc_middle::ty::{self, ParamEnvAnd, Ty, TyCtxt};
+use rustc_middle::ty::{self, EarlyBinder, ParamEnvAnd, Ty, TyCtxt};
 use rustc_span::source_map::{Span, DUMMY_SP};
 use rustc_trait_selection::traits::query::dropck_outlives::trivial_dropck_outlives;
 use rustc_trait_selection::traits::query::dropck_outlives::{
-    DropckOutlivesResult, DtorckConstraint,
+    DropckConstraint, DropckOutlivesResult,
 };
 use rustc_trait_selection::traits::query::normalize::AtExt;
 use rustc_trait_selection::traits::query::{CanonicalTyGoal, NoSolution};
@@ -78,7 +78,7 @@ fn dropck_outlives<'tcx>(
             let mut fulfill_cx = <dyn TraitEngine<'_>>::new(infcx.tcx);
 
             let cause = ObligationCause::dummy();
-            let mut constraints = DtorckConstraint::empty();
+            let mut constraints = DropckConstraint::empty();
             while let Some((ty, depth)) = ty_stack.pop() {
                 debug!(
                     "{} kinds, {} overflows, {} ty_stack",
@@ -159,7 +159,7 @@ fn dtorck_constraint_for_ty<'tcx>(
     for_ty: Ty<'tcx>,
     depth: usize,
     ty: Ty<'tcx>,
-    constraints: &mut DtorckConstraint<'tcx>,
+    constraints: &mut DropckConstraint<'tcx>,
 ) -> Result<(), NoSolution> {
     debug!("dtorck_constraint_for_ty({:?}, {:?}, {:?}, {:?})", span, for_ty, depth, ty);
 
@@ -198,14 +198,7 @@ fn dtorck_constraint_for_ty<'tcx>(
 
         ty::Tuple(tys) => rustc_data_structures::stack::ensure_sufficient_stack(|| {
             for ty in tys.iter() {
-                dtorck_constraint_for_ty(
-                    tcx,
-                    span,
-                    for_ty,
-                    depth + 1,
-                    ty.expect_ty(),
-                    constraints,
-                )?;
+                dtorck_constraint_for_ty(tcx, span, for_ty, depth + 1, ty, constraints)?;
             }
             Ok::<_, NoSolution>(())
         })?,
@@ -274,13 +267,19 @@ fn dtorck_constraint_for_ty<'tcx>(
         }
 
         ty::Adt(def, substs) => {
-            let DtorckConstraint { dtorck_types, outlives, overflows } =
-                tcx.at(span).adt_dtorck_constraint(def.did)?;
+            let DropckConstraint { dtorck_types, outlives, overflows } =
+                tcx.at(span).adt_dtorck_constraint(def.did())?;
             // FIXME: we can try to recursively `dtorck_constraint_on_ty`
             // there, but that needs some way to handle cycles.
-            constraints.dtorck_types.extend(dtorck_types.iter().map(|t| t.subst(tcx, substs)));
-            constraints.outlives.extend(outlives.iter().map(|t| t.subst(tcx, substs)));
-            constraints.overflows.extend(overflows.iter().map(|t| t.subst(tcx, substs)));
+            constraints
+                .dtorck_types
+                .extend(dtorck_types.iter().map(|t| EarlyBinder(*t).subst(tcx, substs)));
+            constraints
+                .outlives
+                .extend(outlives.iter().map(|t| EarlyBinder(*t).subst(tcx, substs)));
+            constraints
+                .overflows
+                .extend(overflows.iter().map(|t| EarlyBinder(*t).subst(tcx, substs)));
         }
 
         // Objects must be alive in order for their destructor
@@ -308,7 +307,7 @@ fn dtorck_constraint_for_ty<'tcx>(
 crate fn adt_dtorck_constraint(
     tcx: TyCtxt<'_>,
     def_id: DefId,
-) -> Result<&DtorckConstraint<'_>, NoSolution> {
+) -> Result<&DropckConstraint<'_>, NoSolution> {
     let def = tcx.adt_def(def_id);
     let span = tcx.def_span(def_id);
     debug!("dtorck_constraint: {:?}", def);
@@ -318,7 +317,7 @@ crate fn adt_dtorck_constraint(
         // `PhantomData`.
         let substs = InternalSubsts::identity_for_item(tcx, def_id);
         assert_eq!(substs.len(), 1);
-        let result = DtorckConstraint {
+        let result = DropckConstraint {
             outlives: vec![],
             dtorck_types: vec![substs.type_at(0)],
             overflows: vec![],
@@ -327,7 +326,7 @@ crate fn adt_dtorck_constraint(
         return Ok(tcx.arena.alloc(result));
     }
 
-    let mut result = DtorckConstraint::empty();
+    let mut result = DropckConstraint::empty();
     for field in def.all_fields() {
         let fty = tcx.type_of(field.did);
         dtorck_constraint_for_ty(tcx, span, fty, 0, fty, &mut result)?;
@@ -340,7 +339,7 @@ crate fn adt_dtorck_constraint(
     Ok(tcx.arena.alloc(result))
 }
 
-fn dedup_dtorck_constraint(c: &mut DtorckConstraint<'_>) {
+fn dedup_dtorck_constraint(c: &mut DropckConstraint<'_>) {
     let mut outlives = FxHashSet::default();
     let mut dtorck_types = FxHashSet::default();
 

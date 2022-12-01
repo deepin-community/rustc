@@ -1,10 +1,12 @@
 //! The main parser interface.
 
 #![feature(array_windows)]
+#![feature(box_patterns)]
 #![feature(crate_visibility_modifier)]
 #![feature(if_let_guard)]
-#![feature(box_patterns)]
+#![feature(let_chains)]
 #![feature(let_else)]
+#![feature(never_type)]
 #![recursion_limit = "256"]
 
 #[macro_use]
@@ -15,17 +17,17 @@ use rustc_ast::token::{self, Nonterminal, Token, TokenKind};
 use rustc_ast::tokenstream::{self, AttributesData, CanSynthesizeMissingTokens, LazyTokenStream};
 use rustc_ast::tokenstream::{AttrAnnotatedTokenStream, AttrAnnotatedTokenTree};
 use rustc_ast::tokenstream::{Spacing, TokenStream};
-use rustc_ast::AstLike;
 use rustc_ast::Attribute;
 use rustc_ast::{AttrItem, MetaItem};
-use rustc_ast_pretty::pprust;
+use rustc_ast::{HasAttrs, HasSpan, HasTokens};
+use rustc_ast_pretty::pprust::{self, AstPrettyPrint};
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::{Applicability, Diagnostic, FatalError, Level, PResult};
 use rustc_session::parse::ParseSess;
 use rustc_span::{FileName, SourceFile, Span};
 
+use std::fmt;
 use std::path::Path;
-use std::str;
 
 pub const MACRO_ARGUMENTS: Option<&str> = Some("macro arguments");
 
@@ -48,8 +50,8 @@ macro_rules! panictry_buffer {
         match $e {
             Ok(e) => e,
             Err(errs) => {
-                for e in errs {
-                    $handler.emit_diagnostic(&e);
+                for mut e in errs {
+                    $handler.emit_diagnostic(&mut e);
                 }
                 FatalError.raise()
             }
@@ -166,8 +168,8 @@ fn try_file_to_source_file(
 fn file_to_source_file(sess: &ParseSess, path: &Path, spanopt: Option<Span>) -> Lrc<SourceFile> {
     match try_file_to_source_file(sess, path, spanopt) {
         Ok(source_file) => source_file,
-        Err(d) => {
-            sess.span_diagnostic.emit_diagnostic(&d);
+        Err(mut d) => {
+            sess.span_diagnostic.emit_diagnostic(&mut d);
             FatalError.raise();
         }
     }
@@ -242,6 +244,20 @@ pub fn parse_in<'a, T>(
 // NOTE(Centril): The following probably shouldn't be here but it acknowledges the
 // fact that architecturally, we are using parsing (read on below to understand why).
 
+pub fn to_token_stream(
+    node: &(impl HasAttrs + HasSpan + HasTokens + AstPrettyPrint + fmt::Debug),
+    sess: &ParseSess,
+    synthesize_tokens: CanSynthesizeMissingTokens,
+) -> TokenStream {
+    if let Some(tokens) = prepend_attrs(&node.attrs(), node.tokens()) {
+        return tokens;
+    } else if matches!(synthesize_tokens, CanSynthesizeMissingTokens::Yes) {
+        return fake_token_stream(sess, node);
+    } else {
+        panic!("Missing tokens for nt {:?} at {:?}: {:?}", node, node.span(), node.pretty_print());
+    }
+}
+
 pub fn nt_to_tokenstream(
     nt: &Nonterminal,
     sess: &ParseSess,
@@ -288,7 +304,6 @@ pub fn nt_to_tokenstream(
         Nonterminal::NtMeta(ref attr) => convert_tokens(attr.tokens.as_ref()),
         Nonterminal::NtPath(ref path) => convert_tokens(path.tokens.as_ref()),
         Nonterminal::NtVis(ref vis) => convert_tokens(vis.tokens.as_ref()),
-        Nonterminal::NtTT(ref tt) => Some(tt.clone().into()),
         Nonterminal::NtExpr(ref expr) | Nonterminal::NtLiteral(ref expr) => {
             prepend_attrs(&expr.attrs, expr.tokens.as_ref())
         }
@@ -297,7 +312,7 @@ pub fn nt_to_tokenstream(
     if let Some(tokens) = tokens {
         return tokens;
     } else if matches!(synthesize_tokens, CanSynthesizeMissingTokens::Yes) {
-        return fake_token_stream(sess, nt);
+        return nt_fake_token_stream(sess, nt);
     } else {
         panic!(
             "Missing tokens for nt {:?} at {:?}: {:?}",
@@ -321,7 +336,13 @@ fn prepend_attrs(attrs: &[Attribute], tokens: Option<&LazyTokenStream>) -> Optio
     Some(wrapped.to_tokenstream())
 }
 
-pub fn fake_token_stream(sess: &ParseSess, nt: &Nonterminal) -> TokenStream {
+pub fn fake_token_stream(sess: &ParseSess, node: &(impl AstPrettyPrint + HasSpan)) -> TokenStream {
+    let source = node.pretty_print();
+    let filename = FileName::macro_expansion_source_code(&source);
+    parse_stream_from_source_str(filename, source, sess, Some(node.span()))
+}
+
+fn nt_fake_token_stream(sess: &ParseSess, nt: &Nonterminal) -> TokenStream {
     let source = pprust::nonterminal_to_string(nt);
     let filename = FileName::macro_expansion_source_code(&source);
     parse_stream_from_source_str(filename, source, sess, Some(nt.span()))
@@ -330,7 +351,7 @@ pub fn fake_token_stream(sess: &ParseSess, nt: &Nonterminal) -> TokenStream {
 pub fn fake_token_stream_for_crate(sess: &ParseSess, krate: &ast::Crate) -> TokenStream {
     let source = pprust::crate_to_string_for_macros(krate);
     let filename = FileName::macro_expansion_source_code(&source);
-    parse_stream_from_source_str(filename, source, sess, Some(krate.span))
+    parse_stream_from_source_str(filename, source, sess, Some(krate.spans.inner_span))
 }
 
 pub fn parse_cfg_attr(

@@ -10,9 +10,9 @@ pub use self::global::GlobalAlloc;
 #[stable(feature = "alloc_layout", since = "1.28.0")]
 pub use self::layout::Layout;
 #[stable(feature = "alloc_layout", since = "1.28.0")]
-#[rustc_deprecated(
+#[deprecated(
     since = "1.52.0",
-    reason = "Name does not follow std convention, use LayoutError",
+    note = "Name does not follow std convention, use LayoutError",
     suggestion = "LayoutError"
 )]
 #[allow(deprecated, deprecated_in_future)]
@@ -173,6 +173,8 @@ pub unsafe trait Allocator {
     /// * `old_layout` must [*fit*] that block of memory (The `new_layout` argument need not fit it.).
     /// * `new_layout.size()` must be greater than or equal to `old_layout.size()`.
     ///
+    /// Note that `new_layout.align()` need not be the same as `old_layout.align()`.
+    ///
     /// [*currently allocated*]: #currently-allocated-memory
     /// [*fit*]: #memory-fitting
     ///
@@ -233,6 +235,8 @@ pub unsafe trait Allocator {
     /// * `ptr` must denote a block of memory [*currently allocated*] via this allocator.
     /// * `old_layout` must [*fit*] that block of memory (The `new_layout` argument need not fit it.).
     /// * `new_layout.size()` must be greater than or equal to `old_layout.size()`.
+    ///
+    /// Note that `new_layout.align()` need not be the same as `old_layout.align()`.
     ///
     /// [*currently allocated*]: #currently-allocated-memory
     /// [*fit*]: #memory-fitting
@@ -295,6 +299,8 @@ pub unsafe trait Allocator {
     /// * `ptr` must denote a block of memory [*currently allocated*] via this allocator.
     /// * `old_layout` must [*fit*] that block of memory (The `new_layout` argument need not fit it.).
     /// * `new_layout.size()` must be smaller than or equal to `old_layout.size()`.
+    ///
+    /// Note that `new_layout.align()` need not be the same as `old_layout.align()`.
     ///
     /// [*currently allocated*]: #currently-allocated-memory
     /// [*fit*]: #memory-fitting

@@ -54,7 +54,7 @@ pub fn cvt_gai(err: c_int) -> io::Result<()> {
 
     Err(io::Error::new(
         io::ErrorKind::Uncategorized,
-        &format!("failed to lookup address information: {}", detail)[..],
+        &format!("failed to lookup address information: {detail}")[..],
     ))
 }
 
@@ -416,6 +416,17 @@ impl Socket {
     #[cfg(any(target_os = "android", target_os = "linux",))]
     pub fn passcred(&self) -> io::Result<bool> {
         let passcred: libc::c_int = getsockopt(self, libc::SOL_SOCKET, libc::SO_PASSCRED)?;
+        Ok(passcred != 0)
+    }
+
+    #[cfg(target_os = "netbsd")]
+    pub fn set_passcred(&self, passcred: bool) -> io::Result<()> {
+        setsockopt(self, 0 as libc::c_int, libc::LOCAL_CREDS, passcred as libc::c_int)
+    }
+
+    #[cfg(target_os = "netbsd")]
+    pub fn passcred(&self) -> io::Result<bool> {
+        let passcred: libc::c_int = getsockopt(self, 0 as libc::c_int, libc::LOCAL_CREDS)?;
         Ok(passcred != 0)
     }
 

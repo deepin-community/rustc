@@ -57,14 +57,16 @@ And this is what we end up with for initialization:
 
 <!-- ignore: simplified code -->
 ```rust,ignore
-impl<T> Vec<T> {
-    pub fn into_iter(self) -> IntoIter<T> {
+impl<T> IntoIterator for Vec<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
+    fn into_iter(self) -> IntoIter<T> {
         // Can't destructure Vec since it's Drop
         let ptr = self.ptr;
         let cap = self.cap;
         let len = self.len;
 
-        // Make sure not to drop Vec since that will free the buffer
+        // Make sure not to drop Vec since that would free the buffer
         mem::forget(self);
 
         unsafe {

@@ -15,13 +15,14 @@
 
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(array_windows)]
-#![feature(bool_to_option)]
 #![feature(crate_visibility_modifier)]
+#![feature(let_else)]
 #![feature(if_let_guard)]
 #![feature(negative_impls)]
 #![feature(nll)]
 #![feature(min_specialization)]
-#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
+#![feature(rustc_attrs)]
+#![allow(rustc::potential_query_instability)]
 
 #[macro_use]
 extern crate rustc_macros;
@@ -57,6 +58,8 @@ pub use symbol::{sym, Symbol};
 mod analyze_source_file;
 pub mod fatal_error;
 
+pub mod profiling;
+
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_data_structures::sync::{Lock, Lrc};
 
@@ -67,6 +70,7 @@ use std::hash::Hash;
 use std::ops::{Add, Range, Sub};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use md5::Digest;
 use md5::Md5;
@@ -518,20 +522,6 @@ impl Ord for Span {
     }
 }
 
-/// A collection of `Span`s.
-///
-/// Spans have two orthogonal attributes:
-///
-/// - They can be *primary spans*. In this case they are the locus of
-///   the error, and would be rendered with `^^^`.
-/// - They can have a *label*. In this case, the label is written next
-///   to the mark in the snippet when we render.
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Encodable, Decodable)]
-pub struct MultiSpan {
-    primary_spans: Vec<Span>,
-    span_labels: Vec<(Span, String)>,
-}
-
 impl Span {
     #[inline]
     pub fn lo(self) -> BytePos {
@@ -694,6 +684,11 @@ impl Span {
     #[inline]
     pub fn rust_2021(self) -> bool {
         self.edition() >= edition::Edition::Edition2021
+    }
+
+    #[inline]
+    pub fn rust_2024(self) -> bool {
+        self.edition() >= edition::Edition::Edition2024
     }
 
     /// Returns the source callee.
@@ -947,20 +942,6 @@ impl Span {
     }
 }
 
-/// A span together with some additional data.
-#[derive(Clone, Debug)]
-pub struct SpanLabel {
-    /// The span we are going to include in the final snippet.
-    pub span: Span,
-
-    /// Is this a primary span? This is the "locus" of the message,
-    /// and is indicated with a `^^^^` underline, versus `----`.
-    pub is_primary: bool,
-
-    /// What label should we attach to this span (if any)?
-    pub label: Option<String>,
-}
-
 impl Default for Span {
     fn default() -> Self {
         DUMMY_SP
@@ -978,12 +959,10 @@ impl<E: Encoder> Encodable<E> for Span {
 }
 impl<D: Decoder> Decodable<D> for Span {
     default fn decode(s: &mut D) -> Span {
-        s.read_struct(|d| {
-            let lo = d.read_struct_field("lo", Decodable::decode);
-            let hi = d.read_struct_field("hi", Decodable::decode);
+        let lo = Decodable::decode(s);
+        let hi = Decodable::decode(s);
 
-            Span::new(lo, hi, SyntaxContext::root(), None)
-        })
+        Span::new(lo, hi, SyntaxContext::root(), None)
     }
 }
 
@@ -1032,115 +1011,6 @@ impl fmt::Debug for Span {
 impl fmt::Debug for SpanData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&Span::new(self.lo, self.hi, self.ctxt, self.parent), f)
-    }
-}
-
-impl MultiSpan {
-    #[inline]
-    pub fn new() -> MultiSpan {
-        MultiSpan { primary_spans: vec![], span_labels: vec![] }
-    }
-
-    pub fn from_span(primary_span: Span) -> MultiSpan {
-        MultiSpan { primary_spans: vec![primary_span], span_labels: vec![] }
-    }
-
-    pub fn from_spans(mut vec: Vec<Span>) -> MultiSpan {
-        vec.sort();
-        MultiSpan { primary_spans: vec, span_labels: vec![] }
-    }
-
-    pub fn push_span_label(&mut self, span: Span, label: String) {
-        self.span_labels.push((span, label));
-    }
-
-    /// Selects the first primary span (if any).
-    pub fn primary_span(&self) -> Option<Span> {
-        self.primary_spans.first().cloned()
-    }
-
-    /// Returns all primary spans.
-    pub fn primary_spans(&self) -> &[Span] {
-        &self.primary_spans
-    }
-
-    /// Returns `true` if any of the primary spans are displayable.
-    pub fn has_primary_spans(&self) -> bool {
-        self.primary_spans.iter().any(|sp| !sp.is_dummy())
-    }
-
-    /// Returns `true` if this contains only a dummy primary span with any hygienic context.
-    pub fn is_dummy(&self) -> bool {
-        let mut is_dummy = true;
-        for span in &self.primary_spans {
-            if !span.is_dummy() {
-                is_dummy = false;
-            }
-        }
-        is_dummy
-    }
-
-    /// Replaces all occurrences of one Span with another. Used to move `Span`s in areas that don't
-    /// display well (like std macros). Returns whether replacements occurred.
-    pub fn replace(&mut self, before: Span, after: Span) -> bool {
-        let mut replacements_occurred = false;
-        for primary_span in &mut self.primary_spans {
-            if *primary_span == before {
-                *primary_span = after;
-                replacements_occurred = true;
-            }
-        }
-        for span_label in &mut self.span_labels {
-            if span_label.0 == before {
-                span_label.0 = after;
-                replacements_occurred = true;
-            }
-        }
-        replacements_occurred
-    }
-
-    /// Returns the strings to highlight. We always ensure that there
-    /// is an entry for each of the primary spans -- for each primary
-    /// span `P`, if there is at least one label with span `P`, we return
-    /// those labels (marked as primary). But otherwise we return
-    /// `SpanLabel` instances with empty labels.
-    pub fn span_labels(&self) -> Vec<SpanLabel> {
-        let is_primary = |span| self.primary_spans.contains(&span);
-
-        let mut span_labels = self
-            .span_labels
-            .iter()
-            .map(|&(span, ref label)| SpanLabel {
-                span,
-                is_primary: is_primary(span),
-                label: Some(label.clone()),
-            })
-            .collect::<Vec<_>>();
-
-        for &span in &self.primary_spans {
-            if !span_labels.iter().any(|sl| sl.span == span) {
-                span_labels.push(SpanLabel { span, is_primary: true, label: None });
-            }
-        }
-
-        span_labels
-    }
-
-    /// Returns `true` if any of the span labels is displayable.
-    pub fn has_span_labels(&self) -> bool {
-        self.span_labels.iter().any(|(sp, _)| !sp.is_dummy())
-    }
-}
-
-impl From<Span> for MultiSpan {
-    fn from(span: Span) -> MultiSpan {
-        MultiSpan::from_span(span)
-    }
-}
-
-impl From<Vec<Span>> for MultiSpan {
-    fn from(spans: Vec<Span>) -> MultiSpan {
-        MultiSpan::from_spans(spans)
     }
 }
 
@@ -1262,6 +1132,7 @@ impl ExternalSource {
 pub struct OffsetOverflowError;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encodable, Decodable)]
+#[derive(HashStable_Generic)]
 pub enum SourceFileHashAlgorithm {
     Md5,
     Sha1,
@@ -1280,8 +1151,6 @@ impl FromStr for SourceFileHashAlgorithm {
         }
     }
 }
-
-rustc_data_structures::impl_stable_hash_via_hash!(SourceFileHashAlgorithm);
 
 /// The hash of the on-disk source file used for debug info.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -1328,6 +1197,28 @@ impl SourceFileHash {
             SourceFileHashAlgorithm::Sha1 => 20,
             SourceFileHashAlgorithm::Sha256 => 32,
         }
+    }
+}
+
+#[derive(HashStable_Generic)]
+#[derive(Copy, PartialEq, PartialOrd, Clone, Ord, Eq, Hash, Debug, Encodable, Decodable)]
+pub enum DebuggerVisualizerType {
+    Natvis,
+}
+
+/// A single debugger visualizer file.
+#[derive(HashStable_Generic)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encodable, Decodable)]
+pub struct DebuggerVisualizerFile {
+    /// The complete debugger visualizer source.
+    pub src: Arc<[u8]>,
+    /// Indicates which visualizer type this targets.
+    pub visualizer_type: DebuggerVisualizerType,
+}
+
+impl DebuggerVisualizerFile {
+    pub fn new(src: Arc<[u8]>, visualizer_type: DebuggerVisualizerType) -> Self {
+        DebuggerVisualizerFile { src, visualizer_type }
     }
 }
 
@@ -1439,65 +1330,62 @@ impl<S: Encoder> Encodable<S> for SourceFile {
 
 impl<D: Decoder> Decodable<D> for SourceFile {
     fn decode(d: &mut D) -> SourceFile {
-        d.read_struct(|d| {
-            let name: FileName = d.read_struct_field("name", |d| Decodable::decode(d));
-            let src_hash: SourceFileHash =
-                d.read_struct_field("src_hash", |d| Decodable::decode(d));
-            let start_pos: BytePos = d.read_struct_field("start_pos", |d| Decodable::decode(d));
-            let end_pos: BytePos = d.read_struct_field("end_pos", |d| Decodable::decode(d));
-            let lines: Vec<BytePos> = d.read_struct_field("lines", |d| {
-                let num_lines: u32 = Decodable::decode(d);
-                let mut lines = Vec::with_capacity(num_lines as usize);
+        let name: FileName = Decodable::decode(d);
+        let src_hash: SourceFileHash = Decodable::decode(d);
+        let start_pos: BytePos = Decodable::decode(d);
+        let end_pos: BytePos = Decodable::decode(d);
+        let lines: Vec<BytePos> = {
+            let num_lines: u32 = Decodable::decode(d);
+            let mut lines = Vec::with_capacity(num_lines as usize);
 
-                if num_lines > 0 {
-                    // Read the number of bytes used per diff.
-                    let bytes_per_diff: u8 = Decodable::decode(d);
+            if num_lines > 0 {
+                // Read the number of bytes used per diff.
+                let bytes_per_diff: u8 = Decodable::decode(d);
 
-                    // Read the first element.
-                    let mut line_start: BytePos = Decodable::decode(d);
-                    lines.push(line_start);
+                // Read the first element.
+                let mut line_start: BytePos = Decodable::decode(d);
+                lines.push(line_start);
 
-                    for _ in 1..num_lines {
-                        let diff = match bytes_per_diff {
-                            1 => d.read_u8() as u32,
-                            2 => d.read_u16() as u32,
-                            4 => d.read_u32(),
-                            _ => unreachable!(),
-                        };
-
-                        line_start = line_start + BytePos(diff);
-
-                        lines.push(line_start);
-                    }
+                match bytes_per_diff {
+                    1 => lines.extend((1..num_lines).map(|_| {
+                        line_start = line_start + BytePos(d.read_u8() as u32);
+                        line_start
+                    })),
+                    2 => lines.extend((1..num_lines).map(|_| {
+                        line_start = line_start + BytePos(d.read_u16() as u32);
+                        line_start
+                    })),
+                    4 => lines.extend((1..num_lines).map(|_| {
+                        line_start = line_start + BytePos(d.read_u32());
+                        line_start
+                    })),
+                    _ => unreachable!(),
                 }
-
-                lines
-            });
-            let multibyte_chars: Vec<MultiByteChar> =
-                d.read_struct_field("multibyte_chars", |d| Decodable::decode(d));
-            let non_narrow_chars: Vec<NonNarrowChar> =
-                d.read_struct_field("non_narrow_chars", |d| Decodable::decode(d));
-            let name_hash: u128 = d.read_struct_field("name_hash", |d| Decodable::decode(d));
-            let normalized_pos: Vec<NormalizedPos> =
-                d.read_struct_field("normalized_pos", |d| Decodable::decode(d));
-            let cnum: CrateNum = d.read_struct_field("cnum", |d| Decodable::decode(d));
-            SourceFile {
-                name,
-                start_pos,
-                end_pos,
-                src: None,
-                src_hash,
-                // Unused - the metadata decoder will construct
-                // a new SourceFile, filling in `external_src` properly
-                external_src: Lock::new(ExternalSource::Unneeded),
-                lines,
-                multibyte_chars,
-                non_narrow_chars,
-                normalized_pos,
-                name_hash,
-                cnum,
             }
-        })
+
+            lines
+        };
+        let multibyte_chars: Vec<MultiByteChar> = Decodable::decode(d);
+        let non_narrow_chars: Vec<NonNarrowChar> = Decodable::decode(d);
+        let name_hash: u128 = Decodable::decode(d);
+        let normalized_pos: Vec<NormalizedPos> = Decodable::decode(d);
+        let cnum: CrateNum = Decodable::decode(d);
+        SourceFile {
+            name,
+            start_pos,
+            end_pos,
+            src: None,
+            src_hash,
+            // Unused - the metadata decoder will construct
+            // a new SourceFile, filling in `external_src` properly
+            external_src: Lock::new(ExternalSource::Unneeded),
+            lines,
+            multibyte_chars,
+            non_narrow_chars,
+            normalized_pos,
+            name_hash,
+            cnum,
+        }
     }
 }
 
@@ -2103,13 +1991,9 @@ where
         // If this is not an empty or invalid span, we want to hash the last
         // position that belongs to it, as opposed to hashing the first
         // position past it.
-        let (file, line_lo, col_lo, line_hi, col_hi) = match ctx.span_data_to_lines_and_cols(&span)
-        {
-            Some(pos) => pos,
-            None => {
-                Hash::hash(&TAG_INVALID_SPAN, hasher);
-                return;
-            }
+        let Some((file, line_lo, col_lo, line_hi, col_hi)) = ctx.span_data_to_lines_and_cols(&span) else {
+            Hash::hash(&TAG_INVALID_SPAN, hasher);
+            return;
         };
 
         Hash::hash(&TAG_VALID_SPAN, hasher);

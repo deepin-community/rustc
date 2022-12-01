@@ -556,8 +556,6 @@ pub const SYS_process_madvise: ::c_long = 440;
 pub const SYS_epoll_pwait2: ::c_long = 441;
 pub const SYS_mount_setattr: ::c_long = 442;
 
-pub const RLIMIT_NLIMITS: ::c_int = 15;
-pub const RLIM_NLIMITS: ::c_int = RLIMIT_NLIMITS;
 pub const MCL_CURRENT: ::c_int = 0x0001;
 pub const MCL_FUTURE: ::c_int = 0x0002;
 pub const CBAUD: ::tcflag_t = 0o0010017;
@@ -642,5 +640,12 @@ cfg_if! {
     if #[cfg(libc_align)] {
         mod align;
         pub use self::align::*;
+    }
+}
+
+cfg_if! {
+    if #[cfg(libc_int128)] {
+        mod int128;
+        pub use self::int128::*;
     }
 }

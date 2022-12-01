@@ -18,7 +18,7 @@ use rustc_span::source_map::{BytePos, CharPos, Pos, Span, SyntaxContext};
 use rustc_typeck::expr_use_visitor::{Delegate, ExprUseVisitor, PlaceBase, PlaceWithHirId};
 use std::borrow::Cow;
 use std::convert::TryInto;
-use std::fmt::Display;
+use std::fmt::{Display, Write as _};
 use std::iter;
 use std::ops::{Add, Neg, Not, Sub};
 
@@ -214,6 +214,7 @@ impl<'a> Sugg<'a> {
             | ast::ExprKind::Path(..)
             | ast::ExprKind::Repeat(..)
             | ast::ExprKind::Ret(..)
+            | ast::ExprKind::Yeet(..)
             | ast::ExprKind::Struct(..)
             | ast::ExprKind::Try(..)
             | ast::ExprKind::TryBlock(..)
@@ -673,8 +674,8 @@ fn indentation<T: LintContext>(cx: &T, span: Span) -> Option<String> {
         })
 }
 
-/// Convenience extension trait for `DiagnosticBuilder`.
-pub trait DiagnosticBuilderExt<T: LintContext> {
+/// Convenience extension trait for `Diagnostic`.
+pub trait DiagnosticExt<T: LintContext> {
     /// Suggests to add an attribute to an item.
     ///
     /// Correctly handles indentation of the attribute and item.
@@ -721,7 +722,7 @@ pub trait DiagnosticBuilderExt<T: LintContext> {
     fn suggest_remove_item(&mut self, cx: &T, item: Span, msg: &str, applicability: Applicability);
 }
 
-impl<T: LintContext> DiagnosticBuilderExt<T> for rustc_errors::DiagnosticBuilder<'_> {
+impl<T: LintContext> DiagnosticExt<T> for rustc_errors::Diagnostic {
     fn suggest_item_with_attr<D: Display + ?Sized>(
         &mut self,
         cx: &T,
@@ -808,7 +809,7 @@ pub fn deref_closure_args<'tcx>(cx: &LateContext<'_>, closure: &'tcx hir::Expr<'
             closure_arg_is_type_annotated_double_ref,
             next_pos: closure.span.lo(),
             suggestion_start: String::new(),
-            applicability: Applicability::MaybeIncorrect,
+            applicability: Applicability::MachineApplicable,
         };
 
         let fn_def_id = cx.tcx.hir().local_def_id(closure.hir_id);
@@ -901,7 +902,7 @@ impl<'tcx> Delegate<'tcx> for DerefDelegate<'_, 'tcx> {
             if cmt.place.projections.is_empty() {
                 // handle item without any projection, that needs an explicit borrowing
                 // i.e.: suggest `&x` instead of `x`
-                self.suggestion_start.push_str(&format!("{}&{}", start_snip, ident_str));
+                let _ = write!(self.suggestion_start, "{}&{}", start_snip, ident_str);
             } else {
                 // cases where a parent `Call` or `MethodCall` is using the item
                 // i.e.: suggest `.contains(&x)` for `.find(|x| [1, 2, 3].contains(x)).is_none()`
@@ -916,8 +917,7 @@ impl<'tcx> Delegate<'tcx> for DerefDelegate<'_, 'tcx> {
                         // given expression is the self argument and will be handled completely by the compiler
                         // i.e.: `|x| x.is_something()`
                         ExprKind::MethodCall(_, [self_expr, ..], _) if self_expr.hir_id == cmt.hir_id => {
-                            self.suggestion_start
-                                .push_str(&format!("{}{}", start_snip, ident_str_with_proj));
+                            let _ = write!(self.suggestion_start, "{}{}", start_snip, ident_str_with_proj);
                             self.next_pos = span.hi();
                             return;
                         },
@@ -1025,8 +1025,7 @@ impl<'tcx> Delegate<'tcx> for DerefDelegate<'_, 'tcx> {
                     }
                 }
 
-                self.suggestion_start
-                    .push_str(&format!("{}{}", start_snip, replacement_str));
+                let _ = write!(self.suggestion_start, "{}{}", start_snip, replacement_str);
             }
             self.next_pos = span.hi();
         }

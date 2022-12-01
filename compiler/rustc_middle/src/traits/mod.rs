@@ -15,7 +15,7 @@ use crate::ty::subst::SubstsRef;
 use crate::ty::{self, AdtKind, Ty, TyCtxt};
 
 use rustc_data_structures::sync::Lrc;
-use rustc_errors::{Applicability, DiagnosticBuilder};
+use rustc_errors::{Applicability, Diagnostic};
 use rustc_hir as hir;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_span::symbol::Symbol;
@@ -47,7 +47,8 @@ pub enum Reveal {
     /// impl. Concretely, that means that the following example will
     /// fail to compile:
     ///
-    /// ```
+    /// ```compile_fail,E0308
+    /// #![feature(specialization)]
     /// trait Assoc {
     ///     type Output;
     /// }
@@ -57,7 +58,7 @@ pub enum Reveal {
     /// }
     ///
     /// fn main() {
-    ///     let <() as Assoc>::Output = true;
+    ///     let x: <() as Assoc>::Output = true;
     /// }
     /// ```
     UserFacing,
@@ -236,11 +237,12 @@ pub enum ObligationCauseCode<'tcx> {
     SizedBoxType,
     /// Inline asm operand type must be `Sized`.
     InlineAsmSized,
-    /// `[T, ..n]` implies that `T` must be `Copy`.
-    /// If the function in the array repeat expression is a `const fn`,
-    /// display a help message suggesting to move the function call to a
-    /// new `const` item while saying that `T` doesn't implement `Copy`.
-    RepeatVec(bool),
+    /// `[expr; N]` requires `type_of(expr): Copy`.
+    RepeatElementCopy {
+        /// If element is a `const fn` we display a help message suggesting to move the
+        /// function call to a new `const` item while saying that `T` doesn't implement `Copy`.
+        is_const_fn: bool,
+    },
 
     /// Types of fields (other than the last, except for packed structs) in a struct must be sized.
     FieldSized {
@@ -257,7 +259,7 @@ pub enum ObligationCauseCode<'tcx> {
 
     BuiltinDerivedObligation(DerivedObligationCause<'tcx>),
 
-    ImplDerivedObligation(DerivedObligationCause<'tcx>),
+    ImplDerivedObligation(Box<ImplDerivedObligationCause<'tcx>>),
 
     DerivedObligation(DerivedObligationCause<'tcx>),
 
@@ -275,24 +277,23 @@ pub enum ObligationCauseCode<'tcx> {
 
     /// Error derived when matching traits/impls; see ObligationCause for more details
     CompareImplMethodObligation {
-        impl_item_def_id: DefId,
+        impl_item_def_id: LocalDefId,
         trait_item_def_id: DefId,
     },
 
     /// Error derived when matching traits/impls; see ObligationCause for more details
     CompareImplTypeObligation {
-        impl_item_def_id: DefId,
+        impl_item_def_id: LocalDefId,
         trait_item_def_id: DefId,
     },
 
     /// Checking that the bounds of a trait's associated type hold for a given impl
     CheckAssociatedTypeBounds {
-        impl_item_def_id: DefId,
+        impl_item_def_id: LocalDefId,
         trait_item_def_id: DefId,
     },
 
-    /// Checking that this expression can be assigned where it needs to be
-    // FIXME(eddyb) #11161 is the original Expr required?
+    /// Checking that this expression can be assigned to its target.
     ExprAssignable,
 
     /// Computing common supertype in the arms of a match expression
@@ -368,6 +369,11 @@ pub enum ObligationCauseCode<'tcx> {
 
     /// From `match_impl`. The cause for us having to match an impl, and the DefId we are matching against.
     MatchImpl(ObligationCause<'tcx>, DefId),
+
+    BinOp {
+        rhs_span: Option<Span>,
+        is_lit: bool,
+    },
 }
 
 /// The 'location' at which we try to perform HIR-based wf checking.
@@ -391,16 +397,29 @@ pub enum WellFormedLoc {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Lift)]
+pub struct ImplDerivedObligationCause<'tcx> {
+    pub derived: DerivedObligationCause<'tcx>,
+    pub impl_def_id: DefId,
+    pub span: Span,
+}
+
 impl ObligationCauseCode<'_> {
     // Return the base obligation, ignoring derived obligations.
     pub fn peel_derives(&self) -> &Self {
         let mut base_cause = self;
-        while let BuiltinDerivedObligation(DerivedObligationCause { parent_code, .. })
-        | ImplDerivedObligation(DerivedObligationCause { parent_code, .. })
-        | DerivedObligation(DerivedObligationCause { parent_code, .. })
-        | FunctionArgumentObligation { parent_code, .. } = base_cause
-        {
-            base_cause = &parent_code;
+        loop {
+            match base_cause {
+                BuiltinDerivedObligation(DerivedObligationCause { parent_code, .. })
+                | DerivedObligation(DerivedObligationCause { parent_code, .. })
+                | FunctionArgumentObligation { parent_code, .. } => {
+                    base_cause = &parent_code;
+                }
+                ImplDerivedObligation(obligation_cause) => {
+                    base_cause = &*obligation_cause.derived.parent_code;
+                }
+                _ => break,
+            }
         }
         base_cause
     }
@@ -473,7 +492,7 @@ pub enum SelectionError<'tcx> {
     /// A given constant couldn't be evaluated.
     NotConstEvaluatable(NotConstEvaluatable),
     /// Exceeded the recursion depth during type projection.
-    Overflow,
+    Overflow(OverflowError),
     /// Signaling that an error has already been emitted, to avoid
     /// multiple errors being shown.
     ErrorReporting,
@@ -497,7 +516,7 @@ pub type SelectionResult<'tcx, T> = Result<Option<T>, SelectionError<'tcx>>;
 /// For example, the obligation may be satisfied by a specific impl (case A),
 /// or it may be relative to some bound that is in scope (case B).
 ///
-/// ```
+/// ```ignore (illustrative)
 /// impl<T:Clone> Clone<T> for Option<T> { ... } // Impl_1
 /// impl<T:Clone> Clone<T> for Box<T> { ... }    // Impl_2
 /// impl Clone for i32 { ... }                   // Impl_3
@@ -506,7 +525,7 @@ pub type SelectionResult<'tcx, T> = Result<Option<T>, SelectionError<'tcx>>;
 ///     // Case A: ImplSource points at a specific impl. Only possible when
 ///     // type is concretely known. If the impl itself has bounded
 ///     // type parameters, ImplSource will carry resolutions for those as well:
-///     concrete.clone(); // ImpleSource(Impl_1, [ImplSource(Impl_2, [ImplSource(Impl_3)])])
+///     concrete.clone(); // ImplSource(Impl_1, [ImplSource(Impl_2, [ImplSource(Impl_3)])])
 ///
 ///     // Case A: ImplSource points at a specific impl. Only possible when
 ///     // type is concretely known. If the impl itself has bounded
@@ -572,7 +591,7 @@ pub enum ImplSource<'tcx, N> {
     TraitAlias(ImplSourceTraitAliasData<'tcx, N>),
 
     /// ImplSource for a `const Drop` implementation.
-    ConstDrop(ImplSourceConstDropData<N>),
+    ConstDestruct(ImplSourceConstDestructData<N>),
 }
 
 impl<'tcx, N> ImplSource<'tcx, N> {
@@ -590,7 +609,7 @@ impl<'tcx, N> ImplSource<'tcx, N> {
             | ImplSource::Pointee(ImplSourcePointeeData) => Vec::new(),
             ImplSource::TraitAlias(d) => d.nested,
             ImplSource::TraitUpcasting(d) => d.nested,
-            ImplSource::ConstDrop(i) => i.nested,
+            ImplSource::ConstDestruct(i) => i.nested,
         }
     }
 
@@ -608,7 +627,7 @@ impl<'tcx, N> ImplSource<'tcx, N> {
             | ImplSource::Pointee(ImplSourcePointeeData) => &[],
             ImplSource::TraitAlias(d) => &d.nested,
             ImplSource::TraitUpcasting(d) => &d.nested,
-            ImplSource::ConstDrop(i) => &i.nested,
+            ImplSource::ConstDestruct(i) => &i.nested,
         }
     }
 
@@ -667,9 +686,11 @@ impl<'tcx, N> ImplSource<'tcx, N> {
                     nested: d.nested.into_iter().map(f).collect(),
                 })
             }
-            ImplSource::ConstDrop(i) => ImplSource::ConstDrop(ImplSourceConstDropData {
-                nested: i.nested.into_iter().map(f).collect(),
-            }),
+            ImplSource::ConstDestruct(i) => {
+                ImplSource::ConstDestruct(ImplSourceConstDestructData {
+                    nested: i.nested.into_iter().map(f).collect(),
+                })
+            }
         }
     }
 }
@@ -762,7 +783,7 @@ pub struct ImplSourceDiscriminantKindData;
 pub struct ImplSourcePointeeData;
 
 #[derive(Clone, PartialEq, Eq, TyEncodable, TyDecodable, HashStable, TypeFoldable, Lift)]
-pub struct ImplSourceConstDropData<N> {
+pub struct ImplSourceConstDestructData<N> {
     pub nested: Vec<N>,
 }
 
@@ -841,7 +862,7 @@ impl ObjectSafetyViolation {
         }
     }
 
-    pub fn solution(&self, err: &mut DiagnosticBuilder<'_>) {
+    pub fn solution(&self, err: &mut Diagnostic) {
         match *self {
             ObjectSafetyViolation::SizedSelf(_) | ObjectSafetyViolation::SupertraitSelf(_) => {}
             ObjectSafetyViolation::Method(
@@ -941,4 +962,22 @@ pub enum MethodViolationCode {
 
     /// the method's receiver (`self` argument) can't be dispatched on
     UndispatchableReceiver,
+}
+
+/// These are the error cases for `codegen_fulfill_obligation`.
+#[derive(Copy, Clone, Debug, Hash, HashStable, Encodable, Decodable)]
+pub enum CodegenObligationError {
+    /// Ambiguity can happen when monomorphizing during trans
+    /// expands to some humongous type that never occurred
+    /// statically -- this humongous type can then overflow,
+    /// leading to an ambiguous result. So report this as an
+    /// overflow bug, since I believe this is the only case
+    /// where ambiguity can result.
+    Ambiguity,
+    /// This can trigger when we probe for the source of a `'static` lifetime requirement
+    /// on a trait object: `impl Foo for dyn Trait {}` has an implicit `'static` bound.
+    /// This can also trigger when we have a global bound that is not actually satisfied,
+    /// but was included during typeck due to the trivial_bounds feature.
+    Unimplemented,
+    FulfillmentError,
 }

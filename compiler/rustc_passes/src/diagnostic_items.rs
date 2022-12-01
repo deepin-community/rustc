@@ -61,10 +61,9 @@ fn collect_item(tcx: TyCtxt<'_>, items: &mut DiagnosticItems, name: Symbol, item
     if let Some(original_def_id) = items.name_to_id.insert(name, item_def_id) {
         if original_def_id != item_def_id {
             let mut err = match tcx.hir().span_if_local(item_def_id) {
-                Some(span) => tcx.sess.struct_span_err(
-                    span,
-                    &format!("duplicate diagnostic item found: `{}`.", name),
-                ),
+                Some(span) => tcx
+                    .sess
+                    .struct_span_err(span, &format!("duplicate diagnostic item found: `{name}`.")),
                 None => tcx.sess.struct_err(&format!(
                     "duplicate diagnostic item in crate `{}`: `{}`.",
                     tcx.crate_name(item_def_id.krate),
@@ -84,7 +83,7 @@ fn collect_item(tcx: TyCtxt<'_>, items: &mut DiagnosticItems, name: Symbol, item
     }
 }
 
-/// Extract the first `rustc_diagnostic_item = "$name"` out of a list of attributes.p
+/// Extract the first `rustc_diagnostic_item = "$name"` out of a list of attributes.
 fn extract(attrs: &[ast::Attribute]) -> Option<Symbol> {
     attrs.iter().find_map(|attr| {
         if attr.has_name(sym::rustc_diagnostic_item) { attr.value_str() } else { None }

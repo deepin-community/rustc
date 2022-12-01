@@ -1,6 +1,7 @@
 #![feature(box_patterns)]
 #![feature(control_flow_enum)]
 #![feature(let_else)]
+#![feature(let_chains)]
 #![feature(once_cell)]
 #![feature(rustc_private)]
 #![recursion_limit = "512"]
@@ -65,7 +66,7 @@ use std::lazy::SyncOnceCell;
 use std::sync::{Mutex, MutexGuard};
 
 use if_chain::if_chain;
-use rustc_ast::ast::{self, Attribute, LitKind};
+use rustc_ast::ast::{self, LitKind};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::unhash::UnhashMap;
 use rustc_hir as hir;
@@ -76,17 +77,22 @@ use rustc_hir::intravisit::{walk_expr, FnKind, Visitor};
 use rustc_hir::itemlikevisit::ItemLikeVisitor;
 use rustc_hir::LangItem::{OptionNone, ResultErr, ResultOk};
 use rustc_hir::{
-    def, lang_items, Arm, ArrayLen, BindingAnnotation, Block, BlockCheckMode, Body, Constness, Destination, Expr,
-    ExprKind, FnDecl, ForeignItem, HirId, Impl, ImplItem, ImplItemKind, IsAsync, Item, ItemKind, LangItem, Local,
-    MatchSource, Mutability, Node, Param, Pat, PatKind, Path, PathSegment, PrimTy, QPath, Stmt, StmtKind, Target,
-    TraitItem, TraitItemKind, TraitRef, TyKind, UnOp,
+    def, Arm, ArrayLen, BindingAnnotation, Block, BlockCheckMode, Body, Constness, Destination, Expr, ExprKind, FnDecl,
+    ForeignItem, HirId, Impl, ImplItem, ImplItemKind, IsAsync, Item, ItemKind, LangItem, Local, MatchSource,
+    Mutability, Node, Param, Pat, PatKind, Path, PathSegment, PrimTy, QPath, Stmt, StmtKind, TraitItem, TraitItemKind,
+    TraitRef, TyKind, UnOp,
 };
 use rustc_lint::{LateContext, Level, Lint, LintContext};
 use rustc_middle::hir::place::PlaceBase;
 use rustc_middle::ty as rustc_ty;
 use rustc_middle::ty::adjustment::{Adjust, Adjustment, AutoBorrow};
 use rustc_middle::ty::binding::BindingMode;
+use rustc_middle::ty::fast_reject::SimplifiedTypeGen::{
+    ArraySimplifiedType, BoolSimplifiedType, CharSimplifiedType, FloatSimplifiedType, IntSimplifiedType,
+    PtrSimplifiedType, SliceSimplifiedType, StrSimplifiedType, UintSimplifiedType,
+};
 use rustc_middle::ty::{layout::IntegerExt, BorrowKind, DefIdTree, Ty, TyCtxt, TypeAndMut, TypeFoldable, UpvarCapture};
+use rustc_middle::ty::{FloatTy, IntTy, UintTy};
 use rustc_semver::RustcVersion;
 use rustc_session::Session;
 use rustc_span::hygiene::{ExpnKind, MacroKind};
@@ -229,7 +235,7 @@ pub fn is_lang_ctor(cx: &LateContext<'_>, qpath: &QPath<'_>, lang_item: LangItem
     if let QPath::Resolved(_, path) = qpath {
         if let Res::Def(DefKind::Ctor(..), ctor_id) = path.res {
             if let Ok(item_id) = cx.tcx.lang_items().require(lang_item) {
-                return cx.tcx.parent(ctor_id) == Some(item_id);
+                return cx.tcx.parent(ctor_id) == item_id;
             }
         }
     }
@@ -267,7 +273,7 @@ pub fn match_trait_method(cx: &LateContext<'_>, expr: &Expr<'_>, path: &[&str]) 
 pub fn is_diag_item_method(cx: &LateContext<'_>, def_id: DefId, diag_item: Symbol) -> bool {
     if let Some(impl_did) = cx.tcx.impl_of_method(def_id) {
         if let Some(adt) = cx.tcx.type_of(impl_did).ty_adt_def() {
-            return cx.tcx.is_diagnostic_item(diag_item, adt.did);
+            return cx.tcx.is_diagnostic_item(diag_item, adt.did());
         }
     }
     false
@@ -454,14 +460,6 @@ pub fn path_def_id<'tcx>(cx: &LateContext<'_>, maybe_path: &impl MaybePath<'tcx>
 /// Resolves a def path like `std::vec::Vec`.
 /// This function is expensive and should be used sparingly.
 pub fn def_path_res(cx: &LateContext<'_>, path: &[&str]) -> Res {
-    macro_rules! try_res {
-        ($e:expr) => {
-            match $e {
-                Some(e) => e,
-                None => return Res::Err,
-            }
-        };
-    }
     fn item_child_by_name(tcx: TyCtxt<'_>, def_id: DefId, name: &str) -> Option<Res> {
         match tcx.def_kind(def_id) {
             DefKind::Mod | DefKind::Enum | DefKind::Trait => tcx
@@ -478,17 +476,42 @@ pub fn def_path_res(cx: &LateContext<'_>, path: &[&str]) -> Res {
             _ => None,
         }
     }
-    fn find_primitive(tcx: TyCtxt<'_>, name: &str) -> Option<DefId> {
-        if let Some(&(index, Target::Impl)) = lang_items::ITEM_REFS.get(&Symbol::intern(name)) {
-            tcx.lang_items().items()[index]
-        } else {
-            None
+    fn find_primitive<'tcx>(tcx: TyCtxt<'tcx>, name: &str) -> impl Iterator<Item = DefId> + 'tcx {
+        let single = |ty| tcx.incoherent_impls(ty).iter().copied();
+        let empty = || [].iter().copied();
+        match name {
+            "bool" => single(BoolSimplifiedType),
+            "char" => single(CharSimplifiedType),
+            "str" => single(StrSimplifiedType),
+            "array" => single(ArraySimplifiedType),
+            "slice" => single(SliceSimplifiedType),
+            // FIXME: rustdoc documents these two using just `pointer`.
+            //
+            // Maybe this is something we should do here too.
+            "const_ptr" => single(PtrSimplifiedType(Mutability::Not)),
+            "mut_ptr" => single(PtrSimplifiedType(Mutability::Mut)),
+            "isize" => single(IntSimplifiedType(IntTy::Isize)),
+            "i8" => single(IntSimplifiedType(IntTy::I8)),
+            "i16" => single(IntSimplifiedType(IntTy::I16)),
+            "i32" => single(IntSimplifiedType(IntTy::I32)),
+            "i64" => single(IntSimplifiedType(IntTy::I64)),
+            "i128" => single(IntSimplifiedType(IntTy::I128)),
+            "usize" => single(UintSimplifiedType(UintTy::Usize)),
+            "u8" => single(UintSimplifiedType(UintTy::U8)),
+            "u16" => single(UintSimplifiedType(UintTy::U16)),
+            "u32" => single(UintSimplifiedType(UintTy::U32)),
+            "u64" => single(UintSimplifiedType(UintTy::U64)),
+            "u128" => single(UintSimplifiedType(UintTy::U128)),
+            "f32" => single(FloatSimplifiedType(FloatTy::F32)),
+            "f64" => single(FloatSimplifiedType(FloatTy::F64)),
+            _ => empty(),
         }
     }
     fn find_crate(tcx: TyCtxt<'_>, name: &str) -> Option<DefId> {
         tcx.crates(())
             .iter()
-            .find(|&&num| tcx.crate_name(num).as_str() == name)
+            .copied()
+            .find(|&num| tcx.crate_name(num).as_str() == name)
             .map(CrateNum::as_def_id)
     }
 
@@ -500,30 +523,35 @@ pub fn def_path_res(cx: &LateContext<'_>, path: &[&str]) -> Res {
         _ => return Res::Err,
     };
     let tcx = cx.tcx;
-    let first = try_res!(
-        find_primitive(tcx, base)
-            .or_else(|| find_crate(tcx, base))
-            .and_then(|id| item_child_by_name(tcx, id, first))
-    );
+    let starts = find_primitive(tcx, base)
+        .chain(find_crate(tcx, base))
+        .filter_map(|id| item_child_by_name(tcx, id, first));
 
-    let last = path
-        .iter()
-        .copied()
-        // for each segment, find the child item
-        .try_fold(first, |res, segment| {
-            let def_id = res.def_id();
-            if let Some(item) = item_child_by_name(tcx, def_id, segment) {
-                Some(item)
-            } else if matches!(res, Res::Def(DefKind::Enum | DefKind::Struct, _)) {
-                // it is not a child item so check inherent impl items
-                tcx.inherent_impls(def_id)
-                    .iter()
-                    .find_map(|&impl_def_id| item_child_by_name(tcx, impl_def_id, segment))
-            } else {
-                None
-            }
-        });
-    try_res!(last).expect_non_local()
+    for first in starts {
+        let last = path
+            .iter()
+            .copied()
+            // for each segment, find the child item
+            .try_fold(first, |res, segment| {
+                let def_id = res.def_id();
+                if let Some(item) = item_child_by_name(tcx, def_id, segment) {
+                    Some(item)
+                } else if matches!(res, Res::Def(DefKind::Enum | DefKind::Struct, _)) {
+                    // it is not a child item so check inherent impl items
+                    tcx.inherent_impls(def_id)
+                        .iter()
+                        .find_map(|&impl_def_id| item_child_by_name(tcx, impl_def_id, segment))
+                } else {
+                    None
+                }
+            });
+
+        if let Some(last) = last {
+            return last;
+        }
+    }
+
+    Res::Err
 }
 
 /// Convenience function to get the `DefId` of a trait by path.
@@ -655,7 +683,7 @@ fn is_default_equivalent_ctor(cx: &LateContext<'_>, def_id: DefId, path: &QPath<
                 if let Some(adt) = cx.tcx.type_of(impl_did).ty_adt_def() {
                     return std_types_symbols
                         .iter()
-                        .any(|&symbol| cx.tcx.is_diagnostic_item(symbol, adt.did));
+                        .any(|&symbol| cx.tcx.is_diagnostic_item(symbol, adt.did()));
                 }
             }
         }
@@ -1444,12 +1472,6 @@ pub fn recurse_or_patterns<'tcx, F: FnMut(&'tcx Pat<'tcx>)>(pat: &'tcx Pat<'tcx>
     }
 }
 
-/// Checks for the `#[automatically_derived]` attribute all `#[derive]`d
-/// implementations have.
-pub fn is_automatically_derived(attrs: &[ast::Attribute]) -> bool {
-    has_attr(attrs, sym::automatically_derived)
-}
-
 pub fn is_self(slf: &Param<'_>) -> bool {
     if let PatKind::Binding(.., name, _) = slf.pat.kind {
         name.name == kw::SelfLower
@@ -1662,7 +1684,7 @@ pub fn if_sequence<'tcx>(mut expr: &'tcx Expr<'tcx>) -> (Vec<&'tcx Expr<'tcx>>, 
 
 /// Checks if the given function kind is an async function.
 pub fn is_async_fn(kind: FnKind<'_>) -> bool {
-    matches!(kind, FnKind::ItemFn(_, _, header, _) if header.asyncness == IsAsync::Async)
+    matches!(kind, FnKind::ItemFn(_, _, header) if header.asyncness == IsAsync::Async)
 }
 
 /// Peels away all the compiler generated code surrounding the body of an async function,
@@ -1696,11 +1718,6 @@ pub fn get_async_fn_body<'tcx>(tcx: TyCtxt<'tcx>, body: &Body<'_>) -> Option<&'t
     None
 }
 
-// Finds the `#[must_use]` attribute, if any
-pub fn must_use_attr(attrs: &[Attribute]) -> Option<&Attribute> {
-    attrs.iter().find(|a| a.has_name(sym::must_use))
-}
-
 // check if expr is calling method or function with #[must_use] attribute
 pub fn is_must_use_func_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     let did = match expr.kind {
@@ -1717,7 +1734,7 @@ pub fn is_must_use_func_call(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
         _ => None,
     };
 
-    did.map_or(false, |did| must_use_attr(cx.tcx.get_attrs(did)).is_some())
+    did.map_or(false, |did| cx.tcx.has_attr(did, sym::must_use))
 }
 
 /// Checks if an expression represents the identity function
@@ -2040,24 +2057,6 @@ pub fn peel_ref_operators<'hir>(cx: &LateContext<'_>, mut expr: &'hir Expr<'hir>
         }
     }
     expr
-}
-
-#[macro_export]
-macro_rules! unwrap_cargo_metadata {
-    ($cx: ident, $lint: ident, $deps: expr) => {{
-        let mut command = cargo_metadata::MetadataCommand::new();
-        if !$deps {
-            command.no_deps();
-        }
-
-        match command.exec() {
-            Ok(metadata) => metadata,
-            Err(err) => {
-                span_lint($cx, $lint, DUMMY_SP, &format!("could not read cargo metadata: {}", err));
-                return;
-            },
-        }
-    }};
 }
 
 pub fn is_hir_ty_cfg_dependant(cx: &LateContext<'_>, ty: &hir::Ty<'_>) -> bool {

@@ -35,6 +35,11 @@ pub type Elf64_Sxword = i64;
 pub type Elf64_Word = u32;
 pub type Elf64_Xword = u64;
 
+// search.h
+
+pub type ENTRY = entry;
+pub type ACTION = ::c_uint;
+
 cfg_if! {
     if #[cfg(target_pointer_width = "64")] {
         type Elf_Addr = Elf64_Addr;
@@ -422,6 +427,12 @@ s! {
 
     pub struct ptrace_thread_state {
         pub pts_tid: ::pid_t,
+    }
+
+    // search.h
+    pub struct entry {
+        pub key: *mut ::c_char,
+        pub data: *mut ::c_void,
     }
 }
 
@@ -1154,6 +1165,10 @@ pub const _SC_NPROCESSORS_ONLN: ::c_int = 503;
 
 pub const FD_SETSIZE: usize = 1024;
 
+pub const SCHED_FIFO: ::c_int = 1;
+pub const SCHED_OTHER: ::c_int = 2;
+pub const SCHED_RR: ::c_int = 3;
+
 pub const ST_NOSUID: ::c_ulong = 2;
 
 pub const PTHREAD_MUTEX_INITIALIZER: pthread_mutex_t = 0 as *mut _;
@@ -1361,6 +1376,35 @@ pub const KI_WMESGLEN: ::c_int = 8;
 pub const KI_MAXLOGNAME: ::c_int = 32;
 pub const KI_EMULNAMELEN: ::c_int = 8;
 
+pub const KVE_ET_OBJ: ::c_int = 0x00000001;
+pub const KVE_ET_SUBMAP: ::c_int = 0x00000002;
+pub const KVE_ET_COPYONWRITE: ::c_int = 0x00000004;
+pub const KVE_ET_NEEDSCOPY: ::c_int = 0x00000008;
+pub const KVE_ET_HOLE: ::c_int = 0x00000010;
+pub const KVE_ET_NOFAULT: ::c_int = 0x00000020;
+pub const KVE_ET_STACK: ::c_int = 0x00000040;
+pub const KVE_ET_WC: ::c_int = 0x000000080;
+pub const KVE_ET_CONCEAL: ::c_int = 0x000000100;
+pub const KVE_ET_SYSCALL: ::c_int = 0x000000200;
+pub const KVE_ET_FREEMAPPED: ::c_int = 0x000000800;
+
+pub const KVE_PROT_NONE: ::c_int = 0x00000000;
+pub const KVE_PROT_READ: ::c_int = 0x00000001;
+pub const KVE_PROT_WRITE: ::c_int = 0x00000002;
+pub const KVE_PROT_EXEC: ::c_int = 0x00000004;
+
+pub const KVE_ADV_NORMAL: ::c_int = 0x00000000;
+pub const KVE_ADV_RANDOM: ::c_int = 0x00000001;
+pub const KVE_ADV_SEQUENTIAL: ::c_int = 0x00000002;
+
+pub const KVE_INH_SHARE: ::c_int = 0x00000000;
+pub const KVE_INH_COPY: ::c_int = 0x00000010;
+pub const KVE_INH_NONE: ::c_int = 0x00000020;
+pub const KVE_INH_ZERO: ::c_int = 0x00000030;
+
+pub const KVE_F_STATIC: ::c_int = 0x1;
+pub const KVE_F_KMEM: ::c_int = 0x2;
+
 pub const CHWFLOW: ::tcflag_t = ::MDMBUF | ::CRTSCTS;
 pub const OLCUC: ::tcflag_t = 0x20;
 pub const ONOCR: ::tcflag_t = 0x40;
@@ -1470,6 +1514,16 @@ pub const BIOCSDLT: ::c_ulong = 0x8004427a;
 pub const PTRACE_FORK: ::c_int = 0x0002;
 
 pub const WCONTINUED: ::c_int = 8;
+
+// search.h
+pub const FIND: ::ACTION = 0;
+pub const ENTER: ::ACTION = 1;
+
+// futex.h
+pub const FUTEX_WAIT: ::c_int = 1;
+pub const FUTEX_WAKE: ::c_int = 2;
+pub const FUTEX_REQUEUE: ::c_int = 3;
+pub const FUTEX_PRIVATE_FLAG: ::c_int = 128;
 
 const_fn! {
     {const} fn _ALIGN(p: usize) -> usize {
@@ -1633,6 +1687,37 @@ extern "C" {
     pub fn freezero(ptr: *mut ::c_void, size: ::size_t);
     pub fn malloc_conceal(size: ::size_t) -> *mut ::c_void;
     pub fn calloc_conceal(nmemb: ::size_t, size: ::size_t) -> *mut ::c_void;
+
+    pub fn srand48_deterministic(seed: ::c_long);
+    pub fn seed48_deterministic(xseed: *mut ::c_ushort) -> *mut ::c_ushort;
+    pub fn lcong48_deterministic(p: *mut ::c_ushort);
+
+    pub fn lsearch(
+        key: *const ::c_void,
+        base: *mut ::c_void,
+        nelp: *mut ::size_t,
+        width: ::size_t,
+        compar: ::Option<unsafe extern "C" fn(*const ::c_void, *const ::c_void) -> ::c_int>,
+    ) -> *mut ::c_void;
+    pub fn lfind(
+        key: *const ::c_void,
+        base: *const ::c_void,
+        nelp: *mut ::size_t,
+        width: ::size_t,
+        compar: ::Option<unsafe extern "C" fn(*const ::c_void, *const ::c_void) -> ::c_int>,
+    ) -> *mut ::c_void;
+    pub fn hcreate(nelt: ::size_t) -> ::c_int;
+    pub fn hdestroy();
+    pub fn hsearch(entry: ::ENTRY, action: ::ACTION) -> *mut ::ENTRY;
+
+    // futex.h
+    pub fn futex(
+        uaddr: *mut u32,
+        op: ::c_int,
+        val: ::c_int,
+        timeout: *const ::timespec,
+        uaddr2: *mut u32,
+    ) -> ::c_int;
 }
 
 #[link(name = "execinfo")]

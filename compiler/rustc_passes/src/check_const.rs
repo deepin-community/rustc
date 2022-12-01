@@ -80,8 +80,7 @@ impl<'tcx> hir::itemlikevisit::ItemLikeVisitor<'tcx> for CheckConstTraitVisitor<
     /// of the trait being implemented; as those provided functions can be non-const.
     fn visit_item<'hir>(&mut self, item: &'hir hir::Item<'hir>) {
         let _: Option<_> = try {
-            if let hir::ItemKind::Impl(ref imp) = item.kind {
-                if let hir::Constness::Const = imp.constness {
+            if let hir::ItemKind::Impl(ref imp) = item.kind && let hir::Constness::Const = imp.constness {
                     let trait_def_id = imp.of_trait.as_ref()?.trait_def_id()?;
                     let ancestors = self
                         .tcx
@@ -100,7 +99,7 @@ impl<'tcx> hir::itemlikevisit::ItemLikeVisitor<'tcx> for CheckConstTraitVisitor<
                         } = *trait_item
                         {
                             // we can ignore functions that do not have default bodies:
-                            // if those are unimplemented it will be catched by typeck.
+                            // if those are unimplemented it will be caught by typeck.
                             if !defaultness.has_value()
                                 || self
                                     .tcx
@@ -132,7 +131,6 @@ impl<'tcx> hir::itemlikevisit::ItemLikeVisitor<'tcx> for CheckConstTraitVisitor<
                             .note(&format!("`{}` not implemented", to_implement.join("`, `")))
                             .emit();
                     }
-                }
             }
         };
     }
@@ -172,7 +170,7 @@ impl<'tcx> CheckConstVisitor<'tcx> {
 
             // If `def_id` is `None`, we don't need to consider stability attributes.
             let def_id = match def_id {
-                Some(x) => x.to_def_id(),
+                Some(x) => x,
                 None => return true,
             };
 
@@ -184,14 +182,16 @@ impl<'tcx> CheckConstVisitor<'tcx> {
 
             // If this crate is not using stability attributes, or this function is not claiming to be a
             // stable `const fn`, that is all that is required.
-            if !tcx.features().staged_api || tcx.has_attr(def_id, sym::rustc_const_unstable) {
+            if !tcx.features().staged_api
+                || tcx.has_attr(def_id.to_def_id(), sym::rustc_const_unstable)
+            {
                 return true;
             }
 
             // However, we cannot allow stable `const fn`s to use unstable features without an explicit
             // opt-in via `rustc_allow_const_fn_unstable`.
-            attr::rustc_allow_const_fn_unstable(&tcx.sess, &tcx.get_attrs(def_id))
-                .any(|name| name == feature_gate)
+            let attrs = tcx.hir().attrs(tcx.hir().local_def_id_to_hir_id(def_id));
+            attr::rustc_allow_const_fn_unstable(&tcx.sess, attrs).any(|name| name == feature_gate)
         };
 
         match required_gates {
@@ -219,7 +219,9 @@ impl<'tcx> CheckConstVisitor<'tcx> {
             required_gates.iter().copied().filter(|&g| !features.enabled(g)).collect();
 
         match missing_gates.as_slice() {
-            [] => struct_span_err!(tcx.sess, span, E0744, "{}", msg).emit(),
+            [] => {
+                struct_span_err!(tcx.sess, span, E0744, "{}", msg).emit();
+            }
 
             [missing_primary, ref missing_secondary @ ..] => {
                 let mut err = feature_err(&tcx.sess.parse_sess, *missing_primary, span, &msg);

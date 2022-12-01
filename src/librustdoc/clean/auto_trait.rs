@@ -116,7 +116,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
             name: None,
             attrs: Default::default(),
             visibility: Inherited,
-            def_id: ItemId::Auto { trait_: trait_def_id, for_: item_def_id },
+            item_id: ItemId::Auto { trait_: trait_def_id, for_: item_def_id },
             kind: box ImplItem(Impl {
                 unsafety: hir::Unsafety::Normal,
                 generics: new_generics,
@@ -546,11 +546,11 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                 }
                 WherePredicate::EqPredicate { lhs, rhs } => {
                     match lhs {
-                        Type::QPath { name: left_name, ref self_type, ref trait_, .. } => {
+                        Type::QPath { ref assoc, ref self_type, ref trait_, .. } => {
                             let ty = &*self_type;
                             let mut new_trait = trait_.clone();
 
-                            if self.is_fn_trait(trait_) && left_name == sym::Output {
+                            if self.is_fn_trait(trait_) && assoc.name == sym::Output {
                                 ty_to_fn
                                     .entry(*ty.clone())
                                     .and_modify(|e| {
@@ -571,7 +571,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                                 // to 'T: Iterator<Item=u8>'
                                 GenericArgs::AngleBracketed { ref mut bindings, .. } => {
                                     bindings.push(TypeBinding {
-                                        name: left_name,
+                                        assoc: *assoc.clone(),
                                         kind: TypeBindingKind::Equality { term: rhs },
                                     });
                                 }

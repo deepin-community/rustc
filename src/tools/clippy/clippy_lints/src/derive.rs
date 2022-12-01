@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::{span_lint_and_help, span_lint_and_note, span_lint_and_then};
 use clippy_utils::paths;
 use clippy_utils::ty::{implements_trait, is_copy};
-use clippy_utils::{get_trait_def_id, is_automatically_derived, is_lint_allowed, match_def_path};
+use clippy_utils::{is_lint_allowed, match_def_path};
 use if_chain::if_chain;
 use rustc_hir::intravisit::{walk_expr, walk_fn, walk_item, FnKind, Visitor};
 use rustc_hir::{
@@ -12,6 +12,7 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty};
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::Span;
+use rustc_span::sym;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -170,8 +171,8 @@ impl<'tcx> LateLintPass<'tcx> for Derive {
         }) = item.kind
         {
             let ty = cx.tcx.type_of(item.def_id);
-            let attrs = cx.tcx.hir().attrs(item.hir_id());
-            let is_automatically_derived = is_automatically_derived(attrs);
+            let is_automatically_derived =
+                cx.tcx.has_attr(item.def_id.to_def_id(), sym::automatically_derived);
 
             check_hash_peq(cx, item.span, trait_ref, ty, is_automatically_derived);
             check_ord_partial_ord(cx, item.span, trait_ref, ty, is_automatically_derived);
@@ -196,11 +197,11 @@ fn check_hash_peq<'tcx>(
     if_chain! {
         if let Some(peq_trait_def_id) = cx.tcx.lang_items().eq_trait();
         if let Some(def_id) = trait_ref.trait_def_id();
-        if match_def_path(cx, def_id, &paths::HASH);
+        if cx.tcx.is_diagnostic_item(sym::Hash, def_id);
         then {
             // Look for the PartialEq implementations for `ty`
             cx.tcx.for_each_relevant_impl(peq_trait_def_id, ty, |impl_id| {
-                let peq_is_automatically_derived = is_automatically_derived(cx.tcx.get_attrs(impl_id));
+                let peq_is_automatically_derived = cx.tcx.has_attr(impl_id, sym::automatically_derived);
 
                 if peq_is_automatically_derived == hash_is_automatically_derived {
                     return;
@@ -247,14 +248,14 @@ fn check_ord_partial_ord<'tcx>(
     ord_is_automatically_derived: bool,
 ) {
     if_chain! {
-        if let Some(ord_trait_def_id) = get_trait_def_id(cx, &paths::ORD);
+        if let Some(ord_trait_def_id) = cx.tcx.get_diagnostic_item(sym::Ord);
         if let Some(partial_ord_trait_def_id) = cx.tcx.lang_items().partial_ord_trait();
         if let Some(def_id) = &trait_ref.trait_def_id();
         if *def_id == ord_trait_def_id;
         then {
             // Look for the PartialOrd implementations for `ty`
             cx.tcx.for_each_relevant_impl(partial_ord_trait_def_id, ty, |impl_id| {
-                let partial_ord_is_automatically_derived = is_automatically_derived(cx.tcx.get_attrs(impl_id));
+                let partial_ord_is_automatically_derived = cx.tcx.has_attr(impl_id, sym::automatically_derived);
 
                 if partial_ord_is_automatically_derived == ord_is_automatically_derived {
                     return;
@@ -314,7 +315,7 @@ fn check_copy_clone<'tcx>(cx: &LateContext<'tcx>, item: &Item<'_>, trait_ref: &T
             let has_copy_impl = cx.tcx.all_local_trait_impls(()).get(&copy_id).map_or(false, |impls| {
                 impls
                     .iter()
-                    .any(|&id| matches!(cx.tcx.type_of(id).kind(), ty::Adt(adt, _) if ty_adt.did == adt.did))
+                    .any(|&id| matches!(cx.tcx.type_of(id).kind(), ty::Adt(adt, _) if ty_adt.did() == adt.did()))
             });
             if !has_copy_impl {
                 return;
@@ -356,10 +357,10 @@ fn check_unsafe_derive_deserialize<'tcx>(
         if let Some(trait_def_id) = trait_ref.trait_def_id();
         if match_def_path(cx, trait_def_id, &paths::SERDE_DESERIALIZE);
         if let ty::Adt(def, _) = ty.kind();
-        if let Some(local_def_id) = def.did.as_local();
+        if let Some(local_def_id) = def.did().as_local();
         let adt_hir_id = cx.tcx.hir().local_def_id_to_hir_id(local_def_id);
         if !is_lint_allowed(cx, UNSAFE_DERIVE_DESERIALIZE, adt_hir_id);
-        if cx.tcx.inherent_impls(def.did)
+        if cx.tcx.inherent_impls(def.did())
             .iter()
             .map(|imp_did| cx.tcx.hir().expect_item(imp_did.expect_local()))
             .any(|imp| has_unsafe(cx, imp));

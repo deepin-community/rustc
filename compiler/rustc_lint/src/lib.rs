@@ -25,19 +25,20 @@
 //!
 //! This API is completely unstable and subject to change.
 
+#![allow(rustc::potential_query_instability)]
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(array_windows)]
-#![feature(bool_to_option)]
 #![feature(box_patterns)]
+#![feature(control_flow_enum)]
 #![feature(crate_visibility_modifier)]
 #![feature(if_let_guard)]
+#![feature(iter_intersperse)]
 #![feature(iter_order_by)]
+#![feature(let_chains)]
 #![feature(let_else)]
 #![feature(never_type)]
 #![feature(nll)]
-#![feature(control_flow_enum)]
 #![recursion_limit = "256"]
-#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 #[macro_use]
 extern crate rustc_middle;
@@ -49,6 +50,7 @@ pub mod builtin;
 mod context;
 mod early;
 mod enum_intrinsics_non_enums;
+mod expect;
 pub mod hidden_unicode_codepoints;
 mod internal;
 mod late;
@@ -107,6 +109,7 @@ pub use rustc_session::lint::{LintArray, LintPass};
 
 pub fn provide(providers: &mut Providers) {
     levels::provide(providers);
+    expect::provide(providers);
     *providers = Providers { lint_mod, ..*providers };
 }
 
@@ -300,6 +303,7 @@ fn register_builtins(store: &mut LintStore, no_interleave_lints: bool) {
         PATH_STATEMENTS,
         UNUSED_ATTRIBUTES,
         UNUSED_MACROS,
+        UNUSED_MACRO_RULES,
         UNUSED_ALLOCATION,
         UNUSED_DOC_COMMENTS,
         UNUSED_EXTERN_CRATES,
@@ -487,6 +491,11 @@ fn register_builtins(store: &mut LintStore, no_interleave_lints: bool) {
         "unsupported_naked_functions",
         "converted into hard error, see RFC 2972 \
          <https://github.com/rust-lang/rfcs/blob/master/text/2972-constrained-naked.md> for more information",
+    );
+    store.register_removed(
+        "mutable_borrow_reservation_conflict",
+        "now allowed, see issue #59159 \
+         <https://github.com/rust-lang/rust/issues/59159> for more information",
     );
 }
 

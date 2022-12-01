@@ -2,8 +2,8 @@
 
 We first covered traits in the [“Traits: Defining Shared
 Behavior”][traits-defining-shared-behavior]<!-- ignore --> section of Chapter
-10, but as with lifetimes, we didn’t discuss the more advanced details. Now
-that you know more about Rust, we can get into the nitty-gritty.
+10, but we didn’t discuss the more advanced details. Now that you know more
+about Rust, we can get into the nitty-gritty.
 
 ### Specifying Placeholder Types in Trait Definitions with Associated Types
 
@@ -22,10 +22,8 @@ the other features discussed in this chapter.
 One example of a trait with an associated type is the `Iterator` trait that the
 standard library provides. The associated type is named `Item` and stands in
 for the type of the values the type implementing the `Iterator` trait is
-iterating over. In [“The `Iterator` Trait and the `next`
-Method”][the-iterator-trait-and-the-next-method]<!-- ignore --> section of
-Chapter 13, we mentioned that the definition of the `Iterator` trait is as
-shown in Listing 19-12.
+iterating over. The definition of the `Iterator` trait is as shown in Listing
+19-12.
 
 ```rust,noplayground
 {{#rustdoc_include ../listings/ch19-advanced-features/listing-19-12/src/lib.rs}}
@@ -43,14 +41,14 @@ Associated types might seem like a similar concept to generics, in that the
 latter allow us to define a function without specifying what types it can
 handle. So why use associated types?
 
-Let’s examine the difference between the two concepts with an example from
-Chapter 13 that implements the `Iterator` trait on the `Counter` struct. In
-Listing 13-21, we specified that the `Item` type was `u32`:
+Let’s examine the difference between the two concepts with an example that
+implements the `Iterator` trait on a `Counter` struct. This implementation
+specifies the `Item` type is `u32`:
 
 <span class="filename">Filename: src/lib.rs</span>
 
 ```rust,ignore
-{{#rustdoc_include ../listings/ch19-advanced-features/listing-13-21-reproduced/src/lib.rs:ch19}}
+{{#rustdoc_include ../listings/ch19-advanced-features/no-listing-22-iterator-on-counter/src/lib.rs:ch19}}
 ```
 
 This syntax seems comparable to that of generics. So why not just define the
@@ -240,12 +238,13 @@ Because the `fly` method takes a `self` parameter, if we had two *types* that
 both implement one *trait*, Rust could figure out which implementation of a
 trait to use based on the type of `self`.
 
-However, associated functions that are part of traits don’t have a `self`
-parameter. When two types in the same scope implement that trait, Rust can’t
-figure out which type you mean unless you use *fully qualified syntax*. For
-example, the `Animal` trait in Listing 19-19 has the associated function
-`baby_name`, the implementation of `Animal` for the struct `Dog`, and the
-associated function `baby_name` defined on `Dog` directly.
+However, associated functions that are not methods don’t have a `self`
+parameter. When there are multiple types or traits that define non-method
+functions with the same function name, Rust doesn't always know which type you
+mean unless you use *fully qualified syntax*. For example, the `Animal` trait
+in Listing 19-19 has the associated non-method function `baby_name`, and the
+`Animal` trait is implemented for the struct `Dog`. There’s also an associated
+non-method function `baby_name` defined on `Dog` directly.
 
 <span class="filename">Filename: src/main.rs</span>
 
@@ -287,8 +286,8 @@ Listing 19-20, we’ll get a compilation error.
 function from the `Animal` trait, but Rust doesn’t know which implementation to
 use</span>
 
-Because `Animal::baby_name` is an associated function rather than a method, and
-thus doesn’t have a `self` parameter, Rust can’t figure out which
+Because `Animal::baby_name` doesn’t have a `self` parameter, and there could be
+other types that implement the `Animal` trait, Rust can’t figure out which
 implementation of `Animal::baby_name` we want. We’ll get this compiler error:
 
 ```console
@@ -296,8 +295,9 @@ implementation of `Animal::baby_name` we want. We’ll get this compiler error:
 ```
 
 To disambiguate and tell Rust that we want to use the implementation of
-`Animal` for `Dog`, we need to use fully qualified syntax. Listing 19-21
-demonstrates how to use fully qualified syntax.
+`Animal` for `Dog` as opposed to the implementation of `Animal` for some other
+type, we need to use fully qualified syntax. Listing 19-21 demonstrates how to
+use fully qualified syntax.
 
 <span class="filename">Filename: src/main.rs</span>
 
@@ -324,13 +324,13 @@ In general, fully qualified syntax is defined as follows:
 <Type as Trait>::function(receiver_if_method, next_arg, ...);
 ```
 
-For associated functions, there would not be a `receiver`: there would only be
-the list of other arguments. You could use fully qualified syntax everywhere
-that you call functions or methods. However, you’re allowed to omit any part of
-this syntax that Rust can figure out from other information in the program. You
-only need to use this more verbose syntax in cases where there are multiple
-implementations that use the same name and Rust needs help to identify which
-implementation you want to call.
+For associated functions that aren’t methods, there would not be a `receiver`:
+there would only be the list of other arguments. You could use fully qualified
+syntax everywhere that you call functions or methods. However, you’re allowed
+to omit any part of this syntax that Rust can figure out from other information
+in the program. You only need to use this more verbose syntax in cases where
+there are multiple implementations that use the same name and Rust needs help
+to identify which implementation you want to call.
 
 ### Using Supertraits to Require One Trait’s Functionality Within Another Trait
 
@@ -454,11 +454,9 @@ Now you know how the newtype pattern is used in relation to traits; it’s also 
 useful pattern even when traits are not involved. Let’s switch focus and look
 at some advanced ways to interact with Rust’s type system.
 
-[newtype]: ch19-04-advanced-types.html#using-the-newtype-pattern-for-type-safety-and-abstraction
+[newtype]: ch19-03-advanced-traits.html#using-the-newtype-pattern-to-implement-external-traits-on-external-types
 [implementing-a-trait-on-a-type]:
 ch10-02-traits.html#implementing-a-trait-on-a-type
-[the-iterator-trait-and-the-next-method]:
-ch13-02-iterators.html#the-iterator-trait-and-the-next-method
 [traits-defining-shared-behavior]:
 ch10-02-traits.html#traits-defining-shared-behavior
 [smart-pointer-deref]: ch15-02-deref.html#treating-smart-pointers-like-regular-references-with-the-deref-trait

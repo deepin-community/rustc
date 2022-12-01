@@ -26,9 +26,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, iter};
 
-use build_helper::output;
-
 use crate::config::{Target, TargetSelection};
+use crate::util::output;
 use crate::{Build, CLang, GitRepo};
 
 // The `cc` crate doesn't provide a way to obtain a path to the detected archiver,
@@ -149,6 +148,10 @@ pub fn find(build: &mut Build) {
         if let Some(ar) = ar {
             build.verbose(&format!("AR_{} = {:?}", &target.triple, ar));
             build.ar.insert(target, ar);
+        }
+
+        if let Some(ranlib) = config.and_then(|c| c.ranlib.clone()) {
+            build.ranlib.insert(target, ranlib);
         }
     }
 }

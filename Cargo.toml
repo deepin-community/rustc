@@ -1,4 +1,5 @@
 [workspace]
+default-members = ["src/bootstrap"]
 members = [
   "src/bootstrap",
   "compiler/rustc",
@@ -27,6 +28,8 @@ members = [
   "src/tools/cargo/crates/credential/cargo-credential-wincred",
   "src/tools/rustdoc",
   "src/tools/rls",
+  "src/tools/rls/racer/metadata",
+  "src/tools/rls/racer/interner",
   "src/tools/rustfmt",
   "src/tools/miri",
   "src/tools/miri/cargo-miri",

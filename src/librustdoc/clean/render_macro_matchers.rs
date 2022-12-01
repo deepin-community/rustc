@@ -1,4 +1,4 @@
-use rustc_ast::token::{self, BinOpToken, DelimToken};
+use rustc_ast::token::{self, BinOpToken, Delimiter};
 use rustc_ast::tokenstream::{TokenStream, TokenTree};
 use rustc_ast_pretty::pprust::state::State as Printer;
 use rustc_ast_pretty::pprust::PrintState;
@@ -69,9 +69,7 @@ fn snippet_equal_to_token(tcx: TyCtxt<'_>, matcher: &TokenTree) -> Option<String
         match rustc_parse::maybe_new_parser_from_source_str(&sess, file_name, snippet.clone()) {
             Ok(parser) => parser,
             Err(diagnostics) => {
-                for mut diagnostic in diagnostics {
-                    diagnostic.cancel();
-                }
+                drop(diagnostics);
                 return None;
             }
         };
@@ -79,7 +77,7 @@ fn snippet_equal_to_token(tcx: TyCtxt<'_>, matcher: &TokenTree) -> Option<String
     // Reparse a single token tree.
     let mut reparsed_trees = match parser.parse_all_token_trees() {
         Ok(reparsed_trees) => reparsed_trees,
-        Err(mut diagnostic) => {
+        Err(diagnostic) => {
             diagnostic.cancel();
             return None;
         }
@@ -106,11 +104,11 @@ fn print_tt(printer: &mut Printer<'_>, tt: &TokenTree) {
             let open_delim = printer.token_kind_to_string(&token::OpenDelim(*delim));
             printer.word(open_delim);
             if !tts.is_empty() {
-                if *delim == DelimToken::Brace {
+                if *delim == Delimiter::Brace {
                     printer.space();
                 }
                 print_tts(printer, tts);
-                if *delim == DelimToken::Brace {
+                if *delim == Delimiter::Brace {
                     printer.space();
                 }
             }
@@ -164,9 +162,9 @@ fn print_tts(printer: &mut Printer<'_>, tts: &TokenStream) {
                 (_, _) => (true, Other),
             },
             TokenTree::Delimited(_, delim, _) => match (state, delim) {
-                (Dollar, DelimToken::Paren) => (false, DollarParen),
-                (Pound | PoundBang, DelimToken::Bracket) => (false, Other),
-                (Ident, DelimToken::Paren | DelimToken::Bracket) => (false, Other),
+                (Dollar, Delimiter::Parenthesis) => (false, DollarParen),
+                (Pound | PoundBang, Delimiter::Bracket) => (false, Other),
+                (Ident, Delimiter::Parenthesis | Delimiter::Bracket) => (false, Other),
                 (_, _) => (true, Other),
             },
         };

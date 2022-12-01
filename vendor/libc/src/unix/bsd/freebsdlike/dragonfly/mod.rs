@@ -762,6 +762,8 @@ pub const F_SETLK: ::c_int = 8;
 pub const F_SETLKW: ::c_int = 9;
 pub const F_GETPATH: ::c_int = 19;
 pub const ENOMEDIUM: ::c_int = 93;
+pub const ENOTRECOVERABLE: ::c_int = 94;
+pub const EOWNERDEAD: ::c_int = 95;
 pub const EASYNC: ::c_int = 99;
 pub const ELAST: ::c_int = 99;
 pub const RLIMIT_POSIXLOCKS: ::c_int = 11;
@@ -1479,6 +1481,9 @@ extern "C" {
     pub fn utmpxname(file: *const ::c_char) -> ::c_int;
 
     pub fn sys_checkpoint(tpe: ::c_int, fd: ::c_int, pid: ::pid_t, retval: ::c_int) -> ::c_int;
+
+    pub fn umtx_sleep(ptr: *const ::c_int, value: ::c_int, timeout: ::c_int) -> ::c_int;
+    pub fn umtx_wakeup(ptr: *const ::c_int, count: ::c_int) -> ::c_int;
 }
 
 #[link(name = "rt")]

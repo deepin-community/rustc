@@ -25,7 +25,7 @@ use rustc_hir::{
 use rustc_lint::{EarlyContext, EarlyLintPass, LateContext, LateLintPass, LintContext};
 use rustc_middle::hir::nested_filter;
 use rustc_middle::mir::interpret::ConstValue;
-use rustc_middle::ty;
+use rustc_middle::ty::{self, fast_reject::SimplifiedTypeGen, subst::GenericArgKind, FloatTy};
 use rustc_semver::RustcVersion;
 use rustc_session::{declare_lint_pass, declare_tool_lint, impl_lint_pass};
 use rustc_span::source_map::Spanned;
@@ -292,7 +292,7 @@ declare_clippy_lint! {
     /// Checks for unnecessary conversion from Symbol to a string.
     ///
     /// ### Why is this bad?
-    /// It's faster use symbols directly intead of strings.
+    /// It's faster use symbols directly instead of strings.
     ///
     /// ### Example
     /// Bad:
@@ -335,6 +335,15 @@ declare_clippy_lint! {
     pub MISSING_CLIPPY_VERSION_ATTRIBUTE,
     internal,
     "found clippy lint without `clippy::version` attribute"
+}
+
+declare_clippy_lint! {
+    /// ### What it does
+    /// Check that the `extract_msrv_attr!` macro is used, when a lint has a MSRV.
+    ///
+    pub MISSING_MSRV_ATTR_IMPL,
+    internal,
+    "checking if all necessary steps were taken when adding a MSRV to a lint"
 }
 
 declare_lint_pass!(ClippyLintsInternal => [CLIPPY_LINTS_INTERNAL]);
@@ -814,7 +823,7 @@ fn suggest_note(
         cx,
         COLLAPSIBLE_SPAN_LINT_CALLS,
         expr.span,
-        "this call is collspible",
+        "this call is collapsible",
         "collapse into",
         format!(
             "span_lint_and_note({}, {}, {}, {}, {}, {})",
@@ -880,7 +889,7 @@ fn path_to_matched_type(cx: &LateContext<'_>, expr: &hir::Expr<'_>) -> Option<Ve
                     }
                 }
             },
-            Res::Def(DefKind::Const | DefKind::Static, def_id) => {
+            Res::Def(DefKind::Const | DefKind::Static(..), def_id) => {
                 if let Some(Node::Item(item)) = cx.tcx.hir().get_if_local(def_id) {
                     if let ItemKind::Const(.., body_id) | ItemKind::Static(.., body_id) = item.kind {
                         let body = cx.tcx.hir().body(body_id);
@@ -925,7 +934,16 @@ pub fn check_path(cx: &LateContext<'_>, path: &[&str]) -> bool {
     // implementations of native types. Check lang items.
     let path_syms: Vec<_> = path.iter().map(|p| Symbol::intern(p)).collect();
     let lang_items = cx.tcx.lang_items();
-    for item_def_id in lang_items.items().iter().flatten() {
+    // This list isn't complete, but good enough for our current list of paths.
+    let incoherent_impls = [
+        SimplifiedTypeGen::FloatSimplifiedType(FloatTy::F32),
+        SimplifiedTypeGen::FloatSimplifiedType(FloatTy::F64),
+        SimplifiedTypeGen::SliceSimplifiedType,
+        SimplifiedTypeGen::StrSimplifiedType,
+    ]
+    .iter()
+    .flat_map(|&ty| cx.tcx.incoherent_impls(ty));
+    for item_def_id in lang_items.items().iter().flatten().chain(incoherent_impls) {
         let lang_item_path = cx.get_def_path(*item_def_id);
         if path_syms.starts_with(&lang_item_path) {
             if let [item] = &path_syms[lang_item_path.len()..] {
@@ -1305,7 +1323,7 @@ fn if_chain_local_span(cx: &LateContext<'_>, local: &Local<'_>, if_chain_span: S
     }
     span.adjust(if_chain_span.ctxt().outer_expn());
     let sm = cx.sess().source_map();
-    let span = sm.span_extend_to_prev_str(span, "let", false);
+    let span = sm.span_extend_to_prev_str(span, "let", false, true).unwrap_or(span);
     let span = sm.span_extend_to_next_char(span, ';', false);
     Span::new(
         span.lo() - BytePos(3),
@@ -1313,4 +1331,47 @@ fn if_chain_local_span(cx: &LateContext<'_>, local: &Local<'_>, if_chain_span: S
         span.ctxt(),
         span.parent(),
     )
+}
+
+declare_lint_pass!(MsrvAttrImpl => [MISSING_MSRV_ATTR_IMPL]);
+
+impl LateLintPass<'_> for MsrvAttrImpl {
+    fn check_item(&mut self, cx: &LateContext<'_>, item: &hir::Item<'_>) {
+        if_chain! {
+            if let hir::ItemKind::Impl(hir::Impl {
+                of_trait: Some(lint_pass_trait_ref),
+                self_ty,
+                items,
+                ..
+            }) = &item.kind;
+            if let Some(lint_pass_trait_def_id) = lint_pass_trait_ref.trait_def_id();
+            let is_late_pass = match_def_path(cx, lint_pass_trait_def_id, &paths::LATE_LINT_PASS);
+            if is_late_pass || match_def_path(cx, lint_pass_trait_def_id, &paths::EARLY_LINT_PASS);
+            let self_ty = hir_ty_to_ty(cx.tcx, self_ty);
+            if let ty::Adt(self_ty_def, _) = self_ty.kind();
+            if self_ty_def.is_struct();
+            if self_ty_def.all_fields().any(|f| {
+                cx.tcx
+                    .type_of(f.did)
+                    .walk()
+                    .filter(|t| matches!(t.unpack(), GenericArgKind::Type(_)))
+                    .any(|t| match_type(cx, t.expect_ty(), &paths::RUSTC_VERSION))
+            });
+            if !items.iter().any(|item| item.ident.name == sym!(enter_lint_attrs));
+            then {
+                let context = if is_late_pass { "LateContext" } else { "EarlyContext" };
+                let lint_pass = if is_late_pass { "LateLintPass" } else { "EarlyLintPass" };
+                let span = cx.sess().source_map().span_through_char(item.span, '{');
+                span_lint_and_sugg(
+                    cx,
+                    MISSING_MSRV_ATTR_IMPL,
+                    span,
+                    &format!("`extract_msrv_attr!` macro missing from `{lint_pass}` implementation"),
+                    &format!("add `extract_msrv_attr!({context})` to the `{lint_pass}` implementation"),
+                    format!("{}\n    extract_msrv_attr!({context});", snippet(cx, span, "..")),
+                    Applicability::MachineApplicable,
+                );
+            }
+        }
+    }
 }

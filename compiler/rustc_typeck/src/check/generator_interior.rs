@@ -1,6 +1,6 @@
 //! This calculates the types which has storage which lives across a suspension point in a
 //! generator from the perspective of typeck. The actual types used at runtime
-//! is calculated in `rustc_const_eval::transform::generator` and may be a subset of the
+//! is calculated in `rustc_mir_transform::generator` and may be a subset of the
 //! types computed here.
 
 use self::drop_ranges::DropRanges;
@@ -13,7 +13,7 @@ use rustc_hir::def_id::DefId;
 use rustc_hir::hir_id::HirIdSet;
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{Arm, Expr, ExprKind, Guard, HirId, Pat, PatKind};
-use rustc_middle::middle::region::{self, YieldData};
+use rustc_middle::middle::region::{self, Scope, ScopeData, YieldData};
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::symbol::sym;
 use rustc_span::Span;
@@ -319,7 +319,7 @@ impl<'a, 'tcx> Visitor<'tcx> for InteriorVisitor<'a, 'tcx> {
         self.expr_count += 1;
 
         if let PatKind::Binding(..) = pat.kind {
-            let scope = self.region_scope_tree.var_scope(pat.hir_id.local_id);
+            let scope = self.region_scope_tree.var_scope(pat.hir_id.local_id).unwrap();
             let ty = self.fcx.typeck_results.borrow().pat_ty(pat);
             self.record(ty, pat.hir_id, Some(scope), None, pat.span, false);
         }
@@ -369,7 +369,25 @@ impl<'a, 'tcx> Visitor<'tcx> for InteriorVisitor<'a, 'tcx> {
 
         self.expr_count += 1;
 
-        let scope = self.region_scope_tree.temporary_scope(expr.hir_id.local_id);
+        debug!("is_borrowed_temporary: {:?}", self.drop_ranges.is_borrowed_temporary(expr));
+
+        // Typically, the value produced by an expression is consumed by its parent in some way,
+        // so we only have to check if the parent contains a yield (note that the parent may, for
+        // example, store the value into a local variable, but then we already consider local
+        // variables to be live across their scope).
+        //
+        // However, in the case of temporary values, we are going to store the value into a
+        // temporary on the stack that is live for the current temporary scope and then return a
+        // reference to it. That value may be live across the entire temporary scope.
+        let scope = if self.drop_ranges.is_borrowed_temporary(expr) {
+            self.region_scope_tree.temporary_scope(expr.hir_id.local_id)
+        } else {
+            debug!("parent_node: {:?}", self.fcx.tcx.hir().find_parent_node(expr.hir_id));
+            match self.fcx.tcx.hir().find_parent_node(expr.hir_id) {
+                Some(parent) => Some(Scope { id: parent.local_id, data: ScopeData::Node }),
+                None => self.region_scope_tree.temporary_scope(expr.hir_id.local_id),
+            }
+        };
 
         // If there are adjustments, then record the final type --
         // this is the actual value that is being produced.
@@ -468,11 +486,11 @@ pub struct SuspendCheckData<'a, 'tcx> {
 }
 
 // Returns whether it emitted a diagnostic or not
-// Note that this fn and the proceding one are based on the code
+// Note that this fn and the proceeding one are based on the code
 // for creating must_use diagnostics
 //
 // Note that this technique was chosen over things like a `Suspend` marker trait
-// as it is simpler and has precendent in the compiler
+// as it is simpler and has precedent in the compiler
 pub fn check_must_not_suspend_ty<'tcx>(
     fcx: &FnCtxt<'_, 'tcx>,
     ty: Ty<'tcx>,
@@ -496,7 +514,7 @@ pub fn check_must_not_suspend_ty<'tcx>(
             let descr_pre = &format!("{}boxed ", data.descr_pre);
             check_must_not_suspend_ty(fcx, boxed_ty, hir_id, SuspendCheckData { descr_pre, ..data })
         }
-        ty::Adt(def, _) => check_must_not_suspend_def(fcx.tcx, def.did, hir_id, data),
+        ty::Adt(def, _) => check_must_not_suspend_def(fcx.tcx, def.did(), hir_id, data),
         // FIXME: support adding the attribute to TAITs
         ty::Opaque(def, _) => {
             let mut has_emitted = false;
@@ -539,17 +557,17 @@ pub fn check_must_not_suspend_ty<'tcx>(
             }
             has_emitted
         }
-        ty::Tuple(_) => {
+        ty::Tuple(fields) => {
             let mut has_emitted = false;
             let comps = match data.expr.map(|e| &e.kind) {
                 Some(hir::ExprKind::Tup(comps)) => {
-                    debug_assert_eq!(comps.len(), ty.tuple_fields().count());
+                    debug_assert_eq!(comps.len(), fields.len());
                     Some(comps)
                 }
                 _ => None,
             };
-            for (i, ty) in ty.tuple_fields().enumerate() {
-                let descr_post = &format!(" in tuple element {}", i);
+            for (i, ty) in fields.iter().enumerate() {
+                let descr_post = &format!(" in tuple element {i}");
                 let span = comps.and_then(|c| c.get(i)).map(|e| e.span).unwrap_or(data.source_span);
                 if check_must_not_suspend_ty(
                     fcx,
@@ -591,44 +609,43 @@ fn check_must_not_suspend_def(
     hir_id: HirId,
     data: SuspendCheckData<'_, '_>,
 ) -> bool {
-    for attr in tcx.get_attrs(def_id).iter() {
-        if attr.has_name(sym::must_not_suspend) {
-            tcx.struct_span_lint_hir(
-                rustc_session::lint::builtin::MUST_NOT_SUSPEND,
-                hir_id,
-                data.source_span,
-                |lint| {
-                    let msg = format!(
-                        "{}`{}`{} held across a suspend point, but should not be",
-                        data.descr_pre,
-                        tcx.def_path_str(def_id),
-                        data.descr_post,
-                    );
-                    let mut err = lint.build(&msg);
+    if let Some(attr) = tcx.get_attr(def_id, sym::must_not_suspend) {
+        tcx.struct_span_lint_hir(
+            rustc_session::lint::builtin::MUST_NOT_SUSPEND,
+            hir_id,
+            data.source_span,
+            |lint| {
+                let msg = format!(
+                    "{}`{}`{} held across a suspend point, but should not be",
+                    data.descr_pre,
+                    tcx.def_path_str(def_id),
+                    data.descr_post,
+                );
+                let mut err = lint.build(&msg);
 
-                    // add span pointing to the offending yield/await
-                    err.span_label(data.yield_span, "the value is held across this suspend point");
+                // add span pointing to the offending yield/await
+                err.span_label(data.yield_span, "the value is held across this suspend point");
 
-                    // Add optional reason note
-                    if let Some(note) = attr.value_str() {
-                        // FIXME(guswynn): consider formatting this better
-                        err.span_note(data.source_span, note.as_str());
-                    }
+                // Add optional reason note
+                if let Some(note) = attr.value_str() {
+                    // FIXME(guswynn): consider formatting this better
+                    err.span_note(data.source_span, note.as_str());
+                }
 
-                    // Add some quick suggestions on what to do
-                    // FIXME: can `drop` work as a suggestion here as well?
-                    err.span_help(
-                        data.source_span,
-                        "consider using a block (`{ ... }`) \
-                        to shrink the value's scope, ending before the suspend point",
-                    );
+                // Add some quick suggestions on what to do
+                // FIXME: can `drop` work as a suggestion here as well?
+                err.span_help(
+                    data.source_span,
+                    "consider using a block (`{ ... }`) \
+                    to shrink the value's scope, ending before the suspend point",
+                );
 
-                    err.emit();
-                },
-            );
+                err.emit();
+            },
+        );
 
-            return true;
-        }
+        true
+    } else {
+        false
     }
-    false
 }

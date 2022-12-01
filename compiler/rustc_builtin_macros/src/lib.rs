@@ -4,7 +4,6 @@
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/nightly-rustc/")]
 #![feature(array_windows)]
 #![feature(box_patterns)]
-#![feature(bool_to_option)]
 #![feature(crate_visibility_modifier)]
 #![feature(decl_macro)]
 #![feature(is_sorted)]
@@ -13,7 +12,7 @@
 #![feature(proc_macro_internals)]
 #![feature(proc_macro_quote)]
 #![recursion_limit = "256"]
-#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
+#![allow(rustc::potential_query_instability)]
 
 extern crate proc_macro;
 

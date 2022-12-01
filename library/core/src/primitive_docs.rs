@@ -607,7 +607,7 @@ mod prim_pointer {}
 ///
 /// // This loop prints: 0 1 2
 /// for x in array {
-///     print!("{} ", x);
+///     print!("{x} ");
 /// }
 /// ```
 ///
@@ -646,19 +646,19 @@ mod prim_pointer {}
 /// // This creates a slice iterator, producing references to each value.
 /// for item in array.into_iter().enumerate() {
 ///     let (i, x): (usize, &i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 ///
 /// // The `array_into_iter` lint suggests this change for future compatibility:
 /// for item in array.iter().enumerate() {
 ///     let (i, x): (usize, &i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 ///
 /// // You can explicitly iterate an array by value using `IntoIterator::into_iter`
 /// for item in IntoIterator::into_iter(array).enumerate() {
 ///     let (i, x): (usize, i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 /// ```
 ///
@@ -673,13 +673,13 @@ mod prim_pointer {}
 /// // This iterates by reference:
 /// for item in array.iter().enumerate() {
 ///     let (i, x): (usize, &i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 ///
 /// // This iterates by value:
 /// for item in array.into_iter().enumerate() {
 ///     let (i, x): (usize, i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 /// ```
 ///
@@ -702,26 +702,26 @@ mod prim_pointer {}
 /// // This iterates by reference:
 /// for item in array.iter() {
 ///     let x: &i32 = item;
-///     println!("{}", x);
+///     println!("{x}");
 /// }
 ///
 /// // This iterates by value:
 /// for item in IntoIterator::into_iter(array) {
 ///     let x: i32 = item;
-///     println!("{}", x);
+///     println!("{x}");
 /// }
 ///
 /// // This iterates by value:
 /// for item in array {
 ///     let x: i32 = item;
-///     println!("{}", x);
+///     println!("{x}");
 /// }
 ///
 /// // IntoIter can also start a chain.
 /// // This iterates by value:
 /// for item in IntoIterator::into_iter(array).enumerate() {
 ///     let (i, x): (usize, i32) = item;
-///     println!("array[{}] = {}", i, x);
+///     println!("array[{i}] = {x}");
 /// }
 /// ```
 ///
@@ -977,10 +977,22 @@ mod prim_tuple {}
 ///   like `1.0 / 0.0`.
 /// - [NaN (not a number)](#associatedconstant.NAN): this value results from
 ///   calculations like `(-1.0).sqrt()`. NaN has some potentially unexpected
-///   behavior: it is unequal to any float, including itself! It is also neither
-///   smaller nor greater than any float, making it impossible to sort. Lastly,
-///   it is considered infectious as almost all calculations where one of the
-///   operands is NaN will also result in NaN.
+///   behavior:
+///   - It is unequal to any float, including itself! This is the reason `f32`
+///     doesn't implement the `Eq` trait.
+///   - It is also neither smaller nor greater than any float, making it
+///     impossible to sort by the default comparison operation, which is the
+///     reason `f32` doesn't implement the `Ord` trait.
+///   - It is also considered *infectious* as almost all calculations where one
+///     of the operands is NaN will also result in NaN. The explanations on this
+///     page only explicitly document behavior on NaN operands if this default
+///     is deviated from.
+///   - Lastly, there are multiple bit patterns that are considered NaN.
+///     Rust does not currently guarantee that the bit patterns of NaN are
+///     preserved over arithmetic operations, and they are not guaranteed to be
+///     portable or even fully deterministic! This means that there may be some
+///     surprising results upon inspecting the bit patterns,
+///     as the same calculations might produce NaNs with different bit patterns.
 ///
 /// For more information on floating point numbers, see [Wikipedia][wikipedia].
 ///

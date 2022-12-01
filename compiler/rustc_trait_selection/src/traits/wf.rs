@@ -170,7 +170,7 @@ struct WfPredicates<'a, 'tcx> {
 /// predicates. This is a kind of hack to address #43784. The
 /// underlying problem in that issue was a trait structure like:
 ///
-/// ```
+/// ```ignore (illustrative)
 /// trait Foo: Copy { }
 /// trait Bar: Foo { }
 /// impl<T: Bar> Foo for T { }
@@ -224,36 +224,30 @@ fn extend_cause_with_original_assoc_item_obligation<'tcx>(
             // projection coming from another associated type. See
             // `src/test/ui/associated-types/point-at-type-on-obligation-failure.rs` and
             // `traits-assoc-type-in-supertrait-bad.rs`.
-            if let Some(ty::Projection(projection_ty)) = proj.term.ty().map(|ty| ty.kind()) {
-                if let Some(&impl_item_id) =
+            if let Some(ty::Projection(projection_ty)) = proj.term.ty().map(|ty| ty.kind())
+                && let Some(&impl_item_id) =
                     tcx.impl_item_implementor_ids(impl_def_id).get(&projection_ty.item_def_id)
-                {
-                    if let Some(impl_item_span) = items
-                        .iter()
-                        .find(|item| item.id.def_id.to_def_id() == impl_item_id)
-                        .map(fix_span)
-                    {
-                        cause.span = impl_item_span;
-                    }
-                }
+                && let Some(impl_item_span) = items
+                    .iter()
+                    .find(|item| item.id.def_id.to_def_id() == impl_item_id)
+                    .map(fix_span)
+            {
+                cause.span = impl_item_span;
             }
         }
         ty::PredicateKind::Trait(pred) => {
             // An associated item obligation born out of the `trait` failed to be met. An example
             // can be seen in `ui/associated-types/point-at-type-on-obligation-failure-2.rs`.
             debug!("extended_cause_with_original_assoc_item_obligation trait proj {:?}", pred);
-            if let ty::Projection(ty::ProjectionTy { item_def_id, .. }) = *pred.self_ty().kind() {
-                if let Some(&impl_item_id) =
+            if let ty::Projection(ty::ProjectionTy { item_def_id, .. }) = *pred.self_ty().kind()
+                && let Some(&impl_item_id) =
                     tcx.impl_item_implementor_ids(impl_def_id).get(&item_def_id)
-                {
-                    if let Some(impl_item_span) = items
-                        .iter()
-                        .find(|item| item.id.def_id.to_def_id() == impl_item_id)
-                        .map(fix_span)
-                    {
-                        cause.span = impl_item_span;
-                    }
-                }
+                && let Some(impl_item_span) = items
+                    .iter()
+                    .find(|item| item.id.def_id.to_def_id() == impl_item_id)
+                    .map(fix_span)
+            {
+                cause.span = impl_item_span;
             }
         }
         _ => {}
@@ -529,8 +523,8 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 
                 ty::Tuple(ref tys) => {
                     if let Some((_last, rest)) = tys.split_last() {
-                        for elem in rest {
-                            self.require_sized(elem.expect_ty(), traits::TupleElem);
+                        for &elem in rest {
+                            self.require_sized(elem, traits::TupleElem);
                         }
                     }
                 }
@@ -546,7 +540,7 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
 
                 ty::Adt(def, substs) => {
                     // WfNominalType
-                    let obligations = self.nominal_obligations(def.did, substs);
+                    let obligations = self.nominal_obligations(def.did(), substs);
                     self.out.extend(obligations);
                 }
 
@@ -602,18 +596,28 @@ impl<'a, 'tcx> WfPredicates<'a, 'tcx> {
                     // probably always be WF, because it should be
                     // shorthand for something like `where(T: 'a) {
                     // fn(&'a T) }`, as discussed in #25860.
-                    //
-                    // Note that we are also skipping the generic
-                    // types. This is consistent with the `outlives`
-                    // code, but anyway doesn't matter: within the fn
+                    walker.skip_current_subtree(); // subtree handled below
+                    // FIXME(eddyb) add the type to `walker` instead of recursing.
+                    self.compute(substs.as_closure().tupled_upvars_ty().into());
+                    // Note that we cannot skip the generic types
+                    // types. Normally, within the fn
                     // body where they are created, the generics will
                     // always be WF, and outside of that fn body we
                     // are not directly inspecting closure types
                     // anyway, except via auto trait matching (which
                     // only inspects the upvar types).
-                    walker.skip_current_subtree(); // subtree handled below
-                    // FIXME(eddyb) add the type to `walker` instead of recursing.
-                    self.compute(substs.as_closure().tupled_upvars_ty().into());
+                    // But when a closure is part of a type-alias-impl-trait
+                    // then the function that created the defining site may
+                    // have had more bounds available than the type alias
+                    // specifies. This may cause us to have a closure in the
+                    // hidden type that is not actually well formed and
+                    // can cause compiler crashes when the user abuses unsafe
+                    // code to procure such a closure.
+                    // See src/test/ui/type-alias-impl-trait/wf_check_closures.rs
+                    // We should be checking the nominal_obligations here, but that caused
+                    // a regression in https://github.com/rust-lang/rust/issues/97607
+                    // The regression will be fixed on nightly, but the fix is too large
+                    // to be backported.
                 }
 
                 ty::FnPtr(_) => {

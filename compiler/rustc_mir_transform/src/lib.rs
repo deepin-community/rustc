@@ -1,16 +1,17 @@
+#![allow(rustc::potential_query_instability)]
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 #![feature(crate_visibility_modifier)]
+#![feature(let_chains)]
 #![feature(let_else)]
 #![feature(map_try_insert)]
 #![feature(min_specialization)]
-#![feature(option_get_or_insert_default)]
-#![feature(once_cell)]
 #![feature(never_type)]
+#![feature(once_cell)]
+#![feature(option_get_or_insert_default)]
 #![feature(trusted_step)]
 #![feature(try_blocks)]
 #![recursion_limit = "256"]
-#![cfg_attr(not(bootstrap), allow(rustc::potential_query_instability))]
 
 #[macro_use]
 extern crate tracing;
@@ -48,9 +49,11 @@ pub mod cleanup_post_borrowck;
 mod const_debuginfo;
 mod const_goto;
 mod const_prop;
+mod const_prop_lint;
 mod coverage;
 mod deaggregator;
 mod deduplicate_blocks;
+mod deref_separator;
 mod dest_prop;
 pub mod dump_mir;
 mod early_otherwise_branch;
@@ -340,7 +343,7 @@ fn inner_mir_for_ctfe(tcx: TyCtxt<'_>, def: ty::WithOptConstParam<LocalDefId>) -
             pm::run_passes(
                 tcx,
                 &mut body,
-                &[&const_prop::ConstProp, &marker::PhaseChange(MirPhase::Optimization)],
+                &[&const_prop::ConstProp, &marker::PhaseChange(MirPhase::Optimized)],
             );
         }
     }
@@ -363,7 +366,7 @@ fn mir_drops_elaborated_and_const_checked<'tcx>(
 
     let mir_borrowck = tcx.mir_borrowck_opt_const_arg(def);
 
-    let is_fn_like = tcx.hir().get_by_def_id(def.did).fn_kind().is_some();
+    let is_fn_like = tcx.def_kind(def.did).is_fn_like();
     if is_fn_like {
         let did = def.did.to_def_id();
         let def = ty::WithOptConstParam::unknown(did);
@@ -397,7 +400,7 @@ fn mir_drops_elaborated_and_const_checked<'tcx>(
     }
 
     run_post_borrowck_cleanup_passes(tcx, &mut body);
-    assert!(body.phase == MirPhase::DropLowering);
+    assert!(body.phase == MirPhase::Deaggregated);
     tcx.alloc_steal_mir(body)
 }
 
@@ -423,12 +426,14 @@ fn run_post_borrowck_cleanup_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tc
         &add_moves_for_packed_drops::AddMovesForPackedDrops,
         // `AddRetag` needs to run after `ElaborateDrops`. Otherwise it should run fairly late,
         // but before optimizations begin.
+        &deref_separator::Derefer,
         &add_retag::AddRetag,
         &lower_intrinsics::LowerIntrinsics,
         &simplify::SimplifyCfg::new("elaborate-drops"),
         // `Deaggregator` is conceptually part of MIR building, some backends rely on it happening
         // and it can help optimizations.
         &deaggregator::Deaggregator,
+        &Lint(const_prop_lint::ConstProp),
     ];
 
     pm::run_passes(tcx, body, post_borrowck_cleanup);
@@ -457,7 +462,7 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
         ],
     );
 
-    assert!(body.phase == MirPhase::GeneratorLowering);
+    assert!(body.phase == MirPhase::GeneratorsLowered);
 
     // The main optimizations that we do on MIR.
     pm::run_passes(
@@ -494,7 +499,7 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &deduplicate_blocks::DeduplicateBlocks,
             // Some cleanup necessary at least for LLVM and potentially other codegen backends.
             &add_call_guards::CriticalCallEdges,
-            &marker::PhaseChange(MirPhase::Optimization),
+            &marker::PhaseChange(MirPhase::Optimized),
             // Dump the end result for testing and debugging purposes.
             &dump_mir::Marker("PreCodegen"),
         ],

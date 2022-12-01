@@ -27,8 +27,8 @@ impl CrateNum {
     }
 
     #[inline]
-    pub fn as_def_id(&self) -> DefId {
-        DefId { krate: *self, index: CRATE_DEF_INDEX }
+    pub fn as_def_id(self) -> DefId {
+        DefId { krate: self, index: CRATE_DEF_INDEX }
     }
 }
 
@@ -222,6 +222,7 @@ impl<D: Decoder> Decodable<D> for DefIndex {
 // On below-64 bit systems we can simply use the derived `Hash` impl
 #[cfg_attr(not(target_pointer_width = "64"), derive(Hash))]
 #[repr(C)]
+#[rustc_pass_by_value]
 // We guarantee field order. Note that the order is essential here, see below why.
 pub struct DefId {
     // cfg-ing the order of fields so that the `DefIndex` which is high entropy always ends up in
@@ -278,12 +279,29 @@ impl DefId {
     }
 
     #[inline]
+    #[track_caller]
     pub fn expect_local(self) -> LocalDefId {
-        self.as_local().unwrap_or_else(|| panic!("DefId::expect_local: `{:?}` isn't local", self))
+        // NOTE: `match` below is required to apply `#[track_caller]`,
+        // i.e. don't use closures.
+        match self.as_local() {
+            Some(local_def_id) => local_def_id,
+            None => panic!("DefId::expect_local: `{:?}` isn't local", self),
+        }
     }
 
+    #[inline]
+    pub fn is_crate_root(self) -> bool {
+        self.index == CRATE_DEF_INDEX
+    }
+
+    #[inline]
+    pub fn as_crate_root(self) -> Option<CrateNum> {
+        if self.is_crate_root() { Some(self.krate) } else { None }
+    }
+
+    #[inline]
     pub fn is_top_level_module(self) -> bool {
-        self.is_local() && self.index == CRATE_DEF_INDEX
+        self.is_local() && self.is_crate_root()
     }
 }
 
@@ -299,10 +317,7 @@ impl<E: Encoder> Encodable<E> for DefId {
 
 impl<D: Decoder> Decodable<D> for DefId {
     default fn decode(d: &mut D) -> DefId {
-        d.read_struct(|d| DefId {
-            krate: d.read_struct_field("krate", Decodable::decode),
-            index: d.read_struct_field("index", Decodable::decode),
-        })
+        DefId { krate: Decodable::decode(d), index: Decodable::decode(d) }
     }
 }
 
@@ -359,7 +374,7 @@ impl LocalDefId {
 
     #[inline]
     pub fn is_top_level_module(self) -> bool {
-        self.local_def_index == CRATE_DEF_INDEX
+        self == CRATE_DEF_ID
     }
 }
 

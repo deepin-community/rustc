@@ -285,12 +285,14 @@ pub fn eq_item_kind(l: &ItemKind, r: &ItemKind) -> bool {
                 generics: lg,
                 bounds: lb,
                 ty: lt,
+                ..
             }),
             TyAlias(box ast::TyAlias {
                 defaultness: rd,
                 generics: rg,
                 bounds: rb,
                 ty: rt,
+                ..
             }),
         ) => {
             eq_defaultness(*ld, *rd)
@@ -388,12 +390,14 @@ pub fn eq_foreign_item_kind(l: &ForeignItemKind, r: &ForeignItemKind) -> bool {
                 generics: lg,
                 bounds: lb,
                 ty: lt,
+                ..
             }),
             TyAlias(box ast::TyAlias {
                 defaultness: rd,
                 generics: rg,
                 bounds: rb,
                 ty: rt,
+                ..
             }),
         ) => {
             eq_defaultness(*ld, *rd)
@@ -432,12 +436,14 @@ pub fn eq_assoc_item_kind(l: &AssocItemKind, r: &AssocItemKind) -> bool {
                 generics: lg,
                 bounds: lb,
                 ty: lt,
+                ..
             }),
             TyAlias(box ast::TyAlias {
                 defaultness: rd,
                 generics: rg,
                 bounds: rb,
                 ty: rt,
+                ..
             }),
         ) => {
             eq_defaultness(*ld, *rd)
@@ -682,7 +688,8 @@ pub fn eq_mac_args(l: &MacArgs, r: &MacArgs) -> bool {
     match (l, r) {
         (Empty, Empty) => true,
         (Delimited(_, ld, lts), Delimited(_, rd, rts)) => ld == rd && lts.eq_unspanned(rts),
-        (Eq(_, lt), Eq(_, rt)) => lt.kind == rt.kind,
+        (Eq(_, MacArgsEq::Ast(le)), Eq(_, MacArgsEq::Ast(re))) => eq_expr(le, re),
+        (Eq(_, MacArgsEq::Hir(ll)), Eq(_, MacArgsEq::Hir(rl))) => ll.kind == rl.kind,
         _ => false,
     }
 }

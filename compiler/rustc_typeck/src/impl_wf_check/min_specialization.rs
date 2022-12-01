@@ -29,7 +29,7 @@
 //!
 //! Suppose we have the following always applicable impl:
 //!
-//! ```rust
+//! ```ignore (illustrative)
 //! impl<T> SpecExtend<T> for std::vec::IntoIter<T> { /* specialized impl */ }
 //! impl<T, I: Iterator<Item=T>> SpecExtend<T> for I { /* default impl */ }
 //! ```
@@ -66,6 +66,7 @@
 //! on traits with methods can.
 
 use crate::constrained_generic_params as cgp;
+use crate::errors::SubstsOnOverriddenImpl;
 
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def_id::{DefId, LocalDefId};
@@ -164,12 +165,9 @@ fn get_impl_substs<'tcx>(
     // Conservatively use an empty `ParamEnv`.
     let outlives_env = OutlivesEnvironment::new(ty::ParamEnv::empty());
     infcx.resolve_regions_and_report_errors(impl1_def_id, &outlives_env, RegionckMode::default());
-    let impl2_substs = match infcx.fully_resolve(impl2_substs) {
-        Ok(s) => s,
-        Err(_) => {
-            tcx.sess.struct_span_err(span, "could not resolve substs on overridden impl").emit();
-            return None;
-        }
+    let Ok(impl2_substs) = infcx.fully_resolve(impl2_substs) else {
+        tcx.sess.emit_err(SubstsOnOverriddenImpl { span });
+        return None;
     };
     Some((impl1_substs, impl2_substs))
 }
@@ -396,13 +394,14 @@ fn check_specialization_on<'tcx>(tcx: TyCtxt<'tcx>, predicate: ty::Predicate<'tc
                             tcx.def_path_str(trait_ref.def_id),
                         ),
                     )
-                    .emit()
+                    .emit();
             }
         }
-        _ => tcx
-            .sess
-            .struct_span_err(span, &format!("cannot specialize on `{:?}`", predicate))
-            .emit(),
+        _ => {
+            tcx.sess
+                .struct_span_err(span, &format!("cannot specialize on `{:?}`", predicate))
+                .emit();
+        }
     }
 }
 

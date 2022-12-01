@@ -87,6 +87,7 @@ On x86, the `.intel_syntax noprefix` mode of GAS is used by default.
 On ARM, the `.syntax unified` mode is used.
 These targets impose an additional restriction on the assembly code: any assembler state (e.g. the current section which can be changed with `.section`) must be restored to its original value at the end of the asm string.
 Assembly code that does not conform to the GAS syntax will result in assembler-specific behavior.
+Further constraints on the directives used by inline assembly are indicated by [Directives Support](#directives-support).
 
 [format-syntax]: ../std/fmt/index.html#syntax
 [rfc-2795]: https://github.com/rust-lang/rfcs/pull/2795
@@ -158,6 +159,7 @@ Here is the list of currently supported register classes:
 | x86 | `ymm_reg` | `ymm[0-7]` (x86) `ymm[0-15]` (x86-64) | `x` |
 | x86 | `zmm_reg` | `zmm[0-7]` (x86) `zmm[0-31]` (x86-64) | `v` |
 | x86 | `kreg` | `k[1-7]` | `Yk` |
+| x86 | `kreg0` | `k0` | Only clobbers |
 | x86 | `x87_reg` | `st([0-7])` | Only clobbers |
 | x86 | `mmx_reg` | `mm[0-7]` | Only clobbers |
 | AArch64 | `reg` | `x[0-30]` | `r` |
@@ -203,7 +205,7 @@ The availability of supported types for a particular register class may depend o
 | x86 | `mmx_reg` | N/A | Only clobbers |
 | x86 | `x87_reg` | N/A | Only clobbers |
 | AArch64 | `reg` | None | `i8`, `i16`, `i32`, `f32`, `i64`, `f64` |
-| AArch64 | `vreg` | `fp` | `i8`, `i16`, `i32`, `f32`, `i64`, `f64`, <br> `i8x8`, `i16x4`, `i32x2`, `i64x1`, `f32x2`, `f64x1`, <br> `i8x16`, `i16x8`, `i32x4`, `i64x2`, `f32x4`, `f64x2` |
+| AArch64 | `vreg` | `neon` | `i8`, `i16`, `i32`, `f32`, `i64`, `f64`, <br> `i8x8`, `i16x4`, `i32x2`, `i64x1`, `f32x2`, `f64x1`, <br> `i8x16`, `i16x8`, `i32x4`, `i64x2`, `f32x4`, `f64x2` |
 | AArch64 | `preg` | N/A | Only clobbers |
 | ARM | `reg` | None | `i8`, `i16`, `i32`, `f32` |
 | ARM | `sreg` | `vfp2` | `i32`, `f32` |
@@ -284,7 +286,6 @@ Some registers cannot be used for input or output operands:
 | All | `bp` (x86), `x29` (AArch64), `x8` (RISC-V) | The frame pointer cannot be used as an input or output. |
 | ARM | `r7` or `r11` | On ARM the frame pointer can be either `r7` or `r11` depending on the target. The frame pointer cannot be used as an input or output. |
 | All | `si` (x86-32), `bx` (x86-64), `r6` (ARM), `x19` (AArch64), `x9` (RISC-V) | This is used internally by LLVM as a "base pointer" for functions with complex stack frames. |
-| x86 | `k0` | This is a constant zero register which can't be modified. |
 | x86 | `ip` | This is the program counter, not a real register. |
 | AArch64 | `xzr` | This is a constant zero register which can't be modified. |
 | AArch64 | `x18` | This is an OS-reserved register on some AArch64 targets. |
@@ -365,9 +366,9 @@ The following ABIs can be used with `clobber_abi`:
 
 | Architecture | ABI name | Clobbered registers |
 | ------------ | -------- | ------------------- |
-| x86-32 | `"C"`, `"system"`, `"efiapi"`, `"cdecl"`, `"stdcall"`, `"fastcall"` | `ax`, `cx`, `dx`, `xmm[0-7]`, `mm[0-7]`, `k[1-7]`, `st([0-7])` |
-| x86-64 | `"C"`, `"system"` (on Windows), `"efiapi"`, `"win64"` | `ax`, `cx`, `dx`, `r[8-11]`, `xmm[0-31]`, `mm[0-7]`, `k[1-7]`, `st([0-7])` |
-| x86-64 | `"C"`, `"system"` (on non-Windows), `"sysv64"` | `ax`, `cx`, `dx`, `si`, `di`, `r[8-11]`, `xmm[0-31]`, `mm[0-7]`, `k[1-7]`, `st([0-7])` |
+| x86-32 | `"C"`, `"system"`, `"efiapi"`, `"cdecl"`, `"stdcall"`, `"fastcall"` | `ax`, `cx`, `dx`, `xmm[0-7]`, `mm[0-7]`, `k[0-7]`, `st([0-7])` |
+| x86-64 | `"C"`, `"system"` (on Windows), `"efiapi"`, `"win64"` | `ax`, `cx`, `dx`, `r[8-11]`, `xmm[0-31]`, `mm[0-7]`, `k[0-7]`, `st([0-7])` |
+| x86-64 | `"C"`, `"system"` (on non-Windows), `"sysv64"` | `ax`, `cx`, `dx`, `si`, `di`, `r[8-11]`, `xmm[0-31]`, `mm[0-7]`, `k[0-7]`, `st([0-7])` |
 | AArch64 | `"C"`, `"system"`, `"efiapi"` | `x[0-17]`, `x18`\*, `x30`, `v[0-31]`, `p[0-15]`, `ffr` |
 | ARM | `"C"`, `"system"`, `"efiapi"`, `"aapcs"` | `r[0-3]`, `r12`, `r14`, `s[0-15]`, `d[0-7]`, `d[16-31]` |
 | RISC-V | `"C"`, `"system"`, `"efiapi"` | `x1`, `x[5-7]`, `x[10-17]`, `x[28-31]`, `f[0-7]`, `f[10-17]`, `f[28-31]`, `v[0-31]` |
@@ -477,3 +478,135 @@ To avoid undefined behavior, these rules must be followed when using function-sc
   - The compiler is currently unable to detect this due to the way inline assembly is compiled, but may catch and reject this in the future.
 
 > **Note**: As a general rule, the flags covered by `preserves_flags` are those which are *not* preserved when performing a function call.
+
+### Directives Support
+
+Inline assembly supports a subset of the directives supported by both GNU AS and LLVM's internal assembler, given as follows.
+The result of using other directives is assembler-specific (and may cause an error, or may be accepted as-is).
+
+If inline assembly includes any "stateful" directive that modifies how subsequent assembly is processed, the block must undo the effects of any such directives before the inline assembly ends.
+
+The following directives are guaranteed to be supported by the assembler:
+
+- `.2byte`
+- `.4byte`
+- `.8byte`
+- `.align`
+- `.ascii`
+- `.asciz`
+- `.alt_entry`
+- `.balign`
+- `.balignl`
+- `.balignw`
+- `.balign`
+- `.balignl`
+- `.balignw`
+- `.bss`
+- `.byte`
+- `.comm`
+- `.data`
+- `.def`
+- `.double`
+- `.endef`
+- `.equ`
+- `.equiv`
+- `.eqv`
+- `.fill`
+- `.float`
+- `.globl`
+- `.global`
+- `.lcomm`
+- `.inst`
+- `.long`
+- `.octa`
+- `.option`
+- `.private_extern`
+- `.p2align`
+- `.pushsection`
+- `.popsection`
+- `.quad`
+- `.scl`
+- `.section`
+- `.set`
+- `.short`
+- `.size`
+- `.skip`
+- `.sleb128`
+- `.space`
+- `.string`
+- `.text`
+- `.type`
+- `.uleb128`
+- `.word`
+
+
+
+#### Target Specific Directive Support
+
+##### Dwarf Unwinding
+
+The following directives are supported on ELF targets that support DWARF unwind info:
+
+
+- `.cfi_adjust_cfa_offset`
+- `.cfi_def_cfa`
+- `.cfi_def_cfa_offset`
+- `.cfi_def_cfa_register`
+- `.cfi_endproc`
+- `.cfi_escape`
+- `.cfi_lsda`
+- `.cfi_offset`
+- `.cfi_personality`
+- `.cfi_register`
+- `.cfi_rel_offset`
+- `.cfi_remember_state`
+- `.cfi_restore`
+- `.cfi_restore_state`
+- `.cfi_return_column`
+- `.cfi_same_value`
+- `.cfi_sections`
+- `.cfi_signal_frame`
+- `.cfi_startproc`
+- `.cfi_undefined`
+- `.cfi_window_save`
+
+
+##### Structured Exception Handling
+
+On targets with structured exception Handling, the following additional directives are guaranteed to be supported:
+
+- `.seh_endproc`
+- `.seh_endprologue`
+- `.seh_proc`
+- `.seh_pushreg`
+- `.seh_savereg`
+- `.seh_setframe`
+- `.seh_stackalloc`
+
+
+##### x86 (32-bit and 64-bit)
+
+On x86 targets, both 32-bit and 64-bit, the following additional directives are guaranteed to be supported:
+- `.nops`
+- `.code16`
+- `.code32`
+- `.code64`
+
+
+Use of `.code16`, `.code32`, and `.code64` directives are only supported if the state is reset to the default before exiting the assembly block.
+32-bit x86 uses `.code32` by default, and x86_64 uses `.code64` by default.
+
+
+
+##### ARM (32-bit)
+
+On ARM, the following additional directives are guaranteed to be supported:
+
+- `.even`
+- `.fnstart`
+- `.fnend`
+- `.save`
+- `.movsp`
+- `.code`
+- `.thumb`
+- `.thumb_func`

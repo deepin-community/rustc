@@ -6,21 +6,21 @@ use rustc_ast::ptr::P;
 use rustc_ast::token::{self, Nonterminal};
 use rustc_ast::tokenstream::{CanSynthesizeMissingTokens, TokenStream};
 use rustc_ast::visit::{AssocCtxt, Visitor};
-use rustc_ast::{self as ast, AstLike, Attribute, Item, NodeId, PatKind};
+use rustc_ast::{self as ast, Attribute, HasAttrs, Item, NodeId, PatKind};
 use rustc_attr::{self as attr, Deprecation, Stability};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_data_structures::sync::{self, Lrc};
-use rustc_errors::{Applicability, DiagnosticBuilder, ErrorReported};
+use rustc_errors::{Applicability, DiagnosticBuilder, ErrorGuaranteed, MultiSpan, PResult};
 use rustc_lint_defs::builtin::PROC_MACRO_BACK_COMPAT;
 use rustc_lint_defs::BuiltinLintDiagnostics;
-use rustc_parse::{self, nt_to_tokenstream, parser, MACRO_ARGUMENTS};
+use rustc_parse::{self, parser, to_token_stream, MACRO_ARGUMENTS};
 use rustc_session::{parse::ParseSess, Limit, Session};
 use rustc_span::def_id::{CrateNum, DefId, LocalDefId};
 use rustc_span::edition::Edition;
 use rustc_span::hygiene::{AstPass, ExpnData, ExpnKind, LocalExpnId};
 use rustc_span::source_map::SourceMap;
 use rustc_span::symbol::{kw, sym, Ident, Symbol};
-use rustc_span::{FileName, MultiSpan, Span, DUMMY_SP};
+use rustc_span::{FileName, Span, DUMMY_SP};
 use smallvec::{smallvec, SmallVec};
 
 use std::default::Default;
@@ -67,7 +67,7 @@ impl Annotatable {
             Annotatable::Param(ref p) => p.span,
             Annotatable::FieldDef(ref sf) => sf.span,
             Annotatable::Variant(ref v) => v.span,
-            Annotatable::Crate(ref c) => c.span,
+            Annotatable::Crate(ref c) => c.spans.inner_span,
         }
     }
 
@@ -109,17 +109,20 @@ impl Annotatable {
         }
     }
 
-    pub fn into_nonterminal(self) -> Nonterminal {
+    pub fn to_tokens(&self, sess: &ParseSess) -> TokenStream {
         match self {
-            Annotatable::Item(item) => token::NtItem(item),
-            Annotatable::TraitItem(item) | Annotatable::ImplItem(item) => {
-                token::NtItem(P(item.and_then(ast::AssocItem::into_item)))
+            Annotatable::Item(node) => to_token_stream(node, sess, CanSynthesizeMissingTokens::No),
+            Annotatable::TraitItem(node) | Annotatable::ImplItem(node) => {
+                to_token_stream(node, sess, CanSynthesizeMissingTokens::No)
             }
-            Annotatable::ForeignItem(item) => {
-                token::NtItem(P(item.and_then(ast::ForeignItem::into_item)))
+            Annotatable::ForeignItem(node) => {
+                to_token_stream(node, sess, CanSynthesizeMissingTokens::No)
             }
-            Annotatable::Stmt(stmt) => token::NtStmt(stmt.into_inner()),
-            Annotatable::Expr(expr) => token::NtExpr(expr),
+            Annotatable::Stmt(node) => {
+                assert!(!matches!(node.kind, ast::StmtKind::Empty));
+                to_token_stream(node, sess, CanSynthesizeMissingTokens::No)
+            }
+            Annotatable::Expr(node) => to_token_stream(node, sess, CanSynthesizeMissingTokens::No),
             Annotatable::Arm(..)
             | Annotatable::ExprField(..)
             | Annotatable::PatField(..)
@@ -129,10 +132,6 @@ impl Annotatable {
             | Annotatable::Variant(..)
             | Annotatable::Crate(..) => panic!("unexpected annotatable"),
         }
-    }
-
-    crate fn into_tokens(self, sess: &ParseSess) -> TokenStream {
-        nt_to_tokenstream(&self.into_nonterminal(), sess, CanSynthesizeMissingTokens::No)
     }
 
     pub fn expect_item(self) -> P<ast::Item> {
@@ -275,7 +274,7 @@ pub trait ProcMacro {
         ecx: &'cx mut ExtCtxt<'_>,
         span: Span,
         ts: TokenStream,
-    ) -> Result<TokenStream, ErrorReported>;
+    ) -> Result<TokenStream, ErrorGuaranteed>;
 }
 
 impl<F> ProcMacro for F
@@ -287,7 +286,7 @@ where
         _ecx: &'cx mut ExtCtxt<'_>,
         _span: Span,
         ts: TokenStream,
-    ) -> Result<TokenStream, ErrorReported> {
+    ) -> Result<TokenStream, ErrorGuaranteed> {
         // FIXME setup implicit context in TLS before calling self.
         Ok(self(ts))
     }
@@ -300,7 +299,7 @@ pub trait AttrProcMacro {
         span: Span,
         annotation: TokenStream,
         annotated: TokenStream,
-    ) -> Result<TokenStream, ErrorReported>;
+    ) -> Result<TokenStream, ErrorGuaranteed>;
 }
 
 impl<F> AttrProcMacro for F
@@ -313,7 +312,7 @@ where
         _span: Span,
         annotation: TokenStream,
         annotated: TokenStream,
-    ) -> Result<TokenStream, ErrorReported> {
+    ) -> Result<TokenStream, ErrorGuaranteed> {
         // FIXME setup implicit context in TLS before calling self.
         Ok(self(annotation, annotated))
     }
@@ -887,6 +886,8 @@ pub trait ResolverExpand {
         force: bool,
     ) -> Result<Lrc<SyntaxExtension>, Indeterminate>;
 
+    fn record_macro_rule_usage(&mut self, mac_id: NodeId, rule_index: usize);
+
     fn check_unused_macros(&mut self);
 
     // Resolver interfaces for specific built-in macros.
@@ -1047,6 +1048,12 @@ impl<'a> ExtCtxt<'a> {
         self.current_expansion.id.expn_data().call_site
     }
 
+    /// Returns the current expansion kind's description.
+    pub(crate) fn expansion_descr(&self) -> String {
+        let expn_data = self.current_expansion.id.expn_data();
+        expn_data.kind.descr()
+    }
+
     /// Equivalent of `Span::def_site` from the proc macro API,
     /// except that the location is taken from the span passed as an argument.
     pub fn with_def_site_ctxt(&self, span: Span) -> Span {
@@ -1072,7 +1079,11 @@ impl<'a> ExtCtxt<'a> {
         self.current_expansion.id.expansion_cause()
     }
 
-    pub fn struct_span_err<S: Into<MultiSpan>>(&self, sp: S, msg: &str) -> DiagnosticBuilder<'a> {
+    pub fn struct_span_err<S: Into<MultiSpan>>(
+        &self,
+        sp: S,
+        msg: &str,
+    ) -> DiagnosticBuilder<'a, ErrorGuaranteed> {
         self.sess.parse_sess.span_diagnostic.struct_span_err(sp, msg)
     }
 
@@ -1124,44 +1135,42 @@ impl<'a> ExtCtxt<'a> {
     pub fn check_unused_macros(&mut self) {
         self.resolver.check_unused_macros();
     }
+}
 
-    /// Resolves a `path` mentioned inside Rust code, returning an absolute path.
-    ///
-    /// This unifies the logic used for resolving `include_X!`.
-    ///
-    /// FIXME: move this to `rustc_builtin_macros` and make it private.
-    pub fn resolve_path(
-        &self,
-        path: impl Into<PathBuf>,
-        span: Span,
-    ) -> Result<PathBuf, DiagnosticBuilder<'a>> {
-        let path = path.into();
+/// Resolves a `path` mentioned inside Rust code, returning an absolute path.
+///
+/// This unifies the logic used for resolving `include_X!`.
+pub fn resolve_path(
+    parse_sess: &ParseSess,
+    path: impl Into<PathBuf>,
+    span: Span,
+) -> PResult<'_, PathBuf> {
+    let path = path.into();
 
-        // Relative paths are resolved relative to the file in which they are found
-        // after macro expansion (that is, they are unhygienic).
-        if !path.is_absolute() {
-            let callsite = span.source_callsite();
-            let mut result = match self.source_map().span_to_filename(callsite) {
-                FileName::Real(name) => name
-                    .into_local_path()
-                    .expect("attempting to resolve a file path in an external file"),
-                FileName::DocTest(path, _) => path,
-                other => {
-                    return Err(self.struct_span_err(
-                        span,
-                        &format!(
-                            "cannot resolve relative path in non-file source `{}`",
-                            self.source_map().filename_for_diagnostics(&other)
-                        ),
-                    ));
-                }
-            };
-            result.pop();
-            result.push(path);
-            Ok(result)
-        } else {
-            Ok(path)
-        }
+    // Relative paths are resolved relative to the file in which they are found
+    // after macro expansion (that is, they are unhygienic).
+    if !path.is_absolute() {
+        let callsite = span.source_callsite();
+        let mut result = match parse_sess.source_map().span_to_filename(callsite) {
+            FileName::Real(name) => name
+                .into_local_path()
+                .expect("attempting to resolve a file path in an external file"),
+            FileName::DocTest(path, _) => path,
+            other => {
+                return Err(parse_sess.span_diagnostic.struct_span_err(
+                    span,
+                    &format!(
+                        "cannot resolve relative path in non-file source `{}`",
+                        parse_sess.source_map().filename_for_diagnostics(&other)
+                    ),
+                ));
+            }
+        };
+        result.pop();
+        result.push(path);
+        Ok(result)
+    } else {
+        Ok(path)
     }
 }
 
@@ -1174,7 +1183,7 @@ pub fn expr_to_spanned_string<'a>(
     cx: &'a mut ExtCtxt<'_>,
     expr: P<ast::Expr>,
     err_msg: &str,
-) -> Result<(Symbol, ast::StrStyle, Span), Option<(DiagnosticBuilder<'a>, bool)>> {
+) -> Result<(Symbol, ast::StrStyle, Span), Option<(DiagnosticBuilder<'a, ErrorGuaranteed>, bool)>> {
     // Perform eager expansion on the expression.
     // We want to be able to handle e.g., `concat!("foo", "bar")`.
     let expr = cx.expander().fully_expand_fragment(AstFragment::Expr(expr)).make_expr();
@@ -1233,7 +1242,9 @@ pub fn check_zero_tts(cx: &ExtCtxt<'_>, sp: Span, tts: TokenStream, name: &str) 
 pub fn parse_expr(p: &mut parser::Parser<'_>) -> Option<P<ast::Expr>> {
     match p.parse_expr() {
         Ok(e) => return Some(e),
-        Err(mut err) => err.emit(),
+        Err(mut err) => {
+            err.emit();
+        }
     }
     while p.token != token::Eof {
         p.bump();
@@ -1248,7 +1259,7 @@ pub fn get_single_str_from_tts(
     sp: Span,
     tts: TokenStream,
     name: &str,
-) -> Option<String> {
+) -> Option<Symbol> {
     let mut p = cx.new_parser_from_tts(tts);
     if p.token == token::Eof {
         cx.span_err(sp, &format!("{} takes 1 argument", name));
@@ -1260,7 +1271,7 @@ pub fn get_single_str_from_tts(
     if p.token != token::Eof {
         cx.span_err(sp, &format!("{} takes 1 argument", name));
     }
-    expr_to_string(cx, ret, "argument must be a string literal").map(|(s, _)| s.to_string())
+    expr_to_string(cx, ret, "argument must be a string literal").map(|(s, _)| s)
 }
 
 /// Extracts comma-separated expressions from `tts`.
@@ -1299,20 +1310,14 @@ pub fn parse_macro_name_and_helper_attrs(
     // Once we've located the `#[proc_macro_derive]` attribute, verify
     // that it's of the form `#[proc_macro_derive(Foo)]` or
     // `#[proc_macro_derive(Foo, attributes(A, ..))]`
-    let list = match attr.meta_item_list() {
-        Some(list) => list,
-        None => return None,
-    };
+    let list = attr.meta_item_list()?;
     if list.len() != 1 && list.len() != 2 {
         diag.span_err(attr.span, "attribute must have either one or two arguments");
         return None;
     }
-    let trait_attr = match list[0].meta_item() {
-        Some(meta_item) => meta_item,
-        _ => {
-            diag.span_err(list[0].span(), "not a meta item");
-            return None;
-        }
+    let Some(trait_attr) = list[0].meta_item() else {
+        diag.span_err(list[0].span(), "not a meta item");
+        return None;
     };
     let trait_ident = match trait_attr.ident() {
         Some(trait_ident) if trait_attr.is_word() => trait_ident,
@@ -1332,7 +1337,7 @@ pub fn parse_macro_name_and_helper_attrs(
     let attributes_attr = list.get(1);
     let proc_attrs: Vec<_> = if let Some(attr) = attributes_attr {
         if !attr.has_name(sym::attributes) {
-            diag.span_err(attr.span(), "second argument must be `attributes`")
+            diag.span_err(attr.span(), "second argument must be `attributes`");
         }
         attr.meta_item_list()
             .unwrap_or_else(|| {
@@ -1341,12 +1346,9 @@ pub fn parse_macro_name_and_helper_attrs(
             })
             .iter()
             .filter_map(|attr| {
-                let attr = match attr.meta_item() {
-                    Some(meta_item) => meta_item,
-                    _ => {
-                        diag.span_err(attr.span(), "not a meta item");
-                        return None;
-                    }
+                let Some(attr) = attr.meta_item() else {
+                    diag.span_err(attr.span(), "not a meta item");
+                    return None;
                 };
 
                 let ident = match attr.ident() {
@@ -1379,16 +1381,7 @@ pub fn parse_macro_name_and_helper_attrs(
 /// asserts in old versions of those crates and their wide use in the ecosystem.
 /// See issue #73345 for more details.
 /// FIXME(#73933): Remove this eventually.
-pub(crate) fn pretty_printing_compatibility_hack(nt: &Nonterminal, sess: &ParseSess) -> bool {
-    let item = match nt {
-        Nonterminal::NtItem(item) => item,
-        Nonterminal::NtStmt(stmt) => match &stmt.kind {
-            ast::StmtKind::Item(item) => item,
-            _ => return false,
-        },
-        _ => return false,
-    };
-
+fn pretty_printing_compatibility_hack(item: &Item, sess: &ParseSess) -> bool {
     let name = item.ident.name;
     if name == sym::ProceduralMasqueradeDummyType {
         if let ast::ItemKind::Enum(enum_def, _) = &item.kind {
@@ -1409,4 +1402,28 @@ pub(crate) fn pretty_printing_compatibility_hack(nt: &Nonterminal, sess: &ParseS
         }
     }
     false
+}
+
+pub(crate) fn ann_pretty_printing_compatibility_hack(ann: &Annotatable, sess: &ParseSess) -> bool {
+    let item = match ann {
+        Annotatable::Item(item) => item,
+        Annotatable::Stmt(stmt) => match &stmt.kind {
+            ast::StmtKind::Item(item) => item,
+            _ => return false,
+        },
+        _ => return false,
+    };
+    pretty_printing_compatibility_hack(item, sess)
+}
+
+pub(crate) fn nt_pretty_printing_compatibility_hack(nt: &Nonterminal, sess: &ParseSess) -> bool {
+    let item = match nt {
+        Nonterminal::NtItem(item) => item,
+        Nonterminal::NtStmt(stmt) => match &stmt.kind {
+            ast::StmtKind::Item(item) => item,
+            _ => return false,
+        },
+        _ => return false,
+    };
+    pretty_printing_compatibility_hack(item, sess)
 }

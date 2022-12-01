@@ -1564,7 +1564,7 @@ pub unsafe fn vclezd_f64(a: f64) -> u64 {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltz_s8(a: int8x8_t) -> uint8x8_t {
     let b: i8x8 = i8x8::new(0, 0, 0, 0, 0, 0, 0, 0);
@@ -1574,7 +1574,7 @@ pub unsafe fn vcltz_s8(a: int8x8_t) -> uint8x8_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltzq_s8(a: int8x16_t) -> uint8x16_t {
     let b: i8x16 = i8x16::new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -1584,7 +1584,7 @@ pub unsafe fn vcltzq_s8(a: int8x16_t) -> uint8x16_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltz_s16(a: int16x4_t) -> uint16x4_t {
     let b: i16x4 = i16x4::new(0, 0, 0, 0);
@@ -1594,7 +1594,7 @@ pub unsafe fn vcltz_s16(a: int16x4_t) -> uint16x4_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltzq_s16(a: int16x8_t) -> uint16x8_t {
     let b: i16x8 = i16x8::new(0, 0, 0, 0, 0, 0, 0, 0);
@@ -1604,7 +1604,7 @@ pub unsafe fn vcltzq_s16(a: int16x8_t) -> uint16x8_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltz_s32(a: int32x2_t) -> uint32x2_t {
     let b: i32x2 = i32x2::new(0, 0);
@@ -1614,7 +1614,7 @@ pub unsafe fn vcltz_s32(a: int32x2_t) -> uint32x2_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltzq_s32(a: int32x4_t) -> uint32x4_t {
     let b: i32x4 = i32x4::new(0, 0, 0, 0);
@@ -1624,7 +1624,7 @@ pub unsafe fn vcltzq_s32(a: int32x4_t) -> uint32x4_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltz_s64(a: int64x1_t) -> uint64x1_t {
     let b: i64x1 = i64x1::new(0);
@@ -1634,7 +1634,7 @@ pub unsafe fn vcltz_s64(a: int64x1_t) -> uint64x1_t {
 /// Compare signed less than zero
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sshr))]
+#[cfg_attr(test, assert_instr(cmlt))]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcltzq_s64(a: int64x2_t) -> uint64x2_t {
     let b: i64x2 = i64x2::new(0, 0);
@@ -2714,7 +2714,7 @@ pub unsafe fn vcopyq_lane_p16<const LANE1: i32, const LANE2: i32>(a: poly16x8_t,
 /// Insert vector element from another vector element
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(zip1, LANE1 = 1, LANE2 = 0))]
+#[cfg_attr(test, assert_instr(mov, LANE1 = 1, LANE2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopyq_lane_s64<const LANE1: i32, const LANE2: i32>(a: int64x2_t, b: int64x1_t) -> int64x2_t {
@@ -2731,7 +2731,7 @@ pub unsafe fn vcopyq_lane_s64<const LANE1: i32, const LANE2: i32>(a: int64x2_t, 
 /// Insert vector element from another vector element
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(zip1, LANE1 = 1, LANE2 = 0))]
+#[cfg_attr(test, assert_instr(mov, LANE1 = 1, LANE2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopyq_lane_u64<const LANE1: i32, const LANE2: i32>(a: uint64x2_t, b: uint64x1_t) -> uint64x2_t {
@@ -2748,7 +2748,7 @@ pub unsafe fn vcopyq_lane_u64<const LANE1: i32, const LANE2: i32>(a: uint64x2_t,
 /// Insert vector element from another vector element
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(zip1, LANE1 = 1, LANE2 = 0))]
+#[cfg_attr(test, assert_instr(mov, LANE1 = 1, LANE2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopyq_lane_p64<const LANE1: i32, const LANE2: i32>(a: poly64x2_t, b: poly64x1_t) -> poly64x2_t {
@@ -2784,7 +2784,7 @@ pub unsafe fn vcopyq_lane_f32<const LANE1: i32, const LANE2: i32>(a: float32x4_t
 /// Insert vector element from another vector element
 #[inline]
 #[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(zip1, LANE1 = 1, LANE2 = 0))]
+#[cfg_attr(test, assert_instr(mov, LANE1 = 1, LANE2 = 0))]
 #[rustc_legacy_const_generics(1, 3)]
 #[stable(feature = "neon_intrinsics", since = "1.59.0")]
 pub unsafe fn vcopyq_lane_f64<const LANE1: i32, const LANE2: i32>(a: float64x2_t, b: float64x1_t) -> float64x2_t {
@@ -9183,7 +9183,7 @@ pub unsafe fn vmaxq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
     vmaxq_f64_(a, b)
 }
 
-/// Floating-point Maximun Number (vector)
+/// Floating-point Maximum Number (vector)
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxnm))]
@@ -9197,7 +9197,7 @@ pub unsafe fn vmaxnm_f64(a: float64x1_t, b: float64x1_t) -> float64x1_t {
     vmaxnm_f64_(a, b)
 }
 
-/// Floating-point Maximun Number (vector)
+/// Floating-point Maximum Number (vector)
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fmaxnm))]
@@ -9379,7 +9379,7 @@ pub unsafe fn vminq_f64(a: float64x2_t, b: float64x2_t) -> float64x2_t {
     vminq_f64_(a, b)
 }
 
-/// Floating-point Minimun Number (vector)
+/// Floating-point Minimum Number (vector)
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminnm))]
@@ -9393,7 +9393,7 @@ pub unsafe fn vminnm_f64(a: float64x1_t, b: float64x1_t) -> float64x1_t {
     vminnm_f64_(a, b)
 }
 
-/// Floating-point Minimun Number (vector)
+/// Floating-point Minimum Number (vector)
 #[inline]
 #[target_feature(enable = "neon")]
 #[cfg_attr(test, assert_instr(fminnm))]
@@ -10534,38 +10534,63 @@ pub unsafe fn vqrdmulhs_laneq_s32<const LANE: i32>(a: i32, b: int32x4_t) -> i32 
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_s16(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t {
-    vqadd_s16(a, vqrdmulh_s16(b, c))
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlah.v4i16")]
+        fn vqrdmlah_s16_(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t;
+    }
+    vqrdmlah_s16_(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_s16(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t {
-    vqaddq_s16(a, vqrdmulhq_s16(b, c))
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlah.v8i16")]
+        fn vqrdmlahq_s16_(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t;
+    }
+    vqrdmlahq_s16_(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_s32(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t {
-    vqadd_s32(a, vqrdmulh_s32(b, c))
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlah.v2i32")]
+        fn vqrdmlah_s32_(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t;
+    }
+    vqrdmlah_s32_(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_s32(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
-    vqaddq_s32(a, vqrdmulhq_s32(b, c))
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlah.v4i32")]
+        fn vqrdmlahq_s32_(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t;
+    }
+    vqrdmlahq_s32_(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahh_s16(a: i16, b: i16, c: i16) -> i16 {
     let a: int16x4_t = vdup_n_s16(a);
     let b: int16x4_t = vdup_n_s16(b);
@@ -10577,6 +10602,7 @@ pub unsafe fn vqrdmlahh_s16(a: i16, b: i16, c: i16) -> i16 {
 #[inline]
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahs_s32(a: i32, b: i32, c: i32) -> i32 {
     let a: int32x2_t = vdup_n_s32(a);
     let b: int32x2_t = vdup_n_s32(b);
@@ -10589,9 +10615,11 @@ pub unsafe fn vqrdmlahs_s32(a: i32, b: i32, c: i32) -> i32 {
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_lane_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t {
     static_assert_imm2!(LANE);
-    vqadd_s16(a, vqrdmulh_lane_s16::<LANE>(b, c))
+    let c: int16x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlah_s16(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10599,9 +10627,11 @@ pub unsafe fn vqrdmlah_lane_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c: 
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_laneq_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c: int16x8_t) -> int16x4_t {
     static_assert_imm3!(LANE);
-    vqadd_s16(a, vqrdmulh_laneq_s16::<LANE>(b, c))
+    let c: int16x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlah_s16(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10609,9 +10639,11 @@ pub unsafe fn vqrdmlah_laneq_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c:
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_lane_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c: int16x4_t) -> int16x8_t {
     static_assert_imm2!(LANE);
-    vqaddq_s16(a, vqrdmulhq_lane_s16::<LANE>(b, c))
+    let c: int16x8_t = simd_shuffle8!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlahq_s16(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10619,9 +10651,11 @@ pub unsafe fn vqrdmlahq_lane_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c:
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_laneq_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t {
     static_assert_imm3!(LANE);
-    vqaddq_s16(a, vqrdmulhq_laneq_s16::<LANE>(b, c))
+    let c: int16x8_t = simd_shuffle8!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlahq_s16(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10629,9 +10663,11 @@ pub unsafe fn vqrdmlahq_laneq_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_lane_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t {
     static_assert_imm1!(LANE);
-    vqadd_s32(a, vqrdmulh_lane_s32::<LANE>(b, c))
+    let c: int32x2_t = simd_shuffle2!(c, c, <const LANE: i32> [LANE as u32, LANE as u32]);
+    vqrdmlah_s32(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10639,9 +10675,11 @@ pub unsafe fn vqrdmlah_lane_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c: 
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlah_laneq_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c: int32x4_t) -> int32x2_t {
     static_assert_imm2!(LANE);
-    vqadd_s32(a, vqrdmulh_laneq_s32::<LANE>(b, c))
+    let c: int32x2_t = simd_shuffle2!(c, c, <const LANE: i32> [LANE as u32, LANE as u32]);
+    vqrdmlah_s32(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10649,9 +10687,11 @@ pub unsafe fn vqrdmlah_laneq_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c:
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_lane_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c: int32x2_t) -> int32x4_t {
     static_assert_imm1!(LANE);
-    vqaddq_s32(a, vqrdmulhq_lane_s32::<LANE>(b, c))
+    let c: int32x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlahq_s32(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10659,9 +10699,11 @@ pub unsafe fn vqrdmlahq_lane_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c:
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahq_laneq_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
     static_assert_imm2!(LANE);
-    vqaddq_s32(a, vqrdmulhq_laneq_s32::<LANE>(b, c))
+    let c: int32x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlahq_s32(a, b, c)
 }
 
 /// Signed saturating rounding doubling multiply accumulate returning high half
@@ -10669,6 +10711,7 @@ pub unsafe fn vqrdmlahq_laneq_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahh_lane_s16<const LANE: i32>(a: i16, b: i16, c: int16x4_t) -> i16 {
     static_assert_imm2!(LANE);
     vqrdmlahh_s16(a, b, simd_extract(c, LANE as u32))
@@ -10679,6 +10722,7 @@ pub unsafe fn vqrdmlahh_lane_s16<const LANE: i32>(a: i16, b: i16, c: int16x4_t) 
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahh_laneq_s16<const LANE: i32>(a: i16, b: i16, c: int16x8_t) -> i16 {
     static_assert_imm3!(LANE);
     vqrdmlahh_s16(a, b, simd_extract(c, LANE as u32))
@@ -10689,6 +10733,7 @@ pub unsafe fn vqrdmlahh_laneq_s16<const LANE: i32>(a: i16, b: i16, c: int16x8_t)
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahs_lane_s32<const LANE: i32>(a: i32, b: i32, c: int32x2_t) -> i32 {
     static_assert_imm1!(LANE);
     vqrdmlahs_s32(a, b, simd_extract(c, LANE as u32))
@@ -10699,6 +10744,7 @@ pub unsafe fn vqrdmlahs_lane_s32<const LANE: i32>(a: i32, b: i32, c: int32x2_t) 
 #[target_feature(enable = "rdm")]
 #[cfg_attr(test, assert_instr(sqrdmlah, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlahs_laneq_s32<const LANE: i32>(a: i32, b: i32, c: int32x4_t) -> i32 {
     static_assert_imm2!(LANE);
     vqrdmlahs_s32(a, b, simd_extract(c, LANE as u32))
@@ -10706,64 +10752,222 @@ pub unsafe fn vqrdmlahs_laneq_s32<const LANE: i32>(a: i32, b: i32, c: int32x4_t)
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh))]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_s16(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t {
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlsh.v4i16")]
+        fn vqrdmlsh_s16_(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t;
+    }
+    vqrdmlsh_s16_(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_s16(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t {
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlsh.v8i16")]
+        fn vqrdmlshq_s16_(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t;
+    }
+    vqrdmlshq_s16_(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_s32(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t {
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlsh.v2i32")]
+        fn vqrdmlsh_s32_(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t;
+    }
+    vqrdmlsh_s32_(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_s32(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
+    #[allow(improper_ctypes)]
+    extern "unadjusted" {
+        #[cfg_attr(target_arch = "aarch64", link_name = "llvm.aarch64.neon.sqrdmlsh.v4i32")]
+        fn vqrdmlshq_s32_(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t;
+    }
+    vqrdmlshq_s32_(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshh_s16(a: i16, b: i16, c: i16) -> i16 {
-    vqsubh_s16(a, vqrdmulhh_s16(b, c))
+    let a: int16x4_t = vdup_n_s16(a);
+    let b: int16x4_t = vdup_n_s16(b);
+    let c: int16x4_t = vdup_n_s16(c);
+    simd_extract(vqrdmlsh_s16(a, b, c), 0)
 }
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh))]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh))]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshs_s32(a: i32, b: i32, c: i32) -> i32 {
-    vqsubs_s32(a, vqrdmulhs_s32(b, c))
+    let a: int32x2_t = vdup_n_s32(a);
+    let b: int32x2_t = vdup_n_s32(b);
+    let c: int32x2_t = vdup_n_s32(c);
+    simd_extract(vqrdmlsh_s32(a, b, c), 0)
 }
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh, LANE = 1))]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_lane_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c: int16x4_t) -> int16x4_t {
+    static_assert_imm2!(LANE);
+    let c: int16x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlsh_s16(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_laneq_s16<const LANE: i32>(a: int16x4_t, b: int16x4_t, c: int16x8_t) -> int16x4_t {
+    static_assert_imm3!(LANE);
+    let c: int16x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlsh_s16(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_lane_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c: int16x4_t) -> int16x8_t {
+    static_assert_imm2!(LANE);
+    let c: int16x8_t = simd_shuffle8!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlshq_s16(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_laneq_s16<const LANE: i32>(a: int16x8_t, b: int16x8_t, c: int16x8_t) -> int16x8_t {
+    static_assert_imm3!(LANE);
+    let c: int16x8_t = simd_shuffle8!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlshq_s16(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_lane_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c: int32x2_t) -> int32x2_t {
+    static_assert_imm1!(LANE);
+    let c: int32x2_t = simd_shuffle2!(c, c, <const LANE: i32> [LANE as u32, LANE as u32]);
+    vqrdmlsh_s32(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlsh_laneq_s32<const LANE: i32>(a: int32x2_t, b: int32x2_t, c: int32x4_t) -> int32x2_t {
+    static_assert_imm2!(LANE);
+    let c: int32x2_t = simd_shuffle2!(c, c, <const LANE: i32> [LANE as u32, LANE as u32]);
+    vqrdmlsh_s32(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_lane_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c: int32x2_t) -> int32x4_t {
+    static_assert_imm1!(LANE);
+    let c: int32x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlshq_s32(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
+pub unsafe fn vqrdmlshq_laneq_s32<const LANE: i32>(a: int32x4_t, b: int32x4_t, c: int32x4_t) -> int32x4_t {
+    static_assert_imm2!(LANE);
+    let c: int32x4_t = simd_shuffle4!(c, c, <const LANE: i32> [LANE as u32, LANE as u32, LANE as u32, LANE as u32]);
+    vqrdmlshq_s32(a, b, c)
+}
+
+/// Signed saturating rounding doubling multiply subtract returning high half
+#[inline]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
+#[rustc_legacy_const_generics(3)]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshh_lane_s16<const LANE: i32>(a: i16, b: i16, c: int16x4_t) -> i16 {
     static_assert_imm2!(LANE);
-    vqsubh_s16(a, vqrdmulhh_lane_s16::<LANE>(b, c))
+    vqrdmlshh_s16(a, b, simd_extract(c, LANE as u32))
 }
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh, LANE = 1))]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshh_laneq_s16<const LANE: i32>(a: i16, b: i16, c: int16x8_t) -> i16 {
     static_assert_imm3!(LANE);
-    vqsubh_s16(a, vqrdmulhh_laneq_s16::<LANE>(b, c))
+    vqrdmlshh_s16(a, b, simd_extract(c, LANE as u32))
 }
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh, LANE = 1))]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshs_lane_s32<const LANE: i32>(a: i32, b: i32, c: int32x2_t) -> i32 {
     static_assert_imm1!(LANE);
-    vqsubs_s32(a, vqrdmulhs_lane_s32::<LANE>(b, c))
+    vqrdmlshs_s32(a, b, simd_extract(c, LANE as u32))
 }
 
 /// Signed saturating rounding doubling multiply subtract returning high half
 #[inline]
-#[target_feature(enable = "neon")]
-#[cfg_attr(test, assert_instr(sqrdmulh, LANE = 1))]
+#[target_feature(enable = "rdm")]
+#[cfg_attr(test, assert_instr(sqrdmlsh, LANE = 1))]
 #[rustc_legacy_const_generics(3)]
-#[stable(feature = "neon_intrinsics", since = "1.59.0")]
+#[stable(feature = "rdm_intrinsics", since = "1.62.0")]
 pub unsafe fn vqrdmlshs_laneq_s32<const LANE: i32>(a: i32, b: i32, c: int32x4_t) -> i32 {
     static_assert_imm2!(LANE);
-    vqsubs_s32(a, vqrdmulhs_laneq_s32::<LANE>(b, c))
+    vqrdmlshs_s32(a, b, simd_extract(c, LANE as u32))
 }
 
 /// Signed saturating rounding shift left
@@ -22315,6 +22519,46 @@ mod test {
     }
 
     #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_s16() {
+        let a: i16x4 = i16x4::new(1, 1, 1, 1);
+        let b: i16x4 = i16x4::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x4 = i16x4::new(2, 2, 2, 2);
+        let e: i16x4 = i16x4::new(-1, -1, -1, -1);
+        let r: i16x4 = transmute(vqrdmlsh_s16(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_s16() {
+        let a: i16x8 = i16x8::new(1, 1, 1, 1, 1, 1, 1, 1);
+        let b: i16x8 = i16x8::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x8 = i16x8::new(2, 2, 2, 2, 2, 2, 2, 2);
+        let e: i16x8 = i16x8::new(-1, -1, -1, -1, -1, -1, -1, -1);
+        let r: i16x8 = transmute(vqrdmlshq_s16(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_s32() {
+        let a: i32x2 = i32x2::new(1, 1);
+        let b: i32x2 = i32x2::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x2 = i32x2::new(2, 2);
+        let e: i32x2 = i32x2::new(-1, -1);
+        let r: i32x2 = transmute(vqrdmlsh_s32(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_s32() {
+        let a: i32x4 = i32x4::new(1, 1, 1, 1);
+        let b: i32x4 = i32x4::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x4 = i32x4::new(2, 2, 2, 2);
+        let e: i32x4 = i32x4::new(-1, -1, -1, -1);
+        let r: i32x4 = transmute(vqrdmlshq_s32(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
     unsafe fn test_vqrdmlshh_s16() {
         let a: i16 = 1;
         let b: i16 = 1;
@@ -22331,6 +22575,86 @@ mod test {
         let c: i32 = 2;
         let e: i32 = 1;
         let r: i32 = transmute(vqrdmlshs_s32(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_lane_s16() {
+        let a: i16x4 = i16x4::new(1, 1, 1, 1);
+        let b: i16x4 = i16x4::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x4 = i16x4::new(0, 2, 0, 0);
+        let e: i16x4 = i16x4::new(-1, -1, -1, -1);
+        let r: i16x4 = transmute(vqrdmlsh_lane_s16::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_laneq_s16() {
+        let a: i16x4 = i16x4::new(1, 1, 1, 1);
+        let b: i16x4 = i16x4::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x8 = i16x8::new(0, 2, 0, 0, 0, 0, 0, 0);
+        let e: i16x4 = i16x4::new(-1, -1, -1, -1);
+        let r: i16x4 = transmute(vqrdmlsh_laneq_s16::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_lane_s16() {
+        let a: i16x8 = i16x8::new(1, 1, 1, 1, 1, 1, 1, 1);
+        let b: i16x8 = i16x8::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x4 = i16x4::new(0, 2, 0, 0);
+        let e: i16x8 = i16x8::new(-1, -1, -1, -1, -1, -1, -1, -1);
+        let r: i16x8 = transmute(vqrdmlshq_lane_s16::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_laneq_s16() {
+        let a: i16x8 = i16x8::new(1, 1, 1, 1, 1, 1, 1, 1);
+        let b: i16x8 = i16x8::new(0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF, 0x7F_FF);
+        let c: i16x8 = i16x8::new(0, 2, 0, 0, 0, 0, 0, 0);
+        let e: i16x8 = i16x8::new(-1, -1, -1, -1, -1, -1, -1, -1);
+        let r: i16x8 = transmute(vqrdmlshq_laneq_s16::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_lane_s32() {
+        let a: i32x2 = i32x2::new(1, 1);
+        let b: i32x2 = i32x2::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x2 = i32x2::new(0, 2);
+        let e: i32x2 = i32x2::new(-1, -1);
+        let r: i32x2 = transmute(vqrdmlsh_lane_s32::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlsh_laneq_s32() {
+        let a: i32x2 = i32x2::new(1, 1);
+        let b: i32x2 = i32x2::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x4 = i32x4::new(0, 2, 0, 0);
+        let e: i32x2 = i32x2::new(-1, -1);
+        let r: i32x2 = transmute(vqrdmlsh_laneq_s32::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_lane_s32() {
+        let a: i32x4 = i32x4::new(1, 1, 1, 1);
+        let b: i32x4 = i32x4::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x2 = i32x2::new(0, 2);
+        let e: i32x4 = i32x4::new(-1, -1, -1, -1);
+        let r: i32x4 = transmute(vqrdmlshq_lane_s32::<1>(transmute(a), transmute(b), transmute(c)));
+        assert_eq!(r, e);
+    }
+
+    #[simd_test(enable = "neon")]
+    unsafe fn test_vqrdmlshq_laneq_s32() {
+        let a: i32x4 = i32x4::new(1, 1, 1, 1);
+        let b: i32x4 = i32x4::new(0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF, 0x7F_FF_FF_FF);
+        let c: i32x4 = i32x4::new(0, 2, 0, 0);
+        let e: i32x4 = i32x4::new(-1, -1, -1, -1);
+        let r: i32x4 = transmute(vqrdmlshq_laneq_s32::<1>(transmute(a), transmute(b), transmute(c)));
         assert_eq!(r, e);
     }
 

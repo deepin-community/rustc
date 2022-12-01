@@ -7,10 +7,10 @@ pub mod nested_filter;
 pub mod place;
 
 use crate::ty::query::Providers;
-use crate::ty::TyCtxt;
+use crate::ty::{ImplSubject, TyCtxt};
 use rustc_data_structures::fingerprint::Fingerprint;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
-use rustc_hir::def_id::LocalDefId;
+use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::*;
 use rustc_query_system::ich::StableHashingContext;
 use rustc_span::DUMMY_SP;
@@ -45,6 +45,24 @@ pub struct ModuleItems {
     foreign_items: Box<[ForeignItemId]>,
 }
 
+impl ModuleItems {
+    pub fn items(&self) -> impl Iterator<Item = ItemId> + '_ {
+        self.items.iter().copied()
+    }
+
+    pub fn trait_items(&self) -> impl Iterator<Item = TraitItemId> + '_ {
+        self.trait_items.iter().copied()
+    }
+
+    pub fn impl_items(&self) -> impl Iterator<Item = ImplItemId> + '_ {
+        self.impl_items.iter().copied()
+    }
+
+    pub fn foreign_items(&self) -> impl Iterator<Item = ForeignItemId> + '_ {
+        self.foreign_items.iter().copied()
+    }
+}
+
 impl<'tcx> TyCtxt<'tcx> {
     #[inline(always)]
     pub fn hir(self) -> map::Map<'tcx> {
@@ -54,6 +72,12 @@ impl<'tcx> TyCtxt<'tcx> {
     pub fn parent_module(self, id: HirId) -> LocalDefId {
         self.parent_module_from_def_id(id.owner)
     }
+
+    pub fn impl_subject(self, def_id: DefId) -> ImplSubject<'tcx> {
+        self.impl_trait_ref(def_id)
+            .map(ImplSubject::Trait)
+            .unwrap_or_else(|| ImplSubject::Inherent(self.type_of(def_id)))
+    }
 }
 
 pub fn provide(providers: &mut Providers) {
@@ -62,6 +86,7 @@ pub fn provide(providers: &mut Providers) {
         hir.get_module_parent_node(hir.local_def_id_to_hir_id(id))
     };
     providers.hir_crate = |tcx, ()| tcx.untracked_crate;
+    providers.hir_crate_items = map::hir_crate_items;
     providers.crate_hash = map::crate_hash;
     providers.hir_module_items = map::hir_module_items;
     providers.hir_owner = |tcx, id| {

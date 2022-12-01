@@ -34,7 +34,7 @@ impl<'tcx> TypeWalker<'tcx> {
     ///
     /// Example: Imagine you are walking `Foo<Bar<i32>, usize>`.
     ///
-    /// ```
+    /// ```ignore (illustrative)
     /// let mut iter: TypeWalker = ...;
     /// iter.next(); // yields Foo
     /// iter.next(); // yields Bar<i32>
@@ -175,10 +175,10 @@ fn push_inner<'tcx>(stack: &mut TypeWalkerStack<'tcx>, parent: GenericArg<'tcx>)
             | ty::Opaque(_, substs)
             | ty::Closure(_, substs)
             | ty::Generator(_, substs, _)
-            | ty::Tuple(substs)
             | ty::FnDef(_, substs) => {
                 stack.extend(substs.iter().rev());
             }
+            ty::Tuple(ts) => stack.extend(ts.as_substs().iter().rev()),
             ty::GeneratorWitness(ts) => {
                 stack.extend(ts.skip_binder().iter().rev().map(|ty| ty.into()));
             }
