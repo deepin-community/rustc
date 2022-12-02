@@ -1,6 +1,6 @@
 --- a/compiler/rustc_lint_defs/src/builtin.rs
 +++ b/compiler/rustc_lint_defs/src/builtin.rs
-@@ -2749,11 +2749,13 @@
+@@ -2913,11 +2913,13 @@ declare_lint! {
      ///
      /// use std::arch::asm;
      ///
@@ -17,7 +17,7 @@
 --- a/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
 +++ b/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
 @@ -1,6 +1,7 @@
- -include ../tools.mk
+ include ../tools.mk
  
  # ignore-windows-msvc
 +# needs-asm-support
@@ -26,7 +26,7 @@
  # https://github.com/llvm-mirror/llvm/commit/64b2297786f7fd6f5fa24cdd4db0298fbf211466
 --- a/compiler/rustc_lint/src/builtin.rs
 +++ b/compiler/rustc_lint/src/builtin.rs
-@@ -3136,6 +3136,10 @@
+@@ -3053,6 +3053,10 @@ declare_lint! {
      /// ### Example
      ///
      /// ```rust,compile_fail

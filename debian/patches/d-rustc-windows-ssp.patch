@@ -11,7 +11,7 @@ diff --git a/compiler/rustc_target/src/spec/windows_gnu_base.rs b/compiler/rustc
 index d11f1f7..137f8eb 100644
 --- a/compiler/rustc_target/src/spec/windows_gnu_base.rs
 +++ b/compiler/rustc_target/src/spec/windows_gnu_base.rs
-@@ -40,6 +40,8 @@ pub fn opts() -> TargetOptions {
+@@ -41,6 +41,8 @@ pub fn opts() -> TargetOptions {
          "-lmsvcrt",
          "-luser32",
          "-lkernel32",

@@ -12,7 +12,6 @@ u-arm-compiler-builtins-add-sync-builtin-fallbacks.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
-u-ignore-bpf-test.patch
 u-rustc-llvm-cross-flags.patch
 u-reproducible-dl-stage0.patch
 u-make-tests-work-without-rpath.patch

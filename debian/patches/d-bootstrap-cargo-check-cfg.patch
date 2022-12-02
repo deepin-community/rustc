@@ -5,7 +5,7 @@ diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
 index 0ab4824ac0a..76c476f449b 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -1480,9 +1480,9 @@ impl<'a> Builder<'a> {
+@@ -1472,9 +1472,9 @@ impl<'a> Builder<'a> {
          // complete list of features, so for that reason we don't enable checking of
          // features for std crates.
          cargo.arg(if mode != Mode::Std {

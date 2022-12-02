@@ -31,7 +31,7 @@ diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
 index 6181a61..5fe3600 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -899,7 +899,10 @@ impl Step for PlainSourceTarball {
+@@ -902,7 +902,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
