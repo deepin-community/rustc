@@ -3,8 +3,9 @@ Date: Sat, 2 Oct 2021 01:08:00 +0100
 Subject: d-0005-no-jemalloc
 
 ---
- compiler/rustc/Cargo.toml | 6 ------
- 1 file changed, 6 deletions(-)
+ compiler/rustc/Cargo.toml                         | 6 ------
+ src/tools/rust-analyzer/crates/profile/Cargo.toml | 2 --
+ 2 files changed, 8 deletions(-)
 
 diff --git a/compiler/rustc/Cargo.toml b/compiler/rustc/Cargo.toml
 index 27ee3dd..87fb29f 100644
@@ -25,7 +26,7 @@ index 27ee3dd..87fb29f 100644
  max_level_info = ['rustc_driver/max_level_info']
  rustc_use_parallel_compiler = ['rustc_driver/rustc_use_parallel_compiler']
 diff --git a/src/tools/rust-analyzer/crates/profile/Cargo.toml b/src/tools/rust-analyzer/crates/profile/Cargo.toml
-index 99d4179dc20..0b78a45a24b 100644
+index 0b78a45..99d4179 100644
 --- a/src/tools/rust-analyzer/crates/profile/Cargo.toml
 +++ b/src/tools/rust-analyzer/crates/profile/Cargo.toml
 @@ -15,7 +15,6 @@ cfg-if = "1.0.0"
@@ -36,7 +37,7 @@ index 99d4179dc20..0b78a45a24b 100644
  
  [target.'cfg(target_os = "linux")'.dependencies]
  perf-event = "0.4.7"
-@@ -24,7 +25,6 @@ winapi = { version = "0.3.9", features = ["processthreadsapi", "psapi"] }
+@@ -25,7 +24,6 @@ winapi = { version = "0.3.9", features = ["processthreadsapi", "psapi"] }
  
  [features]
  cpu_profiler = []

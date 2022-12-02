@@ -5,15 +5,15 @@ Subject: d-0004-clippy-feature-sync
 enable features needed by rustfmt to make build system happy and speedup build.
 this is what rustc_workspace_hack does in the upstream build.
 ---
- src/tools/clippy/Cargo.toml  | 3 ++-
+ src/tools/clippy/Cargo.toml  | 2 +-
  src/tools/rustfmt/Cargo.toml | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index 1aad7cf..705a880 100644
+index a844a5d..4dd3f55 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
-@@ -42,7 +43,7 @@ if_chain = "1.0"
+@@ -43,7 +43,7 @@ if_chain = "1.0"
  itertools = "0.10.1"
  quote = "1.0"
  serde = { version = "1.0.125", features = ["derive"] }
