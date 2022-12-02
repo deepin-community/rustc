@@ -4,6 +4,7 @@
 u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
+u-make-compiletest-work-without-rpath.patch
 
 # can be dropped once upstream updates compiler_builtins
 u-arm-compiler-builtins-weak-linkage-arm.patch
