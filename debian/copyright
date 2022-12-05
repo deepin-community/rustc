@@ -443,7 +443,6 @@ Comment: see https://github.com/notriddle/ammonia
 
 Files:
  vendor/annotate-snippets/*
- vendor/annotate-snippets-0.8.0/*
 Copyright: 2018-2020 Zibi Braniecki <gandalf@mozilla.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/zbraniecki/annotate-snippets-rs
@@ -486,15 +485,8 @@ Comment: see https://github.com/rust-lang/backtrace-rs
 
 Files:
  vendor/block-buffer/*
- vendor/block-buffer-0*/*
- vendor/block-padding/*
- vendor/byte-tools/*
  vendor/digest/*
- vendor/digest-0*/*
- vendor/fake-simd/*
  vendor/md-5/*
- vendor/opaque-debug/*
- vendor/sha-1-0*/*
  vendor/sha-1/*
  vendor/sha2/*
 Copyright: 2016-2020 RustCrypto Developers
@@ -516,7 +508,6 @@ License: Apache-2.0 or MIT
 Comment: see https://github.com/llogiq/bytecount
 
 Files:
- vendor/byteorder/*
  vendor/globset/*
  vendor/ignore/*
  vendor/same-file/*
@@ -526,7 +517,6 @@ Files:
 Copyright: 2015-2020 Andrew Gallant <jamslam@gmail.com>
 License: Unlicense or MIT
 Comment:
- see https://github.com/BurntSushi/byteorder
  see https://github.com/BurntSushi/same-file
  see https://github.com/BurntSushi/walkdir
  see https://github.com/BurntSushi/winapi-util
@@ -608,7 +598,6 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/srijs/rust-crc32fast
 
 Files:
- vendor/crossbeam/*
  vendor/crossbeam-channel/*
  vendor/crossbeam-deque/*
  vendor/crossbeam-epoch/*
@@ -774,7 +763,6 @@ Comment: see https://github.com/servo/futf
 
 Files:
  vendor/generic-array/*
- vendor/generic-array-0*/*
 Copyright:
  2015-2020 Bartłomiej Kamiński <fizyk20@gmail.com>
  2015-2020 Aaron Trent <novacrazy@gmail.com>
@@ -885,6 +873,12 @@ Files: vendor/jsonpath_lib/*
 Copyright: 2018-2021 Changseok Han <freestrings@gmail.com>
 License: MIT
 Comment: see https://github.com/freestrings/jsonpath
+
+Files: vendor/lazycell/*
+Copyright: 2016-2020 Alex Crichton <alex@alexcrichton.com>
+           2016-2020 Nikita Pekin <contact@nikitapek.in>
+License: MIT or Apache-2.0
+Comment: see https://github.com/indiv0/lazycell
 
 Files: vendor/lazy_static/*
 Copyright: 2014-2018 Marvin Löbel <loebel.marvin@gmail.com>
@@ -1100,7 +1094,7 @@ Copyright: 2017-2017 Emilio Cobos Álvarez <emilio@crisal.io>
 License: MIT
 Comment: see https://github.com/emilio/precomputed-hash
 
-Files: vendor/pretty_assertions-0.7.2/*
+Files: vendor/pretty_assertions/*
 Copyright: 2017-2022 Colin Kiegel <kiegel@gmx.de>
            2017-2022 Florent Fayolle <florent.fayolle69@gmail.com>
            2017-2022 Tom Milligan <code@tommilligan.net>
@@ -1136,7 +1130,6 @@ Comment: see https://github.com/mcarton/rust-punycode.git
 
 Files:
  vendor/quick-error/*
- vendor/quick-error-1*/*
 Copyright:
  2015-2020 Paul Colomiets <paul@colomiets.name>
  2015-2020 Colin Kiegel <kiegel@gmx.de>
@@ -1203,11 +1196,6 @@ Files: vendor/rustc-semver/*
 Copyright: 2020-2020 flip1995 <hello@philkrones.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/flip1995/rustc-semver
-
-Files: vendor/rustc_tools_util/*
-Copyright: 2014-2021 Matthias Krüger <matthias.krueger@famsik.de>
-License: MIT or Apache-2.0
-Comment: see https://github.com/rust-lang/rust-clippy
 
 Files: vendor/rustfix/*
 Copyright:
@@ -1364,6 +1352,11 @@ Copyright: 2018-2021 Aleksey Kladov <aleksey.kladov@gmail.com>
            2018-2021 Christopher Durham (CAD97) <cad97@cad97.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-analyzer/text-size
+
+Files: vendor/thin-vec/*
+Copyright: 2017-2022 Aria Beingessner <a.beingessner@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/gankra/thin-vec
 
 Files:
  vendor/thiserror/*
@@ -1598,11 +1591,6 @@ License: MIT
 Comment: see https://github.com/tokio-rs/valuable
 
 Files: vendor/wasi-0.9.0+wasi-snapshot-preview1/*
-Copyright: 2019-2022 The Cranelift Project Developers
-License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
-Comment: see https://github.com/bytecodealliance/wasi
-
-Files: vendor/wasi-0.10.2+wasi-snapshot-preview1/*
 Copyright: 2019-2022 The Cranelift Project Developers
 License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
 Comment: see https://github.com/bytecodealliance/wasi
