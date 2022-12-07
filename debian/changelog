@@ -1,3 +1,12 @@
+rustc (1.63.0+dfsg1-1) unstable; urgency=medium
+
+  * Upload to unstable (Closes: #1018859)
+
+  [ Pietro Albini ]
+  * clarify the licensing of the mpsc implementation
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Wed, 07 Dec 2022 17:29:00 +0100
+
 rustc (1.63.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
