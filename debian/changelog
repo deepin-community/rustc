@@ -1,8 +1,12 @@
-rustc (1.64.0+dfsg1-1~exp1) UNRELEASED; urgency=medium
+rustc (1.64.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
+  * d/rules: auto_clean: preserve .cargo/config.toml
+  * d/rules: also clear bootstrap/rust-analyzer Cargo.lock
+  * d/rules: extend privacy-breach removal
+  * ship rust-analyzer-proc-macro-srv binary
 
- -- Fabian Grünbichler <debian@fabian.gruenbichler.email>  Tue, 04 Oct 2022 11:47:44 +0200
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Thu, 08 Dec 2022 09:17:59 +0100
 
 rustc (1.63.0+dfsg1-1) unstable; urgency=medium
 
