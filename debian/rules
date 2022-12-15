@@ -245,7 +245,7 @@ ifeq (true,$(BUILD_DOCS))
 endif
 
 override_dh_auto_clean:
-	$(RM) -rf build tmp .cargo debian/cargo_home config.stamp config.mk Makefile
+	$(RM) -rf build tmp debian/cargo_home config.stamp config.mk Makefile
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/*.stamp
 	$(RM) -rf $(SRC_CLEAN) config.toml
 
