@@ -17,7 +17,7 @@ The upstream source package embeds many external libraries. We make a great
 effort to remove them and use system versions where possible, but there are a
 few more remaining:
 
- * vendor/dlmalloc, vendor/walkdir, vendor/windows_*_gnu, vendor/windows_*_msvc
+ * vendor/dlmalloc, vendor/windows_*_gnu, vendor/windows_*_msvc
 
    These are small C libraries designed to be statically linked; their upstream
    does not support building them as a shared library and they are too small to
