@@ -35,6 +35,7 @@ Files-Excluded:
  vendor/jsonpath_lib/docs
  vendor/mdbook/src/theme/playground_editor
  vendor/psm/src/arch/wasm32.o
+ vendor/rustix/src/imp/linux_raw/arch/outline/*/*.a
  vendor/winapi-*/*/*.a
 # Embedded submodule used for CI
  library/stdarch/crates/intrinsic-test/acle
