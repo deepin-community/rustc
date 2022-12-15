@@ -47,21 +47,23 @@ src/etc/third-party/README.txt
 src/librustdoc/html/highlight/fixtures/sample.html
 src/librustdoc/html/static/scrape-examples-help.md
 src/tools/rustfmt/*.md
+src/tools/rust-analyzer/docs/user/manual.adoc
+src/tools/rust-analyzer/crates/rust-analyzer/src/diagnostics/to_proto.rs
 vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
 vendor/*/CODE_OF_CONDUCT.md
-vendor/*/CONTRIBUTORS.md
 vendor/*/README.md
 vendor/*/README.tpl
 vendor/*/LICENSE
+vendor/*/LICENSE-MIT
 vendor/*/*/LICENSE
 vendor/*/*/*/LICENSE
 vendor/ahash/FAQ.md
 vendor/ammonia/src/lib.rs
 vendor/clap/examples/derive_ref/README.md
-vendor/clap-2.34.0/SPONSORS.md
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
+vendor/handlebars/src/template.rs
 vendor/maplit/README.rst
 vendor/mdbook/CONTRIBUTING.md
 vendor/miniz_oxide/Readme.md
@@ -79,15 +81,18 @@ vendor/windows-sys/src/Windows/Win32/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
+vendor/windows-sys-0.*/src/Windows/Win32/*.rs
+vendor/windows-sys-0.*/src/Windows/Win32/*/*.rs
+vendor/windows-sys-0.*/src/Windows/Win32/*/*/*.rs
+vendor/windows-sys-0.*/src/Windows/Win32/*/*/*/*.rs
 
 # False-positive, audit-vendor-source automatically flags JS/C files
 # The below ones are OK since they're actually part of rust's own source code
 # and are not "embedded libraries".
-library/backtrace/src/android-api.c
-library/backtrace/crates/line-tables-only/src/callback.c
 src/ci/docker/scripts/qemu-bare-bones-addentropy.c
 src/doc/book/*/ferris.js
 src/doc/book/ferris.js
+src/doc/rustc-dev-guide/mermaid-init.js
 src/etc/wasm32-shim.js
 src/librustdoc/html/static/js/*.js
 src/librustdoc/html/static/.eslintrc.js
@@ -99,16 +104,22 @@ src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-gui/tester.js
-vendor/handlebars/src/template.rs
-vendor/stacker/src/arch/windows.c
 
 # Embedded libraries, justified in README.source
 vendor/dlmalloc/src/dlmalloc.c
 vendor/mdbook/src/theme/book.js
 vendor/mdbook/src/theme/searcher/searcher.js
-vendor/walkdir/compare/nftw.c
 vendor/windows_*_gnu/lib/libwindows.a
 vendor/windows_*_msvc/lib/windows.lib
+vendor/windows_*_gnu-0.*/lib/libwindows.a
+vendor/windows_*_msvc-0.*/lib/windows.lib
+
+# Trivial glue code for C <-> Rust
+library/backtrace/src/android-api.c
+library/backtrace/crates/line-tables-only/src/callback.c
+vendor/backtrace/src/android-api.c
+vendor/errno-dragonfly/src/errno.c
+vendor/stacker/src/arch/windows.c
 
 # False-positive, misc
 src/doc/rustc-dev-guide/src/queries/example-0.counts.txt
@@ -140,6 +151,7 @@ src/doc/rustc-dev-guide/src/img/*.png
 src/librustdoc/html/static/images/*.svg
 src/librustdoc/html/static/images/favicon-*.png
 src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
+src/tools/rust-analyzer/assets/logo-*.svg
 vendor/mdbook/src/theme/favicon.svg
 vendor/mdbook/src/theme/favicon.png
 vendor/pretty_assertions-0.7.2/examples/*.png
@@ -165,6 +177,7 @@ src/test/mir-opt/*/*.mir
 src/test/mir-opt/*/*.diff
 src/test/rustdoc/tuples.link2_i32.html
 src/test/*/*.rs
+src/test/*/*.stdout
 src/test/*/issues/*.rs
 src/test/*/*/issue-*.rs
 src/test/*/*/issues/*.rs
@@ -178,6 +191,7 @@ src/test/*/*/*/*.stderr
 src/test/*/*/*/*/*.stderr
 src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/run-make/*-sgx-lvi/enclave/*.c
+src/test/rustdoc/*.html
 src/test/ui/macros/not-utf8.bin
 src/tools/*/tests/*/*.stderr
 src/tools/clippy/tests/ui-toml/*/*.stderr
@@ -188,9 +202,16 @@ src/tools/rustfmt/tests/writemode/target/*.xml
 src/tools/rustfmt/tests/source/*.rs
 src/tools/rustfmt/tests/source/*/*.rs
 src/tools/rustfmt/tests/target/issue-5088/very_long_comment_wrap_comments_false.rs
+src/tools/rust-analyzer/bench_data/numerous_macro_rules
+src/tools/rust-analyzer/crates/syntax/test_data/reparse/fuzz-failures/0005.rs
+src/tools/rust-analyzer/crates/project-model/test_data/*.json
+src/tools/rust-analyzer/crates/rust-analyzer/src/diagnostics/test_data/clippy_pass_by_ref.txt
+src/tools/rust-analyzer/crates/parser/test_data/lexer/ok/*
+src/tools/rust-analyzer/crates/ide/src/syntax_highlighting/test_data/highlight_*.html
 vendor/annotate-snippets/tests/fixtures/no-color/strip_line_non_ws.toml
 vendor/bstr/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
+vendor/diff/tests/data/gitignores.chars.diff
 vendor/dissimilar/benches/*.txt
 vendor/elasticlunr-rs/tests/data/*.in.txt
 vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
@@ -204,6 +225,7 @@ vendor/html5ever/data/bench/*.html
 vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
 vendor/libloading/tests/*.dll
+vendor/lsp-types/tests/tsc-unix.lsif
 vendor/md-5/tests/data/*.blb
 vendor/mdbook/test_book/src/individual/paragraph.md
 vendor/mdbook/test_book/src/individual/table.md
@@ -231,13 +253,15 @@ vendor/term/tests/data/*
 vendor/unicode-ident/tests/fst/*.fst
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
-vendor/yaml-rust-0*/tests/specexamples.rs.inc
-
+vendor/walkdir/compare/nftw.c
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
 src/doc/rustc-dev-guide/src/mir/mir_*.svg
 src/librustdoc/html/static/css/normalize.css
+src/tools/rust-analyzer/crates/ide-db/src/generated/lints.rs
+src/tools/rust-analyzer/crates/parser/src/syntax_kind/generated.rs
+vendor/linux-raw-sys/src/x86_64/general.rs
 vendor/pest_meta/src/grammar.rs
 vendor/regex-syntax/src/unicode_tables/*.rs
 vendor/ucd-parse/src/sentence_break.rs
@@ -252,7 +276,6 @@ src/librustdoc/html/static/fonts/*.woff2
 
 # Compromise, ideally we'd autogenerate these
 vendor/bstr/src/unicode/fsm/*.dfa
-
 
 # file brokenness (detected as Algol source code)
 vendor/digest/src/core_api/wrapper.rs
@@ -346,8 +369,10 @@ vendor/flate2/src/zio.rs
 compiler/rustc_expand/src/mbe/quoted.rs
 compiler/rustc_macros/src/symbols/tests.rs
 src/librustdoc/html/markdown/tests.rs
+src/test/run-make-fulldeps/symbol-visibility/Makefile
 src/tools/clippy/clippy_lints/src/needless_pass_by_value.rs
 src/tools/clippy/clippy_lints/src/pass_by_ref_or_value.rs
+src/tools/rust-analyzer/crates/ide-assists/src/handlers/number_representation.rs
 src/tools/rustfmt/src/string.rs
 src/tools/rustfmt/src/formatting.rs
 library/std/src/sys/unix/process/process_unix.rs
