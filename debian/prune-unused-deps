@@ -28,7 +28,7 @@ cargo update --offline
 (cd src/bootstrap && cargo update --offline)
 
 # re-generate src/tools/rust-analyzer/Cargo.lock after patching
-( cd src/tools/rust-analyzer; cargo update --offline )
+( cd src/tools/rust-analyzer && cargo update --offline )
 
 needed_crates() {
 	cat Cargo.lock \
