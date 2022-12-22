@@ -5,4 +5,4 @@ libstd-rust-dev-windows binary: executable-not-elf-or-script [usr/lib/rustlib/*/
 
 # lintian doesn't understand these files
 libstd-rust-dev-windows binary: no-code-sections [*.rlib]
-libstd-rust-dev-windows binary: no-code-sections [usr/lib/rustlib/x86_64-pc-windows-gnu/lib/lib*.dll.a]
+libstd-rust-dev-windows binary: no-code-sections [usr/lib/rustlib/*-pc-windows-gnu/lib/lib*.dll.a]
