@@ -17,6 +17,7 @@ u-make-tests-work-without-rpath.patch
 #u-allow-system-compiler-rt.patch
 
 # Debian-specific patches, not suitable for upstream
+d-fix-rustix-outline.patch
 
 ## Patches needed by debian/prune-unused-deps, for building bootstrap
 d-0000-ignore-removed-submodules.patch
