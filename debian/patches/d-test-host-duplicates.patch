@@ -1,0 +1,20 @@
+Description: Work around #842634 on some machines, e.g. Debian porterboxes
+ This should remain commented-out in debian/patches/series, it's not needed everywhere
+Author: Ximin Luo <infinity0@debian.org>
+Forwarded: not-needed
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/library/std/src/sys_common/net/tests.rs
++++ b/library/std/src/sys_common/net/tests.rs
+@@ -11,8 +11,10 @@
+     for sa in lh {
+         *addrs.entry(sa).or_insert(0) += 1;
+     }
++    let mut v = addrs.iter().filter(|&(_, &v)| v > 1).collect::<Vec<_>>();
++    v.clear();
+     assert_eq!(
+-        addrs.iter().filter(|&(_, &v)| v > 1).collect::<Vec<_>>(),
++        v,
+         vec![],
+         "There should be no duplicate localhost entries"
+     );

@@ -1,0 +1,23 @@
+From: Chris Coulson <chris.coulson@canonical.com>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: u-make-tests-work-without-rpath
+
+Forwarded: TODO
+
+===================================================================
+---
+ src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile b/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
+index 1e267fb..ac46c24 100644
+--- a/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
++++ b/src/test/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
+@@ -1,2 +1,6 @@
++include ../tools.mk
++
++RUSTC := $(RUSTC_ORIGINAL)
++
+ all:
+-	'$(PYTHON)' test.py
++	$(HOST_RPATH_ENV) '$(PYTHON)' test.py

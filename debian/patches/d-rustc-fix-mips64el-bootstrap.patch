@@ -1,0 +1,62 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-rustc-fix-mips64el-bootstrap
+
+Bug: https://github.com/rust-lang/rust/issues/52108
+
+===================================================================
+---
+ compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs   | 2 +-
+ compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs | 2 +-
+ src/bootstrap/bootstrap.py                                        | 2 ++
+ src/test/assembly/asm/mips-types.rs                               | 1 +
+ 4 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
+index fc5dbd1..b9df004 100644
+--- a/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
++++ b/compiler/rustc_target/src/spec/mips64_unknown_linux_gnuabi64.rs
+@@ -12,7 +12,7 @@ pub fn target() -> Target {
+             endian: Endian::Big,
+             // NOTE(mips64r2) matches C toolchain
+             cpu: "mips64r2".into(),
+-            features: "+mips64r2".into(),
++            features: "+mips64r2,+xgot".into(),
+             max_atomic_width: Some(64),
+             mcount: "_mcount".into(),
+ 
+diff --git a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
+index e0d5f6f..57ad8c4 100644
+--- a/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
++++ b/compiler/rustc_target/src/spec/mips64el_unknown_linux_gnuabi64.rs
+@@ -10,7 +10,7 @@ pub fn target() -> Target {
+             abi: "abi64".into(),
+             // NOTE(mips64r2) matches C toolchain
+             cpu: "mips64r2".into(),
+-            features: "+mips64r2".into(),
++            features: "+mips64r2,+xgot".into(),
+             max_atomic_width: Some(64),
+             mcount: "_mcount".into(),
+ 
+diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
+index 92d29d6..23c0764 100644
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -768,6 +768,8 @@ class RustBuild(object):
+ 
+         # preserve existing RUSTFLAGS
+         env.setdefault("RUSTFLAGS", "")
++        if self.build_triple().startswith('mips'):
++            env["RUSTFLAGS"] += " -Ctarget-feature=+xgot"
+         build_section = "target.{}".format(self.build)
+         target_features = []
+         if self.get_toml("crt-static", build_section) == "true":
+diff --git a/src/test/assembly/asm/mips-types.rs b/src/test/assembly/asm/mips-types.rs
+index 04bf49a..a7c6056 100644
+--- a/src/test/assembly/asm/mips-types.rs
++++ b/src/test/assembly/asm/mips-types.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // revisions: mips32 mips64
+ // assembly-output: emit-asm
+ //[mips32] compile-flags: --target mips-unknown-linux-gnu

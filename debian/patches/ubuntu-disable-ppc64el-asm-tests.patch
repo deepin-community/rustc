@@ -1,0 +1,39 @@
+--- a/compiler/rustc_lint_defs/src/builtin.rs
++++ b/compiler/rustc_lint_defs/src/builtin.rs
+@@ -2749,11 +2749,13 @@
+     ///
+     /// use std::arch::asm;
+     ///
++    /// #[cfg(not(any(target_arch = "powerpc64", target_arch = "s390x")))]
+     /// #[naked]
+     /// pub fn default_abi() -> u32 {
+     ///     unsafe { asm!("", options(noreturn)); }
+     /// }
+     ///
++    /// #[cfg(not(any(target_arch = "powerpc64", target_arch = "s390x")))]
+     /// #[naked]
+     /// pub extern "Rust" fn rust_abi() -> u32 {
+     ///     unsafe { asm!("", options(noreturn)); }
+--- a/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
++++ b/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
+@@ -1,6 +1,7 @@
+ -include ../tools.mk
+ 
+ # ignore-windows-msvc
++# needs-asm-support
+ #
+ # Because of Windows exception handling, the code is not necessarily any shorter.
+ # https://github.com/llvm-mirror/llvm/commit/64b2297786f7fd6f5fa24cdd4db0298fbf211466
+--- a/compiler/rustc_lint/src/builtin.rs
++++ b/compiler/rustc_lint/src/builtin.rs
+@@ -3136,6 +3136,10 @@
+     /// ### Example
+     ///
+     /// ```rust,compile_fail
++    /// #![cfg_attr(
++    ///  not(any(target_arch = "powerpc64", target_arch = "s390x")),
++    ///  feature(asm_experimental_arch)
++    /// )]
+     /// use std::arch::asm;
+     ///
+     /// fn main() {

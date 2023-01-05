@@ -1,0 +1,27 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-no-assume-tools
+
+===================================================================
+---
+ src/bootstrap/builder/tests.rs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/bootstrap/builder/tests.rs b/src/bootstrap/builder/tests.rs
+index 4ab502e..5ce7fc8 100644
+--- a/src/bootstrap/builder/tests.rs
++++ b/src/bootstrap/builder/tests.rs
+@@ -348,9 +348,13 @@ mod dist {
+     fn dist_only_cross_host() {
+         let a = TargetSelection::from_user("A");
+         let b = TargetSelection::from_user("B");
++        let mut tools = std::collections::HashSet::new();
++        tools.insert("clippy".to_string());
++        tools.insert("rustfmt".to_string());
+         let mut config = configure(&["A", "B"], &["A", "B"]);
+         config.docs = false;
+         config.extended = true;
++        config.tools = Some(tools);
+         config.hosts = vec![b];
+         let mut cache = run_build(&[], config);
+ 

@@ -1,0 +1,327 @@
+Description: Support linking against system clang libs
+ Note: the above PR only covers the compiler_builtins crate, rustc itself also
+ needs patching as per below once that is accepted.
+Forwarded: https://github.com/rust-lang-nursery/compiler-builtins/pull/296
+--- a/vendor/compiler_builtins/Cargo.toml
++++ b/vendor/compiler_builtins/Cargo.toml
+@@ -43,7 +43,13 @@
+ optional = true
+ 
+ [features]
+-c = ["cc"]
++c-vendor = ["cc"]
++
++# Link against system clang_rt.* libraries.
++# LLVM_CONFIG or CLANG (more reliable) must be set.
++c-system = []
++
++c = ["c-vendor"]
+ compiler-builtins = []
+ default = ["compiler-builtins"]
+ mangled-names = []
+--- a/vendor/compiler_builtins/build.rs
++++ b/vendor/compiler_builtins/build.rs
+@@ -37,7 +37,7 @@
+     // mangling names though we assume that we're also in test mode so we don't
+     // build anything and we rely on the upstream implementation of compiler-rt
+     // functions
+-    if !cfg!(feature = "mangled-names") && cfg!(feature = "c") {
++    if !cfg!(feature = "mangled-names") && cfg!(any(feature = "c-vendor", feature = "c-system")) {
+         // Don't use a C compiler for these targets:
+         //
+         // * wasm32 - clang 8 for wasm is somewhat hard to come by and it's
+@@ -47,8 +47,10 @@
+         //   compiler nor is cc-rs ready for compilation to riscv (at this
+         //   time). This can probably be removed in the future
+         if !target.contains("wasm32") && !target.contains("nvptx") && !target.starts_with("riscv") {
+-            #[cfg(feature = "c")]
+-            c::compile(&llvm_target);
++            #[cfg(feature = "c-vendor")]
++            c_vendor::compile(&llvm_target);
++            #[cfg(feature = "c-system")]
++            c_system::compile(&llvm_target);
+         }
+     }
+ 
+@@ -70,17 +72,14 @@
+     }
+ }
+ 
+-#[cfg(feature = "c")]
+-mod c {
+-    extern crate cc;
+-
++#[cfg(any(feature = "c-vendor", feature = "c-system"))]
++mod sources {
+     use std::collections::BTreeMap;
+     use std::env;
+-    use std::path::PathBuf;
+ 
+-    struct Sources {
++    pub struct Sources {
+         // SYMBOL -> PATH TO SOURCE
+-        map: BTreeMap<&'static str, &'static str>,
++        pub map: BTreeMap<&'static str, &'static str>,
+     }
+ 
+     impl Sources {
+@@ -117,39 +116,11 @@
+         }
+     }
+ 
+-    /// Compile intrinsics from the compiler-rt C source code
+-    pub fn compile(llvm_target: &[&str]) {
++    pub fn get_sources(llvm_target: &[&str]) -> Sources {
+         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+         let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
+         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+         let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
+-        let cfg = &mut cc::Build::new();
+-
+-        cfg.warnings(false);
+-
+-        if target_env == "msvc" {
+-            // Don't pull in extra libraries on MSVC
+-            cfg.flag("/Zl");
+-
+-            // Emulate C99 and C++11's __func__ for MSVC prior to 2013 CTP
+-            cfg.define("__func__", Some("__FUNCTION__"));
+-        } else {
+-            // Turn off various features of gcc and such, mostly copying
+-            // compiler-rt's build system already
+-            cfg.flag("-fno-builtin");
+-            cfg.flag("-fvisibility=hidden");
+-            cfg.flag("-ffreestanding");
+-            // Avoid the following warning appearing once **per file**:
+-            // clang: warning: optimization flag '-fomit-frame-pointer' is not supported for target 'armv7' [-Wignored-optimization-argument]
+-            //
+-            // Note that compiler-rt's build system also checks
+-            //
+-            // `check_cxx_compiler_flag(-fomit-frame-pointer COMPILER_RT_HAS_FOMIT_FRAME_POINTER_FLAG)`
+-            //
+-            // in https://github.com/rust-lang/compiler-rt/blob/c8fbcb3/cmake/config-ix.cmake#L19.
+-            cfg.flag_if_supported("-fomit-frame-pointer");
+-            cfg.define("VISIBILITY_HIDDEN", None);
+-        }
+ 
+         let mut sources = Sources::new();
+         sources.extend(&[
+@@ -411,6 +382,48 @@
+             sources.remove(&["__aeabi_cdcmp", "__aeabi_cfcmp"]);
+         }
+ 
++        sources
++    }
++}
++
++#[cfg(feature = "c-vendor")]
++mod c_vendor {
++    extern crate cc;
++
++    use std::env;
++    use std::path::PathBuf;
++    use sources;
++
++    /// Compile intrinsics from the compiler-rt C source code
++    pub fn compile(llvm_target: &[&str]) {
++        let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
++        let cfg = &mut cc::Build::new();
++        cfg.warnings(false);
++
++        if target_env == "msvc" {
++            // Don't pull in extra libraries on MSVC
++            cfg.flag("/Zl");
++
++            // Emulate C99 and C++11's __func__ for MSVC prior to 2013 CTP
++            cfg.define("__func__", Some("__FUNCTION__"));
++        } else {
++            // Turn off various features of gcc and such, mostly copying
++            // compiler-rt's build system already
++            cfg.flag("-fno-builtin");
++            cfg.flag("-fvisibility=hidden");
++            cfg.flag("-ffreestanding");
++            // Avoid the following warning appearing once **per file**:
++            // clang: warning: optimization flag '-fomit-frame-pointer' is not supported for target 'armv7' [-Wignored-optimization-argument]
++            //
++            // Note that compiler-rt's build system also checks
++            //
++            // `check_cxx_compiler_flag(-fomit-frame-pointer COMPILER_RT_HAS_FOMIT_FRAME_POINTER_FLAG)`
++            //
++            // in https://github.com/rust-lang/compiler-rt/blob/c8fbcb3/cmake/config-ix.cmake#L19.
++            cfg.flag_if_supported("-fomit-frame-pointer");
++            cfg.define("VISIBILITY_HIDDEN", None);
++        }
++
+         // When compiling the C code we require the user to tell us where the
+         // source code is, and this is largely done so when we're compiling as
+         // part of rust-lang/rust we can use the same llvm-project repository as
+@@ -423,6 +436,7 @@
+             panic!("RUST_COMPILER_RT_ROOT={} does not exist", root.display());
+         }
+ 
++        let sources = sources::get_sources(llvm_target);
+         let src_dir = root.join("lib/builtins");
+         for (sym, src) in sources.map.iter() {
+             let src = src_dir.join(src);
+@@ -434,3 +448,103 @@
+         cfg.compile("libcompiler-rt.a");
+     }
+ }
++
++#[cfg(feature = "c-system")]
++mod c_system {
++    use std::env;
++    use std::process::{Command, Output};
++    use std::str;
++    use std::path::Path;
++    use sources;
++
++    fn success_output(err: &str, cmd: &mut Command) -> Output {
++        let output = cmd.output().expect(err);
++        let status = output.status;
++        if !status.success() {
++            panic!("{}: {:?}", err, status.code());
++        }
++        output
++    }
++
++    // This can be obtained by adding the line:
++    //   message(STATUS "All builtin supported architectures: ${ALL_BUILTIN_SUPPORTED_ARCH}")
++    // to the bottom of compiler-rt/cmake/builtin-config-ix.cmake, then running
++    // cmake and looking at the output.
++    const ALL_SUPPORTED_ARCHES : &'static str = "i386;x86_64;arm;armhf;armv6m;armv7m;armv7em;armv7;armv7s;armv7k;aarch64;hexagon;mips;mipsel;mips64;mips64el;powerpc64;powerpc64le;riscv32;riscv64;wasm32;wasm64";
++
++    // This function recreates the logic of getArchNameForCompilerRTLib,
++    // defined in clang/lib/Driver/ToolChain.cpp.
++    fn get_arch_name_for_compiler_rtlib() -> String {
++        let target = env::var("TARGET").unwrap();
++        let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
++        let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
++        let r = match target_arch.as_str() {
++            "arm" => if target.ends_with("eabihf") && target_os != "windows" {
++                "armhf"
++            } else {
++                "arm"
++            },
++            "x86" => if target_os == "android" {
++                "i686"
++            } else {
++                "i386"
++            },
++            _ => target_arch.as_str(),
++        };
++        r.to_string()
++    }
++
++    /// Link against system clang runtime libraries
++    pub fn compile(llvm_target: &[&str]) {
++        let target = env::var("TARGET").unwrap();
++        let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
++        let compiler_rt_arch = get_arch_name_for_compiler_rtlib();
++
++        if ALL_SUPPORTED_ARCHES.split(";").find(|x| *x == compiler_rt_arch) == None {
++            return;
++        }
++
++        if let Ok(clang) = env::var("CLANG") {
++            let output = success_output(
++                "failed to find clang's compiler-rt",
++                Command::new(clang)
++                    .arg(format!("--target={}", target))
++                    .arg("--rtlib=compiler-rt")
++                    .arg("--print-libgcc-file-name"),
++            );
++            let fullpath = Path::new(str::from_utf8(&output.stdout).unwrap());
++            let libpath = fullpath.parent().unwrap().display();
++            let libname = fullpath
++                .file_stem()
++                .unwrap()
++                .to_str()
++                .unwrap()
++                .trim_start_matches("lib");
++            println!("cargo:rustc-link-search=native={}", libpath);
++            println!("cargo:rustc-link-lib=static={}", libname);
++        } else if let Ok(llvm_config) = env::var("LLVM_CONFIG") {
++            // fallback if clang is not installed
++            let (subpath, libname) = match target_os.as_str() {
++                "linux" => ("linux", format!("clang_rt.builtins-{}", &compiler_rt_arch)),
++                "macos" => ("darwin", "clang_rt.builtins_osx_dynamic".to_string()),
++                _ => panic!("unsupported target os: {}", target_os),
++            };
++            let cmd = format!("ls -1d $({} --libdir)/clang/*/lib/{}", llvm_config, subpath);
++            let output = success_output(
++                "failed to find clang's lib dir",
++                Command::new("sh").args(&["-ec", &cmd]),
++            );
++            for search_dir in str::from_utf8(&output.stdout).unwrap().lines() {
++                println!("cargo:rustc-link-search=native={}", search_dir);
++            }
++            println!("cargo:rustc-link-lib=static={}", libname);
++        } else {
++            panic!("neither CLANG nor LLVM_CONFIG could be read");
++        }
++
++        let sources = sources::get_sources(llvm_target);
++        for (sym, _src) in sources.map.iter() {
++            println!("cargo:rustc-cfg={}=\"optimized-c\"", sym);
++        }
++    }
++}
+--- a/src/bootstrap/compile.rs
++++ b/src/bootstrap/compile.rs
+@@ -213,6 +213,7 @@
+                 emscripten: false,
+             });
+             cargo.env("LLVM_CONFIG", llvm_config);
++            cargo.env("RUSTC_BUILD_SANITIZERS", "1");
+         }
+ 
+         cargo.arg("--features").arg(features)
+--- a/src/librustc_asan/build.rs
++++ b/src/librustc_asan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_lsan/build.rs
++++ b/src/librustc_lsan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_msan/build.rs
++++ b/src/librustc_msan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 
+--- a/src/librustc_tsan/build.rs
++++ b/src/librustc_tsan/build.rs
+@@ -4,6 +4,9 @@
+ use cmake::Config;
+ 
+ fn main() {
++    if env::var("RUSTC_BUILD_SANITIZERS") != Ok("1".to_string()) {
++        return;
++    }
+     if let Some(llvm_config) = env::var_os("LLVM_CONFIG") {
+         build_helper::restore_library_path();
+ 

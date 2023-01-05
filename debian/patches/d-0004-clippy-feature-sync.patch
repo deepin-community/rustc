@@ -1,0 +1,45 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:08:00 +0100
+Subject: d-0005-clippy-feature-sync
+
+enable features needed by rustfmt to make build system happy and speedup build.
+this is what rustc_workspace_hack does in the upstream build.
+---
+ src/tools/clippy/Cargo.toml  | 2 +-
+ src/tools/rustfmt/Cargo.toml | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+Index: rust/src/tools/clippy/Cargo.toml
+===================================================================
+--- rust.orig/src/tools/clippy/Cargo.toml
++++ rust/src/tools/clippy/Cargo.toml
+@@ -22,6 +22,7 @@ path = "src/driver.rs"
+ 
+ [dependencies]
+ clippy_lints = { path = "clippy_lints" }
++memchr = { version = "2.5.0", features = ["use_std"] } # rustfmt sync!
+ semver = "1.0"
+ rustc_tools_util = { path = "rustc_tools_util" }
+ tempfile = { version = "3.2", optional = true }
+@@ -41,7 +42,7 @@ if_chain = "1.0"
+ itertools = "0.10.1"
+ quote = "1.0"
+ serde = { version = "1.0.125", features = ["derive"] }
+-syn = { version = "1.0", features = ["full"] }
++syn = { version = "1.0", features = ["full", "visit"] }
+ futures = "0.3"
+ parking_lot = "0.12"
+ tokio = { version = "1", features = ["io-util"] }
+Index: rust/src/tools/rustfmt/Cargo.toml
+===================================================================
+--- rust.orig/src/tools/rustfmt/Cargo.toml
++++ rust/src/tools/rustfmt/Cargo.toml
+@@ -49,7 +49,7 @@ lazy_static = "1.4"
+ log = "0.4"
+ regex = "1.5"
+ serde = { version = "1.0", features = ["derive"] }
+-serde_json = "1.0"
++serde_json = { version = "1.0", features = ["unbounded_depth"] }
+ term = "0.7"
+ thiserror = "1.0"
+ toml = "0.5"

@@ -1,0 +1,6 @@
+usr/bin/lld-14 usr/bin/rust-lld
+usr/bin/clang-14 usr/bin/rust-clang
+usr/bin/llvm-dwp-14 usr/bin/rust-llvm-dwp
+# for -Z gcc-ld=lld, see compiler/rustc_codegen_ssa/src/back/link.rs for logic
+usr/bin/rust-lld usr/lib/rustlib/${env:DEB_HOST_RUST_TYPE}/bin/gcc-ld/ld
+usr/bin/rust-lld usr/lib/rustlib/${env:DEB_HOST_RUST_TYPE}/bin/gcc-ld/ld64

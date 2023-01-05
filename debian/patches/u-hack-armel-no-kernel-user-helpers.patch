@@ -1,0 +1,16 @@
+Description: HACK: Disable kernel_user_helpers on armel
+ Workaround to fix the build, should be removed when properly fixed in
+ https://github.com/rust-lang/compiler-builtins/issues/420
+Author: Adrian Bunk <bunk@debian.org>
+
+--- rustc-1.61.0+dfsg1.orig/vendor/compiler_builtins/src/lib.rs
++++ rustc-1.61.0+dfsg1/vendor/compiler_builtins/src/lib.rs
+@@ -54,7 +54,7 @@ pub mod arm;
+ 
+ #[cfg(all(
+     kernel_user_helpers,
+-    any(target_os = "linux", target_os = "android"),
++    any(target_os = "android"),
+     target_arch = "arm"
+ ))]
+ pub mod arm_linux;
