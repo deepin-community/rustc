@@ -1,0 +1,34 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: u-ignore-ppc-hangs
+
+Bug: https://github.com/rust-lang/rust/issues/89607
+---
+ library/alloc/tests/arc.rs | 1 +
+ library/alloc/tests/rc.rs  | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/library/alloc/tests/arc.rs b/library/alloc/tests/arc.rs
+index ce40b5c..e99ebf5 100644
+--- a/library/alloc/tests/arc.rs
++++ b/library/alloc/tests/arc.rs
+@@ -96,6 +96,7 @@ const SHARED_ITER_MAX: u16 = 100;
+ 
+ fn assert_trusted_len<I: TrustedLen>(_: &I) {}
+ 
++#[cfg(not(any(target_arch = "powerpc", target_arch = "powerpc64")))]
+ #[test]
+ fn shared_from_iter_normal() {
+     // Exercise the base implementation for non-`TrustedLen` iterators.
+diff --git a/library/alloc/tests/rc.rs b/library/alloc/tests/rc.rs
+index efb39a6..b2f0e04 100644
+--- a/library/alloc/tests/rc.rs
++++ b/library/alloc/tests/rc.rs
+@@ -92,6 +92,7 @@ const SHARED_ITER_MAX: u16 = 100;
+ 
+ fn assert_trusted_len<I: TrustedLen>(_: &I) {}
+ 
++#[cfg(not(any(target_arch = "powerpc", target_arch = "powerpc64")))]
+ #[test]
+ fn shared_from_iter_normal() {
+     // Exercise the base implementation for non-`TrustedLen` iterators.

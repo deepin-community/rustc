@@ -1,0 +1,22 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: u-rustc-llvm-cross-flags
+
+===================================================================
+---
+ compiler/rustc_llvm/build.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+index b8f67ee..e9b1d0a 100644
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -298,7 +298,7 @@ fn main() {
+             if let Some(stripped) = lib.strip_prefix("-LIBPATH:") {
+                 println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target));
+             } else if let Some(stripped) = lib.strip_prefix("-L") {
+-                println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target));
++                if stripped.contains(&host) { println!("cargo:rustc-link-search=native={}", stripped.replace(&host, &target)); }
+             }
+         } else if let Some(stripped) = lib.strip_prefix("-LIBPATH:") {
+             println!("cargo:rustc-link-search=native={}", stripped);

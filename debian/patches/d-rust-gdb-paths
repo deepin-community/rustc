@@ -1,0 +1,39 @@
+From: Angus Lees <gus@debian.org>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Hardcode GDB python module directory
+
+Forwarded: not-needed
+
+Debian package installs python modules into a fixed directory, so
+just hardcode path in wrapper script.
+---
+ src/etc/rust-gdb    | 2 +-
+ src/etc/rust-gdbgui | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/etc/rust-gdb b/src/etc/rust-gdb
+index b950cea..5ec8752 100755
+--- a/src/etc/rust-gdb
++++ b/src/etc/rust-gdb
+@@ -11,7 +11,7 @@ else
+ fi
+ 
+ # Find out where the pretty printer Python module is
+-RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
+ GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
+ 
+ # Run GDB with the additional arguments that load the pretty printers
+diff --git a/src/etc/rust-gdbgui b/src/etc/rust-gdbgui
+index 9744913..613737d 100755
+--- a/src/etc/rust-gdbgui
++++ b/src/etc/rust-gdbgui
+@@ -40,7 +40,7 @@ else
+ fi
+ 
+ # Find out where the pretty printer Python module is
+-RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
+ GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
+ 
+ # Set the environment variable `RUST_GDB` to overwrite the call to a

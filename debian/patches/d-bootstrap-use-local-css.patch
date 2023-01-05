@@ -1,0 +1,42 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-use-local-css
+
+===================================================================
+---
+ src/bootstrap/doc.rs | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index f8ba05c..fb5395d 100644
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -372,6 +372,10 @@ impl Step for Standalone {
+                 .arg(&builder.src.join("src/doc/index.md"))
+                 .arg("--markdown-playground-url")
+                 .arg("https://play.rust-lang.org/")
++                .arg("--markdown-css")
++                .arg(format!("rustdoc{}.css", &builder.version))
++                .arg("--markdown-css")
++                .arg("rust.css")
+                 .arg("-o")
+                 .arg(&out)
+                 .arg(&path);
+@@ -380,17 +384,6 @@ impl Step for Standalone {
+                 cmd.arg("--disable-minification");
+             }
+ 
+-            if filename == "not_found.md" {
+-                cmd.arg("--markdown-css")
+-                    .arg(format!("https://doc.rust-lang.org/rustdoc{}.css", &builder.version))
+-                    .arg("--markdown-css")
+-                    .arg("https://doc.rust-lang.org/rust.css");
+-            } else {
+-                cmd.arg("--markdown-css")
+-                    .arg(format!("rustdoc{}.css", &builder.version))
+-                    .arg("--markdown-css")
+-                    .arg("rust.css");
+-            }
+             builder.run(&mut cmd);
+         }
+ 

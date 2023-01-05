@@ -1,0 +1,44 @@
+From: Angus Lees <gus@debian.org>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Set DT_SONAME when building dylibs
+
+Forwarded: no
+
+In Rust, library filenames include a version-specific hash to help
+the run-time linker find the correct version.  Unlike in C/C++, the
+compiler looks for all libraries matching a glob that ignores the
+hash and reads embedded metadata to work out versions, etc.
+
+The upshot is that there is no need for the usual "libfoo.so ->
+libfoo-1.2.3.so" symlink common with C/C++ when building with Rust,
+and no need to communicate an alternate filename to use at run-time
+vs compile time.  If linking to a Rust dylib from C/C++ however, a
+"libfoo.so -> libfoo-$hash.so" symlink may well be useful and in
+this case DT_SONAME=libfoo-$hash.so would be required.  More
+mundanely, various tools (eg: dpkg-shlibdeps) complain if they don't
+find DT_SONAME on shared libraries in public directories.
+
+This patch passes -Wl,-soname=$outfile when building dylibs (and
+using a GNU linker).
+---
+ compiler/rustc_codegen_ssa/src/back/link.rs | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/compiler/rustc_codegen_ssa/src/back/link.rs b/compiler/rustc_codegen_ssa/src/back/link.rs
+index 04ec1e7..67296ca 100644
+--- a/compiler/rustc_codegen_ssa/src/back/link.rs
++++ b/compiler/rustc_codegen_ssa/src/back/link.rs
+@@ -2131,6 +2131,13 @@ fn add_order_independent_options(
+     }
+ 
+     add_rpath_args(cmd, sess, codegen_results, out_filename);
++
++    if (crate_type == config::CrateType::Dylib || crate_type == config::CrateType::Cdylib)
++       && sess.target.linker_is_gnu {
++        let filename = String::from(out_filename.file_name().unwrap().to_str().unwrap());
++        let soname = [String::from("-Wl,-soname=") + &filename];
++        cmd.args(&soname);
++    }
+ }
+ 
+ // Write the NatVis debugger visualizer files for each crate to the temp directory and gather the file paths.

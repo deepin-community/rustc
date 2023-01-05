@@ -1,0 +1,5 @@
+usr/bin/rustc
+usr/bin/rustdoc
+usr/lib/rustlib/etc/rust_types.py
+debian/architecture.mk usr/share/rustc/
+debian/wasi-node usr/share/rustc/bin/

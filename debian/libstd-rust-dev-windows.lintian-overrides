@@ -1,0 +1,8 @@
+# lintian does not know about rust arch-specific directories
+libstd-rust-dev-windows binary: arch-dependent-file-not-in-arch-specific-directory [usr/lib/rustlib/*/lib/lib*.rlib]
+libstd-rust-dev-windows binary: arch-dependent-file-not-in-arch-specific-directory [usr/lib/rustlib/*/lib/lib*.a]
+libstd-rust-dev-windows binary: executable-not-elf-or-script [usr/lib/rustlib/*/lib/*.dll]
+
+# lintian doesn't understand these files
+libstd-rust-dev-windows binary: no-code-sections [*.rlib]
+libstd-rust-dev-windows binary: no-code-sections [usr/lib/rustlib/x86_64-pc-windows-gnu/lib/lib*.dll.a]

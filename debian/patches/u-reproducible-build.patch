@@ -1,0 +1,25 @@
+From: Ximin Luo <infinity0@debian.org>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: Don't split dwarf debug for a fully-reproducible build
+
+Bug: https://github.com/rust-lang/rust/issues/34902
+---
+ compiler/rustc_llvm/build.rs | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
+index 7729ec6..b8f67ee 100644
+--- a/compiler/rustc_llvm/build.rs
++++ b/compiler/rustc_llvm/build.rs
+@@ -183,6 +183,11 @@ fn main() {
+     let mut cfg = cc::Build::new();
+     cfg.warnings(false);
+     for flag in cxxflags.split_whitespace() {
++        // Split-dwarf gives unreproducible DW_AT_GNU_dwo_id so don't do it
++        if flag == "-gsplit-dwarf" {
++            continue;
++        }
++
+         // Ignore flags like `-m64` when we're doing a cross build
+         if is_crossed && flag.starts_with("-m") {
+             continue;

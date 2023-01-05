@@ -1,0 +1,48 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:08:00 +0100
+Subject: d-0004-cc-psm-rebuild-wasm32
+
+---
+ vendor/cc/src/lib.rs | 2 +-
+ vendor/psm/build.rs  | 7 ++-----
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
+index e3a2b98..9312931 100644
+--- a/vendor/cc/src/lib.rs
++++ b/vendor/cc/src/lib.rs
+@@ -2238,7 +2238,7 @@ impl Build {
+                     || target == "wasm32-unknown-wasi"
+                     || target == "wasm32-unknown-unknown"
+                 {
+-                    "clang".to_string()
++                    "rust-clang".to_string()
+                 } else if target.contains("vxworks") {
+                     if self.cpp {
+                         "wr-c++".to_string()
+diff --git a/vendor/psm/build.rs b/vendor/psm/build.rs
+index 01a13bf..30bd68d 100644
+--- a/vendor/psm/build.rs
++++ b/vendor/psm/build.rs
+@@ -50,7 +50,7 @@ fn find_assembly(
+         ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
+         ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
+         ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
+-        ("wasm32", _, _, _) => Some(("src/arch/wasm32.o", true)),
++        ("wasm32", _, _, _) => Some(("src/arch/wasm32.s", true)),
+         _ => None,
+     }
+ }
+@@ -94,11 +94,8 @@ fn main() {
+         cfg.define(&*format!("CFG_TARGET_ENV_{}", env), None);
+     }
+ 
+-    // For wasm targets we ship a precompiled `*.o` file so we just pass that
+-    // directly to `ar` to assemble an archive. Otherwise we're actually
+-    // compiling the source assembly file.
+     if asm.ends_with(".o") {
+-        cfg.object(asm);
++        panic!("Debian does not allow embedded object files in source code")
+     } else {
+         cfg.file(asm);
+     }
