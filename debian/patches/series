@@ -43,6 +43,7 @@ d-bootstrap-custom-debuginfo-path.patch
 d-bootstrap-permit-symlink-in-docs.patch
 d-test-ignore-avx-44056.patch
 d-bootstrap-cargo-check-cfg.patch
+d-armel-fix-lldb.patch
 
 # Work around for some porterboxes, keep this commented
 #d-test-host-duplicates.patch
