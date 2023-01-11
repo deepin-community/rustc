@@ -1,3 +1,15 @@
+rustc (1.64.0+dfsg1-1~exp2) experimental; urgency=medium
+
+  [ Fabian Grünbichler ]
+  * d/prune-unused-deps: unify cargo update calls
+  * fix rustix on arches requiring outline building
+  * fix libstd-rust-dev-windows lintian override
+  * fix compiler_builtins linkage on arm(el)
+  * add compiler_builtins sync fallbacks for arm(el)
+  * fix panicking lldb check on armel
+
+ -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Wed, 11 Jan 2023 17:22:16 +0100
+
 rustc (1.64.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
