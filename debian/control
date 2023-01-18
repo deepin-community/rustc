@@ -1,7 +1,8 @@
 Source: rustc
 Section: devel
 Priority: optional
-Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 Uploaders:
  Ximin Luo <infinity0@debian.org>,
  Sylvestre Ledru <sylvestre@debian.org>
