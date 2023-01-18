@@ -63,3 +63,4 @@ d-rustdoc-disable-embedded-fonts.patch
 ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
+ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch
