@@ -35,6 +35,63 @@ rustc (1.63.0+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Fabian Gruenbichler <debian@fabian.gruenbichler.email>  Tue, 15 Nov 2022 19:47:53 +0100
 
+rustc (1.63.0+dfsg0ubuntu1-0ubuntu2) lunar; urgency=medium
+
+  * d/control: fix wrong dependencies on previous release
+
+ -- Simon Chopin <schopin@ubuntu.com>  Thu, 01 Dec 2022 16:58:41 +0100
+
+rustc (1.63.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
+
+  * New upstream release (LP: #1995096)
+  * d/copyright: updated (cherry-picked from Debian experimental)
+
+ -- Simon Chopin <schopin@ubuntu.com>  Wed, 30 Nov 2022 18:17:29 +0100
+
+rustc (1.62.1+dfsg1-1ubuntu1) lunar; urgency=medium
+
+  * Merge 1.62.0+dfsg1-1 from Debian unstable
+    Remaining changes:
+    - Downgrade cargo from rustc Recommends to Suggests to make rustc promotable to
+      main.
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+    - Explicitly disable LTO
+    - Add a self-build autopkgtest
+    - Ship the Cargo.lock file along with the compiler to identify which crates
+      were bundled in.
+    - d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: cherry-pick to fix CVE-2022-23639
+      amended to also patch the 0.7.2 version of the crate
+    - On i386, only build debuginfo for libstd
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Drop llvm-13 to Suggests for rustc to avoid having to promote it to Ubuntu
+      main
+    - Add XS-Vendored-Sources-Rust field support
+      Needed an extra patch due to rustc being a multi-crate source package.
+    Integrated in Debian:
+    - d/p/ubuntu-disable-ppc64el-asm-tests.patch: disable tests on power
+      and s390x if using asm!()
+    - d/p/ubuntu-ignore-arm-doctest.patch: Patch out the bad doctests for the
+      instruction_set errors
+    Dropped, not needed anymore:
+    - d/p/ubuntu-compiletest-fix.patch: Fix compilation with 1.61
+  * d/control: Update the vendored sources field
+
+ -- Simon Chopin <schopin@ubuntu.com>  Thu, 24 Nov 2022 09:58:29 +0100
+
 rustc (1.62.1+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable
@@ -69,6 +126,48 @@ rustc (1.61.0+dfsg1-1) unstable; urgency=medium
 
  -- Sylvestre Ledru <sylvestre@debian.org>  Thu, 22 Sep 2022 09:00:21 +0200
 
+rustc (1.61.0+dfsg1-1~exp1ubuntu1) kinetic; urgency=medium
+
+  * Merge 1.61.0+dfsg1-1~exp1 from Debian unstable (LP: #1986648)
+    Remaining changes:
+    - Downgrade cargo from rustc Recommends to Suggests to make rustc promotable to
+      main. (LP: #1966200)
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+    - Explicitly disable LTO
+    - Add a self-build autopkgtest
+    - Ship the Cargo.lock file along with the compiler to identify which crates
+      were bundled in.
+    - d/p/ubuntu-ignore-arm-doctest.patch: Patch out the bad doctests for the
+      instruction_set errors
+    - d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: cherry-pick to fix CVE-2022-23639
+      amended to also patch the 0.7.2 version of the crate
+    - On i386, only build debuginfo for libstd
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Drop llvm-13 to Suggests for rustc to avoid having to promote it to Ubuntu
+      main
+    - Add XS-Vendored-Sources-Rust field support
+      Needed an extra patch due to rustc being a multi-crate source package.
+    - d/p/ubuntu-disable-ppc64el-asm-tests.patch: disable tests on power
+      and s390x if using asm!()
+  * d/control: Update the vendored sources field
+  * d/p/ubuntu-compiletest-fix.patch: Fix compilation with 1.61
+
+ -- Simon Chopin <schopin@ubuntu.com>  Mon, 19 Sep 2022 18:41:53 +0200
+
 rustc (1.61.0+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream release
@@ -76,6 +175,54 @@ rustc (1.61.0+dfsg1-1~exp1) experimental; urgency=medium
   * Switch to LLVM-14 (Closes: #1017656)
 
  -- Fabian Gruenbichler <f.gruenbichler@proxmox.com>  Wed, 07 Sep 2022 17:33:04 +0200
+
+rustc (1.60.0+dfsg1-1+ubuntu1) kinetic; urgency=medium
+
+  * Merge 1.60.0+dfsg1-1+ubuntu1 from Debian unstable (LP: #1986648)
+    Remaining changes:
+    - Downgrade cargo from rustc Recommends to Suggests to make rustc promotable
+      to main. (LP: #1966200)
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+    - Explicitly disable LTO
+    - Add a self-build autopkgtest
+    - Ship the Cargo.lock file along with the compiler to identify which crates
+      were bundled in.
+    - d/p/ubuntu-ignore-arm-doctest.patch: Patch out the bad doctests for the
+      instruction_set errors
+    - d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: cherry-pick to fix
+      CVE-2022-23639 amended to also patch the 0.7.2 version of the crate
+    - On i386, only build debuginfo for libstd
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Drop llvm-13 to Suggests for rustc to avoid having to promote it to Ubuntu
+      main
+    - Add XS-Vendored-Sources-Rust field support
+      Needed an extra patch due to rustc being a multi-crate source package.
+  * Dropped changes:
+    - d/p/ubuntu-disable-armhf-debuginfo-failures.patch: temporary to work
+      around the armhf debuginfo test failures
+      -> Now filtered out at the result analysis level in d/rules
+    - New patch u-linkchecker-symlinks.patch to fix an issue in
+      the linkchecker triggered by our symlink to the system fonts dir
+      -> Merged upstream
+  * d/control: Update the vendored sources field
+  * d/p/ubuntu-disable-ppc64el-asm-tests.patch: disable tests on power
+    and s390x if using asm!()
+
+ -- Simon Chopin <schopin@ubuntu.com>  Tue, 06 Sep 2022 14:48:43 +0200
 
 rustc (1.60.0+dfsg1-1) unstable; urgency=medium
 
@@ -105,6 +252,58 @@ rustc (1.59.0+dfsg1-1) unstable; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 11 May 2022 14:11:46 +0100
 
+rustc (1.59.0+dfsg1-1~ubuntu3) kinetic; urgency=medium
+
+  * Add XS-Vendored-Sources-Rust field support (LP: #1987674)
+    Needed an extra patch due to rustc being a multi-crate source package.
+
+ -- Simon Chopin <schopin@ubuntu.com>  Thu, 25 Aug 2022 19:01:32 +0200
+
+rustc (1.59.0+dfsg1-1~ubuntu2) kinetic; urgency=medium
+
+  * Drop llvm-13 to Suggests for rustc to avoid having to promote it to Ubuntu
+    main (LP: #1971128)
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Mon, 30 May 2022 09:59:01 +0200
+
+rustc (1.59.0+dfsg1-1~ubuntu1) kinetic; urgency=medium
+
+  * Merge 1.59.0+dfsg1-1~exp1 from Debian experimental (LP: #1968345)
+    Remaining changes:
+    - Downgrade cargo from rustc Recommends to Suggests to make rustc promotable to
+      main. (LP: #1966200)
+    - New patch u-linkchecker-symlinks.patch to fix an issue in
+      the linkchecker triggered by our symlink to the system fonts dir
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+    - Explicitly disable LTO
+    - Add a self-build autopkgtest
+    - Ship the Cargo.lock file along with the compiler to identify which crates
+      were bundled in.
+    - d/p/ubuntu-disable-armhf-debuginfo-failures.patch: temporary to work
+      around the armhf debuginfo test failures
+    - d/p/ubuntu-ignore-arm-doctest.patch: Patch out the bad doctests for the
+      instruction_set errors
+    - d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: cherry-pick to fix CVE-2022-23639
+      amended to also patch the 0.7.2 version of the crate
+    - On i386, only build debuginfo for libstd
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Fri, 29 Apr 2022 10:13:09 +0200
+
 rustc (1.59.0+dfsg1-1~exp1) experimental; urgency=medium
 
   [ Fabian Grünbichler ]
@@ -125,6 +324,71 @@ rustc (1.58.1+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Tue, 08 Mar 2022 11:32:29 +0000
 
+rustc (1.58.1+dfsg1~ubuntu1-0ubuntu2) jammy; urgency=medium
+
+  * d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: amended to also patch the
+    0.7.2 version of the crate
+  * Downgrade cargo from rustc Recommends to Suggests to make rustc promotable to
+    main. (LP: #1966200)
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Fri, 01 Apr 2022 11:54:57 +0200
+
+rustc (1.58.1+dfsg1~ubuntu1-0ubuntu1) jammy; urgency=medium
+
+  * New upstream version.
+    - d/copyright: exclude the new NanumBarunGothic fonts
+    - d/copyright: refresh the unused deps section
+    - revert the LLVM vendoring
+    - revert the CFLAGS scrubing
+    - d/p/{u-89950.patch}: Removed, merged upstream
+    - Refreshed patches:
+      - d/p/d-0000-ignore-removed-submodules.patch
+      - d/p/d-rustc-fix-mips64el-bootstrap.patch
+      - d/p/d-rustdoc-disable-embedded-fonts.patch
+      - d/p/d-bootstrap-cargo-doc-paths.patch
+    - Unfuzzed patches: 
+      - d-0005-clippy-feature-sync.patch
+      - d-bootstrap-rustflags.patch
+      - d-bootstrap-cargo-doc-paths.patch
+      - u-cc-627.patch
+    - New patch u-linkchecker-symlinks.patch to fix an issue in
+      the linkchecker triggered by our symlink to the system fonts dir
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+  * d/rules: bump the parallelism level to 4
+  * Re-enable the tests within the Debian-specified limits
+  * Explicitly disable LTO
+  * Add a self-build autopkgtest
+  * Ship the Cargo.lock file along with the compiler to identify which crates
+    were bundled in.
+  * d/p/ubuntu-disable-armhf-debuginfo-failures.patch: temporary to work
+    around the armhf debuginfo test failures
+  * d/p/ubuntu-ignore-arm-doctest.patch: Patch out the bad doctests for the
+    instruction_set errors
+  * d/p/ubuntu-fix-crossbeam-CVE-2022-23639.patch: cherry-pick to fix CVE-2022-23639
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Thu, 24 Feb 2022 13:41:38 +0100
+
+rustc (1.57.0+dfsg1+llvm-0ubuntu2) jammy; urgency=medium
+
+  * d/p/d-bootstrap-rustflags.patch: remove the warnings bit, use the option
+    "deny-warnings = false" in d/config.toml.in instead
+
+ -- Simon Chopin <simon.chopin@canonical.com>  Thu, 27 Jan 2022 11:21:03 +0100
+
+rustc (1.57.0+dfsg1+llvm-0ubuntu1) jammy; urgency=medium
+
+  * New upstream version.
+  * Refresh patches.
+  * d/patches/{u-89591.patch,u-88668.patch,u-89772.patch}: Remove as upstream
+    now includes these patches.
+  * d/patches/d-bootstrap-dont-download-stage0.patch: Remove, no longer
+    needed.
+  * d/patches/ubuntu-memchr-features.patch: Fix obscure ftbfs from mismatched
+    features.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 21 Jan 2022 08:42:03 +1300
+
 rustc (1.57.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable. (Closes: #1005203)
@@ -142,6 +406,55 @@ rustc (1.57.0+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release. (Closes: #1005203)
 
  -- Fabian Grünbichler <f.gruenbichler@proxmox.com>  Thu, 03 Feb 2022 19:14:04 +0100
+
+rustc (1.56.0+dfsg1+llvm-2ubuntu2) jammy; urgency=medium
+
+  * debian/patches/u-ensure-aarch64-lse-object-files-have-distinct-names-in-an-archive.patch:
+    Backport patch from upstream, to fix "error: object name conflicts in
+    archive" when building rust programs on arm64 (librsvg is currently
+    affected).
+
+ -- Iain Lane <iain@orangesquash.org.uk>  Tue, 18 Jan 2022 10:25:30 +0000
+
+rustc (1.56.0+dfsg1+llvm-2ubuntu1) jammy; urgency=medium
+
+  * Merge 1.56.0+dfsg1-2 from Debian unstable. (LP: #1952104)
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Tue, 14 Dec 2021 10:24:02 +1300
 
 rustc (1.56.0+dfsg1-2) unstable; urgency=medium
 
@@ -171,6 +484,48 @@ rustc (1.56.0~beta.4+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Thu, 14 Oct 2021 22:50:58 +0100
 
+rustc (1.55.0+dfsg1+llvm-2ubuntu1) jammy; urgency=medium
+
+  * Merge 1.55.0+dfsg1-2 from Debian unstable. (LP: #1952104)
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+  * Dropped changes, fixed upstream:
+    - Adjust -march setting on armhf
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Mon, 13 Dec 2021 15:07:06 +1300
+
 rustc (1.55.0+dfsg1-2) unstable; urgency=medium
 
   * Actually work around segfault on ppc64el.
@@ -191,6 +546,47 @@ rustc (1.55.0+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 09 Oct 2021 03:22:08 +0100
+
+rustc (1.54.0+dfsg2+llvm-3ubuntu1) jammy; urgency=medium
+
+  * Merge 1.54.0+dfsg1-3 from Debian unstable. (LP: #1952104)
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Adjust -march setting on armhf
+  * Reduce parallelism on all arches other than riscv64 to avoid OOMs
+    during build.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 10 Dec 2021 08:13:40 +1300
 
 rustc (1.54.0+dfsg1-3) unstable; urgency=medium
 
@@ -219,6 +615,46 @@ rustc (1.54.0+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 06 Oct 2021 10:37:55 +0100
+
+rustc (1.53.0+dfsg1+llvm-4ubuntu1) jammy; urgency=medium
+
+  * Merge 1.53.0+dfsg1-4 from Debian unstable. (LP: #1943842)
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Reduce parallelism on all arches to avoid OOMs during build.
+    - Adjust -march setting on armhf
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Wed, 27 Oct 2021 20:12:14 +1300
 
 rustc (1.53.0+dfsg1-4) unstable; urgency=medium
 
@@ -253,6 +689,46 @@ rustc (1.53.0+dfsg1-1~exp1) experimental; urgency=medium
   * Honour parallel option in DEB_BUILD_OPTIONS. (Closes: #993871)
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 02 Oct 2021 12:46:49 +0100
+
+rustc (1.52.1+dfsg1+llvm-1ubuntu1) impish; urgency=medium
+
+  * Merge 1.52.1+dfsg1-1 from Debian unstable. (LP: #1943842)
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+  * Reduce parallelism on all arches to avoid OOMs during build.
+  * Adjust -march setting on armhf.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Wed, 13 Oct 2021 14:30:46 +1300
 
 rustc (1.52.1+dfsg1-1) unstable; urgency=medium
 
@@ -309,6 +785,47 @@ rustc (1.52.0~beta.3+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 26 Apr 2021 12:31:27 +0100
 
+rustc (1.51.0+dfsg1+llvm-1~exp3ubuntu1) impish; urgency=medium
+
+  * Merge 1.51.0+dfsg1-1~exp3 from Debian experimental (LP #1932145).
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Try reducing parallelism in rustbuild on arm64 to avoid OOM.
+    - Reduce parallelism during build on s390x too.
+  * Disable check against uploading ~exp versions.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Tue, 06 Jul 2021 13:16:52 +1200
+
 rustc (1.51.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
@@ -336,6 +853,47 @@ rustc (1.51.0+dfsg1-1~exp1) experimental; urgency=medium
   * Enable 32-bit windows support.
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 12 Apr 2021 11:04:36 +0100
+
+rustc (1.50.0+dfsg1+llvm-0ubuntu5) hirsute; urgency=medium
+
+  * No change rebuild rebootstrap.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Thu, 01 Apr 2021 21:54:48 +0100
+
+rustc (1.50.0+dfsg1+llvm-0ubuntu4) hirsute; urgency=medium
+
+  * Drop d/patches/0001-Revert-Auto-merge-of-79547.patch.
+  * Cherrypick llvm toolchain fix for s390x from 1.51 beta.
+  * Build against older 1.49 rustc.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Thu, 25 Mar 2021 13:30:52 +0000
+
+rustc (1.50.0+dfsg1+llvm-0ubuntu3) hirsute; urgency=medium
+
+  * Rebuild against the previous upload.
+  * Restore the upper cap on the rustc build-dependency.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Wed, 24 Mar 2021 22:27:48 +0000
+
+rustc (1.50.0+dfsg1+llvm-0ubuntu2) hirsute; urgency=medium
+
+  [ Michael Hudson-Doyle ]
+  * d/patches/0001-Revert-Auto-merge-of-79547.patch: Revert a patch that
+    causes LLVM to generate bad code on s390x.  See
+    https://github.com/rust-lang/rust/issues/80810.
+
+  [ Dimitri John Ledkov ]
+  * Built against older 1.49 rustc.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Tue, 23 Mar 2021 18:45:53 +0000
+
+rustc (1.50.0+dfsg1+llvm-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release. (LP: #1915722)
+  * Update patches.
+  * Update d/copyright.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 04 Mar 2021 10:17:58 +1300
 
 rustc (1.50.0+dfsg1-1) unstable; urgency=medium
 
@@ -367,6 +925,48 @@ rustc (1.50.0+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 05 Apr 2021 21:30:18 +0100
 
+rustc (1.49.0+dfsg1+llvm-0ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.49.0~beta.4+dfsg1-1~exp1 from Debian experimental (LP #1915722).
+    Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Try reducing parallelism in rustbuild on arm64 to avoid OOM.
+  * Update to 1.49.0 final release.
+  * Drop d-fix-mips64el-bootstrap.patch.
+  * Reduce parallelism during build on s390x too.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Mon, 01 Mar 2021 21:39:26 +1300
+
 rustc (1.49.0+dfsg1-2) unstable; urgency=medium
 
   * Backport upstream PR 85807 to fix powerpc test issues.
@@ -390,6 +990,45 @@ rustc (1.49.0~beta.4+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 20 Dec 2020 23:26:55 +0000
+
+rustc (1.48.0+dfsg1+llvm-2ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.48.0+dfsg1-2 from Debian unstable (LP #1915722). Remaining
+    changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Try reducing parallelism in rustbuild on arm64 to avoid OOM.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 26 Feb 2021 08:13:28 +1300
 
 rustc (1.48.0+dfsg1-2) unstable; urgency=medium
 
@@ -422,6 +1061,51 @@ rustc (1.48.0~beta.8+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 11 Nov 2020 12:31:18 +0000
 
+rustc (1.47.0+dfsg1+llvm-1ubuntu2) hirsute; urgency=medium
+
+  * No change rebuild against new glibc-32 ABI.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Mon, 15 Feb 2021 22:37:11 +0000
+
+rustc (1.47.0+dfsg1+llvm-1ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.47.0+dfsg1-1 from Debian unstable (LP #1901571). Remaining
+    changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+  * Try reducing parallelism in rustbuild on arm64 to avoid OOM.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Tue, 08 Dec 2020 12:50:59 +1300
+
 rustc (1.47.0+dfsg1-1) unstable; urgency=medium
 
   * New upstream release.
@@ -435,6 +1119,43 @@ rustc (1.47.0~beta.2+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 05 Sep 2020 16:11:16 +0100
+
+rustc (1.46.0+dfsg1+llvm-1ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.46.0 from Debian unstable. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+  * Do not build windows cross compiler.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Sun, 06 Dec 2020 21:56:18 +1300
 
 rustc (1.46.0+dfsg1-1) unstable; urgency=medium
 
@@ -479,6 +1200,56 @@ rustc (1.46.0~beta.2+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Fri, 07 Aug 2020 00:15:46 +0100
 
+rustc (1.45.0+dfsg1+llvm-2ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.45.0 from Debian unstable. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+  * Dropped change, patches no longer apply and riscv64 build fails
+    anyway:
+    - riscv64 support patches which no longer completely work:
+      - Add more rustc patches from Debian.
+      - Apply relevant llvm-toolchain-9 patches to the embedded llvm.
+      - Avoid the LDFLAGS -latomic hacks from llvm-toolchain-9:
+        - debian/patches/riscv64-atomic-fixes.patch: Fix libatomic detection for
+        riscv64.
+        - debian/patches/dsymutil-atomic.patch: Link dsymutil with -latomic.
+  * Dropped change, upstream now includes LLVM with the fix:
+    - Backport patch fixing miscompliation and subsequent crash on s390x
+      (adapted from https://src.fedoraproject.org/rpms/llvm/pull-request/49):
+      - add debian/patches/0001-InstCombine-Fix-big-endian-miscompile-of-bitcast-zex.patch
+      - update debian/patches/series
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 04 Dec 2020 11:20:49 +1300
+
 rustc (1.45.0+dfsg1-2) unstable; urgency=medium
 
   * Add some more big-endian test patches.
@@ -497,6 +1268,55 @@ rustc (1.45.0+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 27 Jul 2020 17:45:24 +0100
+
+rustc (1.44.1+dfsg1+llvm-3ubuntu1) hirsute; urgency=medium
+
+  * Merge 1.44.1 from Debian unstable. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - riscv64 support patches which no longer completely work:
+      - Add more rustc patches from Debian.
+      - Apply relevant llvm-toolchain-9 patches to the embedded llvm.
+      - Avoid the LDFLAGS -latomic hacks from llvm-toolchain-9:
+        - debian/patches/riscv64-atomic-fixes.patch: Fix libatomic detection for
+        riscv64.
+        - debian/patches/dsymutil-atomic.patch: Link dsymutil with -latomic.
+    - Backport patch fixing miscompliation and subsequent crash on s390x
+      (adapted from https://src.fedoraproject.org/rpms/llvm/pull-request/49):
+      - add debian/patches/0001-InstCombine-Fix-big-endian-miscompile-of-bitcast-zex.patch
+      - update debian/patches/series
+  * Dropped change:
+    - Disable check for ~exp in version number.
+  * Revert workaround for upstream bug #74786
+  * Disable wasm build as build dependencies not currently available in
+    Ubuntu.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 03 Dec 2020 14:03:38 +1300
 
 rustc (1.44.1+dfsg1-3) unstable; urgency=medium
 
@@ -525,6 +1345,64 @@ rustc (1.44.1+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 04 Jul 2020 18:04:42 +0100
 
+rustc (1.43.0+dfsg1+llvm-1~exp1ubuntu3) UNRELEASED; urgency=medium
+
+  * Relax rustc version constraint in Build-Depends to see if 1.41 can
+    build 1.43 on riscv64.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 25 Jun 2020 09:50:02 +1200
+
+rustc (1.43.0+dfsg1+llvm-1~exp1ubuntu2) groovy; urgency=medium
+
+  * Fix mismerge preventing tests from running.
+  * Backport patch fixing miscompliation and subsequent crash on s390x
+    (adapted from https://src.fedoraproject.org/rpms/llvm/pull-request/49):
+    - add debian/patches/0001-InstCombine-Fix-big-endian-miscompile-of-bitcast-zex.patch
+    - update debian/patches/series
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Tue, 23 Jun 2020 19:35:09 +1200
+
+rustc (1.43.0+dfsg1+llvm-1~exp1ubuntu1) groovy; urgency=medium
+
+  * Merge from Debian NEW (LP: #1876942). Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+    - riscv64 support patches which no longer completely work:
+      - Add more rustc patches from Debian.
+      - Apply relevant llvm-toolchain-9 patches to the embedded llvm.
+      - Avoid the LDFLAGS -latomic hacks from llvm-toolchain-9:
+        - debian/patches/riscv64-atomic-fixes.patch: Fix libatomic detection for
+        riscv64.
+        - debian/patches/dsymutil-atomic.patch: Link dsymutil with -latomic.
+  * Disable check for ~exp in version number.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 28 May 2020 07:59:18 +1200
+
 rustc (1.43.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
@@ -539,6 +1417,52 @@ rustc (1.43.0+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 27 Apr 2020 13:09:20 +0100
+
+rustc (1.42.0+dfsg1+llvm-1ubuntu2) groovy; urgency=medium
+
+  * Re-add riscv64 support patches which where accidentally dropped in
+    previous upload and no longer completely work:
+    - Add more rustc patches from Debian.
+    - Apply relevant llvm-toolchain-9 patches to the embedded llvm.
+    - Avoid the LDFLAGS -latomic hacks from llvm-toolchain-9:
+      - debian/patches/riscv64-atomic-fixes.patch: Fix libatomic detection for
+        riscv64.
+      - debian/patches/dsymutil-atomic.patch: Link dsymutil with -latomic.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 21 May 2020 08:04:00 +1200
+
+rustc (1.42.0+dfsg1+llvm-1ubuntu1) groovy; urgency=medium
+
+  * Merge from Debian unstable (LP #1876942). Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Mon, 18 May 2020 20:29:59 +1200
 
 rustc (1.42.0+dfsg1-1) unstable; urgency=medium
 
@@ -574,6 +1498,74 @@ rustc (1.41.1+dfsg1-1~exp1) experimental; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 09 Mar 2020 00:31:34 +0000
+
+rustc (1.41.0+dfsg1+llvm-0ubuntu2) focal; urgency=medium
+
+  * Add riscv64 support:
+    - Add more rustc patches from Debian.
+    - Apply relevant llvm-toolchain-9 patches to the embedded llvm.
+    - debian/patches/riscv64-vendor-cc.diff: Update one last rustc lp64 ABI
+      reference to lp64d.
+    - Avoid the LDFLAGS -latomic hacks from llvm-toolchain-9:
+      - debian/patches/riscv64-atomic-fixes.patch: Fix libatomic detection for
+        riscv64.
+      - debian/patches/dsymutil-atomic.patch: Link dsymutil with -latomic.
+
+ -- William Grant <wgrant@ubuntu.com>  Wed, 08 Apr 2020 10:18:39 +1000
+
+rustc (1.41.0+dfsg1+llvm-0ubuntu1) focal; urgency=medium
+
+  * New upstream version (LP: #1856851)
+  * Cherry-pick several commits from
+    https://salsa.debian.org/rust-team/rust/-/merge_requests/4,
+    thanks Fabian Grünbichler:
+    - convert orig Cargo.lock to v1 format
+    - d/patches: update for 1.41.0 import
+    - Update Files-Excluded for new upstream version 1.41.0
+    - d/update-version.sh: fix python3 compat
+    - drop patches which were applied upstream
+    - rebase and update patches
+    - don't attempt to install llvm codegen so
+    - update d/copyright
+    - update changelog and versions
+      - (adjusted somewhat by me)
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Mon, 02 Mar 2020 21:22:50 +0100
+
+rustc (1.40.0+dfsg1+llvm-5ubuntu1) focal; urgency=medium
+
+  * Merge from Debian unstable (LP #1856851). Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+  * Dropped change, now fixed in Debian:
+    - Run build scripts with Python 3.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Sat, 29 Feb 2020 16:21:22 +0000
 
 rustc (1.40.0+dfsg1-5) unstable; urgency=medium
 
@@ -616,6 +1608,40 @@ rustc (1.40.0+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 25 Dec 2019 00:09:24 +0000
 
+rustc (1.39.0+dfsg1+llvm-3ubuntu1) focal; urgency=medium
+
+  * Merge from Debian unstable (LP #1856851). Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+    - Add Build-Depends-Indep: libssl-dev
+  * Run build scripts with Python 3.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Wed, 22 Jan 2020 20:21:38 +1300
+
 rustc (1.39.0+dfsg1-4) unstable; urgency=medium
 
   * Update to LLVM 9. (Closes: #946886)
@@ -655,6 +1681,66 @@ rustc (1.38.0+dfsg1-1) unstable; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Tue, 26 Nov 2019 14:41:46 +0000
 
+rustc (1.38.0+dfsg0.2+llvm-0ubuntu2) focal; urgency=medium
+
+  * d/patches/d-fix-1.38-self-bootstrap.patch: backport patch from upstream
+    to allow warnings to not fail the build, which allows rustc 1.38 to be
+    bootstrapped with itself.
+    - adds d/patches/d-fix-1.38-self-bootstrap.patch
+    - updates d/patches/series
+    - updates debian/config.toml.in
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 29 Nov 2019 07:57:13 +1300
+
+rustc (1.38.0+dfsg0.2+llvm-0ubuntu1) focal; urgency=medium
+
+  * New upstream release.
+  * Add Build-Depends-Indep: libssl-dev
+  * Update Files-Excluded for new upstream version 1.38.0
+  * d/patches/d-0004-mdbook-2-1-compat.patch: Removed.
+  * Refresh other patches.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Wed, 13 Nov 2019 09:29:49 +1300
+
+rustc (1.37.0+dfsg1+llvm-1ubuntu1) eoan; urgency=medium
+
+  * Merge from Debian unstable (LP #1843765). Remaning changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+  * Revert "Support cross-compiling to wasm32" as it breaks with the
+    bundled snapshot of LLVM 9.
+    - delete debian/libstd-rust-dev-wasm32-cross.lintian-overrides
+    - delete debian/rustc.links
+    - update debian/config.toml.in
+    - update debian/control
+    - update debian/rules
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Wed, 18 Sep 2019 14:31:31 +0200
+
 rustc (1.37.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
@@ -678,6 +1764,38 @@ rustc (1.37.0+dfsg1-1~exp1) experimental; urgency=medium
   * Use system compiler-rt.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 25 Aug 2019 03:06:33 -0700
+
+rustc (1.36.0+dfsg1+llvm-2ubuntu1) eoan; urgency=medium
+
+  * Merge from Debian unstable. Remaning changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Sat, 17 Aug 2019 13:58:25 +1200
 
 rustc (1.36.0+dfsg1-2) unstable; urgency=medium
 
@@ -714,6 +1832,14 @@ rustc (1.35.0+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 09 Jun 2019 23:20:52 -0700
 
+rustc (1.35.0+dfsg0.1+llvm-0ubuntu1) eoan; urgency=medium
+
+  * New upstream release.
+    - Refresh patches.
+    - Bump rustc versions in d/control.
+
+ -- Łukasz 'sil2100' Zemczak <lukasz.zemczak@ubuntu.com>  Mon, 08 Jul 2019 12:10:17 +0200
+
 rustc (1.34.2+dfsg1-1) unstable; urgency=medium
 
   * Don't use system compiler-rt, there are issues with that for now.
@@ -735,6 +1861,49 @@ rustc (1.34.2+dfsg1-1~exp1) experimental; urgency=medium
   * Update to LLVM 8.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 19 May 2019 02:40:02 -0700
+
+rustc (1.34.1+dfsg2+llvm-0ubuntu1) eoan; urgency=medium
+
+  * New upstream release.
+    - Refresh patches.
+    - Bump rustc versions in d/control.
+  * Add d-no-web-dependencies-in-doc-0.1.7.patch: there are now two copies of
+    mdbook that need patching.
+  * Adjust d/rules to cope with the fact that src/llvm is now src/llvm-project.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 17 May 2019 10:58:38 +1200
+
+rustc (1.33.0+dfsg1+llvm-1~exp1ubuntu1) eoan; urgency=medium
+
+  * Merge from Debian unstabl^Wexperimenta^WNEW. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+
+ -- Michael Hudson-Doyle <mwhudson@debian.org>  Mon, 13 May 2019 14:15:10 +1200
 
 rustc (1.33.0+dfsg1-2) unstable; urgency=medium
 
@@ -763,6 +1932,38 @@ rustc (1.33.0+dfsg1-1~exp1) experimental; urgency=medium
   * Improve build-related docs a bit.
 
  -- Ximin Luo <infinity0@debian.org>  Mon, 29 Apr 2019 19:50:48 -0700
+
+rustc (1.32.0+dfsg1+llvm-1ubuntu1) disco; urgency=medium
+
+  * Merge from Debian unstable. Remaning changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+      - update debian/watch
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 14 Feb 2019 10:24:51 +1300
 
 rustc (1.32.0+dfsg1-3) unstable; urgency=medium
 
@@ -797,6 +1998,37 @@ rustc (1.32.0~beta.2+dfsg1-1~exp1) experimental; urgency=medium
   * Drop obsolete d-sparc64-dont-pack-spans.patch
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 16 Dec 2018 13:48:25 -0800
+
+rustc (1.31.0+dfsg1+llvm-2ubuntu1) disco; urgency=medium
+
+  * Merge from Debian unstable. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+    - Adjust debian/watch to include +llvm in upstream version.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Fri, 18 Jan 2019 11:43:00 +1300
 
 rustc (1.31.0+dfsg1-2) unstable; urgency=medium
 
@@ -849,6 +2081,37 @@ rustc (1.31.0~beta.4+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 04 Nov 2018 19:00:16 -0800
 
+rustc (1.30.0+dfsg1+llvm-2ubuntu1) disco; urgency=medium
+
+  * Merge from Debian unstable:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an 
+      upgrade issue
+      - update debian/control
+      - Adjust debian/watch to include +llvm in upstream version.
+
+ -- Michael Hudson-Doyle <mwhudson@debian.org>  Thu, 08 Nov 2018 16:10:16 +1300
+
 rustc (1.30.0+dfsg1-2) unstable; urgency=medium
 
   * Increase FAILURES_ALLOWED for mips mipsel to 20.
@@ -898,6 +2161,38 @@ rustc (1.30.0~beta.7+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 23 Sep 2018 10:40:30 -0700
 
+rustc (1.29.2+dfsg1+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Merge with Debian unstable. Remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+      - update debian/control
+  * Adjust debian/watch to include +llvm in upstream version.
+  * Update to new upstream release.
+
+ -- Michael Hudson-Doyle <michael.hudson@ubuntu.com>  Thu, 11 Oct 2018 11:49:26 +1300
+
 rustc (1.29.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
@@ -915,6 +2210,41 @@ rustc (1.29.0+dfsg1-1~exp1) experimental; urgency=medium
   * Update to latest Standards-Version; no changes required.
 
  -- Ximin Luo <infinity0@debian.org>  Thu, 20 Sep 2018 22:33:20 -0700
+
+rustc (1.28.0+dfsg1+llvm-0ubuntu2) cosmic; urgency=medium
+
+  * Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an upgrade
+    issue
+    - update debian/control
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Tue, 21 Aug 2018 23:31:55 +0100
+
+rustc (1.28.0+dfsg1+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Merge from Debian unstable, remaining changes: 
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - On i386, only build debuginfo for libstd
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+      - update debian/control
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Tue, 14 Aug 2018 21:57:50 +0100
 
 rustc (1.28.0+dfsg1-3) unstable; urgency=medium
 
@@ -1002,6 +2332,64 @@ rustc (1.27.1+dfsg1-1~exp1) unstable; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Fri, 13 Jul 2018 22:58:02 -0700
 
+rustc (1.27.0+dfsg0+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Update to 1.27.0
+  * Bump rustc build requirement to 1.26.0
+    - update debian/control
+  * Rename libstd-rust-1.26 to libstd-rust-1.27
+    - update debian/control
+    - debian/libstd-rust-1.26.lintian-overrides =>
+        debian/libstd-rust-1.27.lintian-overrides
+  * Update debian/copyright
+  * Refresh patches
+    - update debian/patches/u-fixtestignores-ppc64el.patch
+    - update debian/patches/u-tag-private-modules-with-doc-cfg.patch
+    - update debian/patches/d-disable-cargo-vendor.patch
+    - update debian/patches/d-no-web-dependencies-in-doc.patch
+  * Drop patches that are fixed upstream
+    - remove debian/patches/u-fix-rustdoc-theme-test-without-rpath.patch
+    - remove debian/patches/u-fix-fp-target-warning.patch
+    - update debian/patches/series
+  * Disable search functionality in the documentation as it depends on
+    mark.js and elasticlunr.js, both of which are stripped from the tarball
+    (they are vendored in minified form) and neither of which are packaged
+    separately in Ubuntu yet
+    - add debian/patches/d-disable-doc-search.patch
+    - update debian/patches/series
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Fri, 06 Jul 2018 17:02:31 +0100
+
+rustc (1.26.2+dfsg1+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Merge from Debian unstable, remaining changes: 
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+      - update debian/control
+    - Exclude src/tools/lld from the tarball
+      - update debian/copyright
+      - update debian/rules
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - Ensure the build uses the bundled stage0 rustc when bootstrapping
+      - update debian/rules
+    - Only build debuginfo for libstd on i386
+      - update debian/rules
+    - Ignore all test failures on every architecture
+      - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Thu, 21 Jun 2018 18:22:37 +0100
+
 rustc (1.26.2+dfsg1-1) unstable; urgency=medium
 
   * New upstream release.
@@ -1029,6 +2417,15 @@ rustc (1.26.1+dfsg1-1) unstable; urgency=medium
   * New upstream release.
 
  -- Ximin Luo <infinity0@debian.org>  Wed, 30 May 2018 08:18:04 -0700
+
+rustc (1.26.1+dfsg0+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Update to 1.26.1
+  * Exclude src/tools/lld from the tarball
+    - update debian/copyright
+    - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Fri, 01 Jun 2018 16:10:34 +0100
 
 rustc (1.26.0+dfsg1-1~exp4) experimental; urgency=medium
 
@@ -1060,6 +2457,113 @@ rustc (1.26.0+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 20 May 2018 03:11:45 -0700
 
+rustc (1.26.0+dfsg0+llvm-0ubuntu3) cosmic; urgency=medium
+
+  * Backport 'Fix "fp" feature for AArch64', as the console warnings appear
+    to be making the cargo tests fail
+    - add debian/patches/u-fix-fp-feature-for-aarch64.patch
+    - update debian/patches/series
+  * Drop src/tools/lld from rust-src (can be dropped after the next merge with
+    Debian when we have an updated tarball)
+    - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Fri, 01 Jun 2018 15:40:50 +0100
+
+rustc (1.26.0+dfsg0+llvm-0ubuntu2) cosmic; urgency=medium
+
+  * Ignore all test failures on every architecture. If anyone else wants to
+    spend time getting all of the tests to pass, be my guest
+    - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Fri, 25 May 2018 12:57:52 +0100
+
+rustc (1.26.0+dfsg0+llvm-0ubuntu1) cosmic; urgency=medium
+
+  * Update to 1.26.0
+  * Bump rustc build requirement to 1.25.0
+    - update debian/control
+  * Rename libstd-rust-1.25 to libstd-rust-1.26
+    - update debian/control
+    - debian/libstd-rust-1.25.lintian-overrides =>
+        debian/libstd-rust-1.26.lintian-overrides
+  * Update debian/copyright
+  * Refresh patches
+    - update debian/patches/d-armel-disable-kernel-helpers.patch
+    - update debian/patches/d-ignore-removed-submodules.patch
+    - update debian/patches/d-no-web-dependencies-in-doc.patch
+    - update debian/patches/u-ignoretest-armhf_01.patch
+    - update debian/patches/u-ignoretest-armhf_02.patch
+    - update debian/patches/u-ignoretest-armhf_06.patch
+    - update debian/patches/u-ignoretest-ppc64el.patch
+    - update debian/patches/u-make-tests-work-without-rpath.patch
+  * Drop patches that are fixed upstream or no longer applicable
+    - remove debian/patches/u-gperf-3.1.patch
+    - remove debian/patches/u-powerpcspe-support.patch
+    - update debian/patches/series
+  * No need to generate html_blocks.c now that hoedown is gone
+    - update debian/rules
+  * Backport upstream change to ensure that libraries build in stage0 have
+    unique metadata
+    - add debian/patches/u-ensure-libraries-built-in-stage0-have-unique-metadata.patch
+    - update debian/patches/series
+  * Use the new --remap-path-prefix syntax for stage != 0 and the old syntax for
+    stage 0 when building with rustc < 1.26 (see upstream issue #50910)
+    - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Tue, 15 May 2018 22:11:40 +0100
+
+rustc (1.25.0+dfsg1+llvm-0ubuntu3) cosmic; urgency=medium
+
+  * Don't Build-Conflict on gdb-minimal
+    - update debian/control
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Wed, 16 May 2018 18:02:18 +0100
+
+rustc (1.25.0+dfsg1+llvm-0ubuntu2) cosmic; urgency=medium
+
+  * Update to cosmic
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Wed, 16 May 2018 17:51:46 +0100
+
+rustc (1.25.0+dfsg1+llvm-0ubuntu1) bionic; urgency=medium
+
+  * Merge from Debian experimental, remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+      fails there
+      - add debian/patches/u-ignoretest-arm64_02.patch
+      - update debian/patches/series
+    - Make test failures fatal, except on ppc64el and s390x, as there's nothing
+      in the archive yet that requires a working rust on these architectures
+      - update debian/rules
+    - Only build debuginfo for libstd on i386
+      - update debian/rules
+    - Ensure the build uses the bundled stage0 rustc when bootstrapping
+      - update debian/rules
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+    - Make RustdocTheme test work on builds where rust.rpath = false
+      - add debian/patches/u-fix-rustdoc-theme-test-without-rpath.patch
+      - update debian/patches/series
+    - Scrub -g from CFLAGS and CXXFLAGS in order to let rustbuild control
+      whether LLVM is compiled with debug symbols
+      - update debian/rules
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests. This isn't a proper fix and needs further
+      investigation
+      - update debian/control
+    - Ignore test failures on Aarch64. Upstream aren't even running tests on
+      this architecture so let's not care about test failures there
+      - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Tue, 10 Apr 2018 16:12:33 +0100
+
 rustc (1.25.0+dfsg1-2) unstable; urgency=medium
 
   * Add patches for LLVM's compiler-rt to fix bugs on sparc64 and mips64.
@@ -1089,6 +2593,36 @@ rustc (1.25.0+dfsg1-1~exp1) experimental; urgency=medium
   * Update to LLVM 6.0.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 01 Apr 2018 15:59:47 +0200
+
+rustc (1.24.1+dfsg1+llvm-0ubuntu1) bionic; urgency=medium
+
+  [ Chris Coulson / Rico Tzschichholz ]
+  * Merge from Debian unstable, remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+      fails there
+      - add debian/patches/u-ignoretest-arm64_02.patch
+      - update debian/patches/series
+    - Make test failures fatal, except on ppc64el and s390x, as there's nothing
+      in the archive yet that requires a working rust on these architectures
+      - update debian/rules
+    - Disable debuginfo when building on 32-bit architectures, as it seems to
+      be the only way we can get a successful build
+      - update debian/config.toml.in
+      - update debian/rules
+    - Ensure the build uses the bundled stage0 rustc when bootstrapping
+      - update debian/config.toml.in
+      - update debian/rules
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+      - update debian/make_orig-stage0_tarball.sh
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Fri, 16 Mar 2018 02:16:14 +0000
 
 rustc (1.24.1+dfsg1-1) unstable; urgency=medium
 
@@ -1123,6 +2657,36 @@ rustc (1.24.1+dfsg1-1~exp1) experimental; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 03 Mar 2018 14:23:29 +0100
 
+rustc (1.23.0+dfsg1+llvm-0ubuntu2) bionic; urgency=medium
+
+  * Merge from Debian experimental, remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+      fails there
+      - add debian/patches/u-ignoretest-arm64_02.patch
+      - update debian/patches/series
+    - Make test failures fatal, except on ppc64el and s390x, as there's nothing
+      in the archive yet that requires a working rust on these architectures
+      - update debian/rules
+    - Disable debuginfo when building on 32-bit architectures, as it seems to
+      be the only way we can get a successful build
+      - update debian/config.toml.in
+      - update debian/rules
+    - Update debian/patches/u-make-tests-work-without-rpath.patch to fix some
+      test failures
+    - Backport an upstream change to make the stack overflow detection work
+      with a recent change in glibc 2.27 that moves the stack guard page for
+      threads beyond the end of the stack
+      - add debian/patches/u-stack-guard-glibc-2.27-fix.patch
+      - update debian/patches/series    
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Thu, 01 Feb 2018 13:59:02 +0000
+
 rustc (1.23.0+dfsg1-1) unstable; urgency=medium
 
   * Upload to unstable.
@@ -1135,6 +2699,32 @@ rustc (1.23.0+dfsg1-1~exp1) experimental; urgency=medium
   * Update to latest Standards-Version; no changes required.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 14 Jan 2018 00:08:17 +0100
+
+rustc (1.22.1+dfsg1+llvm-0ubuntu2) bionic; urgency=medium
+
+  * Merge from Debian experimental, remaining changes:
+    - Use the bundled llvm to avoid having to do llvm updates in order to
+      deliver rust updates
+      - update debian/config.toml.in
+      - update debian/control
+      - update debian/copyright
+      - update debian/rules
+    - Fix some test failures that occur because we build rust without an rpath
+      - add debian/patches/make-tests-work-without-rpath.patch
+      - update debian/patches/series
+    - Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+      fails there
+      - add debian/patches/u-ignoretest-arm64_02.patch
+      - update debian/patches/series
+    - Make test failures fatal, except on ppc64el and s390x, as there's nothing
+      in the archive yet that requires a working rust on these architectures
+      - update debian/rules
+    - Disable debuginfo when building on 32-bit architectures, as it seems to
+      be the only way we can get a successful build
+      - update debian/config.toml.in
+      - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Wed, 29 Nov 2017 16:32:51 +0000
 
 rustc (1.22.1+dfsg1-2) unstable; urgency=medium
 
@@ -1162,6 +2752,32 @@ rustc (1.22.1+dfsg1-1~exp1) experimental; urgency=medium
   * Fix symlink target. (Closes: #877276)
 
  -- Ximin Luo <infinity0@debian.org>  Sat, 25 Nov 2017 22:29:12 +0100
+
+rustc (1.21.0+dfsg1+llvm-0ubuntu5) bionic; urgency=medium
+
+  * Merge from Debian unstable, remaining changes:
+    - Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+      fails there
+      - add debian/patches/u-ignoretest-arm64_02.patch
+      - update debian/patches/series
+    - Make test failures fatal, except on ppc64el and s390x, as there's nothing
+      in the archive yet that requires a working rust on these architectures
+      - update debian/rules
+    - Use the bundled llvm, as target_feature depends on a rust-specific llvm
+      API. This also means we have a different tarball to reinclude the llvm
+      parts, although we could probably do this with a supplementary tarball
+      in future
+      - update debian/control
+      - update debian/rules
+      - update debian/config.toml.in
+    - Fix some test failures that occur because we build rust without an rpath
+      - add debian/patches/make-tests-work-without-rpath.patch
+      - update debian/patches/series
+    - Set build.full-bootstrap to true to work-around a runtime link failure
+      when we're bootstrapping from the same rust version
+      - update debian/config.toml.in
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Thu, 26 Oct 2017 18:00:24 +0100
 
 rustc (1.21.0+dfsg1-3) unstable; urgency=medium
 
@@ -1211,11 +2827,65 @@ rustc (1.20.0+dfsg1-1) unstable; urgency=medium
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 15 Oct 2017 23:30:35 +0200
 
+rustc (1.20.0+dfsg0-0ubuntu1) artful; urgency=medium
+
+  * Update to 1.20.0
+    - update debian/control
+    - libstd-rust-1.19.lintian-overrides
+      => libstd-rust-1.20.lintian-overrides
+
+  * update debian/copyright
+  * Drop patches that are fixed upstream
+    - remove debian/patches/u-only-run-linkchecker-if-docs.patch
+    - remove debian/patches/u-skip-main-thread-stack-guard.patch
+    - remove debian/patches/u-fix-backtrace-build.patch
+    - remove debian/patches/u-ignoretest-arm64_02.patch
+    - update debian/patches/series
+  * Refresh patches
+    - update debian/patches/u-ignoretest-ppc64el_03.patch
+    - update debian/patches/u-output-failed-commands.patch
+    - update debian/patches/u-allow-stable-features.patch
+    - update debian/patches/gcc-4.8-aarch64-ice.diff
+    - update debian/patches/d-disable-cargo-vendor.patch
+    - update debian/patches/d-dont-download-stage0.patch
+    - update debian/patches/d-cross-compile-install.patch
+    - update debian/patches/d-no-web-dependencies-in-doc.patch
+    - update debian/patches/u-fix-unaligned-access-in-lto.patch
+  * Don't clean any Cargo.toml.orig files from the source tree
+    - update debian/rules
+  * Backport change from Debian git to fix prune-unused-deps
+  * Bump llvm build-dep to 1:4.0.1-6ubuntu0.17.10.3~ to pick up fixes
+    for llvm PR31142, PR32488 and PR32902
+    - update debian/control
+  * Don't re-run the rustc_llvm build script if LLVM_CONFIG changes, as this
+    causes a failure when running the tests. This is a workaround - it needs
+    further investigation
+    - add debian/patches/dont-rerun-rustc_llvm-build-script-on-LLVM_CONFIG-change.patch
+    - update debian/patches/series
+  * Don't run dynamic_lib::tests::test_loading_cosine on Aarch64 whilst if
+    fails there
+    - add debian/patches/u-ignoretest-arm64_02.patch
+    - update debian/patches/series
+  * Ignore test failures on ppc64el. There's nothing in the archive yet that
+    requires a working rust on this architecture
+    - update debian/rules
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Wed, 11 Oct 2017 19:47:47 +0100
+
 rustc (1.19.0+dfsg3-4) unstable; urgency=medium
 
   * Bump LLVM requirement to pull in a fix for a FTBFS on ppc64el.
 
  -- Ximin Luo <infinity0@debian.org>  Sun, 15 Oct 2017 21:31:03 +0200
+
+rustc (1.19.0+dfsg3-3ubuntu1) artful; urgency=medium
+
+  * Merge from Debian, remaining changes:
+    - Backport patch to fix unaligned access in LTO on armhf
+      + add debian/patches/u-fix-unaligned-access-in-lto.patch
+      + update debian/patches/series
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Wed, 11 Oct 2017 14:00:38 +0100
 
 rustc (1.19.0+dfsg3-3) unstable; urgency=medium
 
@@ -1237,6 +2907,14 @@ rustc (1.19.0+dfsg3-1) experimental; urgency=medium
   * rust-src: install Debian patches as well
 
  -- Ximin Luo <infinity0@debian.org>  Fri, 15 Sep 2017 04:02:09 +0200
+
+rustc (1.18.0+dfsg1-4ubuntu1) artful; urgency=medium
+
+  * Backport patch to fix unaligned access in LTO on armhf
+    - add debian/patches/fix-unaligned-access-in-lto.patch
+    - update debian/patches/series
+
+ -- Chris Coulson <chris.coulson@canonical.com>  Tue, 15 Aug 2017 14:51:01 +0100
 
 rustc (1.18.0+dfsg1-4) unstable; urgency=medium
 
