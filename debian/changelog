@@ -1,3 +1,38 @@
+rustc (1.64.0+dfsg1-1~exp2ubuntu1) lunar; urgency=medium
+
+  * Merge from Debian experimental.
+    Remaining changes:
+    - Downgrade cargo from rustc Recommends to Suggests to make rustc promotable to
+      main.
+    - d/control: Add fonts-nanum to the rust-doc deps
+    - d/control: Add the rust-doc deps as build-deps for the linkchecker tests
+    - Reduce parallelism on all arches other than riscv64 to avoid OOMs
+      during build.
+    - Explicitly disable LTO
+    - Add a self-build autopkgtest
+    - Ship the Cargo.lock file along with the compiler to identify which crates
+      were bundled in.
+    - On i386, only build debuginfo for libstd
+    - Add a hack to ensure the stage0 compiler is extracted to the correct
+      location
+    - Build-Depend on libc6-dbg on armhf, to workaround a crash in ld.so
+      during some debuginfo tests
+    - Version the Build-Conflict on gdb-minimal as gdb now Provides it
+    - Adjust the rustc Breaks/Replaces libstd-rust-dev version to fix an
+      upgrade issue
+    - Add Build-Depends-Indep: libssl-dev
+    - Revert workaround for upstream bug #74786
+    - Disable wasm build as build dependencies not currently available in
+      Ubuntu.
+    - Do not build windows cross compiler.
+    - Drop llvm-14 to Suggests for rustc to avoid having to promote it to Ubuntu
+      main
+    - Add XS-Vendored-Sources-Rust field support
+      Needed an extra patch due to rustc being a multi-crate source package.
+  * d/control: Update the vendored sources field
+
+ -- Simon Chopin <schopin@ubuntu.com>  Wed, 18 Jan 2023 10:38:19 +0100
+
 rustc (1.64.0+dfsg1-1~exp2) experimental; urgency=medium
 
   [ Fabian Grünbichler ]
