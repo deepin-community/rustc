@@ -1,3 +1,10 @@
+rustc (1.64.0+dfsg1-1~exp2ubuntu2) lunar; urgency=medium
+
+  * d/p/ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch:
+    revert an upstream patch to work around a riscv64 miscompilation
+
+ -- Simon Chopin <schopin@ubuntu.com>  Wed, 18 Jan 2023 17:39:14 +0100
+
 rustc (1.64.0+dfsg1-1~exp2ubuntu1) lunar; urgency=medium
 
   * Merge from Debian experimental.
