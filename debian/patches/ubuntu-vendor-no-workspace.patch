@@ -17,7 +17,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
    "library/stdarch",
 +  # dh-cargo-vendored-sources needs to be able to run cargo metadata on
 +  # vendored crates
-+  "vendor/*",
++  "vendor/",
  ]
  
  [profile.release.package.compiler_builtins]
