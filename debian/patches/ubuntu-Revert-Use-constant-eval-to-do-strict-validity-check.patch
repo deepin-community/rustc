@@ -18,20 +18,20 @@ Bug: https://github.com/rust-lang/rust/issues/102155
  .../src/const_eval/machine.rs                 |  2 +-
  .../src/interpret/intrinsics.rs               | 56 ++++++++--------
  compiler/rustc_const_eval/src/lib.rs          |  6 --
- .../src/might_permit_raw_init.rs              | 40 -----------
+ .../src/might_permit_raw_init.rs              | 44 -------------
  compiler/rustc_middle/src/query/mod.rs        |  8 ---
  compiler/rustc_middle/src/ty/query.rs         |  1 -
  compiler/rustc_query_impl/src/keys.rs         | 12 +---
  compiler/rustc_target/src/abi/mod.rs          | 38 ++++++-----
  .../intrinsics/panic-uninitialized-zeroed.rs  | 66 +++++++------------
- 13 files changed, 94 insertions(+), 161 deletions(-)
+ 13 files changed, 94 insertions(+), 165 deletions(-)
  delete mode 100644 compiler/rustc_const_eval/src/might_permit_raw_init.rs
 
 diff --git a/Cargo.lock b/Cargo.lock
-index 2569b3e1976..b88158f9ff8 100644
+index fda523611a5..0e73dc68daf 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -3731,7 +3731,6 @@ dependencies = [
+@@ -3300,7 +3300,6 @@ dependencies = [
   "rustc_arena",
   "rustc_ast",
   "rustc_attr",
@@ -40,7 +40,7 @@ index 2569b3e1976..b88158f9ff8 100644
   "rustc_errors",
   "rustc_fs_util",
 diff --git a/compiler/rustc_codegen_cranelift/src/intrinsics/mod.rs b/compiler/rustc_codegen_cranelift/src/intrinsics/mod.rs
-index b2a83e1d4eb..4f9ced001d4 100644
+index 2e4ca594f91..bd2a17c5738 100644
 --- a/compiler/rustc_codegen_cranelift/src/intrinsics/mod.rs
 +++ b/compiler/rustc_codegen_cranelift/src/intrinsics/mod.rs
 @@ -22,6 +22,7 @@ macro_rules! intrinsic_args {
@@ -51,7 +51,7 @@ index b2a83e1d4eb..4f9ced001d4 100644
  
  use crate::prelude::*;
  use cranelift_codegen::ir::AtomicRmwOp;
-@@ -693,7 +694,12 @@ fn swap(bcx: &mut FunctionBuilder<'_>, v: Value) -> Value {
+@@ -734,7 +735,12 @@ fn swap(bcx: &mut FunctionBuilder<'_>, v: Value) -> Value {
                  return;
              }
  
@@ -65,7 +65,7 @@ index b2a83e1d4eb..4f9ced001d4 100644
                  with_no_trimmed_paths!({
                      crate::base::codegen_panic(
                          fx,
-@@ -707,7 +713,12 @@ fn swap(bcx: &mut FunctionBuilder<'_>, v: Value) -> Value {
+@@ -748,7 +754,12 @@ fn swap(bcx: &mut FunctionBuilder<'_>, v: Value) -> Value {
                  return;
              }
  
@@ -80,10 +80,10 @@ index b2a83e1d4eb..4f9ced001d4 100644
                      crate::base::codegen_panic(
                          fx,
 diff --git a/compiler/rustc_codegen_ssa/Cargo.toml b/compiler/rustc_codegen_ssa/Cargo.toml
-index 46d6344dbb2..e7ee424668b 100644
+index d868e3d56ba..fe8b39f503f 100644
 --- a/compiler/rustc_codegen_ssa/Cargo.toml
 +++ b/compiler/rustc_codegen_ssa/Cargo.toml
-@@ -40,7 +40,6 @@ rustc_metadata = { path = "../rustc_metadata" }
+@@ -39,7 +39,6 @@ rustc_metadata = { path = "../rustc_metadata" }
  rustc_query_system = { path = "../rustc_query_system" }
  rustc_target = { path = "../rustc_target" }
  rustc_session = { path = "../rustc_session" }
@@ -92,19 +92,19 @@ index 46d6344dbb2..e7ee424668b 100644
  [dependencies.object]
  version = "0.29.0"
 diff --git a/compiler/rustc_codegen_ssa/src/mir/block.rs b/compiler/rustc_codegen_ssa/src/mir/block.rs
-index 3eee58d9d1c..a9eb4ec6439 100644
+index a6b226ef720..975a2051b17 100644
 --- a/compiler/rustc_codegen_ssa/src/mir/block.rs
 +++ b/compiler/rustc_codegen_ssa/src/mir/block.rs
-@@ -22,7 +22,7 @@
+@@ -21,7 +21,7 @@
  use rustc_span::{sym, Symbol};
  use rustc_symbol_mangling::typeid::typeid_for_fnabi;
- use rustc_target::abi::call::{ArgAbi, FnAbi, PassMode};
+ use rustc_target::abi::call::{ArgAbi, FnAbi, PassMode, Reg};
 -use rustc_target::abi::{self, HasDataLayout, WrappingRange};
 +use rustc_target::abi::{self, HasDataLayout, InitKind, WrappingRange};
  use rustc_target::spec::abi::Abi;
  
  /// Used by `FunctionCx::codegen_terminator` for emitting common patterns
-@@ -528,6 +528,7 @@ fn codegen_panic_intrinsic(
+@@ -589,6 +589,7 @@ fn codegen_panic_intrinsic(
          source_info: mir::SourceInfo,
          target: Option<mir::BasicBlock>,
          cleanup: Option<mir::BasicBlock>,
@@ -112,7 +112,7 @@ index 3eee58d9d1c..a9eb4ec6439 100644
      ) -> bool {
          // Emit a panic or a no-op for `assert_*` intrinsics.
          // These are intrinsics that compile to panics so that we can get a message
-@@ -546,13 +547,12 @@ enum AssertIntrinsic {
+@@ -607,13 +608,12 @@ enum AssertIntrinsic {
          });
          if let Some(intrinsic) = panic_intrinsic {
              use AssertIntrinsic::*;
@@ -128,7 +128,7 @@ index 3eee58d9d1c..a9eb4ec6439 100644
              };
              if do_panic {
                  let msg_str = with_no_visible_paths!({
-@@ -687,6 +687,7 @@ fn codegen_call_terminator(
+@@ -748,6 +748,7 @@ fn codegen_call_terminator(
              source_info,
              target,
              cleanup,
@@ -137,20 +137,20 @@ index 3eee58d9d1c..a9eb4ec6439 100644
              return;
          }
 diff --git a/compiler/rustc_const_eval/src/const_eval/machine.rs b/compiler/rustc_const_eval/src/const_eval/machine.rs
-index fc2e6652a3d..ef6cff42ad9 100644
+index e5acacd9188..5274029d006 100644
 --- a/compiler/rustc_const_eval/src/const_eval/machine.rs
 +++ b/compiler/rustc_const_eval/src/const_eval/machine.rs
-@@ -104,7 +104,7 @@ pub struct CompileTimeInterpreter<'mir, 'tcx> {
+@@ -93,7 +93,7 @@ pub struct CompileTimeInterpreter<'mir, 'tcx> {
  }
  
  impl<'mir, 'tcx> CompileTimeInterpreter<'mir, 'tcx> {
--    pub(crate) fn new(const_eval_limit: Limit, can_access_statics: bool) -> Self {
-+    pub(super) fn new(const_eval_limit: Limit, can_access_statics: bool) -> Self {
-         CompileTimeInterpreter {
-             steps_remaining: const_eval_limit.0,
-             stack: Vec::new(),
+-    pub(crate) fn new(
++    pub(super) fn new(
+         const_eval_limit: Limit,
+         can_access_statics: bool,
+         check_alignment: bool,
 diff --git a/compiler/rustc_const_eval/src/interpret/intrinsics.rs b/compiler/rustc_const_eval/src/interpret/intrinsics.rs
-index 08209eb7932..e0ce6d9acc8 100644
+index 8637d6a7767..f7a11838154 100644
 --- a/compiler/rustc_const_eval/src/interpret/intrinsics.rs
 +++ b/compiler/rustc_const_eval/src/interpret/intrinsics.rs
 @@ -15,7 +15,7 @@
@@ -225,7 +225,7 @@ index 08209eb7932..e0ce6d9acc8 100644
              }
              sym::simd_insert => {
 diff --git a/compiler/rustc_const_eval/src/lib.rs b/compiler/rustc_const_eval/src/lib.rs
-index 72ac6af685d..d65d4f7eb72 100644
+index 9f47d302a0c..8529726b533 100644
 --- a/compiler/rustc_const_eval/src/lib.rs
 +++ b/compiler/rustc_const_eval/src/lib.rs
 @@ -33,13 +33,11 @@
@@ -253,10 +253,10 @@ index 72ac6af685d..d65d4f7eb72 100644
  }
 diff --git a/compiler/rustc_const_eval/src/might_permit_raw_init.rs b/compiler/rustc_const_eval/src/might_permit_raw_init.rs
 deleted file mode 100644
-index f971c2238c7..00000000000
+index 37ffa19ccd6..00000000000
 --- a/compiler/rustc_const_eval/src/might_permit_raw_init.rs
 +++ /dev/null
-@@ -1,40 +0,0 @@
+@@ -1,44 +0,0 @@
 -use crate::const_eval::CompileTimeInterpreter;
 -use crate::interpret::{InterpCx, MemoryKind, OpTy};
 -use rustc_middle::ty::layout::LayoutCx;
@@ -272,7 +272,11 @@ index f971c2238c7..00000000000
 -    let strict = tcx.sess.opts.unstable_opts.strict_init_checks;
 -
 -    if strict {
--        let machine = CompileTimeInterpreter::new(Limit::new(0), false);
+-        let machine = CompileTimeInterpreter::new(
+-            Limit::new(0),
+-            /*can_access_statics:*/ false,
+-            /*check_alignment:*/ true,
+-        );
 -
 -        let mut cx = InterpCx::new(tcx, rustc_span::DUMMY_SP, ParamEnv::reveal_all(), machine);
 -
@@ -298,10 +302,10 @@ index f971c2238c7..00000000000
 -    }
 -}
 diff --git a/compiler/rustc_middle/src/query/mod.rs b/compiler/rustc_middle/src/query/mod.rs
-index d8483e7e409..e498015a4a5 100644
+index 4b336ea62a9..6e5fe4e875e 100644
 --- a/compiler/rustc_middle/src/query/mod.rs
 +++ b/compiler/rustc_middle/src/query/mod.rs
-@@ -2049,12 +2049,4 @@
+@@ -2085,12 +2085,4 @@
          desc { |tcx| "looking up generator diagnostic data of `{}`", tcx.def_path_str(key) }
          separate_provide_extern
      }
@@ -315,7 +319,7 @@ index d8483e7e409..e498015a4a5 100644
 -    }
  }
 diff --git a/compiler/rustc_middle/src/ty/query.rs b/compiler/rustc_middle/src/ty/query.rs
-index 2452bcf6a61..3d662ed5de4 100644
+index a300a8df23d..dd0afe0605a 100644
 --- a/compiler/rustc_middle/src/ty/query.rs
 +++ b/compiler/rustc_middle/src/ty/query.rs
 @@ -28,7 +28,6 @@
@@ -357,10 +361,10 @@ index 49175e97f41..4d6bb02c38e 100644
      #[inline(always)]
      fn query_crate_is_local(&self) -> bool {
 diff --git a/compiler/rustc_target/src/abi/mod.rs b/compiler/rustc_target/src/abi/mod.rs
-index 92ce4d91d84..d103a06060d 100644
+index ec334e5887a..b4f92ddd9a0 100644
 --- a/compiler/rustc_target/src/abi/mod.rs
 +++ b/compiler/rustc_target/src/abi/mod.rs
-@@ -1378,7 +1378,7 @@ pub struct PointeeInfo {
+@@ -1389,7 +1389,7 @@ pub struct PointeeInfo {
  
  /// Used in `might_permit_raw_init` to indicate the kind of initialisation
  /// that is checked to be valid
@@ -369,7 +373,7 @@ index 92ce4d91d84..d103a06060d 100644
  pub enum InitKind {
      Zero,
      Uninit,
-@@ -1493,18 +1493,14 @@ pub fn is_zst(&self) -> bool {
+@@ -1504,18 +1504,14 @@ pub fn is_zst(&self) -> bool {
      ///
      /// `init_kind` indicates if the memory is zero-initialized or left uninitialized.
      ///
@@ -394,7 +398,7 @@ index 92ce4d91d84..d103a06060d 100644
      where
          Self: Copy,
          Ty: TyAbiInterface<'a, C>,
-@@ -1517,8 +1513,13 @@ pub fn might_permit_raw_init<C>(self, cx: &C, init_kind: InitKind) -> bool
+@@ -1528,8 +1524,13 @@ pub fn might_permit_raw_init<C>(self, cx: &C, init_kind: InitKind) -> bool
                      s.valid_range(cx).contains(0)
                  }
                  InitKind::Uninit => {
@@ -410,7 +414,7 @@ index 92ce4d91d84..d103a06060d 100644
                  }
              }
          };
-@@ -1539,12 +1540,19 @@ pub fn might_permit_raw_init<C>(self, cx: &C, init_kind: InitKind) -> bool
+@@ -1550,12 +1551,19 @@ pub fn might_permit_raw_init<C>(self, cx: &C, init_kind: InitKind) -> bool
          // If we have not found an error yet, we need to recursively descend into fields.
          match &self.fields {
              FieldsShape::Primitive | FieldsShape::Union { .. } => {}
