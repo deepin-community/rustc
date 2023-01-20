@@ -1,3 +1,21 @@
+rustc (1.65.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
+
+  [ Simon Chopin ]
+  * New upstream release (LP: #2000839)
+  * d/p/u-arm-compiler-builtins-add-sync-builtin-fallbacks.patch:
+    Dropped, applied upstream
+  * Update vendored deps field
+
+  [ Fabian Grünbichler ]
+  * add overrides for rust-analyzer test data
+  * update d/copyright
+  * cherry-pick fix for compiletest with rpath=false
+  * Update Files-Excluded for new upstream version 1.65.0
+  * Update early-stage patches for 1.65.0+dfsg1
+
+
+ -- Simon Chopin <schopin@ubuntu.com>  Fri, 20 Jan 2023 10:43:28 +0100
+
 rustc (1.64.0+dfsg1-1~exp2ubuntu2) lunar; urgency=medium
 
   * d/p/ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch:
