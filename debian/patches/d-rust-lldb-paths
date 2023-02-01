@@ -23,7 +23,7 @@ index bce72f1..793f593 100755
  RUST_LLDB="$RUSTC_SYSROOT/lib/rustlib/$host/bin/lldb"
  
 -lldb=lldb
-+lldb=lldb-14
++lldb=lldb-15
  if [ -f "$RUST_LLDB" ]; then
      lldb="$RUST_LLDB"
  else

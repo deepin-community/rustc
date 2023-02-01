@@ -6,4 +6,4 @@
 # However the tests fail for other reasons, namely we can't build rustdoc
 # (which runs the tests) in wasm32 yet. So this is just WIP at the moment,
 # it is not expect to work nor to be installed on user machines.
-exec /usr/bin/lld-14 "${@/#-Wl,/}"
+exec /usr/bin/lld-15 "${@/#-Wl,/}"
