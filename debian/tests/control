@@ -1,3 +1,0 @@
-Test-Command: ./debian/rules build
-Depends: @, @builddeps@
-Restrictions: rw-build-tree, allow-stderr
