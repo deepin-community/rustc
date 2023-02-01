@@ -6,9 +6,6 @@ u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
 u-make-compiletest-work-without-rpath.patch
 
-# can be dropped once upstream updates compiler_builtins
-u-arm-compiler-builtins-weak-linkage-arm.patch
-
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
 u-rustc-llvm-cross-flags.patch
@@ -62,4 +59,5 @@ d-rustdoc-disable-embedded-fonts.patch
 ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
-ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch
+# LLVM 15 fixed?
+#ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch

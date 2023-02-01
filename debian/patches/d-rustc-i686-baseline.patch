@@ -18,5 +18,6 @@ Index: rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 -    base.cpu = "pentium4".into();
 +    base.cpu = "pentiumpro".into();
      base.max_atomic_width = Some(64);
-     base.add_pre_link_args(LinkerFlavor::Gcc, &["-m32"]);
-     // don't use probe-stack=inline-asm until rust#83139 and rust#84667 are resolved
+     base.supported_sanitizers = SanitizerSet::ADDRESS;
+     base.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-m32"]);
+     base.stack_probes = StackProbeType::X86;

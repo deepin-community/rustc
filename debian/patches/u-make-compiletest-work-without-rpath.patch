@@ -47,21 +47,21 @@ index 64df76e2772..98a35810cfd 100644
 +use crate::util::{add_dylib_path, PathBufExt};
  use lazycell::LazyCell;
  use test::ColorConfig;
- 
-@@ -389,7 +390,7 @@ impl Config {
-     }
- 
+
+@@ -386,7 +386,7 @@ impl Config {
+
      fn target_cfg(&self) -> &TargetCfg {
--        self.target_cfg.borrow_with(|| TargetCfg::new(&self.rustc_path, &self.target))
-+        self.target_cfg.borrow_with(|| TargetCfg::new(self))
+         self.target_cfg
+-            .borrow_with(|| TargetCfg::new(&self.rustc_path, &self.target, &self.target_rustcflags))
++            .borrow_with(|| TargetCfg::new(self))
      }
- 
+
      pub fn matches_arch(&self, arch: &str) -> bool {
-@@ -455,20 +456,22 @@ pub enum Endian {
+@@ -457,21 +457,23 @@ pub enum Endian {
  }
- 
+
  impl TargetCfg {
--    fn new(rustc_path: &Path, target: &str) -> TargetCfg {
+-    fn new(rustc_path: &Path, target: &str, target_rustcflags: &Vec<String>) -> TargetCfg {
 -        let output = match Command::new(rustc_path)
 +    fn new(config: &Config) -> TargetCfg {
 +        let mut command = Command::new(&config.rustc_path);
@@ -70,7 +70,9 @@ index 64df76e2772..98a35810cfd 100644
              .arg("--print=cfg")
              .arg("--target")
 -            .arg(target)
+-            .args(target_rustcflags)
 +            .arg(&config.target)
++            .args(&config.target_rustcflags)
              .output()
          {
              Ok(output) => output,

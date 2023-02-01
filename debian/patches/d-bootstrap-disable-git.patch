@@ -14,7 +14,7 @@ diff --git a/src/bootstrap/channel.rs b/src/bootstrap/channel.rs
 index 1932a00..7974630 100644
 --- a/src/bootstrap/channel.rs
 +++ b/src/bootstrap/channel.rs
-@@ -29,7 +29,11 @@ pub struct Info {
+@@ -34,7 +34,11 @@ pub struct Info {
  impl GitInfo {
      pub fn new(ignore_git: bool, dir: &Path) -> GitInfo {
          // See if this even begins to look like a git dir
@@ -24,22 +24,21 @@ index 1932a00..7974630 100644
 +        //         repository, but we don't want to parse gitinfo. This is needed for the
 +        //         bootstrap tests to work which running for Debian git.
 +        if true || !dir.join(".git").exists() {
-             return GitInfo::Absent;
-         }
- 
+             match read_commit_info_file(dir) {
+                 Some(info) => return GitInfo::RecordedForTarball(info),
+                 None => return GitInfo::Absent,
 diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
 index 6181a61..5fe3600 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -902,7 +902,10 @@ impl Step for PlainSourceTarball {
+@@ -925,7 +925,10 @@ impl Step for PlainSourceTarball {
          }
- 
+
          // If we're building from git sources, we need to vendor a complete distribution.
--        if builder.rust_info.is_git() {
+-        if builder.rust_info.is_managed_git_subrepository() {
 +        //
 +        // Debian: disabling this block because the debian package is also in a git
 +        //         repository, but cargo-vendor should not be installed or run.
-+        if false && builder.rust_info.is_git() {
++        if false && builder.rust_info.is_managed_git_subrepository() {
              // Ensure we have the submodules checked out.
              builder.update_submodule(Path::new("src/tools/rust-analyzer"));
- 

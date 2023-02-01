@@ -43,14 +43,14 @@ index 92d29d6..23c0764 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
 @@ -734,6 +734,8 @@ class RustBuild(object):
- 
          # preserve existing RUSTFLAGS
          env.setdefault("RUSTFLAGS", "")
 +        if self.build_triple().startswith('mips'):
 +            env["RUSTFLAGS"] += " -Ctarget-feature=+xgot"
-         build_section = "target.{}".format(self.build)
          target_features = []
          if self.get_toml("crt-static", build_section) == "true":
+             target_features += ["+crt-static"]
+         elif self.get_toml("crt-static", build_section) == "false":
 diff --git a/src/test/assembly/asm/mips-types.rs b/src/test/assembly/asm/mips-types.rs
 index 04bf49a..a7c6056 100644
 --- a/src/test/assembly/asm/mips-types.rs

@@ -20,13 +20,13 @@ index fb5395d..72eac7c 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
 @@ -446,7 +446,6 @@ impl Step for Std {
-             cargo
-                 .arg("-p")
-                 .arg(package)
--                .arg("-Zskip-rustdoc-fingerprint")
-                 .arg("--")
-                 .arg("--markdown-css")
-                 .arg("rust.css")
+         cargo
+             .arg("-p")
+             .arg(package)
+-            .arg("-Zskip-rustdoc-fingerprint")
+             .arg("--")
+             .arg("-Z")
+             .arg("unstable-options")
 @@ -590,7 +589,6 @@ impl Step for Rustc {
          cargo.rustdocflag("--generate-link-to-definition");
          compile::rustc_cargo(builder, &mut cargo, target);

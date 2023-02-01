@@ -18,5 +18,5 @@ index d11f1f7..137f8eb 100644
 +        "-lssp_nonshared",
 +        "-lssp",
      ];
-     let mut late_link_args = TargetOptions::link_args(LinkerFlavor::Ld, mingw_libs);
-     super::add_link_args(&mut late_link_args, LinkerFlavor::Gcc, mingw_libs);
+     let mut late_link_args =
+         TargetOptions::link_args(LinkerFlavor::Gnu(Cc::No, Lld::No), mingw_libs);

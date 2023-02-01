@@ -114,7 +114,7 @@ index 14e8ebd..277d47f 100644
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -698,10 +692,8 @@ impl<'a> Builder<'a> {
+@@ -698,10 +698,8 @@ impl<'a> Builder<'a> {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
@@ -124,8 +124,8 @@ index 14e8ebd..277d47f 100644
 -                doc::Miri,
                  doc::EmbeddedBook,
                  doc::EditionGuide,
-             ),
-@@ -715,15 +707,12 @@ impl<'a> Builder<'a> {
+                 doc::StyleGuide,
+@@ -717,8 +715,6 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -134,9 +134,10 @@ index 14e8ebd..277d47f 100644
                  dist::Rustfmt,
                  dist::RustDemangler,
                  dist::Clippy,
-                 dist::Miri,
+@@ -726,7 +722,6 @@ impl<'a> Builder<'a> {
                  dist::LlvmTools,
                  dist::RustDev,
+                 dist::Bootstrap,
 -                dist::Extended,
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
@@ -253,7 +254,7 @@ index cbd8cfa..6b39fd6 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
 @@ -308,7 +308,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
-     // These two crates take quite a long time to build, so don't allow two versions of them
+     // This crate takes quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.
 -    "cargo",

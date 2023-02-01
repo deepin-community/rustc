@@ -14,22 +14,13 @@
      /// #[naked]
      /// pub extern "Rust" fn rust_abi() -> u32 {
      ///     unsafe { asm!("", options(noreturn)); }
---- a/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
-+++ b/src/test/run-make-fulldeps/intrinsic-unreachable/Makefile
-@@ -1,6 +1,7 @@
- include ../tools.mk
- 
- # ignore-windows-msvc
-+# needs-asm-support
- #
- # Because of Windows exception handling, the code is not necessarily any shorter.
- # https://github.com/llvm-mirror/llvm/commit/64b2297786f7fd6f5fa24cdd4db0298fbf211466
 --- a/compiler/rustc_lint/src/builtin.rs
 +++ b/compiler/rustc_lint/src/builtin.rs
-@@ -3053,6 +3053,10 @@ declare_lint! {
+@@ -3130,7 +3130,10 @@ declare_lint! {
      /// ### Example
      ///
      /// ```rust,compile_fail
+-    /// # #![feature(asm_experimental_arch)]
 +    /// #![cfg_attr(
 +    ///  not(any(target_arch = "powerpc64", target_arch = "s390x")),
 +    ///  feature(asm_experimental_arch)

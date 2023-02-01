@@ -1,3 +1,9 @@
+rustc (1.66.1+dfsg0-1) lunar; urgency=medium
+
+  * New upstream release 1.66.1
+
+ -- Zixing Liu <liushuyu011@gmail.com>  Wed, 01 Feb 2023 15:00:02 -0700
+
 rustc (1.65.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
 
   [ Simon Chopin ]

@@ -7,10 +7,10 @@ Bug: https://github.com/rust-lang/rust/issues/34902
  compiler/rustc_llvm/build.rs | 5 +++++
  1 file changed, 5 insertions(+)
 
-diff --git a/compiler/rustc_llvm/build.rs b/compiler/rustc_llvm/build.rs
-index 7729ec6..b8f67ee 100644
---- a/compiler/rustc_llvm/build.rs
-+++ b/compiler/rustc_llvm/build.rs
+Index: rustc/compiler/rustc_llvm/build.rs
+===================================================================
+--- rustc.orig/compiler/rustc_llvm/build.rs
++++ rustc/compiler/rustc_llvm/build.rs
 @@ -179,6 +179,11 @@ fn main() {
      let mut cfg = cc::Build::new();
      cfg.warnings(false);

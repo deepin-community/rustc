@@ -34,10 +34,10 @@ index 04ec1e7..67296ca 100644
      add_rpath_args(cmd, sess, codegen_results, out_filename);
 +
 +    if (crate_type == config::CrateType::Dylib || crate_type == config::CrateType::Cdylib)
-+       && sess.target.linker_is_gnu {
-+        let filename = String::from(out_filename.file_name().unwrap().to_str().unwrap());
-+        let soname = [String::from("-Wl,-soname=") + &filename];
-+        cmd.args(&soname);
++       && sess.target.linker_flavor.is_gnu() {
++        let filename = out_filename.file_name().unwrap().to_str().unwrap();
++        let soname = format!("-Wl,-soname={}", &filename);
++        cmd.arg(soname);
 +    }
  }
  
