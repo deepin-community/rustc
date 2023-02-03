@@ -224,7 +224,7 @@ Files-Excluded:
  vendor/tracing-core-0.1.28
  vendor/tracing-error
  vendor/tracing-log-0.1.2
- vendor/tracing-subscriber-0.3.3
+# vendor/tracing-subscriber-0.3.3
  vendor/tracing-tree-0.2.0
  vendor/typed-arena
  vendor/typenum-1.12.0
