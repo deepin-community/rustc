@@ -288,8 +288,10 @@ override_dh_auto_test-arch:
 ifeq (, $(filter nocheck,$(DEB_BUILD_PROFILES)))
 ifeq (, $(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	# there's a test that tests stage0 rustc, so we need to use system rustc to do that
-	[ -e $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE)/stage0 ] || mkdir -p $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE); \
+ifeq (,$(wildcard $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE)/stage0))
+	mkdir -p $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE); \
 	ln -sf /usr/ $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE)/stage0
+endif
 	{ $(RUSTBUILD_TEST) $(RUSTBUILD_FLAGS) $(RUSTBUILD_TEST_FLAGS); echo $$?; } | tee -a $(TEST_LOG)
 	# test that the log has at least 1 pass, to prevent e.g. #57709
 	grep -l "^test .* \.\.\. ok$$" $(TEST_LOG)
