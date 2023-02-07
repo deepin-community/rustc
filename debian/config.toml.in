@@ -5,7 +5,7 @@ submodules = false
 vendor = true
 locked-deps = false
 verbose = VERBOSITY
-profiler = false
+profiler = true
 
 rustc = "RUST_DESTDIR/usr/bin/rustc"
 cargo = "RUST_DESTDIR/usr/bin/cargo"

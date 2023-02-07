@@ -34,6 +34,16 @@ DEB_DESTDIR := $(CURDIR)/debian/tmp
 # Use system LLVM (comment out to use vendored LLVM)
 LLVM_VERSION = 15
 OLD_LLVM_VERSION = 14
+# used by the patched profiler build script
+CLANG_RT_ARCH := $(DEB_TARGET_GNU_CPU)
+ifeq (i386,$(DEB_TARGET_ARCH))
+CLANG_RT_ARCH = i386
+endif
+ifeq (armhf,$(DEB_TARGET_ARCH))
+CLANG_RT_ARCH = armhf
+endif
+export DEB_LLVM_VERSION = $(LLVM_VERSION)
+export DEB_CLANG_RT_ARCH = $(CLANG_RT_ARCH)
 # Make it easier to test against a custom LLVM
 ifneq (,$(LLVM_DESTDIR))
 LLVM_LIBRARY_PATH := $(LLVM_DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH):$(LLVM_DESTDIR)/usr/lib

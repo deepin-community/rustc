@@ -19,8 +19,9 @@ Build-Depends:
  rustc:native (<= 1.65.0++)    <!pkg.rustc.dlstage0>,
  llvm-15-dev:native,
  llvm-15-tools:native,
- libclang-common-15-dev (>= 1:15.0.0),
- libllvm15 (>= 1:15.0.0),
+ libclang-rt-15-dev (>= 1:15.0.7),
+ libclang-common-15-dev (>= 1:15.0.7),
+ libllvm15 (>= 1:15.0.7),
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
  pkg-config,

@@ -61,3 +61,4 @@ ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
 # LLVM 15 fixed?
 #ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch
+ubuntu-use-system-profiler-rt.patch
