@@ -4,7 +4,7 @@
 u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 u-ignore-endian-big-diff.patch
-u-make-compiletest-work-without-rpath.patch
+#u-make-compiletest-work-without-rpath.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch

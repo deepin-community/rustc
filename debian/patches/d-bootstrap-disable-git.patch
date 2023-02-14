@@ -28,17 +28,18 @@ index 1932a00..7974630 100644
                  Some(info) => return GitInfo::RecordedForTarball(info),
                  None => return GitInfo::Absent,
 diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
-index 6181a61..5fe3600 100644
+index 3cb0eccd32..1ac9466860 100644
 --- a/src/bootstrap/dist.rs
 +++ b/src/bootstrap/dist.rs
-@@ -925,7 +925,10 @@ impl Step for PlainSourceTarball {
+@@ -968,7 +968,10 @@ impl Step for PlainSourceTarball {
          }
-
+ 
          // If we're building from git sources, we need to vendor a complete distribution.
--        if builder.rust_info.is_managed_git_subrepository() {
+-        if builder.rust_info().is_managed_git_subrepository() {
 +        //
 +        // Debian: disabling this block because the debian package is also in a git
 +        //         repository, but cargo-vendor should not be installed or run.
-+        if false && builder.rust_info.is_managed_git_subrepository() {
++        if true && builder.rust_info().is_managed_git_subrepository() {
              // Ensure we have the submodules checked out.
              builder.update_submodule(Path::new("src/tools/rust-analyzer"));
+ 

@@ -18,7 +18,7 @@ diff --git a/Cargo.toml b/Cargo.toml
 index e49fe5e..9bbb135 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -16,27 +16,15 @@ members = [
+@@ -17,27 +17,15 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -44,8 +44,8 @@ index e49fe5e..9bbb135 100644
 -  "src/tools/bump-stage0",
 -  "src/tools/replace-version-placeholder",
    "src/tools/lld-wrapper",
- ]
- 
+   "src/tools/collect-license-metadata",
+   "src/tools/generate-copyright",
 @@ -98,10 +86,16 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
@@ -94,17 +94,17 @@ index 14e8ebd..277d47f 100644
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -621,8 +619,6 @@ impl<'a> Builder<'a> {
-                 check::CodegenBackend,
-                 check::Clippy,
+@@ -620,8 +618,6 @@ impl<'a> Builder<'a> {
                  check::Miri,
+                 check::CargoMiri,
+                 check::MiroptTestTools,
 -                check::Rls,
 -                check::RustAnalyzer,
                  check::Rustfmt,
                  check::Bootstrap
              ),
 @@ -647,10 +643,8 @@ impl<'a> Builder<'a> {
-                 test::CrateRustdocJsonTypes,
+                 test::CrateJsonDocLint,
                  test::Linkcheck,
                  test::TierCheck,
 -                test::ReplacePlaceholderTest,

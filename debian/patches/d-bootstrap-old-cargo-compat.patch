@@ -19,8 +19,8 @@ diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
 index fb5395d..72eac7c 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -446,7 +446,6 @@ impl Step for Std {
-         cargo
+@@ -584,7 +582,6 @@ fn doc_std(
+             .arg(&*target_dir.to_string_lossy())
              .arg("-p")
              .arg(package)
 -            .arg("-Zskip-rustdoc-fingerprint")
@@ -43,3 +43,4 @@ index fb5395d..72eac7c 100644
                  // Only include compiler crates, no dependencies of those, such as `libc`.
                  cargo.arg("--no-deps");
                  $(
+ 

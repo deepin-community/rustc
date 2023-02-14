@@ -19,14 +19,14 @@ Index: rust/vendor/rustix/Cargo.toml
  
  [features]
  all-apis = [
-@@ -168,6 +168,7 @@ use-libc = [
+@@ -175,6 +175,7 @@ use-libc = [
      "libc_errno",
      "libc",
  ]
 +cc = []
+ use-libc-auxv = ["libc"]
  
  [target."cfg(all(any(target_os = \"android\", target_os = \"linux\"), any(rustix_use_libc, miri, not(all(target_os = \"linux\", any(target_arch = \"x86\", all(target_arch = \"x86_64\", target_pointer_width = \"64\"), all(target_endian = \"little\", any(target_arch = \"arm\", all(target_arch = \"aarch64\", target_pointer_width = \"64\"), target_arch = \"powerpc64\", target_arch = \"riscv64\", target_arch = \"mips\", target_arch = \"mips64\"))))))))".dependencies.linux-raw-sys]
- version = "0.0.46"
 Index: rust/vendor/rustix/build.rs
 ===================================================================
 --- rust.orig/vendor/rustix/build.rs

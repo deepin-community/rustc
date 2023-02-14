@@ -25,11 +25,11 @@ index 01a13bf..30bd68d 100644
 --- a/vendor/psm/build.rs
 +++ b/vendor/psm/build.rs
 @@ -50,7 +50,7 @@ fn find_assembly(
-         ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
          ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
          ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
 -        ("wasm32", _, _, _) => Some(("src/arch/wasm32.o", true)),
 +        ("wasm32", _, _, _) => Some(("src/arch/wasm32.s", true)),
+         ("loongarch64", _, _, _) => Some(("src/arch/loongarch64.s", true)),
          _ => None,
      }
  }
