@@ -5,7 +5,17 @@
 # probably Doing It Wrong. Ask in #debian-rust or the mailing list for pointers.
 
 # False-positive, file(1) misidentifies mime type
+compiler/rustc_error_codes/src/error_codes/E0469.md
+src/doc/reference/src/crates-and-source-files.md
+src/doc/reference/src/types-redirect.html
+src/doc/reference/src/items/extern-crates.md
+src/doc/reference/src/items/modules.md
+src/tools/clippy/src/docs/alloc_instead_of_core.txt
+src/tools/clippy/src/docs/only_used_in_recursion.txt
+vendor/chalk-solve-0.80.0/src/infer/test.rs
+vendor/getrandom-0.1.14/src/wasm32_stdweb.rs
 vendor/itertools*/examples/iris.data
+vendor/minifier/src/js/tools.rs
 vendor/regex/tests/unicode.rs
 vendor/regex/tests/suffix_reverse.rs
 vendor/term/src/terminfo/parser/names.rs
@@ -35,6 +45,7 @@ src/doc/rust-by-example/src/trait/dyn.md
 src/doc/rust-by-example/src/unsafe/asm.md
 src/doc/rustc/src/instrument-coverage.md
 src/doc/rustc/src/lints/groups.md
+src/doc/rustc/src/platform-support/armeb-unknown-linux-gnueabi.md
 src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabihf.md
 src/doc/rustc/src/platform-support/armv7-unknown-linux-uclibceabi.md
 src/doc/rustc/src/targets/known-issues.md
@@ -46,6 +57,7 @@ src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustdoc/html/highlight/fixtures/sample.html
 src/librustdoc/html/static/scrape-examples-help.md
+src/tools/clippy/src/docs/trailing_empty_array.txt
 src/tools/rustfmt/*.md
 src/tools/rust-analyzer/docs/user/manual.adoc
 src/tools/rust-analyzer/crates/rust-analyzer/src/diagnostics/to_proto.rs
@@ -53,16 +65,17 @@ vendor/*/Cargo.toml
 vendor/*/CHANGELOG.md
 vendor/*/CODE_OF_CONDUCT.md
 vendor/*/README.md
-vendor/*/README.tpl
 vendor/*/LICENSE
 vendor/*/LICENSE-MIT
 vendor/*/*/LICENSE
 vendor/*/*/*/LICENSE
 vendor/ahash/FAQ.md
 vendor/ammonia/src/lib.rs
-vendor/clap/examples/derive_ref/README.md
+vendor/clap/examples/demo.md
+vendor/clap/examples/tutorial_*/*.md
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
+vendor/handlebars/src/render.rs
 vendor/handlebars/src/template.rs
 vendor/maplit/README.rst
 vendor/mdbook/CONTRIBUTING.md
@@ -92,6 +105,7 @@ vendor/windows-sys-0.*/src/Windows/Win32/*/*/*/*.rs
 src/ci/docker/scripts/qemu-bare-bones-addentropy.c
 src/doc/book/*/ferris.js
 src/doc/book/ferris.js
+src/doc/reference/src/attributes-redirect.html
 src/doc/rustc-dev-guide/mermaid-init.js
 src/etc/wasm32-shim.js
 src/librustdoc/html/static/js/*.js
@@ -102,6 +116,7 @@ src/test/run-make/wasm-*/*.js
 src/test/run-make-fulldeps/*/*.c
 src/test/rustdoc-js/*.js
 src/test/rustdoc-js-std/*.js
+src/tools/error_index_generator/*.js
 src/tools/rustdoc-js/tester.js
 src/tools/rustdoc-gui/tester.js
 
@@ -154,7 +169,7 @@ src/test/mir-opt/coverage_graphviz.*.InstrumentCoverage.0.dot
 src/tools/rust-analyzer/assets/logo-*.svg
 vendor/mdbook/src/theme/favicon.svg
 vendor/mdbook/src/theme/favicon.png
-vendor/pretty_assertions-0.7.2/examples/*.png
+vendor/pretty_assertions/examples/*.png
 
 # Example code
 vendor/html5ever/examples/capi/tokenize.c
@@ -221,6 +236,7 @@ vendor/fluent-syntax/benches/parser.rs
 vendor/gimli-0*/fixtures/self/*
 vendor/gimli/fixtures/self/*
 vendor/gsgdt/tests/*.json
+vendor/handlebars/tests/helper_with_space.rs
 vendor/html5ever/data/bench/*.html
 vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
@@ -245,8 +261,6 @@ vendor/regex/tests/fowler.rs
 vendor/rustc-demangle/src/lib.rs
 vendor/rustc-demangle/src/v0-large-test-symbols/early-recursion-limit
 vendor/serde_json/tests/lexical/parse.rs
-vendor/sha-1-0*/tests/data/*.bin
-vendor/sha-1-0*/tests/data/*.blb
 vendor/sha-1/tests/data/*.blb
 vendor/sha2/tests/data/*.blb
 vendor/term/tests/data/*
@@ -281,7 +295,10 @@ vendor/bstr/src/unicode/fsm/*.dfa
 vendor/digest/src/core_api/wrapper.rs
 vendor/digest/src/core_api/rt_variable.rs
 vendor/ahash/src/hash_quality_test.rs
+vendor/ahash/src/lib.rs
 vendor/clap/src/derive.rs
+vendor/datafrog/src/lib.rs
+vendor/futures-macro/src/lib.rs
 vendor/futures-macro/src/select.rs
 vendor/nom/src/error.rs
 vendor/nom/src/internal.rs
@@ -296,12 +313,16 @@ vendor/nom/src/multi/tests.rs
 vendor/nom/src/multi/mod.rs
 vendor/nom/src/number/complete.rs
 vendor/nom/src/number/streaming.rs
+vendor/nom/src/combinator/mod.rs
 vendor/nom/src/combinator/tests.rs
 vendor/nom/src/character/streaming.rs
 vendor/nom/src/character/complete.rs
 vendor/nom/src/sequence/mod.rs
 vendor/nom/tests/multiline.rs
 vendor/nom/tests/css.rs
+vendor/nom/tests/json.rs
+vendor/nom/tests/issues.rs
+vendor/nom/tests/mp4.rs
 vendor/askama_shared/src/generator.rs
 vendor/block-buffer/tests/mod.rs
 src/tools/rustfmt/src/parse/parser.rs
@@ -316,10 +337,12 @@ vendor/miniz_oxide/src/inflate/mod.rs
 vendor/miniz_oxide-0.4.0/src/deflate/mod.rs
 vendor/miniz_oxide-0.4.0/src/inflate/mod.rs
 vendor/thiserror-impl/src/attr.rs
+vendor/rustversion/src/lib.rs
 vendor/shlex/src/lib.rs
 vendor/semver/src/parse.rs
 vendor/rustc-rayon/tests/sort-panic-safe.rs
 vendor/url/src/parser.rs
+vendor/utf-8/benches/from_utf8_lossy.rs
 vendor/utf-8/tests/unit.rs
 vendor/rustversion/src/attr.rs
 vendor/env_logger/src/fmt/writer/mod.rs
@@ -329,7 +352,6 @@ vendor/digest/src/dev.rs
 vendor/proc-macro2/src/parse.rs
 vendor/xz2/src/stream.rs
 vendor/xz2/src/bufread.rs
-vendor/digest-0.8.1/src/dev.rs
 vendor/pulldown-cmark/tests/lib.rs
 vendor/pulldown-cmark/src/linklabel.rs
 vendor/pulldown-cmark/benches/html_rendering.rs
@@ -345,6 +367,7 @@ vendor/gimli-0.25.0/src/read/unit.rs
 vendor/gimli-0.25.0/src/read/loclists.rs
 vendor/gimli-0.25.0/src/read/line.rs
 vendor/gimli-0.25.0/src/read/lookup.rs
+vendor/indoc/src/lib.rs
 vendor/regex-automata/src/regex.rs
 vendor/rayon/tests/sort-panic-safe.rs
 vendor/syn/tests/test_meta.rs
@@ -366,13 +389,18 @@ vendor/snap/src/decompress.rs
 vendor/snap/src/compress.rs
 vendor/flate2/src/mem.rs
 vendor/flate2/src/zio.rs
+compiler/rustc_apfloat/src/lib.rs
+compiler/rustc_driver/src/lib.rs
 compiler/rustc_expand/src/mbe/quoted.rs
 compiler/rustc_macros/src/symbols/tests.rs
 src/librustdoc/html/markdown/tests.rs
+src/test/ui/proc-macro/auxiliary/*.rs
 src/test/run-make-fulldeps/symbol-visibility/Makefile
 src/tools/clippy/clippy_lints/src/needless_pass_by_value.rs
 src/tools/clippy/clippy_lints/src/pass_by_ref_or_value.rs
+src/tools/clippy/src/docs/from_str_radix_10.txt
 src/tools/rust-analyzer/crates/ide-assists/src/handlers/number_representation.rs
 src/tools/rustfmt/src/string.rs
 src/tools/rustfmt/src/formatting.rs
+library/stdarch/crates/stdarch-verify/src/lib.rs
 library/std/src/sys/unix/process/process_unix.rs
