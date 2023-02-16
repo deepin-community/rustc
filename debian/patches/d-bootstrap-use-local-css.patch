@@ -11,12 +11,10 @@ diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
 index f8ba05c..fb5395d 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -373,6 +373,10 @@ impl Step for Standalone {
+@@ -373,6 +373,8 @@ impl Step for Standalone {
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
                  .arg("https://play.rust-lang.org/")
-+                .arg("--markdown-css")
-+                .arg(format!("rustdoc{}.css", &builder.version))
 +                .arg("--markdown-css")
 +                .arg("rust.css")
                  .arg("-o")
