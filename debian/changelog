@@ -2,11 +2,11 @@ rustc (1.66.1+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
 
   * New upstream release 1.66.1 (LP: #2005122)
     - d/control: Switch to LLVM 15 for better optimizations
-    - d/rules: Enable LLVM profiler support (LP: #2002694)
     - d/rules: Add workarounds for the new bootstrap tests
     - d/patches: Refresh patches to adapt to the new upstream changes
     - d/p/ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch:
       Dropped, no longer needed
+  * d/rules: Enable LLVM profiler support (LP: #2002694)
 
  -- Zixing Liu <zixing.liu@canonical.com>  Wed, 01 Feb 2023 15:00:02 -0700
 
