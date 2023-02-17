@@ -6,6 +6,8 @@ rustc (1.66.1+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
     - d/patches: Refresh patches to adapt to the new upstream changes
     - d/p/ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch:
       Dropped, no longer needed
+    - d/copyright: refresh vendored crate license info
+    - d/libstd-rust-1.66.lintian-overrides: update the override files
   * d/rules: Enable LLVM profiler support (LP: #2002694)
 
  -- Zixing Liu <zixing.liu@canonical.com>  Wed, 01 Feb 2023 15:00:02 -0700
