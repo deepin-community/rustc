@@ -1,3 +1,18 @@
+rustc (1.67.1+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
+
+  * New upstream release 1.67.1 (LP: #2007642)
+    - d/p/d-bootstrap-use-local-css.patch: Remove unnecessary hunks
+    - d/p/ubuntu-disable-sse2-tests-on-i386.patch: Disable SSE2 tests
+      on i386 builds
+    - d/copyright: Update copyright information for new dependencies
+      and also remove copyright data for deleted dependencies
+    - d/patches: Refresh patches
+    - d/control: Update vendored deps field
+    - d/control: Refresh vendored dependencies list
+    - d/source/lintian-overrides: add new test files to the list
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Tue, 14 Feb 2023 14:34:02 -0700
+
 rustc (1.66.1+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
 
   * New upstream release 1.66.1 (LP: #2005122)
