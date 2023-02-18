@@ -1232,7 +1232,8 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-analyzer/rowan
 
 Files: vendor/rustc-ap-rustc_lexer/*
-Copyright: 2010-2022 The Rust Project Developers License: MIT  or  Apache-2.0
+Copyright: 2010-2022 The Rust Project Developers
+License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-lang/rust
 
 Files: vendor/rustc-build-sysroot/*
@@ -1709,6 +1710,184 @@ Copyright: 2020-2022 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/matklad/xshell
 
+Files: vendor/ar_archive_writer/*
+Copyright: 2022-2022 bjorn3
+           Qiu Chaofan <qcf@ecnelises.com>
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/rust-lang/ar_archive_writer
+
+Files: vendor/bstr-0.2.17/*
+Copyright: 2018-2023 Andrew Gallant <jamslam@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/BurntSushi/bstr
+
+Files: vendor/chalk-derive/*
+Copyright: 2015-2023 Rust Compiler Team
+           2015-2023 Chalk developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/chalk
+
+Files: vendor/chalk-ir/*
+Copyright: 2015-2023 Rust Compiler Team
+           2015-2023 Chalk developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/chalk
+
+Files: vendor/chalk-solve/*
+Copyright: 2015-2023 Rust Compiler Team
+           2015-2023 Chalk developers
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/chalk
+
+Files: vendor/convert_case/*
+Copyright: 2020-2022 David Purdum <purdum41@gmail.com>
+License: MIT
+Comment: see https://github.com/rutrum/convert-case
+
+Files: vendor/derive_more/*
+Copyright: 2016-2023 Jelte Fennema <github-tech@jeltef.nl>
+License: MIT
+Comment: see https://github.com/JelteF/derive_more
+
+Files: vendor/displaydoc/*
+Copyright: 2019-2022 Jane Lusby <jlusby@yaah.dev>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/yaahc/displaydoc
+
+Files: vendor/fastrand/*
+Copyright: 2020-2023 Stjepan Glavina <stjepang@gmail.com>
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/smol-rs/fastrand
+
+Files: vendor/icu_list/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/icu_locid/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/icu_provider/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/icu_provider_adapters/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/icu_provider_macros/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/litemap/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/memoffset-0.6.5/*
+Copyright: 2017-2022 Gilad Naaman <gilad.naaman@gmail.com>
+License: MIT
+Comment: see https://github.com/Gilnaa/memoffset
+
+Files: vendor/regex-automata-0.1.10/*
+Copyright: 2018-2022 Andrew Gallant <jamslam@gmail.com>
+License: Unlicense or MIT
+Comment: see https://github.com/BurntSushi/regex-automata
+
+Files: vendor/rustc_tools_util/*
+Copyright: 2014-2023 Rust Compiler Team
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/rust-clippy
+
+Files: vendor/rustc_version/*
+Copyright: 2015-2021 Dirkjan Ochtman <dirkjan@ochtman.nl>
+           2015-2021 Marvin Löbel <loebel.marvin@gmail.com>
+License: MIT or Apache-2.0
+Comment: see https://github.com/Kimundi/rustc-version-rs
+
+Files: vendor/spdx-expression/*
+Copyright: 2021-2022 Mikko Murto <mikko.murto@hhpartners.fi>
+License: MIT
+Comment: see https://github.com/doubleopen-project/spdx-expression
+
+Files: vendor/spdx-rs/*
+Copyright: 2021-2022 Mikko Murto <mikko.murto@hhpartners.fi>
+License: MIT
+Comment: see https://github.com/doubleopen-project/spdx-rs
+
+Files: vendor/strum/*
+Copyright: 2017-2023 Peter Glotfelty <peter.glotfelty@microsoft.com>
+License: MIT
+Comment: see https://github.com/Peternator7/strum
+
+Files: vendor/strum_macros/*
+Copyright: 2017-2023 Peter Glotfelty <peter.glotfelty@microsoft.com>
+License: MIT
+Comment: see https://github.com/Peternator7/strum
+
+Files: vendor/uuid/*
+Copyright: 2014-2023 Ashley Mannix<ashleymannix@live.com.au>
+           2014-2023 Christopher Armstrong
+           2014-2023 Dylan DPC<dylan.dpc@gmail.com>
+           2014-2023 Hunar Roop Kahlon<hunar.roop@gmail.com>
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/uuid-rs/uuid
+
+Files: vendor/windows_aarch64_gnullvm/*
+Copyright: 2019-2023 Microsoft
+License: MIT OR Apache-2.0
+Comment: see https://github.com/microsoft/windows-rs
+
+Files: vendor/windows_x86_64_gnullvm/*
+Copyright: 2019-2023 Microsoft
+License: MIT OR Apache-2.0
+Comment: see https://github.com/microsoft/windows-rs
+
+Files: vendor/writeable/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/yansi/*
+Copyright: 2017-2022 Sergio Benitez <sb@sergio.bz>
+License: MIT or Apache-2.0
+Comment: see https://github.com/SergioBenitez/yansi
+
+Files: vendor/yoke/*
+Copyright: 2020-2023 Manish Goregaokar <manishsmail@gmail.com>
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/yoke-derive/*
+Copyright: 2020-2023 Manish Goregaokar <manishsmail@gmail.com>
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/zerofrom/*
+Copyright: 2020-2023 Manish Goregaokar <manishsmail@gmail.com>
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/zerofrom-derive/*
+Copyright: 2020-2023 Manish Goregaokar <manishsmail@gmail.com>
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/zerovec/*
+Copyright: 2020-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/zerovec-derive/*
+Copyright: 2020-2023 Manish Goregaokar <manishsmail@gmail.com>
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
 Files: debian/*
 Copyright: 2013-2018 Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 License: MIT or Apache-2.0
@@ -1898,6 +2077,25 @@ License: Unlicense
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  .
  For more information, please refer to <http://unlicense.org/>
+
+License: Unicode-DFS-2016
+ UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
+ See Terms of Use for definitions of Unicode Inc.'s Data Files and Software.
+ .
+ Unicode Data Files include all data files under the directories
+ http://www.unicode.org/Public/, http://www.unicode.org/reports/,
+ http://www.unicode.org/cldr/data/, http://source.icu-project.org/repos/icu/,
+ http://www.unicode.org/ivd/data/, and
+ http://www.unicode.org/utility/trac/browser/.
+ .
+ Unicode Data Files do not include PDF online code charts under the directory
+ http://www.unicode.org/Public/.
+ .
+ Software includes any source code published in the Unicode Standard or under
+ the directories http://www.unicode.org/Public/,
+ http://www.unicode.org/reports/, http://www.unicode.org/cldr/data/,
+ http://source.icu-project.org/repos/icu/, and
+ http://www.unicode.org/utility/trac/browser/.
 
 License: SIL-OPEN-FONT
  This Font Software is licensed under the SIL Open Font License,
