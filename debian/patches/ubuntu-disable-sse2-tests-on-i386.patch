@@ -1,0 +1,42 @@
+Description: Disables SSE2 tests using Debian target architecture variable
+ This is because we use the i686 triple instead of the i586 triple for our
+ i386 builds
+Forwarded: not-needed
+Author: Zixing Liu <zixing.liu@canonical.com>
+Last-Update: 2023-02-20
+
+Index: rustc/src/test/ui/abi/homogenous-floats-target-feature-mixup.rs
+===================================================================
+--- rustc.orig/src/test/ui/abi/homogenous-floats-target-feature-mixup.rs
++++ rustc/src/test/ui/abi/homogenous-floats-target-feature-mixup.rs
+@@ -31,6 +31,13 @@ fn main() {
+         Err(_) => return,
+     }
+ 
++    // Debian: skip the test when building for i386
++    if let Ok(s) = env::var("DEB_TARGET_ARCH") {
++        if s == "i386" {
++            return;
++        }
++    }
++
+     let me = env::current_exe().unwrap();
+     for level in ["sse", "avx", "avx512"].iter() {
+         let status = Command::new(&me).arg(level).status().unwrap();
+Index: rustc/src/test/ui/sse2.rs
+===================================================================
+--- rustc.orig/src/test/ui/sse2.rs
++++ rustc/src/test/ui/sse2.rs
+@@ -15,6 +15,12 @@ fn main() {
+         }
+         Err(_) => return,
+     }
++    // Debian: skip the test when building for i386
++    if let Ok(s) = env::var("DEB_TARGET_ARCH") {
++        if s == "i386" {
++            return;
++        }
++    }
+     if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
+         assert!(cfg!(target_feature = "sse2"),
+                 "SSE2 was not detected as available on an x86 platform");
