@@ -1,3 +1,12 @@
+rustc (1.67.1+dfsg0ubuntu1-0ubuntu2) lunar; urgency=medium
+
+  * Fix an issue where rustc can not find the standard library
+    - d/p/ubuntu-fix-sysroot-detection.patch: Fix sysroot detection
+      logic so that rustc will find the correct library paths to
+      search in.
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Wed, 22 Feb 2023 21:38:58 -0700
+
 rustc (1.67.1+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
 
   * New upstream release 1.67.1 (LP: #2007642)
