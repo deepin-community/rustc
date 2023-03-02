@@ -5,7 +5,8 @@ Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 XSBC-Original-Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
 Uploaders:
  Ximin Luo <infinity0@debian.org>,
- Sylvestre Ledru <sylvestre@debian.org>
+ Sylvestre Ledru <sylvestre@debian.org>,
+ Fabian Grünbichler <debian@fabian.gruenbichler.email>
 Rules-Requires-Root: no
 # :native annotations are to support cross-compiling, see README.Debian
 Build-Depends:
