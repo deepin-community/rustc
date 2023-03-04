@@ -1,3 +1,10 @@
+rustc (1.67.1+dfsg0ubuntu1-0ubuntu3) lunar; urgency=medium
+
+  * d/p/ubuntu-fix-sysroot-detection.patch: use upstream patch
+    for better maintainability
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Fri, 03 Mar 2023 18:16:52 -0700
+
 rustc (1.67.1+dfsg0ubuntu1-0ubuntu2) lunar; urgency=medium
 
   * Fix an issue where rustc can not find the standard library
