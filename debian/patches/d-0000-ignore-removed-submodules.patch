@@ -1,24 +1,25 @@
+From 1725c40be2081bd66c50a3dc1a1b61cff7d72070 Mon Sep 17 00:00:00 2001
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
-Date: Sat, 2 Oct 2021 01:07:59 +0100
-Subject: d-0000-ignore-removed-submodules
+Date: Mon, 20 Feb 2023 21:09:42 -0700
+Subject: [PATCH 07/32] d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                         | 24 +++++++++---------------
+ Cargo.toml                         | 26 +++++++++-----------------
  src/bootstrap/bootstrap.py         |  4 ----
- src/bootstrap/builder.rs           | 17 +----------------
+ src/bootstrap/builder.rs           | 18 +-----------------
  src/bootstrap/doc.rs               |  1 -
  src/bootstrap/test.rs              | 12 +-----------
  src/tools/clippy/Cargo.toml        |  5 -----
  src/tools/rust-analyzer/Cargo.toml | 11 ++++++++++-
  src/tools/rustfmt/Cargo.toml       |  5 -----
  src/tools/tidy/src/deps.rs         |  2 +-
- 9 files changed, 22 insertions(+), 59 deletions(-)
+ 9 files changed, 22 insertions(+), 62 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index e49fe5e..9bbb135 100644
+index 15cbb2659c9..6732bef4c40 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -17,27 +17,15 @@ members = [
+@@ -18,29 +18,15 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -30,6 +31,8 @@ index e49fe5e..9bbb135 100644
 -  "src/tools/cargo/crates/credential/cargo-credential-1password",
 -  "src/tools/cargo/crates/credential/cargo-credential-macos-keychain",
 -  "src/tools/cargo/crates/credential/cargo-credential-wincred",
+-  "src/tools/cargo/crates/mdman",
+-  # "src/tools/cargo/crates/resolver-tests",
    "src/tools/rustdoc",
 -  "src/tools/rls",
    "src/tools/rustfmt",
@@ -46,7 +49,7 @@ index e49fe5e..9bbb135 100644
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
-@@ -98,10 +86,16 @@ gimli.debug = 0
+@@ -104,10 +90,16 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -67,10 +70,10 @@ index e49fe5e..9bbb135 100644
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index cc08ae5..bf7d696 100644
+index c50d3d2c707..e66a95994a4 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -759,10 +759,6 @@ class RustBuild(object):
+@@ -770,10 +770,6 @@ class RustBuild(object):
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          for _ in range(0, self.verbose):
              args.append("--verbose")
@@ -82,10 +85,10 @@ index cc08ae5..bf7d696 100644
              args.append("--features")
              args.append("build-metrics")
 diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index 14e8ebd..277d47f 100644
+index b4fc1d4f28d..7150fc58d57 100644
 --- a/src/bootstrap/builder.rs
 +++ b/src/bootstrap/builder.rs
-@@ -599,8 +599,6 @@ impl<'a> Builder<'a> {
+@@ -629,8 +629,6 @@ macro_rules! describe {
                  tool::RemoteTestClient,
                  tool::RustInstaller,
                  tool::Cargo,
@@ -94,7 +97,7 @@ index 14e8ebd..277d47f 100644
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -620,8 +618,6 @@ impl<'a> Builder<'a> {
+@@ -653,8 +651,6 @@ macro_rules! describe {
                  check::Miri,
                  check::CargoMiri,
                  check::MiroptTestTools,
@@ -103,7 +106,7 @@ index 14e8ebd..277d47f 100644
                  check::Rustfmt,
                  check::Bootstrap
              ),
-@@ -647,10 +643,8 @@ impl<'a> Builder<'a> {
+@@ -681,10 +677,8 @@ macro_rules! describe {
                  test::CrateJsonDocLint,
                  test::Linkcheck,
                  test::TierCheck,
@@ -114,10 +117,11 @@ index 14e8ebd..277d47f 100644
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -698,10 +698,8 @@ impl<'a> Builder<'a> {
+@@ -732,11 +726,8 @@ macro_rules! describe {
                  doc::RustdocBook,
                  doc::RustByExample,
                  doc::RustcBook,
+-                doc::Cargo,
 -                doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -125,7 +129,7 @@ index 14e8ebd..277d47f 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -717,8 +715,6 @@ impl<'a> Builder<'a> {
+@@ -752,8 +743,6 @@ macro_rules! describe {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -134,7 +138,7 @@ index 14e8ebd..277d47f 100644
                  dist::Rustfmt,
                  dist::RustDemangler,
                  dist::Clippy,
-@@ -726,7 +722,6 @@ impl<'a> Builder<'a> {
+@@ -761,7 +750,6 @@ macro_rules! describe {
                  dist::LlvmTools,
                  dist::RustDev,
                  dist::Bootstrap,
@@ -142,7 +146,7 @@ index 14e8ebd..277d47f 100644
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -736,7 +725,6 @@ impl<'a> Builder<'a> {
+@@ -774,7 +762,6 @@ macro_rules! describe {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -150,7 +154,7 @@ index 14e8ebd..277d47f 100644
                  install::Rustfmt,
                  install::RustDemangler,
                  install::Clippy,
-@@ -2056,10 +2044,7 @@ impl<'a> Builder<'a> {
+@@ -1889,10 +1876,7 @@ pub fn cargo(
              }
          }
  
@@ -163,10 +167,10 @@ index 14e8ebd..277d47f 100644
          }
  
 diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index f909ecc..8bf71b1 100644
+index 9bad9046ecc..d02edb013fc 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -73,7 +73,6 @@ macro_rules! book {
+@@ -75,7 +75,6 @@ fn run(self, builder: &Builder<'_>) {
  // FIXME: Make checking for a submodule automatic somehow (maybe by having a list of all submodules
  // and checking against it?).
  book!(
@@ -175,10 +179,10 @@ index f909ecc..8bf71b1 100644
      EditionGuide, "src/doc/edition-guide", "edition-guide", submodule;
      EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
 diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index dd41f84..ba6227c 100644
+index 6078e39ac9d..1a385f59c61 100644
 --- a/src/bootstrap/test.rs
 +++ b/src/bootstrap/test.rs
-@@ -1886,17 +1886,7 @@ impl Step for RustcGuide {
+@@ -2005,17 +2005,7 @@ fn make_run(run: RunConfig<'_>) {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -198,7 +202,7 @@ index dd41f84..ba6227c 100644
  }
  
 diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index b7e136c..a844a5d 100644
+index f8cb4b7219c..3aa9ec63db1 100644
 --- a/src/tools/clippy/Cargo.toml
 +++ b/src/tools/clippy/Cargo.toml
 @@ -36,11 +36,6 @@ walkdir = "2.3"
@@ -214,7 +218,7 @@ index b7e136c..a844a5d 100644
  clippy_utils = { path = "clippy_utils" }
  derive-new = "0.5"
 diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
-index 6b68ca8..93f755c 100644
+index 286ef1e7dcb..3d68711d414 100644
 --- a/src/tools/rust-analyzer/Cargo.toml
 +++ b/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
@@ -234,7 +238,7 @@ index 6b68ca8..93f755c 100644
  
  [profile.dev]
 diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 7a4e02d..27b91f2 100644
+index 7a4e02d69ed..27b91f25d78 100644
 --- a/src/tools/rustfmt/Cargo.toml
 +++ b/src/tools/rustfmt/Cargo.toml
 @@ -59,11 +59,6 @@ unicode_categories = "0.1"
@@ -250,10 +254,10 @@ index 7a4e02d..27b91f2 100644
  
  [package.metadata.rust-analyzer]
 diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
-index cbd8cfa..6b39fd6 100644
+index bc2edf634de..73d1f796bbe 100644
 --- a/src/tools/tidy/src/deps.rs
 +++ b/src/tools/tidy/src/deps.rs
-@@ -308,7 +308,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+@@ -332,7 +332,7 @@
      // This crate takes quite a long time to build, so don't allow two versions of them
      // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
      // under control.
@@ -262,3 +266,6 @@ index cbd8cfa..6b39fd6 100644
  ];
  
  /// Dependency checks.
+-- 
+2.39.2
+

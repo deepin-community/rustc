@@ -3,7 +3,7 @@
 # pending, or forwarded
 u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
-u-ignore-endian-big-diff.patch
+#u-ignore-endian-big-diff.patch
 #u-make-compiletest-work-without-rpath.patch
 
 # not forwarded, or forwarded but unlikely to be merged
@@ -59,9 +59,6 @@ d-rustdoc-disable-embedded-fonts.patch
 ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
-# LLVM 15 fixed?
-#ubuntu-Revert-Use-constant-eval-to-do-strict-validity-check.patch
 ubuntu-use-system-profiler-rt.patch
 ubuntu-disable-sse2-tests-on-i386.patch
 ubuntu-fix-sysroot-detection.patch
-

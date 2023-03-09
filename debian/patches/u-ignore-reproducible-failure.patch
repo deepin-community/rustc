@@ -1,16 +1,16 @@
+From f21d7c691fc36d04f309016025258dcfad3b80f8 Mon Sep 17 00:00:00 2001
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
-Date: Thu, 14 Jul 2022 13:17:37 +0200
-Subject: u-ignore-reproducible-failure
+Date: Mon, 20 Feb 2023 21:09:41 -0700
+Subject: [PATCH 01/32] u-ignore-reproducible-failure
 
-Bug: https://github.com/rust-lang/rust/issues/89911
 ---
- src/test/run-make-fulldeps/reproducible-build-2/Makefile | 2 +-
+ tests/run-make-fulldeps/reproducible-build-2/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/src/test/run-make-fulldeps/reproducible-build-2/Makefile b/src/test/run-make-fulldeps/reproducible-build-2/Makefile
-index fd94516..957e1f4 100644
---- a/src/test/run-make-fulldeps/reproducible-build-2/Makefile
-+++ b/src/test/run-make-fulldeps/reproducible-build-2/Makefile
+diff --git a/tests/run-make-fulldeps/reproducible-build-2/Makefile b/tests/run-make-fulldeps/reproducible-build-2/Makefile
+index 1df5e102ce3..79c063dc690 100644
+--- a/tests/run-make-fulldeps/reproducible-build-2/Makefile
++++ b/tests/run-make-fulldeps/reproducible-build-2/Makefile
 @@ -14,7 +14,7 @@ fat_lto:
  	$(RUSTC) reproducible-build.rs -C lto=fat
  	cp $(TMPDIR)/reproducible-build $(TMPDIR)/reproducible-build-a
@@ -20,3 +20,6 @@ index fd94516..957e1f4 100644
  
  sysroot:
  	rm -rf $(TMPDIR) && mkdir $(TMPDIR)
+-- 
+2.39.2
+

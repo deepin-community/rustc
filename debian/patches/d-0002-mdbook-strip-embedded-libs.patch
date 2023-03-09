@@ -223,17 +223,17 @@ index 18d984a..4a0e2d1 100644
  
          {{#if mathjax_support}}
          <!-- MathJax -->
--        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-+        <script async type="text/javascript" src="MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+-        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
++        <script async src="MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
          {{/if}}
      </head>
      <body>
-@@ -61,46 +58,6 @@
+@@ -60,46 +60,6 @@
              var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "{{ preferred_dark_theme }}" : "{{ default_theme }}";
          </script>
- 
+
 -        <!-- Work around some values being stored in localStorage wrapped in quotes -->
--        <script type="text/javascript">
+-        <script>
 -            try {
 -                var theme = localStorage.getItem('mdbook-theme');
 -                var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -249,7 +249,7 @@ index 18d984a..4a0e2d1 100644
 -        </script>
 -
 -        <!-- Set the theme before any content is loaded, prevents flash -->
--        <script type="text/javascript">
+-        <script>
 -            var theme;
 -            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
 -            if (theme === null || theme === undefined) { theme = default_theme; }
@@ -261,7 +261,7 @@ index 18d984a..4a0e2d1 100644
 -        </script>
 -
 -        <!-- Hide / unhide sidebar before it is displayed -->
--        <script type="text/javascript">
+-        <script>
 -            var html = document.querySelector('html');
 -            var sidebar = 'hidden';
 -            if (document.body.clientWidth >= 1080) {
@@ -275,13 +275,13 @@ index 18d984a..4a0e2d1 100644
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              <div class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -238,52 +195,6 @@
+@@ -237,52 +237,6 @@
          </script>
          {{/if}}
- 
+
 -        {{#if google_analytics}}
 -        <!-- Google Analytics Tag -->
--        <script type="text/javascript">
+-        <script>
 -            var localAddrs = ["localhost", "127.0.0.1", ""];
 -
 -            // make sure we don't activate google analytics if the developer is
@@ -299,35 +299,35 @@ index 18d984a..4a0e2d1 100644
 -        {{/if}}
 -
 -        {{#if playground_line_numbers}}
--        <script type="text/javascript">
+-        <script>
 -            window.playground_line_numbers = true;
 -        </script>
 -        {{/if}}
 -
 -        {{#if playground_copyable}}
--        <script type="text/javascript">
+-        <script>
 -            window.playground_copyable = true;
 -        </script>
 -        {{/if}}
 -
 -        {{#if playground_js}}
--        <script src="{{ path_to_root }}ace.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}editor.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}mode-rust.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}theme-dawn.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}theme-tomorrow_night.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}ace.js"></script>
+-        <script src="{{ path_to_root }}editor.js"></script>
+-        <script src="{{ path_to_root }}mode-rust.js"></script>
+-        <script src="{{ path_to_root }}theme-dawn.js"></script>
+-        <script src="{{ path_to_root }}theme-tomorrow_night.js"></script>
 -        {{/if}}
 -
 -        {{#if search_js}}
--        <script src="{{ path_to_root }}elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}mark.min.js" type="text/javascript" charset="utf-8"></script>
--        <script src="{{ path_to_root }}searcher.js" type="text/javascript" charset="utf-8"></script>
+-        <script src="{{ path_to_root }}elasticlunr.min.js"></script>
+-        <script src="{{ path_to_root }}mark.min.js"></script>
+-        <script src="{{ path_to_root }}searcher.js"></script>
 -        {{/if}}
 -
--        <script src="{{ path_to_root }}clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-         <script src="{{ path_to_root }}highlight.js" type="text/javascript" charset="utf-8"></script>
-         <script src="{{ path_to_root }}book.js" type="text/javascript" charset="utf-8"></script>
- 
+-        <script src="{{ path_to_root }}clipboard.min.js"></script>
+         <script src="{{ path_to_root }}highlight.js"></script>
+         <script src="{{ path_to_root }}book.js"></script>
+
 diff --git a/vendor/mdbook/src/theme/mod.rs b/vendor/mdbook/src/theme/mod.rs
 index a1ee18a..d059f01 100644
 --- a/vendor/mdbook/src/theme/mod.rs

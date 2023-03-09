@@ -1,28 +1,15 @@
+From 957bb9c640c3df55f1c7abbd00fe49b018263dec Mon Sep 17 00:00:00 2001
 From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
-Date: Thu, 14 Jul 2022 13:17:39 +0200
-Subject: d-rustdoc-disable-embedded-fonts
+Date: Mon, 20 Feb 2023 21:09:45 -0700
+Subject: [PATCH 26/32] d-rustdoc-disable-embedded-fonts
 
-===================================================================
 ---
- src/librustdoc/html/static/css/rustdoc.css |  8 --------
- src/librustdoc/html/static_files.rs        | 23 -----------------------
- 2 files changed, 33 deletions(-)
+ src/librustdoc/html/static/css/rustdoc.css | 8 --------
+ src/librustdoc/html/static_files.rs        | 2 --
+ 2 files changed, 10 deletions(-)
 
-diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
-index b48b82307e..ac3b926859 100644
---- a/src/librustdoc/html/static_files.rs
-+++ b/src/librustdoc/html/static_files.rs
-@@ -126,8 +126,6 @@ static_files! {
-     source_code_pro_semibold => "static/fonts/SourceCodePro-Semibold.ttf.woff2",
-     source_code_pro_italic => "static/fonts/SourceCodePro-It.ttf.woff2",
-     source_code_pro_license => "static/fonts/SourceCodePro-LICENSE.txt",
--    nanum_barun_gothic_regular => "static/fonts/NanumBarunGothic.ttf.woff2",
--    nanum_barun_gothic_license => "static/fonts/NanumBarunGothic-LICENSE.txt",
- }
-
- pub(crate) static SCRAPE_EXAMPLES_HELP_MD: &str = include_str!("static/scrape-examples-help.md");
 diff --git a/src/librustdoc/html/static/css/rustdoc.css b/src/librustdoc/html/static/css/rustdoc.css
-index afcb402240..16892307b7 100644
+index a93f60da2ad..d0d29bc22c9 100644
 --- a/src/librustdoc/html/static/css/rustdoc.css
 +++ b/src/librustdoc/html/static/css/rustdoc.css
 @@ -67,14 +67,6 @@
@@ -38,5 +25,21 @@ index afcb402240..16892307b7 100644
 -}
 -
  * {
- 	-webkit-box-sizing: border-box;
- 	-moz-box-sizing: border-box;
+ 	box-sizing: border-box;
+ }
+diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
+index b48b82307eb..ac3b9268590 100644
+--- a/src/librustdoc/html/static_files.rs
++++ b/src/librustdoc/html/static_files.rs
+@@ -126,8 +126,6 @@ pub(crate) fn for_each<E>(f: impl Fn(&StaticFile) -> Result<(), E>) -> Result<()
+     source_code_pro_semibold => "static/fonts/SourceCodePro-Semibold.ttf.woff2",
+     source_code_pro_italic => "static/fonts/SourceCodePro-It.ttf.woff2",
+     source_code_pro_license => "static/fonts/SourceCodePro-LICENSE.txt",
+-    nanum_barun_gothic_regular => "static/fonts/NanumBarunGothic.ttf.woff2",
+-    nanum_barun_gothic_license => "static/fonts/NanumBarunGothic-LICENSE.txt",
+ }
+ 
+ pub(crate) static SCRAPE_EXAMPLES_HELP_MD: &str = include_str!("static/scrape-examples-help.md");
+-- 
+2.39.2
+
