@@ -1,3 +1,17 @@
+rustc (1.68.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
+
+  * New upstream release 1.68.0 (LP: #2009920)
+    - d/copyright: Update copyright information for new dependencies
+      and also remove copyright data for deleted dependencies
+    - d/patches: Refresh patches
+    - d/control: Update vendored deps field
+    - d/control: Refresh vendored dependencies list
+  * d/p/ubuntu-rustdoc-replace-cargo-links.patch: Replace Cargo related
+    links with external web links instead of the local links to avoid
+    link-checker errors (because we package Cargo separately)
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 09 Mar 2023 17:12:44 -0700
+
 rustc (1.67.1+dfsg0ubuntu1-0ubuntu3) lunar; urgency=medium
 
   * d/p/ubuntu-fix-sysroot-detection.patch: use upstream patch
