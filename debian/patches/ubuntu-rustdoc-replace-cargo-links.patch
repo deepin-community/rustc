@@ -1,0 +1,133 @@
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0460.md b/compiler/rustc_error_codes/src/error_codes/E0460.md
+index 001678a9bc..81283dda6d 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0460.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0460.md
+@@ -68,4 +68,4 @@ This error can be fixed by:
+  * Recompiling crate `a` so that both crate `b` and `main` have a uniform
+    version to depend on.
+ 
+-[Cargo]: ../cargo/index.html
++[Cargo]: https://doc.rust-lang.org/cargo/index.html
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0461.md b/compiler/rustc_error_codes/src/error_codes/E0461.md
+index 33105c43cc..573f8f663f 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0461.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0461.md
+@@ -25,6 +25,6 @@ architectures. This issue also extends to any difference in target triples, as
+ `std` is operating-system specific.
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](https://doc.rust-lang.org/cargo/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling either crate so that they target a consistent target triple.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0462.md b/compiler/rustc_error_codes/src/error_codes/E0462.md
+index 4509cc6fad..16b170c75f 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0462.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0462.md
+@@ -26,7 +26,7 @@ prefer `staticlib` for linking with C programs. Learn more about different
+ `crate_type`s in [this section of the Reference](../reference/linkage.html).
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](https://doc.rust-lang.org/cargo/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling the crate as a `rlib` or `dylib`; formats suitable for Rust
+    linking.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0514.md b/compiler/rustc_error_codes/src/error_codes/E0514.md
+index ce2bbc5c50..2255faf2fc 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0514.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0514.md
+@@ -27,7 +27,7 @@ the compiler cannot be sure about *how* to call a function between compiler
+ versions, and therefore this error occurs.
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager and
++ * Using [Cargo](https://doc.rust-lang.org/cargo/index.html), the Rust package manager and
+    [Rustup](https://rust-lang.github.io/rustup/), the Rust toolchain installer,
+    automatically fixing this issue.
+  * Recompiling the crates with a uniform `rustc` version.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0519.md b/compiler/rustc_error_codes/src/error_codes/E0519.md
+index 12876e2ad7..cebedb6b05 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0519.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0519.md
+@@ -34,7 +34,7 @@ The above example compiles two crates with exactly the same name and
+ impossible for the compiler to distinguish between symbols (`pub` item names).
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](https://doc.rust-lang.org/cargo/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling the crate with different metadata (different name/
+    `crate_type`).
+diff --git a/src/doc/rustc/src/linker-plugin-lto.md b/src/doc/rustc/src/linker-plugin-lto.md
+index 858b7bc79c..9272b9ac9b 100644
+--- a/src/doc/rustc/src/linker-plugin-lto.md
++++ b/src/doc/rustc/src/linker-plugin-lto.md
+@@ -112,7 +112,7 @@ targeting Windows-like targets
+ This is fixed if you explicitly set the target, for example
+ `cargo build --target x86_64-pc-windows-msvc`
+ Without an explicit --target the flags will be passed to all compiler invocations (including build
+-scripts and proc macros), see [cargo docs on rustflags](../cargo/reference/config.html#buildrustflags)
++scripts and proc macros), see [cargo docs on rustflags](https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags)
+ 
+ If you have dependencies using the `cc` crate, you will need to set these
+ environment variables:
+diff --git a/src/doc/rustc/src/platform-support/fuchsia.md b/src/doc/rustc/src/platform-support/fuchsia.md
+index 29e70129a6..e7b666d25f 100644
+--- a/src/doc/rustc/src/platform-support/fuchsia.md
++++ b/src/doc/rustc/src/platform-support/fuchsia.md
+@@ -870,7 +870,7 @@ ${SDK_PATH}/tools/${ARCH}/ffx debug connect -- \
+ [Fuchsia]: https://fuchsia.dev/
+ [source tree]: https://fuchsia.dev/fuchsia-src/get-started/learn/build
+ [rustup]: https://rustup.rs/
+-[cargo]: ../../cargo/index.html
++[cargo]: https://doc.rust-lang.org/cargo/index.html
+ [Fuchsia SDK]: https://chrome-infra-packages.appspot.com/p/fuchsia/sdk/core
+ [overview of CML]: https://fuchsia.dev/fuchsia-src/concepts/components/v2/component_manifests
+ [reference for the file format]: https://fuchsia.dev/reference/cml
+diff --git a/src/doc/rustc/src/targets/custom.md b/src/doc/rustc/src/targets/custom.md
+index a67cb10fc7..51277c508e 100644
+--- a/src/doc/rustc/src/targets/custom.md
++++ b/src/doc/rustc/src/targets/custom.md
+@@ -14,4 +14,4 @@ To see it for a different target, add the `--target` flag:
+ rustc +nightly -Z unstable-options --target=wasm32-unknown-unknown --print target-spec-json
+ ```
+ 
+-To use a custom target, see the (unstable) [`build-std` feature](../../cargo/reference/unstable.html#build-std) of `cargo`.
++To use a custom target, see the (unstable) [`build-std` feature](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) of `cargo`.
+diff --git a/src/doc/unstable-book/src/compiler-flags/branch-protection.md b/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+index ca5664835f..34cd802db4 100644
+--- a/src/doc/unstable-book/src/compiler-flags/branch-protection.md
++++ b/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+@@ -15,4 +15,4 @@ For example, `-Z branch-protection=bti,pac-ret,leaf` is valid, but
+ 
+ Rust's standard library does not ship with BTI or pointer authentication enabled by default.
+ In Cargo projects the standard library can be recompiled with pointer authentication using the nightly
+-[build-std](../../cargo/reference/unstable.html#build-std) feature.
++[build-std](https://doc.rust-lang.org/cargo/reference/unstable.html#build-std) feature.
+diff --git a/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md b/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+index dbb741422a..5ae134bc6d 100644
+--- a/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
++++ b/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+@@ -39,7 +39,7 @@ It is strongly recommended to also enable CFG checks for all linked libraries, i
+ 
+ To enable CFG in the standard library, use the [cargo `-Z build-std` functionality][build-std] to recompile the standard library with the same configuration options as the main program.
+ 
+-[build-std]: ../../cargo/reference/unstable.html#build-std
++[build-std]: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std
+ 
+ For example:
+ ```cmd
+diff --git a/src/doc/unstable-book/src/compiler-flags/sanitizer.md b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+index 70c3a445b8..13429f5959 100644
+--- a/src/doc/unstable-book/src/compiler-flags/sanitizer.md
++++ b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+@@ -691,7 +691,7 @@ It is strongly recommended to combine sanitizers with recompiled and
+ instrumented standard library, for example using [cargo `-Zbuild-std`
+ functionality][build-std].
+ 
+-[build-std]: ../../cargo/reference/unstable.html#build-std
++[build-std]: https://doc.rust-lang.org/cargo/reference/unstable.html#build-std
+ 
+ # Build scripts and procedural macros
+ 
