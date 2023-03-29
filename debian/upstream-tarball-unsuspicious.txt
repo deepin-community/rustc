@@ -10,10 +10,8 @@ src/doc/reference/src/crates-and-source-files.md
 src/doc/reference/src/items/extern-crates.md
 src/doc/reference/src/items/modules.md
 src/doc/reference/src/types-redirect.html
-src/tools/clippy/src/docs/alloc_instead_of_core.txt
-src/tools/clippy/src/docs/only_used_in_recursion.txt
-vendor/chalk-solve-0.80.0/src/infer/test.rs
-vendor/getrandom-0.1.14/src/wasm32_stdweb.rs
+vendor/chalk-solve/src/infer/test.rs
+vendor/getrandom-0.1.16/src/wasm32_stdweb.rs
 vendor/itertools*/examples/iris.data
 vendor/minifier/src/js/tools.rs
 vendor/regex/tests/suffix_reverse.rs
@@ -57,8 +55,10 @@ src/doc/unstable-book/src/*/*.md
 src/etc/third-party/README.txt
 src/librustdoc/html/highlight/fixtures/sample.html
 src/librustdoc/html/static/scrape-examples-help.md
-src/tools/clippy/src/docs/trailing_empty_array.txt
+src/test/rustdoc/inline_cross/assoc_item_trait_bounds.out*.html
+src/test/rustdoc-gui/src/huge_logo/src/lib.rs
 src/tools/rust-analyzer/crates/rust-analyzer/src/diagnostics/to_proto.rs
+src/tools/rust-analyzer/crates/ide-completion/src/completions/env_vars.rs
 src/tools/rust-analyzer/docs/user/manual.adoc
 src/tools/rustfmt/*.md
 vendor/*/*/*/LICENSE
@@ -71,8 +71,8 @@ vendor/*/LICENSE-MIT
 vendor/*/README.md
 vendor/ahash/FAQ.md
 vendor/ammonia/src/lib.rs
-vendor/clap/examples/demo.md
-vendor/clap/examples/tutorial_*/*.md
+vendor/clap-*/examples/demo.md
+vendor/clap-*/examples/tutorial_*/*.md
 vendor/generic-array/DESIGN.md
 vendor/handlebars/src/lib.rs
 vendor/handlebars/src/render.rs
@@ -83,21 +83,26 @@ vendor/mdbook/CONTRIBUTING.md
 vendor/miniz_oxide/Readme.md
 vendor/pulldown-cmark/tests/suite/footnotes.rs
 vendor/rustc-demangle/src/legacy.rs
+vendor/spdx-expression/LICENSES/MIT.txt
+vendor/spdx-rs/LICENSE.txt
+vendor/spdx-rs/LICENSES/MIT.txt
+vendor/spdx-rs/src/models/*.rs
 vendor/stable_deref_trait/src/lib.rs
 vendor/tinyvec/LICENSE-*.md
-vendor/tracing-subscriber/src/fmt/format/json.rs
+vendor/tracing-subscriber-*/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
 vendor/unicode-normalization/src/stream_safe.rs
 vendor/winapi/src/lib.rs
-vendor/windows-sys-0.*/src/Windows/Win32/*.rs
-vendor/windows-sys-0.*/src/Windows/Win32/*/*.rs
-vendor/windows-sys-0.*/src/Windows/Win32/*/*/*.rs
-vendor/windows-sys-0.*/src/Windows/Win32/*/*/*/*.rs
+vendor/windows-sys/src/Windows/Win32/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*/*.rs
+vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
 vendor/windows-sys/readme.md
 vendor/windows-sys/src/Windows/Win32/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
+vendor/zerovec/src/map2d/map.rs
 
 # False-positive, audit-vendor-source automatically flags JS/C files
 # The below ones are OK since they're actually part of rust's own source code
@@ -126,8 +131,9 @@ vendor/mdbook/src/theme/book.js
 vendor/mdbook/src/theme/searcher/searcher.js
 vendor/windows_*_gnu/lib/libwindows.a
 vendor/windows_*_msvc/lib/windows.lib
-vendor/windows_*_gnu-0.*/lib/libwindows.a
-vendor/windows_*_msvc-0.*/lib/windows.lib
+vendor/windows_*_gnu/lib/libwindows.a
+vendor/windows_*_gnullvm/lib/libwindows.a
+vendor/windows_*_msvc/lib/windows.lib
 
 # Trivial glue code for C <-> Rust
 library/backtrace/src/android-api.c
@@ -142,6 +148,8 @@ src/stage0.json
 src/test/run-make-fulldeps/target-specs/*.json
 src/tools/clippy/.remarkrc
 vendor/elasticlunr-rs/src/lang/*.rs
+vendor/icu_locid/tests/fixtures/*.json
+vendor/icu_locid/benches/fixtures/*.json
 
 # False-positive, hand-editable small image
 src/doc/book/2018-edition/src/img/*.png
@@ -224,7 +232,7 @@ src/tools/rustfmt/tests/target/issue-5088/very_long_comment_wrap_comments_false.
 src/tools/rustfmt/tests/writemode/target/*.json
 src/tools/rustfmt/tests/writemode/target/*.xml
 vendor/annotate-snippets/tests/fixtures/no-color/strip_line_non_ws.toml
-vendor/bstr/src/unicode/data/*Test.txt
+vendor/bstr-0.*/src/unicode/data/*Test.txt
 vendor/cargo_metadata*/tests/test_samples.rs
 vendor/diff/tests/data/gitignores.chars.diff
 vendor/dissimilar/benches/*.txt
@@ -233,14 +241,16 @@ vendor/elasticlunr-rs/tests/searchindex_fixture_*.json
 vendor/flate2/tests/*.gz
 vendor/flate2/tests/corrupt-gz-file.bin
 vendor/fluent-syntax/benches/parser.rs
-vendor/gimli-0*/fixtures/self/*
 vendor/gimli/fixtures/self/*
 vendor/gsgdt/tests/*.json
 vendor/handlebars/tests/helper_with_space.rs
 vendor/html5ever/data/bench/*.html
+vendor/icu_provider_adapters/tests/data/langtest/*/manifest.json
+vendor/icu_provider_adapters/tests/data/langtest/*/core/*/*.json
 vendor/idna/tests/IdnaTest*.txt
 vendor/idna/tests/punycode_tests.json
 vendor/libloading/tests/*.dll
+vendor/litemap/benches/testdata/*.postcard
 vendor/lsp-types/tests/tsc-unix.lsif
 vendor/md-5/tests/data/*.blb
 vendor/mdbook/test_book/src/individual/paragraph.md
@@ -253,11 +263,12 @@ vendor/minifier/tests/files/test.json
 vendor/minimal-lexical/tests/parse_tests.rs
 vendor/minimal-lexical/tests/slow_tests.rs
 vendor/petgraph/tests/res/*.txt
-vendor/regex-automata/data/fowler-tests/basic.dat
-vendor/regex-automata/data/tests/fowler/basic.dat
 vendor/regex/src/testdata/basic.dat
 vendor/regex/tests/crates_regex.rs
 vendor/regex/tests/fowler.rs
+vendor/regex-automata-0.*/data/fowler-tests/basic.dat
+vendor/regex-automata-0.*/data/tests/fowler/basic.dat
+vendor/regex-automata/tests/data/fowler/dat/basic.dat
 vendor/rustc-demangle/src/lib.rs
 vendor/rustc-demangle/src/v0-large-test-symbols/early-recursion-limit
 vendor/serde_json/tests/lexical/parse.rs
@@ -268,6 +279,7 @@ vendor/unicode-ident/tests/fst/*.fst
 vendor/unicode-segmentation/src/testdata.rs
 vendor/url/tests/*.json
 vendor/walkdir/compare/nftw.c
+vendor/zerovec/benches/testdata/*.postcard
 
 # Compromise, ideally we'd autogenerate these
 # Should already by documented in debian/copyright
@@ -289,7 +301,7 @@ vendor/wasi/src/lib_generated.rs
 src/librustdoc/html/static/fonts/*.woff2
 
 # Compromise, ideally we'd autogenerate these
-vendor/bstr/src/unicode/fsm/*.dfa
+vendor/bstr-0.*/src/unicode/fsm/*.dfa
 
 # file brokenness (detected as Algol source code)
 compiler/rustc_apfloat/src/lib.rs
@@ -303,8 +315,8 @@ src/test/run-make-fulldeps/symbol-visibility/Makefile
 src/test/ui/proc-macro/auxiliary/*.rs
 src/tools/clippy/clippy_lints/src/needless_pass_by_value.rs
 src/tools/clippy/clippy_lints/src/pass_by_ref_or_value.rs
-src/tools/clippy/src/docs/from_str_radix_10.txt
 src/tools/rust-analyzer/crates/ide-assists/src/handlers/number_representation.rs
+src/tools/rust-analyzer/crates/ide-db/src/syntax_helpers/format_string_exprs.rs
 src/tools/rustfmt/src/formatting.rs
 src/tools/rustfmt/src/parse/parser.rs
 src/tools/rustfmt/src/string.rs
@@ -313,34 +325,30 @@ vendor/ahash/src/lib.rs
 vendor/aho-corasick/src/nfa.rs
 vendor/askama_shared/src/generator.rs
 vendor/block-buffer/tests/mod.rs
-vendor/clap/src/derive.rs
+vendor/clap-*/src/derive.rs
 vendor/compiler_builtins/libm/src/math/atan.rs
 vendor/datafrog/src/lib.rs
 vendor/digest/src/core_api/rt_variable.rs
 vendor/digest/src/core_api/wrapper.rs
 vendor/digest/src/dev.rs
+vendor/displaydoc/src/expand.rs
+vendor/derive_more/src/*.rs
 vendor/env_logger-0.*/src/fmt/writer/mod.rs
 vendor/env_logger/src/fmt/writer/mod.rs
 vendor/flate2/src/mem.rs
 vendor/flate2/src/zio.rs
 vendor/futures-macro/src/lib.rs
 vendor/futures-macro/src/select.rs
-vendor/gimli-0.25.0/src/read/aranges.rs
-vendor/gimli-0.25.0/src/read/line.rs
-vendor/gimli-0.25.0/src/read/loclists.rs
-vendor/gimli-0.25.0/src/read/lookup.rs
-vendor/gimli-0.25.0/src/read/rnglists.rs
-vendor/gimli-0.25.0/src/read/unit.rs
 vendor/gimli/src/read/aranges.rs
 vendor/gimli/src/read/line.rs
 vendor/gimli/src/read/loclists.rs
 vendor/gimli/src/read/lookup.rs
 vendor/gimli/src/read/rnglists.rs
 vendor/gimli/src/read/unit.rs
+vendor/icu_locid/tests/langid.rs
+vendor/icu_locid/tests/locale.rs
 vendor/indoc/src/lib.rs
 vendor/libm/src/math/atan.rs
-vendor/miniz_oxide-0.4.0/src/deflate/mod.rs
-vendor/miniz_oxide-0.4.0/src/inflate/mod.rs
 vendor/miniz_oxide/src/deflate/mod.rs
 vendor/miniz_oxide/src/inflate/mod.rs
 vendor/nom/src/bits/complete.rs
@@ -376,7 +384,7 @@ vendor/pulldown-cmark/benches/html_rendering.rs
 vendor/pulldown-cmark/src/linklabel.rs
 vendor/pulldown-cmark/tests/lib.rs
 vendor/rayon/tests/sort-panic-safe.rs
-vendor/regex-automata/src/regex.rs
+vendor/regex-automata-0.*/src/regex.rs
 vendor/rustc-rayon/tests/sort-panic-safe.rs
 vendor/rustversion/src/attr.rs
 vendor/rustversion/src/lib.rs
@@ -404,3 +412,4 @@ vendor/utf-8/benches/from_utf8_lossy.rs
 vendor/utf-8/tests/unit.rs
 vendor/xz2/src/bufread.rs
 vendor/xz2/src/stream.rs
+vendor/yansi/src/tests.rs

@@ -11,6 +11,8 @@ Files-Excluded:
  vendor/mdbook/src/theme/FontAwesome
  vendor/mdbook/src/theme/highlight.js
  vendor/mdbook/src/theme/highlight.css
+# DOCX versions of TRPL book prepared for No Starch Press
+ src/doc/book/nostarch/docx
 # Exclude submodules https://github.com/rust-lang/rust/tree/master/src/tools
 # We prefer to do them in different Debian packages so they can have their own
 # version numbers. If upstream merges them "properly" (i.e. unify the version
