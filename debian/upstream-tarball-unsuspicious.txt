@@ -93,10 +93,6 @@ vendor/tracing-subscriber-*/src/fmt/format/json.rs
 vendor/unicase/src/lib.rs
 vendor/unicode-normalization/src/stream_safe.rs
 vendor/winapi/src/lib.rs
-vendor/windows-sys/src/Windows/Win32/*.rs
-vendor/windows-sys/src/Windows/Win32/*/*.rs
-vendor/windows-sys/src/Windows/Win32/*/*/*.rs
-vendor/windows-sys/src/Windows/Win32/*/*/*/*.rs
 vendor/windows-sys/readme.md
 vendor/windows-sys/src/Windows/Win32/*.rs
 vendor/windows-sys/src/Windows/Win32/*/*.rs
@@ -129,8 +125,6 @@ src/tools/rustdoc-js/tester.js
 vendor/dlmalloc/src/dlmalloc.c
 vendor/mdbook/src/theme/book.js
 vendor/mdbook/src/theme/searcher/searcher.js
-vendor/windows_*_gnu/lib/libwindows.a
-vendor/windows_*_msvc/lib/windows.lib
 vendor/windows_*_gnu/lib/libwindows.a
 vendor/windows_*_gnullvm/lib/libwindows.a
 vendor/windows_*_msvc/lib/windows.lib
@@ -167,7 +161,6 @@ src/doc/embedded-book/src/assets/f3.jpg
 src/doc/embedded-book/src/assets/verify.jpeg
 src/doc/nomicon/src/img/safeandunsafe.svg
 src/doc/rustc-dev-guide/src/img/*.png
-src/doc/rustc-dev-guide/src/img/rustc_stages.svg
 src/doc/rustc-dev-guide/src/queries/example-0.png
 src/doc/rustc/src/images/*.png
 src/etc/installer/gfx/
@@ -203,9 +196,7 @@ src/test/*/*/*.stdout
 src/test/*/*/*/*.stderr
 src/test/*/*/*/*.stdout
 src/test/*/*/*/*/*.stderr
-src/test/*/*/issue-*.rs
 src/test/*/*/issues/*.rs
-src/test/*/issues/*.rs
 src/test/debuginfo/type-names.cdb.js
 src/test/mir-opt/*.diff
 src/test/mir-opt/*.mir
@@ -214,7 +205,6 @@ src/test/mir-opt/*/*.mir
 src/test/run-make/*-sgx-lvi/enclave/*.c
 src/test/run-make/*-sgx-lvi/enclave/*/*/*.c
 src/test/rustdoc/*.html
-src/test/rustdoc/tuples.link2_i32.html
 src/test/ui/macros/not-utf8.bin
 src/tools/*/tests/*/*.stderr
 src/tools/clippy/tests/ui-toml/*/*.stderr
@@ -334,7 +324,6 @@ vendor/digest/src/dev.rs
 vendor/displaydoc/src/expand.rs
 vendor/derive_more/src/*.rs
 vendor/env_logger-0.*/src/fmt/writer/mod.rs
-vendor/env_logger/src/fmt/writer/mod.rs
 vendor/flate2/src/mem.rs
 vendor/flate2/src/zio.rs
 vendor/futures-macro/src/lib.rs
