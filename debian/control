@@ -30,6 +30,12 @@ Build-Depends:
  zlib1g-dev,
 # used by rust-installer
  liblzma-dev:native,
+# used by cargo
+ libcurl4-gnutls-dev | libcurl4-openssl-dev,
+ libssh2-1-dev,
+ libgit2-dev (>= 1.5.0),
+ libgit2-dev (<< 1.6~~),
+ libhttp-parser-dev,
 # test dependencies:
  binutils (>= 2.26) <!nocheck> | binutils-2.26 <!nocheck>,
  git <!nocheck>,
@@ -293,3 +299,49 @@ Description: Rust systems programming language - all developer tools
  .
  This package is an empty metapackage that depends on all developer tools
  in the standard rustc distribution that have been packaged for Debian.
+
+# Cargo binaries
+Package: cargo
+Architecture: any
+Multi-Arch: allowed
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         rustc (>= 1.24),
+         binutils,
+         gcc | clang | c-compiler
+Suggests: cargo-doc, python3
+Description: Rust package manager
+ Cargo is a tool that allows Rust projects to declare their various
+ dependencies, and ensure that you'll always get a repeatable build.
+ .
+ To accomplish this goal, Cargo does four things:
+  * Introduces two metadata files with various bits of project information.
+  * Fetches and builds your project's dependencies.
+  * Invokes rustc or another build tool with the correct parameters to build
+    your project.
+  * Introduces conventions, making working with Rust projects easier.
+ .
+ Cargo downloads your Rust project’s dependencies and compiles your
+ project.
+
+Package: cargo-doc
+Section: doc
+Architecture: all
+Build-Profiles: <!nodoc>
+Depends: ${misc:Depends}
+Description: Rust package manager, documentation
+ Cargo is a tool that allows Rust projects to declare their various
+ dependencies, and ensure that you'll always get a repeatable build.
+ .
+ To accomplish this goal, Cargo does four things:
+  * Introduces two metadata files with various bits of project information.
+  * Fetches and builds your project's dependencies.
+  * Invokes rustc or another build tool with the correct parameters to build
+    your project.
+  * Introduces conventions, making working with Rust projects easier.
+ .
+ Cargo downloads your Rust project’s dependencies and compiles your
+ project.
+ .
+ This package contains the documentation.
+
+# TODO: add a cargo-src package

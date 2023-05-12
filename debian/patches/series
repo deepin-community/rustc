@@ -1,3 +1,11 @@
+# Cargo patches
+c-2002_disable-net-tests.patch
+c-2003-workaround-qemu-vfork-command-not-found.patch
+
+c-2200-workaround-x32-test.patch
+c-disable-fs-specific-test.patch
+c-0003-tests-add-missing-cross-disabled-checks.patch
+
 # Patches for upstream
 
 # pending, or forwarded

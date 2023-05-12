@@ -19,7 +19,7 @@ Files-Excluded:
 # check that certain popular crates continue to compile. It is not the same as
 # cargo's own test suite (in its own package) also called cargotest.
 # NB: don't exclude rust-installer, it's needed for "install" functionality
- src/tools/cargo
+#src/tools/cargo
  src/tools/rls
  src/tools/remote-test-client
  src/tools/remote-test-server
