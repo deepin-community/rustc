@@ -19,8 +19,8 @@ Signed-off-by: Fabian Grünbichler <debian@fabian.gruenbichler.email>
 
 diff --git a/tests/testsuite/build_script.rs b/tests/testsuite/build_script.rs
 index 902364dff..e458b3262 100644
---- a/tests/testsuite/build_script.rs
-+++ b/tests/testsuite/build_script.rs
+--- a/src/tools/cargo/tests/testsuite/build_script.rs
++++ b/src/tools/cargo/tests/testsuite/build_script.rs
 @@ -585,6 +585,9 @@ fn custom_build_linker_bad_host_with_arch() {
  #[cargo_test]
  fn custom_build_env_var_rustc_linker_cross_arch_host() {

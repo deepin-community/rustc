@@ -1,5 +1,5 @@
---- a/crates/cargo-test-macro/src/lib.rs
-+++ b/crates/cargo-test-macro/src/lib.rs
+--- a/src/tools/cargo/crates/cargo-test-macro/src/lib.rs
++++ b/src/tools/cargo/crates/cargo-test-macro/src/lib.rs
 @@ -203,6 +203,14 @@
          }
      };

@@ -1,7 +1,7 @@
 Bug: https://github.com/rust-lang/cargo/issues/10005
 
---- a/tests/testsuite/cfg.rs
-+++ b/tests/testsuite/cfg.rs
+--- a/src/tools/cargo/tests/testsuite/cfg.rs
++++ b/src/tools/cargo/tests/testsuite/cfg.rs
 @@ -272,7 +272,7 @@
  
  // https://github.com/rust-lang/cargo/issues/5313
