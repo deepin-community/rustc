@@ -31,11 +31,16 @@ Files-Excluded:
  src/tools/clippy/util/gh-pages
 # Embedded C libraries
  vendor/lzma-sys*/xz-*
+ vendor/libgit2-sys/libgit2
+ vendor/libssh2-sys/libssh2
+ vendor/curl-sys/curl
+ vendor/libz-sys/src/zlib*
+ vendor/libnghttp2-sys/nghttp2
 # Embedded binary blobs
  vendor/jsonpath_lib/docs
  vendor/mdbook/src/theme/playground_editor
  vendor/psm/src/arch/wasm32.o
- vendor/rustix/src/imp/linux_raw/arch/outline/*/*.a
+ vendor/rustix/src/backend/linux_raw/arch/outline/*/*.a
  vendor/winapi-*/*/*.a
 # Embedded submodule used for CI
  library/stdarch/crates/intrinsic-test/acle
@@ -129,6 +134,7 @@ Files-Excluded:
  vendor/once_cell-1.12.0
  vendor/once_cell-1.15.0
  vendor/oorandom
+ vendor/openssl-src
  vendor/owo-colors
  vendor/paste
  vendor/percent-encoding-2.1.0

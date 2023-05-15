@@ -31,6 +31,8 @@ d-0002-mdbook-strip-embedded-libs.patch
 d-0003-cc-psm-rebuild-wasm32.patch
 d-0004-clippy-feature-sync.patch
 d-0005-no-jemalloc.patch
+# cargo
+d-0010-cargo-remove-vendored-c-crates.patch
 
 ## Patches to the build process, including doc path tweaks
 ## Should not change resulting rustc behaviour
