@@ -23,7 +23,7 @@ target = ["DEB_TARGET_RUST_TYPE"]
 docs = false
 
 extended = true
-tools = ["clippy", "rustfmt"]
+tools = ["cargo", "clippy", "rustfmt"]
 
 [install]
 prefix = "/usr"
