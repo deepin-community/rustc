@@ -1,2 +1,2 @@
-src/etc/man/cargo-*.1
-src/etc/man/cargo.1
+usr/share/man/man1/cargo-*.1
+usr/share/man/man1/cargo.1

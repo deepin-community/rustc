@@ -265,6 +265,7 @@ ifeq (true,$(BUILD_WASM))
 endif
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
+	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS) cargo # document cargo APIs
 endif
 
 TEST_LOG = debian/rustc-tests.log
@@ -390,6 +391,9 @@ ifeq (true,$(BUILD_WASM))
 	  library/std
 endif
 ifeq (true,$(BUILD_DOCS))
+	# Install Cargo docs
+	install -d $(DEB_DESTDIR)/usr/share/doc/cargo
+	cp -r $(CURDIR)/build/$(DEB_BUILD_RUST_TYPE)/compiler-doc $(DEB_DESTDIR)/usr/share/doc/cargo/doc
 	# Brute force to remove privacy-breach-logo lintian warning.
 	# We could have updated the upstream sources but it would complexify
 	# the rebase

@@ -1,1 +1,1 @@
-src/etc/cargo.bashcomp.sh cargo
+etc/bash_completion.d/cargo cargo
