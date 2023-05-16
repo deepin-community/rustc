@@ -33,6 +33,7 @@ d-0004-clippy-feature-sync.patch
 d-0005-no-jemalloc.patch
 # cargo
 d-0010-cargo-remove-vendored-c-crates.patch
+d-0011-cargo-remove-nghttp2.patch
 
 ## Patches to the build process, including doc path tweaks
 ## Should not change resulting rustc behaviour

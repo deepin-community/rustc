@@ -19,7 +19,7 @@ diff --git a/Cargo.toml b/Cargo.toml
 index 15cbb2659c9..6732bef4c40 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -18,29 +18,20 @@ members = [
+@@ -18,29 +18,18 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -29,8 +29,8 @@ index 15cbb2659c9..6732bef4c40 100644
    "src/tools/rust-demangler",
    "src/tools/cargo",
    "src/tools/cargo/crates/credential/cargo-credential-1password",
-   "src/tools/cargo/crates/credential/cargo-credential-macos-keychain",
-   "src/tools/cargo/crates/credential/cargo-credential-wincred",
+-  "src/tools/cargo/crates/credential/cargo-credential-macos-keychain",
+-  "src/tools/cargo/crates/credential/cargo-credential-wincred",
    "src/tools/cargo/crates/mdman",
 -  # "src/tools/cargo/crates/resolver-tests",
    "src/tools/rustdoc",
