@@ -170,7 +170,7 @@ ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel))
 endif
 
 %:
-	$(SYSTEM_WORKAROUNDS) dh $@ --parallel
+	$(SYSTEM_WORKAROUNDS) dh $@ --parallel --with bash-completion
 
 .PHONY: .dbg-windows
 .dbg-windows:
@@ -178,7 +178,7 @@ endif
 
 .PHONY: build
 build:
-	$(SYSTEM_WORKAROUNDS) dh $@ --parallel
+	$(SYSTEM_WORKAROUNDS) dh $@ --parallel --with bash-completion
 
 override_dh_clean:
 	# Upstream contains a lot of these

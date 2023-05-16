@@ -31,6 +31,7 @@ Build-Depends:
 # used by rust-installer
  liblzma-dev:native,
 # used by cargo
+ bash-completion,
  libcurl4-gnutls-dev | libcurl4-openssl-dev,
  libssh2-1-dev,
  libgit2-dev (>= 1.5.0),
