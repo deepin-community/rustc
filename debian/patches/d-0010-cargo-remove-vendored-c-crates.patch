@@ -2,15 +2,6 @@ diff --git a/src/tools/cargo/Cargo.toml b/src/tools/cargo/Cargo.toml
 index 987b0e3dee..2423d89ddb 100644
 --- a/src/tools/cargo/Cargo.toml
 +++ b/src/tools/cargo/Cargo.toml
-@@ -79,7 +79,7 @@ itertools = "0.10.0"
- # A noop dependency that changes in the Rust repository, it's a bit of a hack.
- # See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
- # for more information.
--rustc-workspace-hack = "1.0.0"
-+# Debian: removed workspace hack
- 
- [target.'cfg(windows)'.dependencies]
- fwdansi = "1.1.0"
 @@ -122,6 +122,5 @@ doc = false
  
  [features]

@@ -49,7 +49,7 @@ index 15cbb2659c9..6732bef4c40 100644
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
-@@ -104,10 +90,16 @@ gimli.debug = 0
+@@ -104,10 +90,19 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -63,9 +63,9 @@ index 15cbb2659c9..6732bef4c40 100644
 +bootstrap.debug = 1
 +
  [patch.crates-io]
--# See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
--# here
--rustc-workspace-hack = { path = 'src/tools/rustc-workspace-hack' }
+ # See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
+ # here
+ rustc-workspace-hack = { path = 'src/tools/rustc-workspace-hack' }
  
  # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
@@ -185,22 +185,6 @@ index 6078e39ac9d..1a385f59c61 100644
      }
  }
  
-diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
-index f8cb4b7219c..3aa9ec63db1 100644
---- a/src/tools/clippy/Cargo.toml
-+++ b/src/tools/clippy/Cargo.toml
-@@ -36,11 +36,6 @@ walkdir = "2.3"
- # This is used by the `collect-metadata` alias.
- filetime = "0.2"
- 
--# A noop dependency that changes in the Rust repository, it's a bit of a hack.
--# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
--# for more information.
--rustc-workspace-hack = "1.0"
--
- # UI test dependencies
- clippy_utils = { path = "clippy_utils" }
- derive-new = "0.5"
 diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
 index 286ef1e7dcb..3d68711d414 100644
 --- a/src/tools/rust-analyzer/Cargo.toml
@@ -221,22 +205,19 @@ index 286ef1e7dcb..3d68711d414 100644
  exclude = ["crates/proc-macro-test/imp"]
  
  [profile.dev]
-diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
-index 7a4e02d69ed..27b91f25d78 100644
---- a/src/tools/rustfmt/Cargo.toml
-+++ b/src/tools/rustfmt/Cargo.toml
-@@ -59,11 +59,6 @@ unicode_categories = "0.1"
- 
- rustfmt-config_proc_macro = { version = "0.2", path = "config_proc_macro" }
- 
--# A noop dependency that changes in the Rust repository, it's a bit of a hack.
--# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
--# for more information.
--rustc-workspace-hack = "1.0.0"
--
- # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
- 
- [package.metadata.rust-analyzer]
+diff --git a/src/tools/rustc-workspace-hack/Cargo.toml b/src/tools/rustc-workspace-hack/Cargo.toml
+index 84b16a37a3..ca78044a06 100644
+--- a/src/tools/rustc-workspace-hack/Cargo.toml
++++ b/src/tools/rustc-workspace-hack/Cargo.toml
+@@ -74,7 +74,7 @@ features = [
+ [dependencies]
+ bstr = { version = "0.2.17", features = ["default"] }
+ clap = { version = "3.1.1", features = ["derive", "clap_derive"]}
+-curl-sys = { version = "0.4.13", features = ["http2", "libnghttp2-sys"], optional = true }
++curl-sys = { version = "0.4.13", features = ["http2"], optional = true }
+ # Ensure `extra_traits` of libc, which is used transitively by Cargo.
+ libc = { version = "0.2", features = ["extra_traits"] }
+ # Ensure `js` of getrandom, which is (unfortunately) used transitively by Cargo.
 -- 
 2.39.2
 
