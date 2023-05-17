@@ -10,3 +10,6 @@ usr/lib/rustlib/*/bin/rust-llvm-dwp
 
 # docs, we already install into /usr/share/doc/rustc
 usr/share/doc/rust/*
+
+# should be claimed by dh_bash-completion
+etc/bash_completion.d/cargo
