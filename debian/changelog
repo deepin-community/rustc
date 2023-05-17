@@ -1,4 +1,4 @@
-rustc (1.68.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
+rustc (1.68.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.68.0 (LP: #2009920)
     - d/copyright: Update copyright information for new dependencies
@@ -9,8 +9,28 @@ rustc (1.68.0+dfsg0ubuntu1-0ubuntu1) lunar; urgency=medium
   * d/p/ubuntu-rustdoc-replace-cargo-links.patch: Replace Cargo related
     links with external web links instead of the local links to avoid
     link-checker errors (because we package Cargo separately)
+  * Merge Cargo source package into Rust (LP: #2020000)
+    - d/*: copies Cargo Debian manifests into Rust
+    - cargo: add Cargo sources to the source tree
+    - d/patches: adapt Cargo-specific patches to the new source tree
+      structure
+    - d/patches, vendor: remove vendored C sources and prebuilt blobs
+    - vendor: vendor Cargo-specific dependencies
+    - d/control: update vendored dependency list
+    - d/rules: revise openssl source check
+    - d/cargo.*: install Cargo-specific files
+    - d/config: enable Cargo module in the rustbuild configuration
+    - d/patches: remove non-Linux platform modules
+    - d/rules: use system libssh2 for Cargo
+    - d/patches: restore the usage of rustc-workspace-hack to
+      reduce the build time and avoid crates feature resolution failure
+    - d/patches: remove patches that patch out Cargo from the docs
+    - d/rules, d/cargo.*: build and install Cargo API docs
+    - d/control, d/rules: install Cargo bash completions
+    - d/copyright: update copyright information
+    - d/control: make cargo-doc recommends rust-doc
 
- -- Zixing Liu <zixing.liu@canonical.com>  Thu, 09 Mar 2023 17:12:44 -0700
+ -- Zixing Liu <zixing.liu@canonical.com>  Wed, 17 May 2023 14:15:17 -0700
 
 rustc (1.67.1+dfsg0ubuntu1-0ubuntu3) lunar; urgency=medium
 
