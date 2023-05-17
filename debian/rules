@@ -373,6 +373,9 @@ debian/dh_auto_install.stamp:
 	  fi; \
 	done
 
+	# Remove Cargo made package cache
+	rm -v $(CURDIR)/debian/cargo/.package-cache
+
 	touch "$@"
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp
