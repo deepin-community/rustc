@@ -1,0 +1,15 @@
+diff --git a/src/tools/cargo/src/cargo/core/features.rs b/src/tools/cargo/src/cargo/core/features.rs
+index e38cdd3d3c..ec4663063d 100644
+--- a/src/tools/cargo/src/cargo/core/features.rs
++++ b/src/tools/cargo/src/cargo/core/features.rs
+@@ -1064,7 +1064,7 @@ pub fn channel() -> String {
+             return "dev".to_string();
+         }
+     }
+-    crate::version()
+-        .release_channel
+-        .unwrap_or_else(|| String::from("dev"))
++
++    // Debian: we use some nightly features, so we need to override this
++    String::from("dev")
+ }
