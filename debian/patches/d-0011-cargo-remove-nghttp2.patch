@@ -1,3 +1,9 @@
+Description: Remove nghttp2 from curl-sys crate
+Author: Zixing Liu <zixing.liu@canonical.com>
+Forwarded: not-needed
+Last-Update: 2023-05-17 <YYYY-MM-DD, last update of the meta-information, optional>
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 diff --git a/vendor/curl-sys/Cargo.toml b/vendor/curl-sys/Cargo.toml
 index 69abcf2644..6e2f9b90c1 100644
 --- a/vendor/curl-sys/Cargo.toml

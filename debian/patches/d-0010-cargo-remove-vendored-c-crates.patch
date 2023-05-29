@@ -1,3 +1,9 @@
+Description: Remove embeded C libraries in bundled crates
+Author: Zixing Liu <zixing.liu@canonical.com>
+Forwarded: not-needed
+Last-Update: 2023-05-17
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 diff --git a/src/tools/cargo/Cargo.toml b/src/tools/cargo/Cargo.toml
 index 987b0e3dee..2423d89ddb 100644
 --- a/src/tools/cargo/Cargo.toml
