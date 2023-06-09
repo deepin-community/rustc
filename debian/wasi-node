@@ -1,0 +1,54 @@
+#!/usr/bin/node --experimental-wasi-unstable-preview1
+///
+/// Simple WASI executor, adapted from the NodeJS WASI module API docs [1].
+///
+/// Usage: wasi-node <command> [<args> .. ]
+///
+/// Environment variables:
+///
+/// WASI_NODE_PREOPENS - optional JSON file defining the application sandbox
+/// directory structure. See [1] for details.
+///
+/// WASI_NODE_ENV - optional JSON file defining the application environment.
+/// If omitted then the process's POSIX environment is used; this may leak
+/// information. If a clean environment is required then set this to /dev/null
+/// or some other empty file.
+///
+/// [1] https://nodejs.org/api/wasi.html
+
+'use strict';
+const fs = require('fs');
+const { WASI } = require('wasi');
+
+// argv[0] is nodejs
+// argv[1] is this script
+var args = process.argv.slice(2); // inner argv includes cmd
+
+if (!args[0]) {
+  console.warn(process.argv[1] + ": no command given");
+  process.exit(1);
+}
+
+var preopens = {};
+var preopens_json = process.env["WASI_NODE_PREOPENS"];
+if (preopens_json) {
+  var preopens_data = fs.readFileSync(preopens_json);
+  preopens = preopens_data.length ? JSON.parse(preopens_data) : {};
+}
+
+var env = process.env;
+var env_json = process.env["WASI_NODE_ENV"];
+if (env_json) {
+  var env_data = fs.readFileSync(env_json);
+  env = env_data.length ? JSON.parse(env_data) : {};
+}
+
+const wasi = new WASI({ args: args, env: env, preopens: preopens });
+const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
+
+(async () => {
+  const wasm = await WebAssembly.compile(fs.readFileSync(args[0]));
+  const instance = await WebAssembly.instantiate(wasm, importObject);
+
+  wasi.start(instance);
+})();

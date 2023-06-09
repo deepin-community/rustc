@@ -1,0 +1,77 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-rustdoc-disable-embedded-fonts
+
+===================================================================
+---
+ src/librustdoc/html/render/write_shared.rs |  2 --
+ src/librustdoc/html/static/css/rustdoc.css |  8 --------
+ src/librustdoc/html/static_files.rs        | 23 -----------------------
+ 3 files changed, 33 deletions(-)
+
+diff --git a/src/librustdoc/html/render/write_shared.rs b/src/librustdoc/html/render/write_shared.rs
+index 68f2a54..86f7487 100644
+--- a/src/librustdoc/html/render/write_shared.rs
++++ b/src/librustdoc/html/render/write_shared.rs
+@@ -33,8 +33,6 @@ static FILES_UNVERSIONED: Lazy<FxHashMap
+         "SourceCodePro-Semibold.ttf.woff2" => static_files::source_code_pro::SEMIBOLD,
+         "SourceCodePro-It.ttf.woff2" => static_files::source_code_pro::ITALIC,
+         "SourceCodePro-LICENSE.txt" => static_files::source_code_pro::LICENSE,
+-        "NanumBarunGothic.ttf.woff2" => static_files::nanum_barun_gothic::REGULAR,
+-        "NanumBarunGothic-LICENSE.txt" => static_files::nanum_barun_gothic::LICENSE,
+         "LICENSE-MIT.txt" => static_files::LICENSE_MIT,
+         "LICENSE-APACHE.txt" => static_files::LICENSE_APACHE,
+         "COPYRIGHT.txt" => static_files::COPYRIGHT,
+diff --git a/src/librustdoc/html/static/css/rustdoc.css b/src/librustdoc/html/static/css/rustdoc.css
+index 0f4d842..9aec0d6 100644
+--- a/src/librustdoc/html/static/css/rustdoc.css
++++ b/src/librustdoc/html/static/css/rustdoc.css
+@@ -67,14 +67,6 @@
+ 	font-display: swap;
+ }
+ 
+-/* Avoid using legacy CJK serif fonts in Windows like Batang. */
+-@font-face {
+-	font-family: 'NanumBarunGothic';
+-	src: url("NanumBarunGothic.ttf.woff2") format("woff2");
+-	font-display: swap;
+-	unicode-range: U+AC00-D7AF, U+1100-11FF, U+3130-318F, U+A960-A97F, U+D7B0-D7FF;
+-}
+-
+ * {
+ 	-webkit-box-sizing: border-box;
+ 	-moz-box-sizing: border-box;
+diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
+index bec5c08..1f6ccf2 100644
+--- a/src/librustdoc/html/static_files.rs
++++ b/src/librustdoc/html/static_files.rs
+@@ -138,29 +138,6 @@ crate mod source_code_pro {
+     pub(crate) static LICENSE: &[u8] = include_bytes!("static/fonts/SourceCodePro-LICENSE.txt");
+ }
+ 
+-/// Files related to the Nanum Barun Gothic font.
+-///
+-/// These files are used to avoid some legacy CJK serif fonts in Windows.
+-///
+-/// Note that the Noto Sans KR font, which was used previously but was not very readable on Windows,
+-/// has been replaced by the Nanum Barun Gothic font. This is due to Windows' implementation of font
+-/// rendering that distorts OpenType fonts too much.
+-///
+-/// The font files were generated with these commands:
+-///
+-/// ```sh
+-/// pyftsubset NanumBarunGothic.ttf \
+-/// --unicodes=U+AC00-D7AF,U+1100-11FF,U+3130-318F,U+A960-A97F,U+D7B0-D7FF \
+-/// --output-file=NanumBarunGothic.ttf.woff2 --flavor=woff2
+-/// ```
+-pub(crate) mod nanum_barun_gothic {
+-    /// The file `NanumBarunGothic.ttf.woff2`, the Regular variant of the Nanum Barun Gothic font.
+-    pub(crate) static REGULAR: &[u8] = include_bytes!("static/fonts/NanumBarunGothic.ttf.woff2");
+-
+-    /// The file `NanumBarunGothic-LICENSE.txt`, the license text of the Nanum Barun Gothic font.
+-    pub(crate) static LICENSE: &[u8] = include_bytes!("static/fonts/NanumBarunGothic-LICENSE.txt");
+-}
+-
+ /// Files related to the sidebar in rustdoc sources.
+ pub(crate) mod sidebar {
+     /// File script to handle sidebar.

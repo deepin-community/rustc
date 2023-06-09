@@ -1,0 +1,45 @@
+From: Matthijs van Otterdijk <matthijs@wirevirt.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: Don't check for cargo-vendor when building from (Debian's) git
+
+Forwarded: not-needed
+
+Forwarded: not-needed
+---
+ src/bootstrap/channel.rs | 6 +++++-
+ src/bootstrap/dist.rs    | 5 ++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/bootstrap/channel.rs b/src/bootstrap/channel.rs
+index 1932a00..7974630 100644
+--- a/src/bootstrap/channel.rs
++++ b/src/bootstrap/channel.rs
+@@ -29,7 +29,11 @@ pub struct Info {
+ impl GitInfo {
+     pub fn new(ignore_git: bool, dir: &Path) -> GitInfo {
+         // See if this even begins to look like a git dir
+-        if !dir.join(".git").exists() {
++        //
++        // Debian: force-enabling this block because the debian package is also in a git
++        //         repository, but we don't want to parse gitinfo. This is needed for the
++        //         bootstrap tests to work which running for Debian git.
++        if true || !dir.join(".git").exists() {
+             return GitInfo::Absent;
+         }
+ 
+diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
+index 6181a61..5fe3600 100644
+--- a/src/bootstrap/dist.rs
++++ b/src/bootstrap/dist.rs
+@@ -883,7 +883,10 @@ impl Step for PlainSourceTarball {
+         }
+ 
+         // If we're building from git sources, we need to vendor a complete distribution.
+-        if builder.rust_info.is_git() {
++        //
++        // Debian: disabling this block because the debian package is also in a git
++        //         repository, but cargo-vendor should not be installed or run.
++        if false && builder.rust_info.is_git() {
+             // Ensure we have the submodules checked out.
+             builder.update_submodule(Path::new("src/tools/rust-analyzer"));
+ 

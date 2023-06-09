@@ -1,0 +1,12 @@
+# rust-installer stuff, not relevant for Debian
+usr/lib/rustlib/components
+usr/lib/rustlib/install.log
+usr/lib/rustlib/manifest-*
+usr/lib/rustlib/rust-installer-version
+usr/lib/rustlib/uninstall.sh
+
+# redundant copy of llvm-dwp, we already link it in rustc.links
+usr/lib/rustlib/*/bin/rust-llvm-dwp
+
+# docs, we already install into /usr/share/doc/rustc
+usr/share/doc/rust/*

@@ -1,0 +1,70 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: u-ignore-endian-big-diff
+
+Bug: https://github.com/rust-lang/rust/issues/89577
+
+===================================================================
+---
+ src/test/ui/consts/const-eval/ub-enum.rs      | 1 +
+ src/test/ui/consts/const-eval/ub-int-array.rs | 1 +
+ src/test/ui/consts/const-eval/ub-nonnull.rs   | 1 +
+ src/test/ui/consts/const-eval/ub-ref-ptr.rs   | 1 +
+ src/test/ui/consts/const-eval/ub-uninhabit.rs | 1 +
+ src/test/ui/consts/const-eval/ub-wide-ptr.rs  | 1 +
+ 6 files changed, 6 insertions(+)
+
+diff --git a/src/test/ui/consts/const-eval/ub-enum.rs b/src/test/ui/consts/const-eval/ub-enum.rs
+index 8628868..13d22ac 100644
+--- a/src/test/ui/consts/const-eval/ub-enum.rs
++++ b/src/test/ui/consts/const-eval/ub-enum.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ #![feature(never_type)]
+ #![allow(const_err)] // make sure we cannot allow away the errors tested here
+diff --git a/src/test/ui/consts/const-eval/ub-int-array.rs b/src/test/ui/consts/const-eval/ub-int-array.rs
+index 7e0fb33..a54f618 100644
+--- a/src/test/ui/consts/const-eval/ub-int-array.rs
++++ b/src/test/ui/consts/const-eval/ub-int-array.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ #![allow(const_err)] // make sure we cannot allow away the errors tested here
+ // stderr-per-bitwidth
+ //! Test the "array of int" fast path in validity checking, and in particular whether it
+diff --git a/src/test/ui/consts/const-eval/ub-nonnull.rs b/src/test/ui/consts/const-eval/ub-nonnull.rs
+index 259707b..145c7df 100644
+--- a/src/test/ui/consts/const-eval/ub-nonnull.rs
++++ b/src/test/ui/consts/const-eval/ub-nonnull.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ #![feature(rustc_attrs)]
+ #![allow(const_err, invalid_value)] // make sure we cannot allow away the errors tested here
+diff --git a/src/test/ui/consts/const-eval/ub-ref-ptr.rs b/src/test/ui/consts/const-eval/ub-ref-ptr.rs
+index 1887cb2..14b15f6 100644
+--- a/src/test/ui/consts/const-eval/ub-ref-ptr.rs
++++ b/src/test/ui/consts/const-eval/ub-ref-ptr.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // ignore-tidy-linelength
+ // stderr-per-bitwidth
+ #![allow(const_err, invalid_value)] // make sure we cannot allow away the errors tested here
+diff --git a/src/test/ui/consts/const-eval/ub-uninhabit.rs b/src/test/ui/consts/const-eval/ub-uninhabit.rs
+index 33fbd14..022192f 100644
+--- a/src/test/ui/consts/const-eval/ub-uninhabit.rs
++++ b/src/test/ui/consts/const-eval/ub-uninhabit.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ #![allow(const_err)] // make sure we cannot allow away the errors tested here
+ 
+diff --git a/src/test/ui/consts/const-eval/ub-wide-ptr.rs b/src/test/ui/consts/const-eval/ub-wide-ptr.rs
+index ea48a09..4d9cbe1 100644
+--- a/src/test/ui/consts/const-eval/ub-wide-ptr.rs
++++ b/src/test/ui/consts/const-eval/ub-wide-ptr.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ // ignore-tidy-linelength
+ #![allow(unused)]
