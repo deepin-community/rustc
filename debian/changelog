@@ -1,3 +1,12 @@
+rustc (1.68.2+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release 1.68.2 (LP: #2025179)
+    - Updated bundled GitHub RSA key and revoked the compromised key
+  * d/control: Lock the Cargo package version requirement to the rustc version
+  * d/tests: Add the previous Cargo smoke tests back
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Tue, 20 Jun 2023 16:17:01 -0600
+
 rustc (1.68.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.68.0 (LP: #2009920)
