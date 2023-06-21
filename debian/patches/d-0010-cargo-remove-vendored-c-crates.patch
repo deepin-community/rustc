@@ -5,13 +5,13 @@ Last-Update: 2023-05-17
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 diff --git a/src/tools/cargo/Cargo.toml b/src/tools/cargo/Cargo.toml
-index 987b0e3dee..2423d89ddb 100644
+index 66c3e5f58b..5d80c10e78 100644
 --- a/src/tools/cargo/Cargo.toml
 +++ b/src/tools/cargo/Cargo.toml
-@@ -122,6 +122,5 @@ doc = false
- 
+@@ -112,6 +112,5 @@ test = false
+ doc = false
+
  [features]
- deny-warnings = []
 -vendored-openssl = ["openssl/vendored"]
 -vendored-libgit2 = ["libgit2-sys/vendored"]
 +# Debian: removed vendoring flags

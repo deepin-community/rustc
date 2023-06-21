@@ -1,51 +1,61 @@
-From c595845dc41e627ead4d61605cd60e9ca8fa2735 Mon Sep 17 00:00:00 2001
-From: liushuyu <liushuyu011@gmail.com>
-Date: Mon, 27 Feb 2023 13:31:35 -0700
-Subject: [PATCH] compiler/rustc_session: fix sysroot detection logic ...
+From 2e98368c2f1a4cbefa3c8f43f550a7fc1831636e Mon Sep 17 00:00:00 2001
+From: ozkanonur <work@onurozkan.dev>
+Date: Fri, 14 Apr 2023 15:03:49 +0300
+Subject: [PATCH] make sysroot finding compatible with multiarch systems
 
-... on systems where /usr/lib contains a multi-arch structure
+Signed-off-by: ozkanonur <work@onurozkan.dev>
 ---
- compiler/rustc_session/src/filesearch.rs | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
+ compiler/rustc_session/src/filesearch.rs | 35 ++++++++++++------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
 
-Index: rustc/compiler/rustc_session/src/filesearch.rs
-===================================================================
---- rustc.orig/compiler/rustc_session/src/filesearch.rs
-+++ rustc/compiler/rustc_session/src/filesearch.rs
-@@ -183,14 +198,34 @@ pub fn get_or_default_sysroot() -> Result<PathBuf, String> {
-         if dir.ends_with(crate::config::host_triple()) {
+diff --git a/compiler/rustc_session/src/filesearch.rs b/compiler/rustc_session/src/filesearch.rs
+index 40879db49def9..7fdbd48d56334 100644
+--- a/compiler/rustc_session/src/filesearch.rs
++++ b/compiler/rustc_session/src/filesearch.rs
+@@ -227,28 +227,29 @@ pub fn get_or_default_sysroot() -> Result<PathBuf, String> {
+         ))?;
+ 
+         // if `dir` points target's dir, move up to the sysroot
+-        if dir.ends_with(crate::config::host_triple()) {
++        let mut sysroot_dir = if dir.ends_with(crate::config::host_triple()) {
              dir.parent() // chop off `$target`
                  .and_then(|p| p.parent()) // chop off `rustlib`
--                .and_then(|p| p.parent()) // chop off `lib`
-+                .and_then(|p| {
-+                    // chop off `lib` (this could be also $arch dir if the host sysroot uses a
-+                    // multi-arch layout like Debian or Ubuntu)
-+                    match p.parent() {
-+                        Some(p) => match p.file_name() {
-+                            Some(f) if f == "lib" => p.parent(), // first chop went for $arch, so chop again for `lib`
-+                            _ => Some(p),
-+                        },
-+                        None => None,
-+                    }
-+                })
+-                .and_then(|p| {
+-                    // chop off `lib` (this could be also $arch dir if the host sysroot uses a
+-                    // multi-arch layout like Debian or Ubuntu)
+-                    match p.parent() {
+-                        Some(p) => match p.file_name() {
+-                            Some(f) if f == "lib" => p.parent(), // first chop went for $arch, so chop again for `lib`
+-                            _ => Some(p),
+-                        },
+-                        None => None,
+-                    }
+-                })
++                .and_then(|p| p.parent()) // chop off `lib`
                  .map(|s| s.to_owned())
-                 .ok_or(format!(
-                     "Could not move 3 levels upper using `parent()` on {}",
-                     dir.display()
-                 ))
+-                .ok_or(format!(
+-                    "Could not move 3 levels upper using `parent()` on {}",
+-                    dir.display()
+-                ))
++                .ok_or_else(|| {
++                    format!("Could not move 3 levels upper using `parent()` on {}", dir.display())
++                })?
          } else {
 -            Ok(dir.to_owned())
-+            // Debian-style layout
-+            match dir.file_name() {
-+                Some(f) if f == "lib" => dir
-+                    .parent()
-+                    .ok_or(format!(
-+                        "Could not move 1 level upper using `parent()` on {}",
-+                        dir.display()
-+                    ))
-+                    .map(|p| p.to_owned()),
-+                _ => Ok(dir.to_owned()),
-+            }
++            dir.to_owned()
++        };
++
++        // On multiarch linux systems, there will be multiarch directory named
++        // with the architecture(e.g `x86_64-linux-gnu`) under the `lib` directory.
++        // Which cause us to mistakenly end up in the lib directory instead of the sysroot directory.
++        if sysroot_dir.ends_with("lib") {
++            sysroot_dir =
++                sysroot_dir.parent().map(|real_sysroot| real_sysroot.to_owned()).ok_or_else(
++                    || format!("Could not move to parent path of {}", sysroot_dir.display()),
++                )?
          }
++
++        Ok(sysroot_dir)
      }
-
+ 
+     // Use env::args().next() to get the path of the executable without

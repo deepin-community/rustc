@@ -19,11 +19,11 @@ to not fail these links.
  src/tools/linkchecker/main.rs                          |  6 ++++++
  12 files changed, 38 insertions(+), 32 deletions(-)
 
-diff --git a/src/doc/edition-guide/src/editions/advanced-migrations.md b/src/doc/edition-guide/src/editions/advanced-migrations.md
-index b804ae6..b8136d7 100644
---- a/src/doc/edition-guide/src/editions/advanced-migrations.md
-+++ b/src/doc/edition-guide/src/editions/advanced-migrations.md
-@@ -186,18 +186,18 @@ Afterwards, the line with `extern crate rand;` in `src/lib.rs` will be removed.
+Index: rustc/src/doc/edition-guide/src/editions/advanced-migrations.md
+===================================================================
+--- rustc.orig/src/doc/edition-guide/src/editions/advanced-migrations.md
++++ rustc/src/doc/edition-guide/src/editions/advanced-migrations.md
+@@ -186,18 +186,18 @@ Afterwards, the line with `extern crate
  
  We're now more idiomatic, and we didn't have to fix our code manually!
  
@@ -49,11 +49,11 @@ index b804ae6..b8136d7 100644
  [conditional compilation]: ../../reference/conditional-compilation.html
  [documentation tests]: ../../rustdoc/documentation-tests.html
  [JSON messages]: ../../rustc/json.html
-diff --git a/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md b/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
-index 4343529..7f7f0b6 100644
---- a/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
-+++ b/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
-@@ -83,7 +83,7 @@ If new warnings are issued, you may want to consider running `cargo fix` again (
+Index: rustc/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
+===================================================================
+--- rustc.orig/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
++++ rustc/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
+@@ -83,7 +83,7 @@ If new warnings are issued, you may want
  
  Congrats! Your code is now valid in both Rust 2015 and Rust 2018!
  
@@ -63,11 +63,11 @@ index 4343529..7f7f0b6 100644
 +[`cargo test`]: ../../../cargo-doc/doc/commands/cargo-test.html
  [Advanced migration strategies]: advanced-migrations.md
  [nightly channel]: ../../book/appendix-07-nightly-rust.html
-diff --git a/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md b/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
-index 9abc5a6..dff04a4 100644
---- a/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
-+++ b/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
-@@ -21,11 +21,11 @@ The new feature resolver no longer merges all requested features for
+Index: rustc/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
+===================================================================
+--- rustc.orig/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
++++ rustc/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
+@@ -21,11 +21,11 @@ The new feature resolver no longer merge
  crates that are depended on in multiple ways.
  See [the announcement of Rust 1.51][5] for details.
  
@@ -83,30 +83,30 @@ index 9abc5a6..dff04a4 100644
  
  ## Migration
  
-@@ -176,4 +176,4 @@ This snippet of output shows that the project `foo` depends on `bar` with the "d
+@@ -176,4 +176,4 @@ This snippet of output shows that the pr
  Then, `bar` depends on `bstr` as a build-dependency with the "default" feature.
  We can further see that `bstr`'s  "default" feature enables "unicode" (among other features).
  
 -[`cargo tree`]: ../../cargo/commands/cargo-tree.html
 +[`cargo tree`]: ../../../cargo-doc/doc/commands/cargo-tree.html
-diff --git a/src/doc/index.md b/src/doc/index.md
-index 2c92d5e..9be58d5 100644
---- a/src/doc/index.md
-+++ b/src/doc/index.md
-@@ -87,7 +87,7 @@ accomplishing various tasks.
+Index: rustc/src/doc/index.md
+===================================================================
+--- rustc.orig/src/doc/index.md
++++ rustc/src/doc/index.md
+@@ -130,7 +130,7 @@ their differences.
  
- ## The Cargo Book
+ ### The Cargo Book
  
--[The Cargo Book](cargo/index.html) is a guide to Cargo, Rust's build tool and dependency manager.
-+[The Cargo Book](../../cargo-doc/doc/index.html) is a guide to Cargo, Rust's build tool and dependency manager.
+-[The Cargo Book](cargo/index.html) is a guide to Cargo, Rust's build tool and
++[The Cargo Book](../../cargo-doc/doc/index.html) is a guide to Cargo, Rust's build tool and
+ dependency manager.
  
- ## The Rustdoc Book
- 
-diff --git a/src/doc/reference/src/conditional-compilation.md b/src/doc/reference/src/conditional-compilation.md
-index 6966cec..0ca3589 100644
---- a/src/doc/reference/src/conditional-compilation.md
-+++ b/src/doc/reference/src/conditional-compilation.md
-@@ -351,6 +351,6 @@ println!("I'm running on a {} machine!", machine_kind);
+ ### The Rustdoc Book
+Index: rustc/src/doc/reference/src/conditional-compilation.md
+===================================================================
+--- rustc.orig/src/doc/reference/src/conditional-compilation.md
++++ rustc/src/doc/reference/src/conditional-compilation.md
+@@ -370,6 +370,6 @@ println!("I'm running on a {} machine!",
  [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
  [attribute]: attributes.md
  [attributes]: attributes.md
@@ -114,11 +114,11 @@ index 6966cec..0ca3589 100644
 +[cargo-feature]: ../../cargo-doc/doc/reference/features.html
  [crate type]: linkage.md
  [static C runtime]: linkage.md#static-and-dynamic-c-runtimes
-diff --git a/src/doc/reference/src/introduction.md b/src/doc/reference/src/introduction.md
-index 9038efd..dbfbd39 100644
---- a/src/doc/reference/src/introduction.md
-+++ b/src/doc/reference/src/introduction.md
-@@ -135,8 +135,8 @@ We also want the reference to be as normative as possible, so if you see anythin
+Index: rustc/src/doc/reference/src/introduction.md
+===================================================================
+--- rustc.orig/src/doc/reference/src/introduction.md
++++ rustc/src/doc/reference/src/introduction.md
+@@ -135,8 +135,8 @@ We also want the reference to be as norm
  [the Rust Reference repository]: https://github.com/rust-lang/reference/
  [Unstable Book]: https://doc.rust-lang.org/nightly/unstable-book/
  [_Expression_]: expressions.md
@@ -129,10 +129,10 @@ index 9038efd..dbfbd39 100644
  [expressions chapter]: expressions.html
  [file an issue]: https://github.com/rust-lang/reference/issues
  [lifetime of temporaries]: expressions.html#temporaries
-diff --git a/src/doc/reference/src/linkage.md b/src/doc/reference/src/linkage.md
-index b152005..14277bf 100644
---- a/src/doc/reference/src/linkage.md
-+++ b/src/doc/reference/src/linkage.md
+Index: rustc/src/doc/reference/src/linkage.md
+===================================================================
+--- rustc.orig/src/doc/reference/src/linkage.md
++++ rustc/src/doc/reference/src/linkage.md
 @@ -201,7 +201,7 @@ fn main() {
  }
  ```
@@ -142,10 +142,10 @@ index b152005..14277bf 100644
  
  To use this feature locally, you typically will use the `RUSTFLAGS` environment
  variable to specify flags to the compiler through Cargo. For example to compile
-diff --git a/src/doc/reference/src/procedural-macros.md b/src/doc/reference/src/procedural-macros.md
-index d983394..6f363f6 100644
---- a/src/doc/reference/src/procedural-macros.md
-+++ b/src/doc/reference/src/procedural-macros.md
+Index: rustc/src/doc/reference/src/procedural-macros.md
+===================================================================
+--- rustc.orig/src/doc/reference/src/procedural-macros.md
++++ rustc/src/doc/reference/src/procedural-macros.md
 @@ -331,7 +331,7 @@ Note that neither declarative nor proced
  their equivalent `#[doc = r"str"]` attributes when passed to macros.
  
@@ -155,11 +155,11 @@ index d983394..6f363f6 100644
  [Derive macros]: #derive-macros
  [Function-like macros]: #function-like-procedural-macros
  [`Delimiter::None`]: ../proc_macro/enum.Delimiter.html#variant.None
-diff --git a/src/doc/rustc/src/tests/index.md b/src/doc/rustc/src/tests/index.md
-index 32baed9..53c97f8 100644
---- a/src/doc/rustc/src/tests/index.md
-+++ b/src/doc/rustc/src/tests/index.md
-@@ -301,7 +301,7 @@ Experimental support for using custom test harnesses is available on the
+Index: rustc/src/doc/rustc/src/tests/index.md
+===================================================================
+--- rustc.orig/src/doc/rustc/src/tests/index.md
++++ rustc/src/doc/rustc/src/tests/index.md
+@@ -301,7 +301,7 @@ Experimental support for using custom te
  [`--test` option]: ../command-line-arguments.md#option-test
  [`-Z panic-abort-tests`]: https://github.com/rust-lang/rust/issues/67650
  [`available_parallelism`]: ../../std/thread/fn.available_parallelism.html
@@ -168,7 +168,7 @@ index 32baed9..53c97f8 100644
  [`libtest`]: ../../test/index.html
  [`main` function]: ../../reference/crates-and-source-files.html#main-functions
  [`Result`]: ../../std/result/index.html
-@@ -311,7 +311,7 @@ Experimental support for using custom test harnesses is available on the
+@@ -311,7 +311,7 @@ Experimental support for using custom te
  [attribute-should_panic]: ../../reference/attributes/testing.html#the-should_panic-attribute
  [attribute-test]: ../../reference/attributes/testing.html#the-test-attribute
  [bench-docs]: ../../unstable-book/library-features/test.html
@@ -177,11 +177,11 @@ index 32baed9..53c97f8 100644
  [crate type]: ../../reference/linkage.html
  [custom_test_frameworks documentation]: ../../unstable-book/language-features/custom-test-frameworks.html
  [nightly channel]: ../../book/appendix-07-nightly-rust.html
-diff --git a/src/doc/rustc/src/what-is-rustc.md b/src/doc/rustc/src/what-is-rustc.md
-index 39a05cf..d106986 100644
---- a/src/doc/rustc/src/what-is-rustc.md
-+++ b/src/doc/rustc/src/what-is-rustc.md
-@@ -5,7 +5,7 @@ language, provided by the project itself. Compilers take your source code and
+Index: rustc/src/doc/rustc/src/what-is-rustc.md
+===================================================================
+--- rustc.orig/src/doc/rustc/src/what-is-rustc.md
++++ rustc/src/doc/rustc/src/what-is-rustc.md
+@@ -5,7 +5,7 @@ language, provided by the project itself
  produce binary code, either as a library or executable.
  
  Most Rust programmers don't invoke `rustc` directly, but instead do it through
@@ -190,11 +190,11 @@ index 39a05cf..d106986 100644
  want to see how Cargo calls `rustc`, you can
  
  ```bash
-diff --git a/src/doc/edition-guide/book.toml b/src/doc/edition-guide/book.toml
-index 8d8b263..8d31dfe 100644
---- a/src/doc/edition-guide/book.toml
-+++ b/src/doc/edition-guide/book.toml
-@@ -53,15 +53,15 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+Index: rustc/src/doc/edition-guide/book.toml
+===================================================================
+--- rustc.orig/src/doc/edition-guide/book.toml
++++ rustc/src/doc/edition-guide/book.toml
+@@ -53,15 +53,15 @@ git-repository-url = "https://github.com
  "/rust-2018/the-compiler/incremental-compilation-for-faster-compiles.html" = "https://blog.rust-lang.org/2018/02/15/Rust-1.24.html#incremental-compilation"
  "/rust-2018/the-compiler/an-attribute-for-deprecation.html" = "../../../reference/attributes/diagnostics.html#the-deprecated-attribute"
  "/rust-2018/rustup-for-managing-rust-versions.html" = "https://rust-lang.github.io/rustup/"
@@ -218,17 +218,17 @@ index 8d8b263..8d31dfe 100644
  "/rust-2018/cargo-and-crates-io/crates-io-disallows-wildcard-dependencies.html" = "https://blog.rust-lang.org/2016/01/21/Rust-1.6.html#cratesio-disallows-wildcards"
  "/rust-2018/documentation/index.html" = "../../../index.html"
  "/rust-2018/documentation/new-editions-of-the-book.html" = "../../../book/index.html"
-@@ -93,4 +93,4 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+@@ -93,4 +93,4 @@ git-repository-url = "https://github.com
  "/rust-next/future.html" = "../../std/future/trait.Future.html"
  "/rust-next/alloc.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#the-alloc-crate-is-stable"
  "/rust-next/maybe-uninit.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#maybeuninitt-instead-of-memuninitialized"
 -"/rust-next/cargo-vendor.html" = "../../cargo/commands/cargo-vendor.html"
 +"/rust-next/cargo-vendor.html" = "../../../cargo-doc/doc/commands/cargo-vendor.html"
-diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
-index a22dc5f..c8d521a 100644
---- a/src/tools/linkchecker/main.rs
-+++ b/src/tools/linkchecker/main.rs
-@@ -285,6 +285,12 @@ impl Checker {
+Index: rustc/src/tools/linkchecker/main.rs
+===================================================================
+--- rustc.orig/src/tools/linkchecker/main.rs
++++ rustc/src/tools/linkchecker/main.rs
+@@ -262,6 +262,12 @@ impl Checker {
                              return;
                          }
                      }

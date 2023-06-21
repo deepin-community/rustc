@@ -73,10 +73,10 @@ diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
 index c50d3d2c707..e66a95994a4 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -770,10 +770,6 @@ class RustBuild(object):
+@@ -777,10 +777,6 @@ class RustBuild(object):
+         args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
-         for _ in range(0, self.verbose):
-             args.append("--verbose")
+         args.extend("--verbose" for _ in range(verbose_count))
 -        if self.use_locked_deps:
 -            args.append("--locked")
 -        if self.use_vendored_sources:
@@ -186,7 +186,7 @@ index 6078e39ac9d..1a385f59c61 100644
  }
  
 diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
-index 286ef1e7dcb..3d68711d414 100644
+index 333f03ce2f..2a0faa2e1c 100644
 --- a/src/tools/rust-analyzer/Cargo.toml
 +++ b/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
@@ -203,8 +203,8 @@ index 286ef1e7dcb..3d68711d414 100644
 +  "crates/proc-macro-api",
 +]
  exclude = ["crates/proc-macro-test/imp"]
- 
- [profile.dev]
+
+ [workspace.package]
 diff --git a/src/tools/rustc-workspace-hack/Cargo.toml b/src/tools/rustc-workspace-hack/Cargo.toml
 index 84b16a37a3..ca78044a06 100644
 --- a/src/tools/rustc-workspace-hack/Cargo.toml
