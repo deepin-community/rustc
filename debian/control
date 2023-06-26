@@ -328,6 +328,7 @@ Package: cargo-doc
 Section: doc
 Architecture: all
 Build-Profiles: <!nodoc>
+Recommends: rust-doc
 Depends: ${misc:Depends}
 Description: Rust package manager, documentation
  Cargo is a tool that allows Rust projects to declare their various
