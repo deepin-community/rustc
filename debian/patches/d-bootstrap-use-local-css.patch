@@ -1,0 +1,34 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-use-local-css
+
+===================================================================
+---
+ src/bootstrap/doc.rs | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)
+
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -365,6 +365,10 @@
+                 .arg(&builder.src.join("src/doc/index.md"))
+                 .arg("--markdown-playground-url")
+                 .arg("https://play.rust-lang.org/")
++                .arg("--markdown-css")
++                .arg(format!("rustdoc{}.css", &builder.version))
++                .arg("--markdown-css")
++                .arg("rust.css")
+                 .arg("-o")
+                 .arg(&out)
+                 .arg(&path);
+@@ -373,11 +377,6 @@
+                 cmd.arg("--disable-minification");
+             }
+ 
+-            if filename == "not_found.md" {
+-                cmd.arg("--markdown-css").arg("https://doc.rust-lang.org/rust.css");
+-            } else {
+-                cmd.arg("--markdown-css").arg("rust.css");
+-            }
+             builder.run(&mut cmd);
+         }
+ 

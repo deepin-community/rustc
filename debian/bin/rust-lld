@@ -1,0 +1,9 @@
+#!/bin/bash
+# Wrapper around lld that strips away -Wl, which it doesn't recognise.
+# We need this for the wasm32 tests, where we have generic RUSTFLAGS that
+# includes LDFLAGS from dpkg-buildflags which assumes a GCC linker.
+#
+# However the tests fail for other reasons, namely we can't build rustdoc
+# (which runs the tests) in wasm32 yet. So this is just WIP at the moment,
+# it is not expect to work nor to be installed on user machines.
+exec /usr/bin/lld-15 "${@/#-Wl,/}"

@@ -1,0 +1,203 @@
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/src/imp/libc/process/types.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/src/imp/libc/process/types.rs
+@@ -199,7 +199,12 @@ pub enum Signal {
+         target_os = "openbsd",
+         all(
+             any(target_os = "android", target_os = "linux"),
+-            any(target_arch = "mips", target_arch = "mips64"),
++            any(
++                target_arch = "mips",
++                target_arch = "mips64",
++                target_arch = "sparc",
++                target_arch = "sparc64"
++            ),
+         )
+     )))]
+     Stkflt = c::SIGSTKFLT,
+@@ -276,7 +281,12 @@ impl Signal {
+                 target_os = "openbsd",
+                 all(
+                     any(target_os = "android", target_os = "linux"),
+-                    any(target_arch = "mips", target_arch = "mips64"),
++                    any(
++                        target_arch = "mips",
++                        target_arch = "mips64",
++                        target_arch = "sparc",
++                        target_arch = "sparc64"
++                    ),
+                 )
+             )))]
+             c::SIGSTKFLT => Some(Self::Stkflt),
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/src/imp/libc/termios/types.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/src/imp/libc/termios/types.rs
+@@ -704,6 +704,8 @@ pub const B2000000: Speed = c::B2000000;
+ 
+ /// `B2500000`
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -715,6 +717,8 @@ pub const B2500000: Speed = c::B2500000;
+ 
+ /// `B3000000`
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -726,6 +730,8 @@ pub const B3000000: Speed = c::B3000000;
+ 
+ /// `B3500000`
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -737,6 +743,8 @@ pub const B3500000: Speed = c::B3500000;
+ 
+ /// `B4000000`
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/src/imp/linux_raw/termios/types.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/src/imp/linux_raw/termios/types.rs
+@@ -338,15 +338,19 @@ pub const B1500000: Speed = linux_raw_sy
+ pub const B2000000: Speed = linux_raw_sys::general::B2000000;
+ 
+ /// `B2500000`
++#[cfg(not(any(target_arch = "sparc", target_arch = "sparc64",)))]
+ pub const B2500000: Speed = linux_raw_sys::general::B2500000;
+ 
+ /// `B3000000`
++#[cfg(not(any(target_arch = "sparc", target_arch = "sparc64",)))]
+ pub const B3000000: Speed = linux_raw_sys::general::B3000000;
+ 
+ /// `B3500000`
++#[cfg(not(any(target_arch = "sparc", target_arch = "sparc64",)))]
+ pub const B3500000: Speed = linux_raw_sys::general::B3500000;
+ 
+ /// `B4000000`
++#[cfg(not(any(target_arch = "sparc", target_arch = "sparc64",)))]
+ pub const B4000000: Speed = linux_raw_sys::general::B4000000;
+ 
+ /// `CSIZE`
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/src/termios/constants.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/src/termios/constants.rs
+@@ -45,6 +45,8 @@ pub use imp::termios::types::B2000000;
+ )))]
+ pub use imp::termios::types::B2500000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -54,6 +56,8 @@ pub use imp::termios::types::B2500000;
+ )))]
+ pub use imp::termios::types::B3000000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -63,6 +67,8 @@ pub use imp::termios::types::B3000000;
+ )))]
+ pub use imp::termios::types::B3500000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -74,6 +80,8 @@ pub use imp::termios::types::B4000000;
+ #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "openbsd")))]
+ pub use imp::termios::types::B460800;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "illumos",
+@@ -688,6 +696,8 @@ pub fn speed_value(speed: imp::termios::
+         )))]
+         imp::termios::types::B2500000 => Some(2_500_000),
+         #[cfg(not(any(
++            target_arch = "sparc",
++            target_arch = "sparc64",
+             target_os = "dragonfly",
+             target_os = "freebsd",
+             target_os = "ios",
+@@ -697,6 +707,8 @@ pub fn speed_value(speed: imp::termios::
+         )))]
+         imp::termios::types::B3000000 => Some(3_000_000),
+         #[cfg(not(any(
++            target_arch = "sparc",
++            target_arch = "sparc64",
+             target_os = "dragonfly",
+             target_os = "freebsd",
+             target_os = "ios",
+@@ -706,6 +718,8 @@ pub fn speed_value(speed: imp::termios::
+         )))]
+         imp::termios::types::B3500000 => Some(3_500_000),
+         #[cfg(not(any(
++            target_arch = "sparc",
++            target_arch = "sparc64",
+             target_os = "dragonfly",
+             target_os = "freebsd",
+             target_os = "ios",
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/src/termios/mod.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/src/termios/mod.rs
+@@ -44,6 +44,8 @@ pub use constants::B1500000;
+ )))]
+ pub use constants::B2000000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -53,6 +55,8 @@ pub use constants::B2000000;
+ )))]
+ pub use constants::B2500000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -62,6 +66,8 @@ pub use constants::B2500000;
+ )))]
+ pub use constants::B3000000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+@@ -71,6 +77,8 @@ pub use constants::B3000000;
+ )))]
+ pub use constants::B3500000;
+ #[cfg(not(any(
++    target_arch = "sparc",
++    target_arch = "sparc64",
+     target_os = "dragonfly",
+     target_os = "freebsd",
+     target_os = "ios",
+--- rustc-1.64.0+dfsg1.orig/vendor/rustix/tests/time/y2038.rs
++++ rustc-1.64.0+dfsg1/vendor/rustix/tests/time/y2038.rs
+@@ -14,6 +14,7 @@
+ #[cfg(not(all(target_env = "musl", target_pointer_width = "32")))]
+ #[cfg(not(all(target_os = "android", target_pointer_width = "32")))]
+ #[cfg(not(all(target_os = "emscripten", target_pointer_width = "32")))]
++#[cfg(not(all(target_os = "linux", target_arch = "sparc")))]
+ #[test]
+ fn test_y2038() {
+     use rustix::time::{Secs, Timespec};

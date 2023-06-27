@@ -1,0 +1,6 @@
+usr/bin/rustc
+usr/bin/rustdoc
+usr/lib/rustlib/etc/rust_types.py
+usr/libexec/rust-analyzer-proc-macro-srv
+debian/architecture.mk usr/share/rustc/
+debian/wasi-node usr/share/rustc/bin/

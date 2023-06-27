@@ -1,0 +1,19 @@
+run panics if lldb is not installed and no output is produced..
+
+diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
+index c0fa8c9acb..2b5559efc7 100644
+--- a/src/bootstrap/test.rs
++++ b/src/bootstrap/test.rs
+@@ -1462,7 +1462,11 @@
+             .ok();
+         if let Some(ref vers) = lldb_version {
+             cmd.arg("--lldb-version").arg(vers);
+-            let lldb_python_dir = run(Command::new(lldb_exe).arg("-P")).ok();
++            let lldb_python_dir = Command::new(lldb_exe)
++                .arg("-P")
++                .output()
++                .map(|output| String::from_utf8_lossy(&output.stdout).to_string())
++                .ok();
+             if let Some(ref dir) = lldb_python_dir {
+                 cmd.arg("--lldb-python-dir").arg(dir);
+             }

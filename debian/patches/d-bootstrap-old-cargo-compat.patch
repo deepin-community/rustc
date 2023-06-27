@@ -1,0 +1,43 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Backwards-compat for cargo 0.47
+
+  The flag being removed here was added in
+  https://github.com/rust-lang/cargo/pull/9404 released in cargo 0.54
+  
+  This works around a feature introduced in this PR
+  https://github.com/rust-lang/cargo/pull/8640 released in cargo 0.53
+  
+  Therefore it is not needed for Debian's current cargo 0.47.
+  
+  We can drop this patch when updating to cargo 0.54 and later.
+---
+ src/bootstrap/doc.rs | 3 ---
+ 1 file changed, 3 deletions(-)
+
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -618,7 +618,6 @@
+         cargo
+             .arg("-p")
+             .arg(package)
+-            .arg("-Zskip-rustdoc-fingerprint")
+             .arg("--")
+             .arg("-Z")
+             .arg("unstable-options")
+@@ -715,7 +714,6 @@
+         cargo.rustdocflag("--generate-link-to-definition");
+         compile::rustc_cargo(builder, &mut cargo, target);
+         cargo.arg("-Zunstable-options");
+-        cargo.arg("-Zskip-rustdoc-fingerprint");
+ 
+         // Only include compiler crates, no dependencies of those, such as `libc`.
+         // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
+@@ -837,7 +835,6 @@
+                     &[],
+                 );
+ 
+-                cargo.arg("-Zskip-rustdoc-fingerprint");
+                 // Only include compiler crates, no dependencies of those, such as `libc`.
+                 cargo.arg("--no-deps");
+                 $(

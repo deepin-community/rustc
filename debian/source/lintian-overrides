@@ -1,0 +1,9 @@
+# Long documentation
+rustc source: source-is-missing [library/stdarch/crates/stdarch-verify/arm-intrinsics.html]
+# Test data
+rustc source: source-is-missing [src/tools/rust-analyzer/crates/ide/src/syntax_highlighting/test_data/*.html]
+rustc source: source-is-missing [src/test/rustdoc/decl-trailing-whitespace.declaration.html]
+rustc source: source-is-missing [vendor/html5ever/data/bench/*.html]
+rustc source: source-is-missing [vendor/minifier/tests/files/minified_main.js]
+rustc source: source-contains-prebuilt-windows-binary [vendor/libloading/tests/nagisa32.dll]
+rustc source: source-contains-prebuilt-windows-binary [vendor/libloading/tests/nagisa64.dll]

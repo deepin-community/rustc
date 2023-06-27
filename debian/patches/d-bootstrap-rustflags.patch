@@ -1,0 +1,30 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: d-bootstrap-rustflags
+
+===================================================================
+---
+ src/bootstrap/builder.rs | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -1507,6 +1507,18 @@
+             }
+         }
+ 
++        // Debian-specific stuff here
++        // set linker flags from LDFLAGS
++        if let Ok(ldflags) = env::var("LDFLAGS") {
++            for flag in ldflags.split_whitespace() {
++                if target.contains("windows") && flag.contains("relro") {
++                    // relro is ELF-specific
++                    continue;
++                }
++                rustflags.arg(&format!("-Clink-args={}", flag));
++            }
++        }
++
+         // FIXME: It might be better to use the same value for both `RUSTFLAGS` and `RUSTDOCFLAGS`,
+         // but this breaks CI. At the very least, stage0 `rustdoc` needs `--cfg bootstrap`. See
+         // #71458.
