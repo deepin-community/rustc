@@ -1,0 +1,19 @@
+our cargo doesn't know about the 'output' part yet, this patch can be dropped
+with cargo >= 0.64
+
+diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
+index 0ab4824ac0a..76c476f449b 100644
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -1480,9 +1480,9 @@
+         // complete list of features, so for that reason we don't enable checking of
+         // features for std crates.
+         cargo.arg(if mode != Mode::Std {
+-            "-Zcheck-cfg=names,values,output,features"
++            "-Zcheck-cfg=names,values,features"
+         } else {
+-            "-Zcheck-cfg=names,values,output"
++            "-Zcheck-cfg=names,values"
+         });
+ 
+         // Add extra cfg not defined in/by rustc

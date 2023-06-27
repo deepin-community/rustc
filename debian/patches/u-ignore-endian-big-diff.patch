@@ -1,0 +1,58 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:37 +0200
+Subject: u-ignore-endian-big-diff
+
+Bug: https://github.com/rust-lang/rust/issues/89577
+
+===================================================================
+---
+ src/test/ui/consts/const-eval/ub-enum.rs      | 1 +
+ src/test/ui/consts/const-eval/ub-int-array.rs | 1 +
+ src/test/ui/consts/const-eval/ub-nonnull.rs   | 1 +
+ src/test/ui/consts/const-eval/ub-ref-ptr.rs   | 1 +
+ src/test/ui/consts/const-eval/ub-uninhabit.rs | 1 +
+ src/test/ui/consts/const-eval/ub-wide-ptr.rs  | 1 +
+ 6 files changed, 6 insertions(+)
+
+--- a/src/test/ui/consts/const-eval/ub-enum.rs
++++ b/src/test/ui/consts/const-eval/ub-enum.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ #![feature(never_type)]
+ #![allow(invalid_value)]
+--- a/src/test/ui/consts/const-eval/ub-int-array.rs
++++ b/src/test/ui/consts/const-eval/ub-int-array.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ //! Test the "array of int" fast path in validity checking, and in particular whether it
+ //! points at the right array element.
+--- a/src/test/ui/consts/const-eval/ub-nonnull.rs
++++ b/src/test/ui/consts/const-eval/ub-nonnull.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ #![feature(rustc_attrs)]
+ #![allow(invalid_value)] // make sure we cannot allow away the errors tested here
+--- a/src/test/ui/consts/const-eval/ub-ref-ptr.rs
++++ b/src/test/ui/consts/const-eval/ub-ref-ptr.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // ignore-tidy-linelength
+ // stderr-per-bitwidth
+ #![allow(invalid_value)]
+--- a/src/test/ui/consts/const-eval/ub-uninhabit.rs
++++ b/src/test/ui/consts/const-eval/ub-uninhabit.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ 
+ use std::mem;
+--- a/src/test/ui/consts/const-eval/ub-wide-ptr.rs
++++ b/src/test/ui/consts/const-eval/ub-wide-ptr.rs
+@@ -1,3 +1,4 @@
++// ignore-test
+ // stderr-per-bitwidth
+ // ignore-tidy-linelength
+ #![allow(unused)]

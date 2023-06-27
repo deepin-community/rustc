@@ -1,0 +1,38 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-custom-debuginfo-path
+
+===================================================================
+---
+ src/bootstrap/lib.rs                                        | 5 ++---
+ src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+--- a/src/bootstrap/lib.rs
++++ b/src/bootstrap/lib.rs
+@@ -1040,10 +1040,9 @@
+ 
+         match which {
+             GitRepo::Rustc => {
+-                let sha = self.rust_sha().unwrap_or(&self.version);
+-                Some(format!("/rustc/{}", sha))
++                Some(format!("/usr/src/rustc-{}", &self.version))
+             }
+-            GitRepo::Llvm => Some(String::from("/rustc/llvm")),
++            GitRepo::Llvm => panic!("GitRepo::Llvm unsupported on Debian"),
+         }
+     }
+ 
+diff --git a/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs b/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
+index b66abc6..f6efe1e 100644
+--- a/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
++++ b/src/test/codegen/remap_path_prefix/issue-73167-remap-std.rs
+@@ -7,7 +7,7 @@
+ // true automatically. If paths to std library hasn't been remapped, we use the
+ // above simulate-remapped-rust-src-base option to do it temporarily
+ 
+-// CHECK: !DIFile(filename: "{{/rustc/.*/library/std/src/panic.rs}}"
++// CHECK: !DIFile(filename: "{{/usr/src/rustc-.*/library/std/src/panic.rs}}"
+ fn main() {
+     std::thread::spawn(|| {
+         println!("hello");

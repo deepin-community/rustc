@@ -1,0 +1,195 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:38 +0200
+Subject: d-remove-arm-privacy-breaches
+
+===================================================================
+---
+ .../crates/stdarch-verify/arm-intrinsics.html      | 134 ---------------------
+ 1 file changed, 134 deletions(-)
+
+diff --git a/library/stdarch/crates/stdarch-verify/arm-intrinsics.html b/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+index ac246c6..f945431 100644
+--- a/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
++++ b/library/stdarch/crates/stdarch-verify/arm-intrinsics.html
+@@ -20,17 +20,12 @@
+ <meta name="keywords" content="">
+ <meta content="Copyright &#169; 1995-2018 Arm Limited (or its affiliates). All rights reserved." name="copyright">
+ <meta name="apple-mobile-web-app-capable" content="yes">
+-<meta name="msapplication-config" content="https://developer.arm.com:443/shared/common/img/favicon/browserconfig.xml">
+-<meta name="msapplication-TileColor" content="#2b5797">
+-<meta name="msapplication-TileImage" content="https://developer.arm.com:443/shared/common/img/favicon/mstile-144x144.png">
+ <meta name="theme-color" content="#ffffff">
+ <meta name="server" content="ARMGPCD2" />
+ 
+ <meta property="og:title" content="Technologies | NEON Intrinsics Reference – Arm Developer">
+ <meta property="og:description" content="All the NEON intrinsics reference in an interactive page.">
+-<meta property="og:image" content="https://developer.arm.com:443">
+ <meta property="og:site_name" content="ARM Developer">
+-<meta property="og:url" content="https://developer.arm.com/technologies/neon/intrinsics">
+ <meta property="og:type" content="website">
+ <meta property="og:locale" content="en">
+ 
+@@ -41,64 +36,14 @@
+ <meta name="twitter:site" content="ARM Developer">
+ <meta name="twitter:title" content="Technologies | NEON Intrinsics Reference – Arm Developer">
+ <meta name="twitter:description" content="All the NEON intrinsics reference in an interactive page.">
+-<meta name="twitter:image" content="https://developer.arm.com:443">
+-<meta name="twitter:url" content="https://developer.arm.com/technologies/neon/intrinsics">
+ 
+ <meta itemprop="name" content="Technologies | NEON Intrinsics Reference – Arm Developer">
+ <meta itemprop="description" content="All the NEON intrinsics reference in an interactive page.">
+-<meta itemprop="image" content="https://developer.arm.com:443">
+-
+-
+-    
+-
+-    <link rel="stylesheet" type="text/css" href="/shared/developer.arm.com/css/app.css?v=D41D8CD98F00B204E9800998ECF8427E" />
+-
+-    
+-
+-<link rel="apple-touch-icon" sizes="57x57" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="60x60" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="72x72" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="76x76" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="114x114" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="120x120" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="144x144" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="152x152" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="apple-touch-icon" sizes="180x180" href="https://developer.arm.com/shared/common/img/favicon/apple-touch-icon.png?v=2.29.0.0" />
+-<link rel="icon" type="image/png" href="https://developer.arm.com/shared/common/img/favicon/favicon-32x32.png?v=2.29.0.0" sizes="32x32" />
+-<link rel="icon" type="image/png" href="https://developer.arm.com/shared/common/img/favicon/favicon-48x48.png?v=2.29.0.0" sizes="48x48" />
+-<link rel="icon" type="image/png" href="https://developer.arm.com/shared/common/img/favicon/android-chrome-192x192.png?v=2.29.0.0" sizes="192x192" />
+-<link rel="icon" type="image/png" href="https://developer.arm.com/shared/common/img/favicon/android-chrome-256x256.png?v=2.29.0.0" sizes="256x256" />
+-<link rel="icon" type="image/png" href="https://developer.arm.com/shared/common/img/favicon/favicon-16x16.png?v=2.29.0.0" sizes="16x16" />
+-<link rel="shortcut icon" type="image/ico" href="https://developer.arm.com/shared/common/img/favicon/favicon.ico?v=2.29.0.0" />
+-<link rel="manifest" href="https://developer.arm.com/shared/common/img/favicon/manifest.json?v=2.29.0.0" />
+-
+-    <link rel="search" type="application/opensearchdescription+xml" title="ARM Developer" href="/opensearch.xml"/>
+-
+-    
+-    
+-
+-
+-<!-- Google Tag Manager -->
+-<script>
+-(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+-    })(window, document, 'script', 'dataLayer', 'GTM-K25LQR');
+-</script>
+-<!-- End Google Tag Manager -->
+-
+-
+ </head>
+ <body id="">
+     
+     
+ 
+-<noscript>
+-    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K25LQR" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+-</noscript>
+-
+-
+     
+     <div class="c-feedback-message-container u-no-print"><style>
+ /* Docs top margin fix */
+@@ -245,7 +190,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                             <span class="navigation-dropdown-label">
+                                 <a href="/">
+                                     <span>
+-                                        <img src="/shared/developer.arm.com/img/arm-developer.svg" alt="ARM Developer" />
+                                     </span>
+                                     <i class="fa fa-caret-down"></i>
+                                 </a>
+@@ -437,7 +381,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+ 
+ </div>
+ 
+-<link rel="stylesheet" href="https://developer.arm.com/shared/arm-account/css/modules/user-menu.css?v=2.29.0.0" />
+ 
+                         </li>
+                     </ul>
+@@ -93318,82 +93261,5 @@ names are the property of their respective holders. <a href="http://www.arm.com/
+         
+     </div>
+ 
+-<script type="text/javascript" src="https://nebula-cdn.kampyle.com/we/8144/onsite/embed.js"></script>
+-
+-
+-    
+-
+-<script src="/bundles/modernizr?v=inCVuEFe6J4Q07A0AcRsbJic_UE5MwpRMNGcOtk94TE1"></script>
+-
+-
+-
+-<script type="text/javascript">
+-    if (Modernizr && !Modernizr.svg) {
+-        var imgs = document.getElementsByTagName('img');
+-        var svgExtension = /.*\.svg$/;
+-        var l = imgs.length;
+-        for (var i = 0; i < l; i++) {
+-            if (imgs[i].src.match(svgExtension)) {
+-                imgs[i].src = imgs[i].src.slice(0, -3) + 'png';
+-            }
+-        }
+-    }
+-</script>
+-
+-
+-<script src="/shared/vendor/jquery-1.12.4.min.js"></script>
+-<script src="/shared/vendor/foundation.min.js"></script>
+-<script src="/shared/vendor/moment.min.js"></script>
+-<script src="/shared/vendor/js/jquery-rss/src/jquery.rss.js"></script>
+-
+-<script src="/bundles/clipboard?v=IPc2U7tMxf_2TKh6_qbfzIsYI3pmBbWZxHb5M8V-fhg1"></script>
+-
+-<script src="/bundles/placeholder?v=Aw-bm4sJPSuBeTzPpRw_GfXYXI4wKmH607vgMic22c01"></script>
+-
+-<script src="/bundles/waypoints?v=E5Sm2NPVxzLqGyd5lIz-NjBvArn4w7w7IvCs35wz6dA1"></script>
+-
+-
+-
+-<script src="/shared/developer.arm.com/js/common.js?v=09142182FF441DC932039AB1D8CD216F"></script>
+-<script src="/shared/developer.arm.com/js/app.bundle.js?v=09142182FF441DC932039AB1D8CD216F"></script>
+-
+-
+-<script src="/shared/arm.com-new/js/app.constants.js?v=09142182FF441DC932039AB1D8CD216F"></script>
+-<script src="/shared/arm.com-new/js/app.navigation.js?v=09142182FF441DC932039AB1D8CD216F"></script>
+-<script type="text/javascript">
+-    (function() {
+-        var $userMenu = $('.c-user-menu__root');
+-        if ($userMenu) {
+-            $userMenu.navigation();
+-        }
+-    })();
+-</script>
+-
+-
+-
+-<script src="/bundles/jquery-ui?v=atr-jO-t-9RdxuVusckf7yNy0MEEBlVW5TaJCAetR6A1"></script>
+-
+-<script src="/bundles/jqueryval?v=shBfM8gvrYJt6eNs9xKMaOYfzyGdVGLhvPUMJ92MwmM1"></script>
+-
+-<script src="/sitecore%20modules/Web/Web%20Forms%20for%20Marketers/mvc/wffm.min.js"></script>
+-<script>
+-  $(document).ready(function() {
+-    $("form[data-wffm]").each(function() { $(this).wffmForm(); });
+-  });
+-</script>
+-
+-<link rel="stylesheet" type="text/css" href="//fast.fonts.net/t/1.css?apiType=css&projectid=5616bfa5-8ba9-4061-8e15-3a2d29551ced" />
+-
+-
+-<script src="//munchkin.marketo.net/munchkin.js" type="text/javascript"></script>
+-<script type="text/javascript">
+-    Munchkin.init('312-SAX-488', {'asyncOnly': true});
+-</script>
+-
+-
+-
+-    
+-    
+-    
+ </body>
+ </html>

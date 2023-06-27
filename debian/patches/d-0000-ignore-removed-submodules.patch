@@ -1,0 +1,243 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:07:59 +0100
+Subject: d-0000-ignore-removed-submodules
+
+---
+ Cargo.toml                         | 15 ---------------
+ src/bootstrap/bootstrap.py         |  4 ----
+ src/bootstrap/builder.rs           | 15 +--------------
+ src/bootstrap/doc.rs               |  1 -
+ src/bootstrap/test.rs              | 12 +-----------
+ src/tools/clippy/Cargo.toml        |  5 -----
+ src/tools/rust-analyzer/Cargo.toml | 11 ++++++++++-
+ src/tools/rustfmt/Cargo.toml       |  5 -----
+ src/tools/tidy/src/deps.rs         |  2 +-
+ 9 files changed, 13 insertions(+), 57 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index e49fe5e..863c800 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -16,27 +16,15 @@ members = [
+   "src/tools/tidy",
+   "src/tools/tier-check",
+   "src/tools/build-manifest",
+-  "src/tools/remote-test-client",
+-  "src/tools/remote-test-server",
+   "src/tools/rust-installer",
+   "src/tools/rust-demangler",
+-  "src/tools/cargo",
+-  "src/tools/cargo/crates/credential/cargo-credential-1password",
+-  "src/tools/cargo/crates/credential/cargo-credential-macos-keychain",
+-  "src/tools/cargo/crates/credential/cargo-credential-wincred",
+   "src/tools/rustdoc",
+-  "src/tools/rls",
+   "src/tools/rustfmt",
+-  "src/tools/miri",
+-  "src/tools/miri/cargo-miri",
+   "src/tools/rustdoc-themes",
+   "src/tools/unicode-table-generator",
+-  "src/tools/expand-yaml-anchors",
+   "src/tools/jsondocck",
+   "src/tools/jsondoclint",
+   "src/tools/html-checker",
+-  "src/tools/bump-stage0",
+-  "src/tools/replace-version-placeholder",
+   "src/tools/lld-wrapper",
+ ]
+ 
+@@ -99,9 +87,6 @@ miniz_oxide.debug = 0
+ object.debug = 0
+ 
+ [patch.crates-io]
+-# See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
+-# here
+-rustc-workspace-hack = { path = 'src/tools/rustc-workspace-hack' }
+ 
+ # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
+ # here
+diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
+index 5712868..5a6ab27 100644
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -766,10 +766,6 @@ class RustBuild(object):
+                 os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
+         for _ in range(0, self.verbose):
+             args.append("--verbose")
+-        if self.use_locked_deps:
+-            args.append("--locked")
+-        if self.use_vendored_sources:
+-            args.append("--frozen")
+         if self.get_toml("metrics", "build"):
+             args.append("--features")
+             args.append("build-metrics")
+diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
+index 8b144f1..c4bed1ec 100644
+--- a/src/bootstrap/builder.rs
++++ b/src/bootstrap/builder.rs
+@@ -599,8 +599,6 @@ impl<'a> Builder<'a> {
+                 tool::RemoteTestClient,
+                 tool::RustInstaller,
+                 tool::Cargo,
+-                tool::Rls,
+-                tool::RustAnalyzer,
+                 tool::RustAnalyzerProcMacroSrv,
+                 tool::RustDemangler,
+                 tool::Rustdoc,
+@@ -621,8 +619,6 @@ impl<'a> Builder<'a> {
+                 check::CodegenBackend,
+                 check::Clippy,
+                 check::Miri,
+-                check::Rls,
+-                check::RustAnalyzer,
+                 check::Rustfmt,
+                 check::Bootstrap
+             ),
+@@ -650,7 +646,6 @@ impl<'a> Builder<'a> {
+                 test::ReplacePlaceholderTest,
+                 test::Cargotest,
+                 test::Cargo,
+-                test::RustAnalyzer,
+                 test::ErrorIndex,
+                 test::Distcheck,
+                 test::RunMakeFullDeps,
+@@ -698,10 +693,8 @@ impl<'a> Builder<'a> {
+                 doc::RustdocBook,
+                 doc::RustByExample,
+                 doc::RustcBook,
+-                doc::CargoBook,
+                 doc::Clippy,
+                 doc::ClippyBook,
+-                doc::Miri,
+                 doc::EmbeddedBook,
+                 doc::EditionGuide,
+                 doc::StyleGuide,
+@@ -717,8 +710,6 @@ impl<'a> Builder<'a> {
+                 dist::Analysis,
+                 dist::Src,
+                 dist::Cargo,
+-                dist::Rls,
+-                dist::RustAnalyzer,
+                 dist::Rustfmt,
+                 dist::RustDemangler,
+                 dist::Clippy,
+@@ -739,7 +730,6 @@ impl<'a> Builder<'a> {
+                 install::Docs,
+                 install::Std,
+                 install::Cargo,
+-                install::RustAnalyzer,
+                 install::Rustfmt,
+                 install::RustDemangler,
+                 install::Clippy,
+@@ -2062,10 +2052,7 @@ impl<'a> Builder<'a> {
+             }
+         }
+ 
+-        if self.config.locked_deps {
+-            cargo.arg("--locked");
+-        }
+-        if self.config.vendor || self.is_sudo {
++        if self.is_sudo {
+             cargo.arg("--frozen");
+         }
+ 
+diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
+index ea06caf..5d8247f 100644
+--- a/src/bootstrap/doc.rs
++++ b/src/bootstrap/doc.rs
+@@ -74,7 +74,6 @@ macro_rules! book {
+ // FIXME: Make checking for a submodule automatic somehow (maybe by having a list of all submodules
+ // and checking against it?).
+ book!(
+-    CargoBook, "src/tools/cargo/src/doc", "cargo", submodule = "src/tools/cargo";
+     ClippyBook, "src/tools/clippy/book", "clippy";
+     EditionGuide, "src/doc/edition-guide", "edition-guide", submodule;
+     EmbeddedBook, "src/doc/embedded-book", "embedded-book", submodule;
+diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
+index 791c35c..964e2e0 100644
+--- a/src/bootstrap/test.rs
++++ b/src/bootstrap/test.rs
+@@ -1909,17 +1909,7 @@ impl Step for RustcGuide {
+     }
+ 
+     fn run(self, builder: &Builder<'_>) {
+-        let relative_path = Path::new("src").join("doc").join("rustc-dev-guide");
+-        builder.update_submodule(&relative_path);
+-
+-        let src = builder.src.join(relative_path);
+-        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
+-        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)) {
+-            ToolState::TestPass
+-        } else {
+-            ToolState::TestFail
+-        };
+-        builder.save_toolstate("rustc-dev-guide", toolstate);
++        builder.save_toolstate("rustc-dev-guide", ToolState::TestPass);
+     }
+ }
+ 
+diff --git a/src/tools/clippy/Cargo.toml b/src/tools/clippy/Cargo.toml
+index 60200a8..3980db9 100644
+--- a/src/tools/clippy/Cargo.toml
++++ b/src/tools/clippy/Cargo.toml
+@@ -36,11 +36,6 @@ walkdir = "2.3"
+ # This is used by the `collect-metadata` alias.
+ filetime = "0.2"
+ 
+-# A noop dependency that changes in the Rust repository, it's a bit of a hack.
+-# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
+-# for more information.
+-rustc-workspace-hack = "1.0"
+-
+ # UI test dependencies
+ clippy_utils = { path = "clippy_utils" }
+ derive-new = "0.5"
+diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
+index 286ef1e..3d68711 100644
+--- a/src/tools/rust-analyzer/Cargo.toml
++++ b/src/tools/rust-analyzer/Cargo.toml
+@@ -1,5 +1,14 @@
+ [workspace]
+-members = ["xtask/", "lib/*", "crates/*"]
++members = [
++  "xtask/",
++  "lib/*",
++  "crates/proc-macro-srv",
++  "crates/proc-macro-srv-cli",
++  "crates/tt",
++  "crates/mbe",
++  "crates/paths",
++  "crates/proc-macro-api",
++]
+ exclude = ["crates/proc-macro-test/imp"]
+ 
+ [profile.dev]
+diff --git a/src/tools/rustfmt/Cargo.toml b/src/tools/rustfmt/Cargo.toml
+index 7a4e02d..27b91f2 100644
+--- a/src/tools/rustfmt/Cargo.toml
++++ b/src/tools/rustfmt/Cargo.toml
+@@ -59,11 +59,6 @@ unicode_categories = "0.1"
+ 
+ rustfmt-config_proc_macro = { version = "0.2", path = "config_proc_macro" }
+ 
+-# A noop dependency that changes in the Rust repository, it's a bit of a hack.
+-# See the `src/tools/rustc-workspace-hack/README.md` file in `rust-lang/rust`
+-# for more information.
+-rustc-workspace-hack = "1.0.0"
+-
+ # Rustc dependencies are loaded from the sysroot, Cargo doesn't know about them.
+ 
+ [package.metadata.rust-analyzer]
+diff --git a/src/tools/tidy/src/deps.rs b/src/tools/tidy/src/deps.rs
+index 8a0239e..9b35cba 100644
+--- a/src/tools/tidy/src/deps.rs
++++ b/src/tools/tidy/src/deps.rs
+@@ -311,7 +311,7 @@ const FORBIDDEN_TO_HAVE_DUPLICATES: &[&str] = &[
+     // This crate takes quite a long time to build, so don't allow two versions of them
+     // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
+     // under control.
+-    "cargo",
++    //"cargo",
+ ];
+ 
+ /// Dependency checks.

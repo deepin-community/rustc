@@ -1,0 +1,66 @@
+# Patches for upstream
+
+# pending, or forwarded
+u-ignore-reproducible-failure.patch
+u-reproducible-build.patch
+u-ignore-endian-big-diff.patch
+u-make-compiletest-work-without-rpath.patch
+u-fix-get-toml-when-test.patch
+
+# can be dropped once upstream updates rustix
+u-fix-rustix-for-sparc64.patch
+
+# not forwarded, or forwarded but unlikely to be merged
+u-ignore-ppc-hangs.patch
+u-rustc-llvm-cross-flags.patch
+u-reproducible-dl-stage0.patch
+u-make-tests-work-without-rpath.patch
+#u-allow-system-compiler-rt.patch
+
+# Debian-specific patches, not suitable for upstream
+d-fix-rustix-outline.patch
+
+## Patches needed by debian/prune-unused-deps, for building bootstrap
+d-0000-ignore-removed-submodules.patch
+d-0001-pkg-config-no-special-snowflake.patch
+d-0002-mdbook-strip-embedded-libs.patch
+d-0003-cc-psm-rebuild-wasm32.patch
+d-0004-clippy-feature-sync.patch
+d-0005-no-jemalloc.patch
+
+## Patches to the build process, including doc path tweaks
+## Should not change resulting rustc behaviour
+d-bootstrap-rustflags.patch
+d-remove-arm-privacy-breaches.patch
+d-bootstrap-install-symlinks.patch
+d-bootstrap-disable-git.patch
+d-bootstrap-read-beta-version-from-file.patch
+d-bootstrap-no-assume-tools.patch
+d-bootstrap-cargo-doc-paths.patch
+d-bootstrap-use-local-css.patch
+d-bootstrap-old-cargo-compat.patch
+d-bootstrap-custom-debuginfo-path.patch
+d-bootstrap-permit-symlink-in-docs.patch
+d-test-ignore-avx-44056.patch
+d-bootstrap-cargo-check-cfg.patch
+d-armel-fix-lldb.patch
+
+# Work around for some porterboxes, keep this commented
+#d-test-host-duplicates.patch
+# Experimental patch not yet working
+#d-bootstrap-use-system-compiler-rt.patch
+
+## Patches to rustc behaviour, including path lookup tweaks
+d-rust-gdb-paths
+d-rust-lldb-paths
+d-rustc-add-soname.patch
+d-rustc-fix-mips64el-bootstrap.patch
+d-rustc-windows-ssp.patch
+d-rustc-i686-baseline.patch
+# Experimental patch not yet working
+#d-rustc-prefer-dynamic.patch
+d-rustdoc-disable-embedded-fonts.patch
+
+# cherry-picked from ubuntu
+ubuntu-disable-ppc64el-asm-tests.patch
+ubuntu-ignore-arm-doctest.patch
