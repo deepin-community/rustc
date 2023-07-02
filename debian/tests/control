@@ -1,3 +1,8 @@
 Test-Command: ./debian/rules build
 Depends: @, @builddeps@
 Restrictions: rw-build-tree, allow-stderr
+
+Tests: self-build
+Restrictions: rw-build-tree, allow-stderr
+Architecture: amd64, armhf, i386, s390x #arm64 and ppc64el run out of disk space when running this test
+Depends: @builddeps@
