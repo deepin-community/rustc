@@ -1,3 +1,12 @@
+rustc (1.69.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release 1.69.0 (LP: #2025691)
+    - d/patches: Refresh patches
+  * d/tests: Add a new smoke test for Cargo (originally from Nick Rosbrook)
+    - d/tests/control: Removed architecture restriction from the original test
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 13 Jul 2023 15:13:25 +0800
+
 rustc (1.68.2+dfsg0ubuntu1-0ubuntu3) mantic; urgency=medium
 
   * d/tests: Fix Cargo self-build test
