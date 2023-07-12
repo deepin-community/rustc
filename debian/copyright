@@ -231,7 +231,7 @@ Files: C*.md
        LICENSE*
        compiler/*
        configure
-       config.toml.example
+       config.example.toml
        git-commit-hash
        git-commit-info
        library/*
@@ -249,9 +249,10 @@ Files: C*.md
        version
        x.py
        .cargo/config.toml
+       .gitmodules
 Copyright: 2006-2009 Graydon Hoare
            2009-2012 Mozilla Foundation
-           2012-2017 The Rust Project Developers (see AUTHORS.txt)
+           2012-2023 The Rust Project Developers (see AUTHORS.txt)
 License: MIT or Apache-2.0
 
 Files: src/librustdoc/html/static/fonts/FiraSans*
@@ -1610,16 +1611,6 @@ Copyright: 2017-2022 RustCrypto Developers
 License: MIT OR Apache-2.0
 Comment: see https://github.com/RustCrypto/traits
 
-Files: vendor/commoncrypto/*
-       vendor/commoncrypto-sys/*
-       vendor/crypto-hash/*
-Copyright: 2016, Mark Lee
- 2015-2016, Mark Lee
-License: MIT
-Comment:
- * see https://github.com/malept/rust-commoncrypto
- * see https://github.com/malept/crypto-hash
-
 Files: vendor/curl/*
        vendor/curl-sys/*
 Copyright: 2014-2019 Alex Crichton <alex@alexcrichton.com>
@@ -2037,11 +2028,6 @@ Copyright: 2018-2022 Sean Bowe <ewillbefull@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/zkcrypto/group
 
-Files: vendor/hex-0.3.2/*
-Copyright: 2015-2022 KokaKiwi <kokakiwi@kokakiwi.net>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/KokaKiwi/rust-hex
-
 Files: vendor/serde-value/*
 Copyright: 2016-2020 arcnmx
 License: MIT
@@ -2073,7 +2059,7 @@ Comment: see https://github.com/tokio-rs/tracing
 
 Files: vendor/toml-0.5.9/*
 Copyright: 2014-2023 Alex Crichton <alex@alexcrichton.com>
-License: MIT/Apache-2.0
+License: MIT OR Apache-2.0
 Comment: see https://github.com/alexcrichton/toml-rs
 
 Files: vendor/gimli-0.26.2/*
@@ -2089,7 +2075,7 @@ Comment: see https://github.com/toml-rs/toml
 
 Files: vendor/parking_lot_core-0.8.6/*
 Copyright: 2016-2023 Amanieu d'Antras <amanieu@gmail.com>
-License: Apache-2.0/MIT
+License: Apache-2.0 OR MIT
 Comment: see https://github.com/Amanieu/parking_lot
 
 Files: vendor/nu-ansi-term/*
@@ -2102,7 +2088,7 @@ Comment: see https://github.com/nushell/nu-ansi-term
 
 Files: vendor/arrayvec-0.5.2/*
 Copyright: 2015-2023 bluss
-License: MIT/Apache-2.0
+License: MIT OR Apache-2.0
 Comment: see https://github.com/bluss/arrayvec
 
 Files: vendor/addr2line-0.17.0/*
@@ -2113,7 +2099,7 @@ Comment: see https://github.com/gimli-rs/addr2line
 
 Files: vendor/elsa/*
 Copyright: 2018-2023 Manish Goregaokar <manishsmail@gmail.com>
-License: MIT/Apache-2.0
+License: MIT OR Apache-2.0
 Comment: see https://github.com/manishearth/elsa
 
 Files: vendor/nom8/*
@@ -2130,6 +2116,367 @@ Files: vendor/vte_generate_state_changes/*
 Copyright: 2019-2020 Christian Duerr <contact@christianduerr.com>
 License: Apache-2.0 OR MIT
 Comment: see https://github.com/jwilm/vte
+
+Files: vendor/btoi/*
+Copyright: 2017-2023 Niklas Fiekas <niklas.fiekas@backscattering.de>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/niklasf/rust-btoi
+
+Files: vendor/sha1_smol/*
+Copyright: 2022 Armin Ronacher <armin.ronacher@active-4.com>
+License: BSD-3-Clause
+Comment: see https://github.com/mitsuhiko/sha1-smol
+
+Files: vendor/unicode-bom/*
+Copyright: 2018-2023 Phil Booth <pmbooth@gmail.com>
+License: Apache-2.0
+Comment: see https://gitlab.com/philbooth/unicode-bom
+
+Files: vendor/gix-prompt/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-chunk/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/errno-0.2.8/*
+Copyright: 2015-2023 Chris Wong <lambda.fairy@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/lambda-fairy/rust-errno
+
+Files: vendor/prodash/*
+Copyright: 2020-2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT
+Comment: see https://github.com/Byron/prodash
+
+Files: vendor/gix-hashtable/*
+Copyright: 2023 Pascal Kuthe <pascal.kuthe@semimod.de>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/windows/*
+Copyright: 2019-2023 Microsoft
+License: MIT OR Apache-2.0
+Comment: see https://github.com/microsoft/windows-rs
+
+Files: vendor/arc-swap/*
+Copyright: 2018-2022 Michal 'vorner' Vaner <vorner@vorner.cz>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/vorner/arc-swap
+
+Files: vendor/signal-hook/*
+Copyright: 2018-2023 Michal 'vorner' Vaner <vorner@vorner.cz>
+  2018-2023 Thomas Himmelstoss <thimm@posteo.de>
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/vorner/signal-hook
+
+Files: vendor/threadpool/*
+Copyright: 2015-2020 The Rust Project Developers
+  2015-2020 Corey Farwell <coreyf@rwell.org>
+  2015-2020 Stefan Schindler <dns2utf8@estada.ch>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-threadpool/rust-threadpool
+
+Files: vendor/openssl-macros/*
+Copyright: 2022-2023 Steven Fackler
+License: MIT OR Apache-2.0
+Comment: see https://lib.rs/crates/openssl-macros/source?at=0.1.1
+
+Files: vendor/bstr/*
+Copyright: 2018-2023 Andrew Gallant <jamslam@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/BurntSushi/bstr
+
+Files: vendor/anstream/*
+Copyright: 2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/anstyle.git
+
+Files: vendor/mime/*
+Copyright: 2014-2023 Sean McArthur <sean@seanmonstar.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/hyperium/mime
+
+Files: vendor/gix-protocol/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/concolor-query-0.1.0/*
+Copyright: 2021-2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/concolor
+
+Files: vendor/gix-config-value/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-discover/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/anstyle/*
+Copyright: 2022-2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/anstyle.git
+
+Files: vendor/gix-path/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-odb/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-object/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-glob/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-refspec/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/anstyle-parse/*
+Copyright: 2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/anstyle.git
+
+Files: vendor/gix-quote/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/imara-diff/*
+Copyright: 2022 pascalkuthe <pascalkuthe@semimod.de>
+License: Apache-2.0
+Comment: see https://github.com/pascalkuthe/imara-diff
+
+Files: vendor/anstyle-wincon/*
+Copyright: 2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/anstyle.git
+
+Files: vendor/concolor-override/*
+Copyright: 2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-cli/concolor
+
+Files: vendor/gix-actor/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-features/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-lock/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/maybe-async/*
+Copyright: 2020-2023 Guoli Lyu <guoli-lv@hotmail.com>
+License: MIT
+Comment: see https://github.com/fMeow/maybe-async-rs
+
+Files: vendor/gix-revision/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-attributes/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/clap_builder/*
+Copyright: 2023 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/clap-rs/clap
+
+Files: vendor/mime_guess/*
+Copyright: 2015-2022 Austin Bonander <austin.bonander@gmail.com>
+License: MIT
+Comment: see https://github.com/abonander/mime_guess
+
+Files: vendor/gix-transport/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/nix/*
+Copyright: 2014-2023 The nix-rust Project Developers
+License: MIT
+Comment: see https://github.com/nix-rust/nix
+
+Files: vendor/gix-index/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-credentials/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-config/*
+Copyright: 2023 Edward Shen <code@eddie.sh>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-mailmap/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/windows-0.43.0/*
+Copyright: 2019-2023 Microsoft
+License: MIT OR Apache-2.0
+Comment: see https://github.com/microsoft/windows-rs
+
+Files: vendor/gix-date/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/clru/*
+Copyright: 2020-2022 marmeladema <xademax@gmail.com>
+License: MIT
+Comment: see https://github.com/marmeladema/clru-rs
+
+Files: vendor/gix-tempfile/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/basic-toml/*
+Copyright: 2023 Alex Crichton <alex@alexcrichton.com>
+  2023 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/basic-toml
+
+Files: vendor/gix-sec/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-traverse/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-bitmap/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/junction/*
+Copyright: 2019-2023 Lzu Tao <taolzu@gmail.com>
+License: MIT
+Comment: see https://github.com/lzutao/junction
+
+Files: vendor/gix-diff/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/io-close/*
+Copyright: 2020-2021 wufz
+License: MIT OR Apache-2.0
+Comment: see https://gitlab.com/wufz/io-close
+
+Files: vendor/gix-worktree/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/rustix-0.36.5/*
+Copyright: 2021-2023 Dan Gohman <dev@sunfishcode.online>
+  2021-2023 Jakub Konka <kubkon@jakubkonka.com>
+License: Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+Comment: see https://github.com/bytecodealliance/rustix
+
+Files: vendor/gix-command/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/syn-1.0.107/*
+Copyright: 2016-2023 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/syn
+
+Files: vendor/gix-pack/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-url/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-ref/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/linux-raw-sys-0.1.4/*
+Copyright: 2021-2023 Dan Gohman <dev@sunfishcode.online>
+License: Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+Comment: see https://github.com/sunfishcode/linux-raw-sys
+
+Files: vendor/gix-packetline/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix-hash/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/gix/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
+
+Files: vendor/signal-hook-registry/*
+Copyright: 2019-2023 Michal 'vorner' Vaner <vorner@vorner.cz>
+  2019-2023 Masaki Hara <ackie.h.gmai@gmail.com>
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/vorner/signal-hook
+
+Files: vendor/synstructure-0.12.6/*
+Copyright: 2016-2023 Nika Layzell <nika@thelayzells.com>
+License: MIT
+Comment: see https://github.com/mystor/synstructure
+
+Files: vendor/num_threads/*
+Copyright: 2021-2022 Jacob Pratt <open-source@jhpratt.dev>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/jhpratt/num_threads
+
+Files: vendor/gix-validate/*
+Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Byron/gitoxide
 
 Files: debian/*
 Copyright: 2013-2018 Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
