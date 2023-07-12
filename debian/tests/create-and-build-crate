@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+tmpdir=$(mktemp -d)
+cd "$tmpdir"
+
+cargo new hello
+cd hello
+
+cat <<EOF > src/main.rs
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    println!("Hello, World!");
+    Ok(())
+}
+
+#[test]
+fn test() {
+    assert_eq!(1 + 1, 2);
+}
+EOF
+
+cargo add 'anyhow@^1'
+cargo vendor
+
+mkdir -p .cargo
+cat <<EOF > .cargo/config.toml
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"
+EOF
+
+cargo check
+cargo build
+cargo test
+cargo run
