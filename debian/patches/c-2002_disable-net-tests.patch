@@ -4,18 +4,20 @@ Forwarded: TODO
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 
---- a/src/tools/cargo/tests/testsuite/git_auth.rs
-+++ b/src/tools/cargo/tests/testsuite/git_auth.rs
-@@ -102,7 +102,7 @@
+Index: rustc-1.70.0-src/src/tools/cargo/tests/testsuite/git_auth.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/tools/cargo/tests/testsuite/git_auth.rs
++++ rustc-1.70.0-src/src/tools/cargo/tests/testsuite/git_auth.rs
+@@ -103,7 +103,7 @@ fn setup_failed_auth_test() -> (SocketAd
  }
  
  // Tests that HTTP auth is offered from `credential.helper`.
 -#[cargo_test]
 +#[allow(dead_code)]
  fn http_auth_offered() {
-     let (addr, t, connections) = setup_failed_auth_test();
-     let p = project()
-@@ -167,7 +167,7 @@
+     // TODO(Seb): remove this once possible.
+     if cargo_uses_gitoxide() {
+@@ -172,7 +172,7 @@ Caused by:
  }
  
  // Boy, sure would be nice to have a TLS implementation in rust!
@@ -24,8 +26,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  fn https_something_happens() {
      let server = TcpListener::bind("127.0.0.1:0").unwrap();
      let addr = server.local_addr().unwrap();
---- a/src/tools/cargo/tests/testsuite/net_config.rs
-+++ b/src/tools/cargo/tests/testsuite/net_config.rs
+Index: rustc-1.70.0-src/src/tools/cargo/tests/testsuite/net_config.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/tools/cargo/tests/testsuite/net_config.rs
++++ rustc-1.70.0-src/src/tools/cargo/tests/testsuite/net_config.rs
 @@ -2,7 +2,7 @@
  
  use cargo_test_support::project;
@@ -35,7 +39,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  fn net_retry_loads_from_config() {
      let p = project()
          .file(
-@@ -38,7 +38,7 @@
+@@ -38,7 +38,7 @@ fn net_retry_loads_from_config() {
          .run();
  }
  
@@ -44,9 +48,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  fn net_retry_git_outputs_warning() {
      let p = project()
          .file(
---- a/src/tools/cargo/tests/testsuite/publish.rs
-+++ b/src/tools/cargo/tests/testsuite/publish.rs
-@@ -1921,7 +1921,7 @@ Caused by:
+Index: rustc-1.70.0-src/src/tools/cargo/tests/testsuite/publish.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/tools/cargo/tests/testsuite/publish.rs
++++ rustc-1.70.0-src/src/tools/cargo/tests/testsuite/publish.rs
+@@ -1923,7 +1923,7 @@ Caused by:
  }
  
  // Registry has a network error.

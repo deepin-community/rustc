@@ -15,11 +15,11 @@ Subject: Backwards-compat for cargo 0.47
  src/bootstrap/doc.rs | 3 ---
  1 file changed, 3 deletions(-)
 
-diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index fb5395d..72eac7c 100644
---- a/src/bootstrap/doc.rs
-+++ b/src/bootstrap/doc.rs
-@@ -584,7 +582,6 @@ fn doc_std(
+Index: rustc-1.70.0-src/src/bootstrap/doc.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/bootstrap/doc.rs
++++ rustc-1.70.0-src/src/bootstrap/doc.rs
+@@ -595,7 +595,6 @@ fn doc_std(
              .arg(&*target_dir.to_string_lossy())
              .arg("-p")
              .arg(package)
@@ -27,15 +27,15 @@ index fb5395d..72eac7c 100644
              .arg("--")
              .arg("-Z")
              .arg("unstable-options")
-@@ -590,7 +589,6 @@ impl Step for Rustc {
+@@ -695,7 +694,6 @@ impl Step for Rustc {
          cargo.rustdocflag("--generate-link-to-definition");
-         compile::rustc_cargo(builder, &mut cargo, target);
+         compile::rustc_cargo(builder, &mut cargo, target, compiler.stage);
          cargo.arg("-Zunstable-options");
 -        cargo.arg("-Zskip-rustdoc-fingerprint");
  
          // Only include compiler crates, no dependencies of those, such as `libc`.
          // Do link to dependencies on `docs.rs` however using `rustdoc-map`.
-@@ -712,7 +710,6 @@ macro_rules! tool_doc {
+@@ -828,7 +826,6 @@ macro_rules! tool_doc {
                      &[],
                  );
  
@@ -43,4 +43,3 @@ index fb5395d..72eac7c 100644
                  // Only include compiler crates, no dependencies of those, such as `libc`.
                  cargo.arg("--no-deps");
                  $(
- 

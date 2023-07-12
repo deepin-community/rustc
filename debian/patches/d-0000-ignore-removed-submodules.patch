@@ -15,10 +15,10 @@ Subject: [PATCH 07/32] d-0000-ignore-removed-submodules
  src/tools/tidy/src/deps.rs         |  2 +-
  9 files changed, 22 insertions(+), 62 deletions(-)
 
-diff --git a/Cargo.toml b/Cargo.toml
-index 15cbb2659c9..6732bef4c40 100644
---- a/Cargo.toml
-+++ b/Cargo.toml
+Index: rustc/Cargo.toml
+===================================================================
+--- rustc.orig/Cargo.toml
++++ rustc/Cargo.toml
 @@ -18,29 +18,18 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
@@ -49,7 +49,7 @@ index 15cbb2659c9..6732bef4c40 100644
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
-@@ -104,10 +90,19 @@ gimli.debug = 0
+@@ -105,6 +94,15 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -65,15 +65,11 @@ index 15cbb2659c9..6732bef4c40 100644
  [patch.crates-io]
  # See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
  # here
- rustc-workspace-hack = { path = 'src/tools/rustc-workspace-hack' }
- 
- # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
- # here
-diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index c50d3d2c707..e66a95994a4 100644
---- a/src/bootstrap/bootstrap.py
-+++ b/src/bootstrap/bootstrap.py
-@@ -777,10 +777,6 @@ class RustBuild(object):
+Index: rustc/src/bootstrap/bootstrap.py
+===================================================================
+--- rustc.orig/src/bootstrap/bootstrap.py
++++ rustc/src/bootstrap/bootstrap.py
+@@ -781,10 +781,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(verbose_count))
@@ -84,12 +80,16 @@ index c50d3d2c707..e66a95994a4 100644
          if self.get_toml("metrics", "build"):
              args.append("--features")
              args.append("build-metrics")
-diff --git a/src/bootstrap/builder.rs b/src/bootstrap/builder.rs
-index b4fc1d4f28d..7150fc58d57 100644
---- a/src/bootstrap/builder.rs
-+++ b/src/bootstrap/builder.rs
-@@ -629,8 +629,6 @@ macro_rules! describe {
-                 tool::RemoteTestClient,
+Index: rustc/src/bootstrap/builder.rs
+===================================================================
+--- rustc.orig/src/bootstrap/builder.rs
++++ rustc/src/bootstrap/builder.rs
+@@ -658,12 +658,8 @@ impl<'a> Builder<'a> {
+                 tool::Linkchecker,
+                 tool::CargoTest,
+                 tool::Compiletest,
+-                tool::RemoteTestServer,
+-                tool::RemoteTestClient,
                  tool::RustInstaller,
                  tool::Cargo,
 -                tool::Rls,
@@ -97,7 +97,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -653,8 +651,6 @@ macro_rules! describe {
+@@ -686,8 +682,6 @@ impl<'a> Builder<'a> {
                  check::Miri,
                  check::CargoMiri,
                  check::MiroptTestTools,
@@ -106,8 +106,8 @@ index b4fc1d4f28d..7150fc58d57 100644
                  check::Rustfmt,
                  check::Bootstrap
              ),
-@@ -681,10 +677,8 @@ macro_rules! describe {
-                 test::CrateJsonDocLint,
+@@ -715,10 +709,8 @@ impl<'a> Builder<'a> {
+                 test::SuggestTestsCrate,
                  test::Linkcheck,
                  test::TierCheck,
 -                test::ReplacePlaceholderTest,
@@ -117,7 +117,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -736,7 +736,6 @@ impl<'a> Builder<'a> {
+@@ -771,7 +763,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -125,7 +125,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -752,8 +743,6 @@ macro_rules! describe {
+@@ -788,8 +779,6 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -134,7 +134,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  dist::Rustfmt,
                  dist::RustDemangler,
                  dist::Clippy,
-@@ -761,7 +750,6 @@ macro_rules! describe {
+@@ -797,7 +786,6 @@ impl<'a> Builder<'a> {
                  dist::LlvmTools,
                  dist::RustDev,
                  dist::Bootstrap,
@@ -142,7 +142,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -774,7 +762,6 @@ macro_rules! describe {
+@@ -810,7 +798,6 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -150,7 +150,7 @@ index b4fc1d4f28d..7150fc58d57 100644
                  install::Rustfmt,
                  install::RustDemangler,
                  install::Clippy,
-@@ -1889,10 +1876,7 @@ pub fn cargo(
+@@ -1949,10 +1936,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -162,11 +162,11 @@ index b4fc1d4f28d..7150fc58d57 100644
              cargo.arg("--frozen");
          }
  
-diff --git a/src/bootstrap/test.rs b/src/bootstrap/test.rs
-index 6078e39ac9d..1a385f59c61 100644
---- a/src/bootstrap/test.rs
-+++ b/src/bootstrap/test.rs
-@@ -2005,17 +2005,7 @@ fn make_run(run: RunConfig<'_>) {
+Index: rustc/src/bootstrap/test.rs
+===================================================================
+--- rustc.orig/src/bootstrap/test.rs
++++ rustc/src/bootstrap/test.rs
+@@ -2070,17 +2070,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -185,10 +185,10 @@ index 6078e39ac9d..1a385f59c61 100644
      }
  }
  
-diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
-index 333f03ce2f..2a0faa2e1c 100644
---- a/src/tools/rust-analyzer/Cargo.toml
-+++ b/src/tools/rust-analyzer/Cargo.toml
+Index: rustc/src/tools/rust-analyzer/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/rust-analyzer/Cargo.toml
++++ rustc/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
  [workspace]
 -members = ["xtask/", "lib/*", "crates/*"]
@@ -203,12 +203,12 @@ index 333f03ce2f..2a0faa2e1c 100644
 +  "crates/proc-macro-api",
 +]
  exclude = ["crates/proc-macro-test/imp"]
-
+ 
  [workspace.package]
-diff --git a/src/tools/rustc-workspace-hack/Cargo.toml b/src/tools/rustc-workspace-hack/Cargo.toml
-index 84b16a37a3..ca78044a06 100644
---- a/src/tools/rustc-workspace-hack/Cargo.toml
-+++ b/src/tools/rustc-workspace-hack/Cargo.toml
+Index: rustc/src/tools/rustc-workspace-hack/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/rustc-workspace-hack/Cargo.toml
++++ rustc/src/tools/rustc-workspace-hack/Cargo.toml
 @@ -74,7 +74,7 @@ features = [
  [dependencies]
  bstr = { version = "0.2.17", features = ["default"] }
@@ -218,6 +218,3 @@ index 84b16a37a3..ca78044a06 100644
  # Ensure `extra_traits` of libc, which is used transitively by Cargo.
  libc = { version = "0.2", features = ["extra_traits"] }
  # Ensure `js` of getrandom, which is (unfortunately) used transitively by Cargo.
--- 
-2.39.2
-

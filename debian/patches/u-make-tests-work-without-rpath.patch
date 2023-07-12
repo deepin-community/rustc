@@ -9,8 +9,8 @@ Subject: [PATCH 06/32] u-make-tests-work-without-rpath
 
 diff --git a/tests/run-make-fulldeps/sysroot-crates-are-unstable/Makefile b/tests/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
 index 1e267fb9576..ac46c24e64c 100644
---- a/tests/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
-+++ b/tests/run-make-fulldeps/sysroot-crates-are-unstable/Makefile
+--- a/tests/run-make/sysroot-crates-are-unstable/Makefile
++++ b/tests/run-make/sysroot-crates-are-unstable/Makefile
 @@ -1,2 +1,6 @@
 +include ../tools.mk
 +

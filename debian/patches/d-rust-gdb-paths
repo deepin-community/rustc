@@ -11,10 +11,10 @@ just hardcode path in wrapper script.
  src/etc/rust-gdbgui | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/src/etc/rust-gdb b/src/etc/rust-gdb
-index b950cea..5ec8752 100755
---- a/src/etc/rust-gdb
-+++ b/src/etc/rust-gdb
+Index: rustc-1.70.0-src/src/etc/rust-gdb
+===================================================================
+--- rustc-1.70.0-src.orig/src/etc/rust-gdb
++++ rustc-1.70.0-src/src/etc/rust-gdb
 @@ -11,7 +11,7 @@ else
  fi
  
@@ -22,12 +22,12 @@ index b950cea..5ec8752 100755
 -RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
 +RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
- 
- # Run GDB with the additional arguments that load the pretty printers
-diff --git a/src/etc/rust-gdbgui b/src/etc/rust-gdbgui
-index 9744913..613737d 100755
---- a/src/etc/rust-gdbgui
-+++ b/src/etc/rust-gdbgui
+ # Get the commit hash for path remapping
+ RUSTC_COMMIT_HASH="$("$RUSTC" -vV | sed -n 's/commit-hash: \([a-zA-Z0-9_]*\)/\1/p')"
+Index: rustc-1.70.0-src/src/etc/rust-gdbgui
+===================================================================
+--- rustc-1.70.0-src.orig/src/etc/rust-gdbgui
++++ rustc-1.70.0-src/src/etc/rust-gdbgui
 @@ -40,7 +40,7 @@ else
  fi
  
@@ -35,5 +35,5 @@ index 9744913..613737d 100755
 -RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
 +RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
  GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
- 
- # Set the environment variable `RUST_GDB` to overwrite the call to a
+ # Get the commit hash for path remapping
+ RUSTC_COMMIT_HASH="$("$RUSTC" -vV | sed -n 's/commit-hash: \([a-zA-Z0-9_]*\)/\1/p')"

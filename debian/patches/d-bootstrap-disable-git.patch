@@ -10,13 +10,13 @@ Forwarded: not-needed
  src/bootstrap/dist.rs    | 5 ++++-
  2 files changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/src/bootstrap/channel.rs b/src/bootstrap/channel.rs
-index 1932a00..7974630 100644
---- a/src/bootstrap/channel.rs
-+++ b/src/bootstrap/channel.rs
-@@ -34,7 +34,11 @@ pub struct Info {
+Index: rustc-1.70.0-src/src/bootstrap/channel.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/bootstrap/channel.rs
++++ rustc-1.70.0-src/src/bootstrap/channel.rs
+@@ -37,7 +37,11 @@ pub struct Info {
  impl GitInfo {
-     pub fn new(ignore_git: bool, dir: &Path) -> GitInfo {
+     pub fn new(omit_git_hash: bool, dir: &Path) -> GitInfo {
          // See if this even begins to look like a git dir
 -        if !dir.join(".git").exists() {
 +        //
@@ -27,11 +27,11 @@ index 1932a00..7974630 100644
              match read_commit_info_file(dir) {
                  Some(info) => return GitInfo::RecordedForTarball(info),
                  None => return GitInfo::Absent,
-diff --git a/src/bootstrap/dist.rs b/src/bootstrap/dist.rs
-index 3cb0eccd32..1ac9466860 100644
---- a/src/bootstrap/dist.rs
-+++ b/src/bootstrap/dist.rs
-@@ -968,7 +968,10 @@ impl Step for PlainSourceTarball {
+Index: rustc-1.70.0-src/src/bootstrap/dist.rs
+===================================================================
+--- rustc-1.70.0-src.orig/src/bootstrap/dist.rs
++++ rustc-1.70.0-src/src/bootstrap/dist.rs
+@@ -995,7 +995,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.

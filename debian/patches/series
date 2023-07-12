@@ -73,4 +73,3 @@ ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
 ubuntu-use-system-profiler-rt.patch
 ubuntu-disable-sse2-tests-on-i386.patch
-ubuntu-fix-sysroot-detection.patch
