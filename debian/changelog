@@ -1,3 +1,24 @@
+rustc (1.70.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release 1.70.0 (LP: #2027639)
+    - d/patches: Refresh patches
+    - Upgraded LLVM to 16
+  * d/patches/d-0000-ignore-removed-submodules.patch: Remove newly added Miri
+    parts
+  * d/patches/ubuntu-downgrade-libgit2-to-1.5.patch: Downgrade libgit2
+    requirements to 1.5, since we don't have 1.6 in stable yet
+  * d/patches/d-0002-mdbook-strip-embedded-libs.patch: Remove newly added
+    mdbook bundled resources
+  * d/patches/ubuntu-use-system-compiler-during-tests.patch: Avoid the need of
+    downloaded rustc binaries during the bootstrapping tests
+  * d/rust-src.install: Fix the config.example.toml installation, because the
+    file name changed in Rust 1.70
+  * d/patches/ubuntu-disable-fpmath-tests-for-i386.patch: Disable a test for
+    testing machine epsilon, which x87 math is too inaccurate to pass the test
+  * d/source/lintian-overrides: update overriden paths for doc-tests
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 13 Jul 2023 17:07:11 +0800
+
 rustc (1.69.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.69.0 (LP: #2025691)
