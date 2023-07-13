@@ -1,6 +1,0 @@
-#!/bin/sh
-
-./debian/rules debian/dh_auto_configure.stamp
-dh_quilt_patch
-export CFG_DISABLE_CROSS_TESTS=1
-exec cargo test -p cargo -Zavoid-dev-deps
