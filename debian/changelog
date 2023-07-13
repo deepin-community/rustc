@@ -1,3 +1,12 @@
+rustc (1.68.2+dfsg0ubuntu1-0ubuntu3) mantic; urgency=medium
+
+  * d/tests: Fix Cargo self-build test
+  * d/tests: Add a new Cargo smoke test from Nick Rosbrook
+  * d/control: tightened Cargo package version requirement of the rust-all
+    package
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 13 Jul 2023 11:21:39 +0800
+
 rustc (1.68.2+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.68.2 (LP: #2025179)
