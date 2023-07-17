@@ -70,7 +70,7 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/book/init.rs
 ===================================================================
 --- rustc-1.70.0-src.orig/vendor/mdbook/src/book/init.rs
 +++ rustc-1.70.0-src/vendor/mdbook/src/book/init.rs
-@@ -153,12 +153,6 @@ impl BookBuilder {
+@@ -153,24 +153,6 @@ impl BookBuilder {
          let mut js = File::create(themedir.join("book.js"))?;
          js.write_all(theme::JS)?;
  
@@ -80,9 +80,21 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/book/init.rs
 -        let mut highlight_js = File::create(themedir.join("highlight.js"))?;
 -        highlight_js.write_all(theme::HIGHLIGHT_JS)?;
 -
-         write_file(&themedir.join("fonts"), "fonts.css", theme::fonts::CSS)?;
-         for (file_name, contents) in theme::fonts::LICENSES {
-             write_file(&themedir, file_name, contents)?;
+-        write_file(&themedir.join("fonts"), "fonts.css", theme::fonts::CSS)?;
+-        for (file_name, contents) in theme::fonts::LICENSES {
+-            write_file(&themedir, file_name, contents)?;
+-        }
+-        for (file_name, contents) in theme::fonts::OPEN_SANS.iter() {
+-            write_file(&themedir, file_name, contents)?;
+-        }
+-        write_file(
+-            &themedir,
+-            theme::fonts::SOURCE_CODE_PRO.0,
+-            theme::fonts::SOURCE_CODE_PRO.1,
+-        )?;
+ 
+         Ok(())
+     }
 Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
 ===================================================================
 --- rustc-1.70.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.rs
