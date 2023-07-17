@@ -344,6 +344,7 @@ fn all_the_fields() {
     assert_eq!(all.categories, vec!["command-line-utilities"]);
     assert_eq!(all.keywords, vec!["cli"]);
     assert_eq!(all.readme, Some(Utf8PathBuf::from("README.md")));
+    assert!(all.readme().unwrap().ends_with("tests/all/README.md"));
     assert_eq!(
         all.repository,
         Some("https://github.com/oli-obk/cargo_metadata/".to_string())
@@ -532,9 +533,9 @@ fn current_dir() {
 fn parse_stream_is_robust() {
     // Proc macros can print stuff to stdout, which naturally breaks JSON messages.
     // Let's check that we don't die horribly in this case, and report an error.
-    let json_output = r##"{"reason":"compiler-artifact","package_id":"chatty 0.1.0 (path+file:///chatty-macro/chatty)","target":{"kind":["proc-macro"],"crate_types":["proc-macro"],"name":"chatty","src_path":"/chatty-macro/chatty/src/lib.rs","edition":"2018","doctest":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":[],"filenames":["/chatty-macro/target/debug/deps/libchatty-f2adcff24cdf3bb2.so"],"executable":null,"fresh":false}
+    let json_output = r##"{"reason":"compiler-artifact","package_id":"chatty 0.1.0 (path+file:///chatty-macro/chatty)","manifest_path":"chatty-macro/Cargo.toml","target":{"kind":["proc-macro"],"crate_types":["proc-macro"],"name":"chatty","src_path":"/chatty-macro/chatty/src/lib.rs","edition":"2018","doctest":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":[],"filenames":["/chatty-macro/target/debug/deps/libchatty-f2adcff24cdf3bb2.so"],"executable":null,"fresh":false}
 Evil proc macro was here!
-{"reason":"compiler-artifact","package_id":"chatty-macro 0.1.0 (path+file:///chatty-macro)","target":{"kind":["lib"],"crate_types":["lib"],"name":"chatty-macro","src_path":"/chatty-macro/src/lib.rs","edition":"2018","doctest":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":[],"filenames":["/chatty-macro/target/debug/libchatty_macro.rlib","/chatty-macro/target/debug/deps/libchatty_macro-cb5956ed52a11fb6.rmeta"],"executable":null,"fresh":false}
+{"reason":"compiler-artifact","package_id":"chatty-macro 0.1.0 (path+file:///chatty-macro)","manifest_path":"chatty-macro/Cargo.toml","target":{"kind":["lib"],"crate_types":["lib"],"name":"chatty-macro","src_path":"/chatty-macro/src/lib.rs","edition":"2018","doctest":true},"profile":{"opt_level":"0","debuginfo":2,"debug_assertions":true,"overflow_checks":true,"test":false},"features":[],"filenames":["/chatty-macro/target/debug/libchatty_macro.rlib","/chatty-macro/target/debug/deps/libchatty_macro-cb5956ed52a11fb6.rmeta"],"executable":null,"fresh":false}
 "##;
     let mut n_messages = 0;
     let mut text = String::new();
@@ -621,4 +622,26 @@ fn depkind_to_string() {
     assert_eq!(DependencyKind::Development.to_string(), "dev");
     assert_eq!(DependencyKind::Build.to_string(), "build");
     assert_eq!(DependencyKind::Unknown.to_string(), "Unknown");
+}
+
+#[test]
+fn basic_workspace_root_package_exists() {
+    // First try with dependencies
+    let meta = MetadataCommand::new()
+        .manifest_path("tests/basic_workspace/Cargo.toml")
+        .exec()
+        .unwrap();
+    assert_eq!(meta.root_package().unwrap().name, "ex_bin");
+    // Now with no_deps, it should still work exactly the same
+    let meta = MetadataCommand::new()
+        .manifest_path("tests/basic_workspace/Cargo.toml")
+        .no_deps()
+        .exec()
+        .unwrap();
+    assert_eq!(
+        meta.root_package()
+            .expect("workspace root still exists when no_deps used")
+            .name,
+        "ex_bin"
+    );
 }
