@@ -97,9 +97,21 @@ Index: rustc/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -686,8 +682,6 @@ impl<'a> Builder<'a> {
-                 check::Miri,
-                 check::CargoMiri,
+@@ -672,8 +668,6 @@ impl<'a> Builder<'a> {
+                 llvm::Llvm,
+                 llvm::Sanitizers,
+                 tool::Rustfmt,
+-                tool::Miri,
+-                tool::CargoMiri,
+                 llvm::Lld,
+                 llvm::CrtBeginEnd
+             ),
+@@ -683,11 +677,7 @@ impl<'a> Builder<'a> {
+                 check::Rustdoc,
+                 check::CodegenBackend,
+                 check::Clippy,
+-                check::Miri,
+-                check::CargoMiri,
                  check::MiroptTestTools,
 -                check::Rls,
 -                check::RustAnalyzer,
@@ -117,6 +129,14 @@ Index: rustc/src/bootstrap/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
+@@ -734,7 +722,6 @@ impl<'a> Builder<'a> {
+                 test::EmbeddedBook,
+                 test::EditionGuide,
+                 test::Rustfmt,
+-                test::Miri,
+                 test::Clippy,
+                 test::RustDemangler,
+                 test::CompiletestTest,
 @@ -771,7 +763,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
@@ -125,7 +145,7 @@ Index: rustc/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -788,8 +779,6 @@ impl<'a> Builder<'a> {
+@@ -788,16 +774,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -134,7 +154,7 @@ Index: rustc/src/bootstrap/builder.rs
                  dist::Rustfmt,
                  dist::RustDemangler,
                  dist::Clippy,
-@@ -797,7 +786,6 @@ impl<'a> Builder<'a> {
+-                dist::Miri,
                  dist::LlvmTools,
                  dist::RustDev,
                  dist::Bootstrap,
@@ -142,7 +162,7 @@ Index: rustc/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -810,7 +798,6 @@ impl<'a> Builder<'a> {
+@@ -810,11 +792,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -150,6 +170,18 @@ Index: rustc/src/bootstrap/builder.rs
                  install::Rustfmt,
                  install::RustDemangler,
                  install::Clippy,
+-                install::Miri,
+                 install::LlvmTools,
+                 install::Src,
+                 install::Rustc
+@@ -824,7 +804,6 @@ impl<'a> Builder<'a> {
+                 run::BuildManifest,
+                 run::BumpStage0,
+                 run::ReplaceVersionPlaceholder,
+-                run::Miri,
+                 run::CollectLicenseMetadata,
+                 run::GenerateCopyright,
+             ),
 @@ -1949,10 +1936,7 @@ impl<'a> Builder<'a> {
              }
          }
