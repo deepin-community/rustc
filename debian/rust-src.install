@@ -8,7 +8,7 @@ README.md       usr/src/rustc-${env:RUST_LONG_VERSION}
 RELEASES.md     usr/src/rustc-${env:RUST_LONG_VERSION}
 configure       usr/src/rustc-${env:RUST_LONG_VERSION}
 x.py            usr/src/rustc-${env:RUST_LONG_VERSION}
-config.toml.example    usr/src/rustc-${env:RUST_LONG_VERSION}
+config.example.toml    usr/src/rustc-${env:RUST_LONG_VERSION}
 Cargo.toml      usr/src/rustc-${env:RUST_LONG_VERSION}
 src             usr/src/rustc-${env:RUST_LONG_VERSION}
 library         usr/src/rustc-${env:RUST_LONG_VERSION}
