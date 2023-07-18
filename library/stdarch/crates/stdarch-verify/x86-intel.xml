@@ -350,7 +350,7 @@ zero_tileconfig_start()
 	<parameter type="__tile" varname="dst"/>
 	<parameter type="const void *" varname="base"/>
 	<parameter type="int" varname="stride" etype="UI32"/>
-	<description>Load tile rows from memory specifieid by "base" address and "stride" into destination tile "dst" using the tile configuration previously configured via "_tile_loadconfig".</description>
+	<description>Load tile rows from memory specified by "base" address and "stride" into destination tile "dst" using the tile configuration previously configured via "_tile_loadconfig".</description>
 	<operation>start := tileconfig.startRow
 IF start == 0 // not restarting, zero incoming state
 	tilezero(dst)
@@ -375,7 +375,7 @@ zero_tileconfig_start()
 	<parameter type="__tile" varname="dst"/>
 	<parameter type="const void *" varname="base"/>
 	<parameter type="int" varname="stride" etype="UI32"/>
-	<description>Load tile rows from memory specifieid by "base" address and "stride" into destination tile "dst" using the tile configuration previously configured via "_tile_loadconfig". This intrinsic provides a hint to the implementation that the data will likely not be reused in the near future and the data caching can be optimized accordingly.</description>
+	<description>Load tile rows from memory specified by "base" address and "stride" into destination tile "dst" using the tile configuration previously configured via "_tile_loadconfig". This intrinsic provides a hint to the implementation that the data will likely not be reused in the near future and the data caching can be optimized accordingly.</description>
 	<operation>start := tileconfig.startRow
 IF start == 0 // not restarting, zero incoming state
 	tilezero(dst)
@@ -409,7 +409,7 @@ zero_tileconfig_start()
 	<parameter type="__tile" varname="src" />
 	<parameter type="void *" varname="base"/>
 	<parameter type="int" varname="stride" etype="UI32"/>
-	<description>Store the tile specified by "src" to memory specifieid by "base" address and "stride" using the tile configuration previously configured via "_tile_loadconfig".</description>
+	<description>Store the tile specified by "src" to memory specified by "base" address and "stride" using the tile configuration previously configured via "_tile_loadconfig".</description>
 	<operation>start := tileconfig.startRow
 DO WHILE start &lt; src.rows
 	memptr := base + start * stride
@@ -102068,7 +102068,7 @@ dst[MAX:512] := 0
 	<category>Trigonometry</category>
 	<return type="__m512" varname="dst" etype="FP32"/>
 	<parameter type="__m512" varname="a" etype="FP32"/>
-	<description>Compute the inverse hyperblic tangent of packed single-precision (32-bit) floating-point elements in "a", and store the results in "dst" expressed in radians.</description>
+	<description>Compute the inverse hyperbolic tangent of packed single-precision (32-bit) floating-point elements in "a", and store the results in "dst" expressed in radians.</description>
 	<operation>
 FOR j := 0 to 15
 	i := j*32
@@ -124016,7 +124016,7 @@ ESAC
 	<return type="void"/>
 	<parameter type="char const*" varname="p" etype="UI8"/>
 	<parameter type="int" varname="i" etype="IMM" immwidth="2"/>
-	<description>Fetch the line of data from memory that contains address "p" to a location in the cache heirarchy specified by the locality hint "i".</description>
+	<description>Fetch the line of data from memory that contains address "p" to a location in the cache hierarchy specified by the locality hint "i".</description>
 	<instruction name="VPREFETCH0" form="m8"/>
 	<instruction name="VPREFETCH1" form="m8"/>
 	<instruction name="VPREFETCH2" form="m8"/>
@@ -127958,7 +127958,7 @@ dst[MAX:512] := 0
 	<parameter type="void const *" varname="mt" etype="FP64"/>
 	<parameter type="_MM_UPCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_UPCONV_PD"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Loads the low-64-byte-aligned portion of the quadword stream starting at element-aligned address mt, up-converted depending on the value of "conv", and expanded into packed double-precision (64-bit) floating-point elements in "dst". The initial values of "dst" are copied from "src". Only those converted quad that occur before first 64-byte-aligned address following "mt" are loaded. Elements in the resulting vector that do not map to those quadwords are taken from "src". "hint" indicates to the processor whether the loaded data is non-temporal. Elements are copied to "dst" according to element selector "k" (elemenst are skipped when the corresponding mask bit is not set).</description>
+	<description>Loads the low-64-byte-aligned portion of the quadword stream starting at element-aligned address mt, up-converted depending on the value of "conv", and expanded into packed double-precision (64-bit) floating-point elements in "dst". The initial values of "dst" are copied from "src". Only those converted quad that occur before first 64-byte-aligned address following "mt" are loaded. Elements in the resulting vector that do not map to those quadwords are taken from "src". "hint" indicates to the processor whether the loaded data is non-temporal. Elements are copied to "dst" according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 DEFINE UPCONVERT(addr, offset, convertTo) {
 	CASE conv OF
@@ -128000,7 +128000,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
 	<parameter type="_MM_DOWNCONV_EPI32_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI32"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_DOWNCONV_EPI32_NONE:
@@ -128065,7 +128065,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
 	<parameter type="_MM_DOWNCONV_EPI32_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI32"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresonding mask bit is not set).</description>
+	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_DOWNCONV_EPI32_NONE:
@@ -128131,7 +128131,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
 	<parameter type="_MM_DOWNCONV_EPI32_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI32"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128193,7 +128193,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
 	<parameter type="_MM_DOWNCONV_EPI32_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI32"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are written to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed 32-bit integer elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are written to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128256,7 +128256,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
 	<parameter type="_MM_DOWNCONV_EPI64_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI64"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_EPI64_NONE:
@@ -128303,7 +128303,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
 	<parameter type="_MM_DOWNCONV_EPI64_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI64"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (mt-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresonding mask bit is not set).</description>
+	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (mt-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_EPI64_NONE:
@@ -128351,7 +128351,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
 	<parameter type="_MM_DOWNCONV_EPI64_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI64"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128395,7 +128395,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
 	<parameter type="_MM_DOWNCONV_EPI64_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_EPI64"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped whent he corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed 64-bit integer elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128440,7 +128440,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512" varname="v1" etype="FP32"/>
 	<parameter type="_MM_DOWNCONV_PS_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PS"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_PS_NONE:
@@ -128509,7 +128509,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512" varname="v1" etype="FP32"/>
 	<parameter type="_MM_DOWNCONV_PS_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PS"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_PS_NONE:
@@ -128579,7 +128579,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512" varname="v1" etype="FP32"/>
 	<parameter type="_MM_DOWNCONV_PS_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PS"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128645,7 +128645,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512" varname="v1" etype="FP32"/>
 	<parameter type="_MM_DOWNCONV_PS_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PS"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed single-precision (32-bit) floating-point elements of "v1" into a byte/word/doubleword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128712,7 +128712,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
 	<parameter type="_MM_DOWNCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PD"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_PD_NONE:
@@ -128759,7 +128759,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
 	<parameter type="_MM_DOWNCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PD"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
 	_MM_UPCONV_PD_NONE:
@@ -128807,7 +128807,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
 	<parameter type="_MM_DOWNCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PD"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -128851,7 +128851,7 @@ dst[MAX:512] := 0
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
 	<parameter type="_MM_DOWNCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PD"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE"/>
-	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Down-converts and stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream according to "conv" at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). "hint" indicates to the processor whether the data is non-temporal. Elements are stored to memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 DEFINE DOWNCONVERT(element, convertTo) {
 	CASE convertTo OF
@@ -129460,7 +129460,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="UI32" memwidth="512"/>
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
-	<description>Stores packed 32-bit integer elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt").</description>
+	<description>Stores packed 32-bit integer elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt").</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129484,7 +129484,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="UI32" memwidth="512"/>
 	<parameter type="__mmask16" varname="k" etype="MASK"/>
 	<parameter type="__m512i" varname="v1" etype="UI32"/>
-	<description>Stores packed 32-bit integer elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed 32-bit integer elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129509,7 +129509,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="UI64" memwidth="512"/>
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
-	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
+	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129537,7 +129537,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="UI64" memwidth="512"/>
 	<parameter type="__mmask8" varname="k" etype="MASK"/>
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
-	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129566,7 +129566,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="UI64" memwidth="512"/>
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
-	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt").</description>
+	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt").</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129590,7 +129590,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="UI64" memwidth="512"/>
 	<parameter type="__mmask8" varname="k" etype="MASK"/>
 	<parameter type="__m512i" varname="v1" etype="UI64"/>
-	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed 64-bit integer elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129615,7 +129615,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="FP32" memwidth="512"/>
 	<parameter type="__m512" varname="v1" etype="FP32"/>
-	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
+	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129643,7 +129643,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="FP32" memwidth="512"/>
 	<parameter type="__mmask16" varname="k" etype="MASK"/>
 	<parameter type="__m512" varname="v1" etype="FP32"/>
-	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129672,7 +129672,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="FP32" memwidth="512"/>
 	<parameter type="__m512" varname="v1" etype="FP32"/>
-	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt").</description>
+	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt").</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129696,7 +129696,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="FP32" memwidth="512"/>
 	<parameter type="__mmask16" varname="k" etype="MASK"/>
 	<parameter type="__m512" varname="v1" etype="FP32"/>
-	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed single-precision (32-bit) floating-point elements of "v1" into a doubleword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129721,7 +129721,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="FP64" memwidth="512"/>
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
-	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
+	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129749,7 +129749,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="FP64" memwidth="512"/>
 	<parameter type="__mmask8" varname="k" etype="MASK"/>
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
-	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elemetns of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address (mt-64), storing the high-64-byte elements of that stream (those elements of the stream that map at or after the first 64-byte-aligned address following (m5-64)). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 foundNext64BytesBoundary := 0
@@ -129778,7 +129778,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="void*" varname="mt" etype="FP64" memwidth="512"/>
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
-	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt").</description>
+	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt").</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -129802,7 +129802,7 @@ ENDFOR
 	<parameter type="void*" varname="mt" etype="FP64" memwidth="512"/>
 	<parameter type="__mmask8" varname="k" etype="MASK"/>
 	<parameter type="__m512d" varname="v1" etype="FP64"/>
-	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address follwing "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
+	<description>Stores packed double-precision (64-bit) floating-point elements of "v1" into a quadword stream at a logically mapped starting address "mt", storing the low-64-byte elements of that stream (those elements of the stream that map before the first 64-byte-aligned address following "mt"). Elements are loaded from memory according to element selector "k" (elements are skipped when the corresponding mask bit is not set).</description>
 	<operation>
 storeOffset := 0
 addr := mt
@@ -131673,7 +131673,7 @@ ENDFOR
 	<parameter type="_MM_DOWNCONV_PD_ENUM" varname="conv" etype="IMM" immtype="_MM_DOWNCONV_PD"/>
 	<parameter type="int" varname="scale" etype="IMM" immtype="_MM_INDEX_SCALE"/>
 	<parameter type="int" varname="hint" etype="UI32" hint="TRUE" immtype="_MM_HINT_EXT"/>
-	<description>Down-converts 8 packed double-precision (64-bit) floating-point elements in "a" using "conv" and stores them in memory locations starting at location "base_addr" at packed 64-bit integer indices stored in "vindex" scaled by "scale". Elements are written to memory using writemask "k" (elements are not stored to memory when the corresponding mask bit is not set; the memory location is left unchagned). "hint" indicates to the processor whether the data is non-temporal.</description>
+	<description>Down-converts 8 packed double-precision (64-bit) floating-point elements in "a" using "conv" and stores them in memory locations starting at location "base_addr" at packed 64-bit integer indices stored in "vindex" scaled by "scale". Elements are written to memory using writemask "k" (elements are not stored to memory when the corresponding mask bit is not set; the memory location is left unchanged). "hint" indicates to the processor whether the data is non-temporal.</description>
 	<operation>
 FOR j := 0 to 7
 	i := j*64
@@ -135543,7 +135543,7 @@ ENDFOR
 	<return type="void"/>
 	<parameter type="char const*" varname="p" etype="UI8"/>
 	<parameter type="int" varname="i" etype="IMM" immwidth="2"/>
-	<description>Fetch the line of data from memory that contains address "p" to a location in the cache heirarchy specified by the locality hint "i".</description>
+	<description>Fetch the line of data from memory that contains address "p" to a location in the cache hierarchy specified by the locality hint "i".</description>
 	<instruction name="PREFETCHWT1" form="m8" xed="PREFETCHWT1_MEMu8"/>
 	<header>xmmintrin.h</header>
 </intrinsic>
@@ -136102,7 +136102,7 @@ MXCSR := a[31:0]
 	<return type="void"/>
 	<parameter type="char const*" varname="p" etype="UI8"/>
 	<parameter type="int" varname="i" etype="IMM" immwidth="2"/>
-	<description>Fetch the line of data from memory that contains address "p" to a location in the cache heirarchy specified by the locality hint "i".</description>
+	<description>Fetch the line of data from memory that contains address "p" to a location in the cache hierarchy specified by the locality hint "i".</description>
 	<instruction name="PREFETCHNTA" form="m8" xed="PREFETCHNTA_MEMmprefetch"/>
 	<instruction name="PREFETCHT0" form="m8" xed="PREFETCHT0_MEMmprefetch"/>
 	<instruction name="PREFETCHT1" form="m8" xed="PREFETCHT1_MEMmprefetch"/>
