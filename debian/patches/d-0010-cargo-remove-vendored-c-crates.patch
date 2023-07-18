@@ -8,7 +8,7 @@ Index: rustc/src/tools/cargo/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/Cargo.toml
 +++ rustc/src/tools/cargo/Cargo.toml
-@@ -206,8 +206,7 @@ test = false
+@@ -206,8 +206,6 @@ test = false
  doc = false
  
  [features]
@@ -17,4 +17,4 @@ Index: rustc/src/tools/cargo/Cargo.toml
 +# Debian: removed vendoring flags
  pretty-env-logger = ["pretty_env_logger"]
  # This is primarily used by rust-lang/rust distributing cargo the executable.
- all-static = ['vendored-openssl', 'curl/static-curl', 'curl/force-system-lib-on-osx']
+-all-static = ['vendored-openssl', 'curl/static-curl', 'curl/force-system-lib-on-osx']
