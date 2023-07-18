@@ -19,7 +19,7 @@ Index: rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -18,29 +18,18 @@ members = [
+@@ -18,23 +18,15 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -27,12 +27,6 @@ Index: rustc/Cargo.toml
 -  "src/tools/remote-test-server",
    "src/tools/rust-installer",
    "src/tools/rust-demangler",
-   "src/tools/cargo",
-   "src/tools/cargo/crates/credential/cargo-credential-1password",
--  "src/tools/cargo/crates/credential/cargo-credential-macos-keychain",
--  "src/tools/cargo/crates/credential/cargo-credential-wincred",
-   "src/tools/cargo/crates/mdman",
--  # "src/tools/cargo/crates/resolver-tests",
    "src/tools/rustdoc",
 -  "src/tools/rls",
    "src/tools/rustfmt",
@@ -49,7 +43,7 @@ Index: rustc/Cargo.toml
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
-@@ -105,6 +94,15 @@ gimli.debug = 0
+@@ -101,6 +93,15 @@ gimli.debug = 0
  miniz_oxide.debug = 0
  object.debug = 0
  
@@ -63,13 +57,13 @@ Index: rustc/Cargo.toml
 +bootstrap.debug = 1
 +
  [patch.crates-io]
- # See comments in `src/tools/rustc-workspace-hack/README.md` for what's going on
+ # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
  # here
 Index: rustc/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -781,10 +781,6 @@ class RustBuild(object):
+@@ -899,10 +899,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(verbose_count))
@@ -84,7 +78,7 @@ Index: rustc/src/bootstrap/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/builder.rs
 +++ rustc/src/bootstrap/builder.rs
-@@ -658,12 +658,8 @@ impl<'a> Builder<'a> {
+@@ -672,12 +672,8 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -97,16 +91,16 @@ Index: rustc/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -672,8 +668,6 @@ impl<'a> Builder<'a> {
+@@ -686,8 +682,6 @@ impl<'a> Builder<'a> {
                  llvm::Llvm,
                  llvm::Sanitizers,
                  tool::Rustfmt,
 -                tool::Miri,
 -                tool::CargoMiri,
                  llvm::Lld,
-                 llvm::CrtBeginEnd
-             ),
-@@ -683,11 +677,7 @@ impl<'a> Builder<'a> {
+                 llvm::CrtBeginEnd,
+                 tool::RustdocGUITest,
+@@ -698,11 +692,7 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -118,18 +112,15 @@ Index: rustc/src/bootstrap/builder.rs
                  check::Rustfmt,
                  check::Bootstrap
              ),
-@@ -715,10 +709,8 @@ impl<'a> Builder<'a> {
-                 test::SuggestTestsCrate,
-                 test::Linkcheck,
+@@ -730,7 +720,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
--                test::ReplacePlaceholderTest,
                  test::Cargotest,
                  test::Cargo,
 -                test::RustAnalyzer,
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -734,7 +722,6 @@ impl<'a> Builder<'a> {
+@@ -746,7 +735,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -137,7 +128,7 @@ Index: rustc/src/bootstrap/builder.rs
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -771,7 +763,6 @@ impl<'a> Builder<'a> {
+@@ -783,7 +771,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -145,7 +136,7 @@ Index: rustc/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -788,16 +774,12 @@ impl<'a> Builder<'a> {
+@@ -801,16 +788,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -162,7 +153,7 @@ Index: rustc/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -810,11 +792,9 @@ impl<'a> Builder<'a> {
+@@ -823,11 +806,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -174,15 +165,15 @@ Index: rustc/src/bootstrap/builder.rs
                  install::LlvmTools,
                  install::Src,
                  install::Rustc
-@@ -824,7 +804,6 @@ impl<'a> Builder<'a> {
+@@ -837,7 +818,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
 -                run::Miri,
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
-             ),
-@@ -1949,10 +1936,7 @@ impl<'a> Builder<'a> {
+                 run::GenerateWindowsSys,
+@@ -1979,10 +1959,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -198,7 +189,7 @@ Index: rustc/src/bootstrap/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/test.rs
 +++ rustc/src/bootstrap/test.rs
-@@ -2070,17 +2070,7 @@ impl Step for RustcGuide {
+@@ -2004,17 +2004,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -237,16 +228,3 @@ Index: rustc/src/tools/rust-analyzer/Cargo.toml
  exclude = ["crates/proc-macro-test/imp"]
  
  [workspace.package]
-Index: rustc/src/tools/rustc-workspace-hack/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/rustc-workspace-hack/Cargo.toml
-+++ rustc/src/tools/rustc-workspace-hack/Cargo.toml
-@@ -74,7 +74,7 @@ features = [
- [dependencies]
- bstr = { version = "0.2.17", features = ["default"] }
- clap = { version = "3.1.1", features = ["derive", "clap_derive"]}
--curl-sys = { version = "0.4.13", features = ["http2", "libnghttp2-sys"], optional = true }
-+curl-sys = { version = "0.4.13", features = ["http2"], optional = true }
- # Ensure `extra_traits` of libc, which is used transitively by Cargo.
- libc = { version = "0.2", features = ["extra_traits"] }
- # Ensure `js` of getrandom, which is (unfortunately) used transitively by Cargo.

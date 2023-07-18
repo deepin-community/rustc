@@ -10,10 +10,10 @@ Forwarded: not-needed
  src/bootstrap/dist.rs    | 5 ++++-
  2 files changed, 9 insertions(+), 2 deletions(-)
 
-Index: rustc-1.70.0-src/src/bootstrap/channel.rs
+Index: rustc/src/bootstrap/channel.rs
 ===================================================================
---- rustc-1.70.0-src.orig/src/bootstrap/channel.rs
-+++ rustc-1.70.0-src/src/bootstrap/channel.rs
+--- rustc.orig/src/bootstrap/channel.rs
++++ rustc/src/bootstrap/channel.rs
 @@ -37,7 +37,11 @@ pub struct Info {
  impl GitInfo {
      pub fn new(omit_git_hash: bool, dir: &Path) -> GitInfo {
@@ -27,11 +27,11 @@ Index: rustc-1.70.0-src/src/bootstrap/channel.rs
              match read_commit_info_file(dir) {
                  Some(info) => return GitInfo::RecordedForTarball(info),
                  None => return GitInfo::Absent,
-Index: rustc-1.70.0-src/src/bootstrap/dist.rs
+Index: rustc/src/bootstrap/dist.rs
 ===================================================================
---- rustc-1.70.0-src.orig/src/bootstrap/dist.rs
-+++ rustc-1.70.0-src/src/bootstrap/dist.rs
-@@ -995,7 +995,10 @@ impl Step for PlainSourceTarball {
+--- rustc.orig/src/bootstrap/dist.rs
++++ rustc/src/bootstrap/dist.rs
+@@ -997,7 +997,10 @@ impl Step for PlainSourceTarball {
          }
  
          // If we're building from git sources, we need to vendor a complete distribution.
@@ -41,5 +41,5 @@ Index: rustc-1.70.0-src/src/bootstrap/dist.rs
 +        //         repository, but cargo-vendor should not be installed or run.
 +        if true && builder.rust_info().is_managed_git_subrepository() {
              // Ensure we have the submodules checked out.
+             builder.update_submodule(Path::new("src/tools/cargo"));
              builder.update_submodule(Path::new("src/tools/rust-analyzer"));
- 

@@ -11,11 +11,11 @@ Index: rustc/src/bootstrap/config.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/config.rs
 +++ rustc/src/bootstrap/config.rs
-@@ -1004,7 +1004,6 @@ impl Config {
+@@ -1115,7 +1115,6 @@ impl Config {
          }
  
          config.initial_rustc = build.rustc.map(PathBuf::from).unwrap_or_else(|| {
 -            config.download_beta_toolchain();
              config.out.join(config.build.triple).join("stage0/bin/rustc")
          });
-         config.initial_cargo = build
+ 
