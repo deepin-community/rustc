@@ -17,11 +17,11 @@ Build-Depends:
  cargo:native (>= 1.69.0+dfsg) <!pkg.rustc.dlstage0>,
  rustc:native (>= 1.69.0+dfsg) <!pkg.rustc.dlstage0>,
  rustc:native (<= 1.70.0++)    <!pkg.rustc.dlstage0>,
- llvm-15-dev:native,
- llvm-15-tools:native,
- libclang-rt-15-dev (>= 1:15.0.7),
- libclang-common-15-dev (>= 1:15.0.7),
- libllvm15 (>= 1:15.0.7),
+ llvm-16-dev:native,
+ llvm-16-tools:native,
+ libclang-rt-16-dev (>= 1:16.0.5),
+ libclang-common-16-dev (>= 1:16.0.5),
+ libllvm16 (>= 1:16.0.5),
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
  pkg-config,
@@ -55,7 +55,7 @@ Build-Depends:
  curl <pkg.rustc.dlstage0>,
  ca-certificates <pkg.rustc.dlstage0>,
 Build-Depends-Indep:
- clang-15:native,
+ clang-16:native,
  libssl-dev,
 Build-Conflicts: gdb-minimal (<< 8.1-0ubuntu6) <!nocheck>
 Standards-Version: 4.2.1
@@ -75,7 +75,7 @@ Suggests:
 # lld and clang are needed for wasm compilation
 # llvm is needed for llvm-dwp for -C split-debuginfo=packed
  cargo (= ${binary:Version}),
- llvm-15, lld-15, clang-15,
+ llvm-16, lld-16, clang-16,
 Replaces: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
 Breaks: libstd-rust-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
 Description: Rust systems programming language
@@ -160,7 +160,7 @@ Description: Rust debugger (gdb)
 Package: rust-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
-Depends: lldb-15, ${misc:Depends}, python3-lldb-15
+Depends: lldb-16, ${misc:Depends}, python3-lldb-16
 Replaces: rustc (<< 1.1.0+dfsg1-1)
 Description: Rust debugger (lldb)
  Rust is a curly-brace, block-structured expression language.  It
@@ -274,7 +274,7 @@ Description: Rust formatting helper
 Package: rust-all
 Architecture: all
 Depends: ${misc:Depends}, ${shlibs:Depends},
- llvm-15,
+ llvm-16,
  rustc (>= ${binary:Version}),
  rustfmt (>= ${binary:Version}),
  rust-clippy (>= ${binary:Version}),
