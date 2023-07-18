@@ -17,7 +17,6 @@ u-reproducible-build.patch
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
 u-rustc-llvm-cross-flags.patch
-u-reproducible-dl-stage0.patch
 u-make-tests-work-without-rpath.patch
 #u-allow-system-compiler-rt.patch
 
@@ -42,7 +41,6 @@ d-bootstrap-rustflags.patch
 d-remove-arm-privacy-breaches.patch
 d-bootstrap-install-symlinks.patch
 d-bootstrap-disable-git.patch
-d-bootstrap-read-beta-version-from-file.patch
 d-bootstrap-no-assume-tools.patch
 d-bootstrap-cargo-doc-paths.patch
 d-bootstrap-use-local-css.patch
@@ -62,7 +60,6 @@ d-armel-fix-lldb.patch
 d-rust-gdb-paths
 d-rust-lldb-paths
 d-rustc-add-soname.patch
-d-rustc-fix-mips64el-bootstrap.patch
 d-rustc-windows-ssp.patch
 d-rustc-i686-baseline.patch
 # Experimental patch not yet working
