@@ -12,4 +12,4 @@ usr/lib/rustlib/*/bin/rust-llvm-dwp
 usr/share/doc/rust/*
 
 # should be claimed by dh_bash-completion
-etc/bash_completion.d/cargo
+usr/src/etc/bash_completion.d/cargo
