@@ -2165,16 +2165,6 @@ Copyright: 2018-2023 Phil Booth <pmbooth@gmail.com>
 License: Apache-2.0
 Comment: see https://gitlab.com/philbooth/unicode-bom
 
-Files: vendor/gix-prompt/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-chunk/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/prodash/*
 Copyright: 2020-2023 Sebastian Thiel <sebastian.thiel@icloud.com>
 License: MIT
@@ -2230,21 +2220,6 @@ Copyright: 2014-2023 Sean McArthur <sean@seanmonstar.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/hyperium/mime
 
-Files: vendor/gix-protocol/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-config-value/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-discover/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files:
  vendor/anstyle/*
  vendor/anstyle-0.3.5/*
@@ -2252,40 +2227,10 @@ Copyright: 2022-2023 Ed Page
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-cli/anstyle.git
 
-Files: vendor/gix-path/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-odb/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-object/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-glob/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-refspec/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/anstyle-parse/*
 Copyright: 2023 Ed Page
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-cli/anstyle.git
-
-Files: vendor/gix-quote/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/imara-diff/*
 Copyright: 2022 pascalkuthe <pascalkuthe@semimod.de>
@@ -2302,35 +2247,10 @@ Copyright: 2023 Ed Page
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-cli/concolor
 
-Files: vendor/gix-actor/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-features/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-lock/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/maybe-async/*
 Copyright: 2020-2023 Guoli Lyu <guoli-lv@hotmail.com>
 License: MIT
 Comment: see https://github.com/fMeow/maybe-async-rs
-
-Files: vendor/gix-revision/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-attributes/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files:
  vendor/clap_builder/*
@@ -2344,33 +2264,8 @@ Copyright: 2015-2022 Austin Bonander <austin.bonander@gmail.com>
 License: MIT
 Comment: see https://github.com/abonander/mime_guess
 
-Files: vendor/gix-transport/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-index/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-credentials/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/gix-config/*
 Copyright: 2023 Edward Shen <code@eddie.sh>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-mailmap/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-date/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
 
@@ -2379,83 +2274,61 @@ Copyright: 2020-2022 marmeladema <xademax@gmail.com>
 License: MIT
 Comment: see https://github.com/marmeladema/clru-rs
 
-Files: vendor/gix-tempfile/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/basic-toml/*
 Copyright: 2023 Alex Crichton <alex@alexcrichton.com>
   2023 David Tolnay <dtolnay@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/dtolnay/basic-toml
 
-Files: vendor/gix-sec/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-traverse/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-bitmap/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/junction/*
 Copyright: 2019-2023 Lzu Tao <taolzu@gmail.com>
 License: MIT
 Comment: see https://github.com/lzutao/junction
-
-Files: vendor/gix-diff/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/io-close/*
 Copyright: 2020-2021 wufz
 License: MIT OR Apache-2.0
 Comment: see https://gitlab.com/wufz/io-close
 
-Files: vendor/gix-worktree/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-command/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-pack/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-url/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-ref/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-packetline/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix-hash/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
-Files: vendor/gix/*
+Files:
+ vendor/gix/*
+ vendor/gix-actor/*
+ vendor/gix-attributes/*
+ vendor/gix-bitmap/*
+ vendor/gix-chunk/*
+ vendor/gix-command/*
+ vendor/gix-config-value/*
+ vendor/gix-credentials/*
+ vendor/gix-date/*
+ vendor/gix-diff/*
+ vendor/gix-discover/*
+ vendor/gix-features/*
+ vendor/gix-fs/*
+ vendor/gix-glob/*
+ vendor/gix-hash/*
+ vendor/gix-ignore/*
+ vendor/gix-index/*
+ vendor/gix-lock/*
+ vendor/gix-mailmap/*
+ vendor/gix-object/*
+ vendor/gix-odb/*
+ vendor/gix-pack/*
+ vendor/gix-packetline/*
+ vendor/gix-path/*
+ vendor/gix-prompt/*
+ vendor/gix-protocol/*
+ vendor/gix-quote/*
+ vendor/gix-ref/*
+ vendor/gix-refspec/*
+ vendor/gix-revision/*
+ vendor/gix-sec/*
+ vendor/gix-tempfile/*
+ vendor/gix-transport/*
+ vendor/gix-traverse/*
+ vendor/gix-url/*
+ vendor/gix-utils/*
+ vendor/gix-validate/*
+ vendor/gix-worktree/*
 Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
@@ -2470,11 +2343,6 @@ Files: vendor/num_threads/*
 Copyright: 2021-2022 Jacob Pratt <open-source@jhpratt.dev>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/jhpratt/num_threads
-
-Files: vendor/gix-validate/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/security-framework/*
 Copyright: 2015-2023 Steven Fackler <sfackler@gmail.com>
@@ -2537,11 +2405,6 @@ Files: vendor/varisat-dimacs/*
 Copyright: 2019-2020 Jannis Harder <me@jix.one>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/jix/varisat
-
-Files: vendor/gix-ignore/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT/Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/oorandom/*
 Copyright: 2019-2020 Simon Heath <icefox@dreamquest.io>
@@ -2665,11 +2528,6 @@ Copyright: 2020-2023 Andrew Straw <strawman@astraw.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/strawlab/iana-time-zone
 
-Files: vendor/gix-utils/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT/Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
-
 Files: vendor/partial_ref_derive/*
 Copyright: 2018-2021 Jannis Harder <me@jix.one>
 License: MIT OR Apache-2.0
@@ -2730,11 +2588,6 @@ Files: vendor/cast/*
 Copyright: 2016-2021 Jorge Aparicio <jorge@japaric.io>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/japaric/cast.rs
-
-Files: vendor/gix-fs/*
-Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
-License: MIT/Apache-2.0
-Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/field-offset/*
 Copyright: 2016-2023 Diggory Blake <diggsey@googlemail.com>
