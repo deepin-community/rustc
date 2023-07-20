@@ -13,3 +13,6 @@ usr/share/doc/rust/*
 
 # should be claimed by dh_bash-completion
 usr/src/etc/bash_completion.d/cargo
+
+# backup files from the previous stages
+usr/bin/*.old
