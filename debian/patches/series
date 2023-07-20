@@ -73,3 +73,4 @@ ubuntu-disable-sse2-tests-on-i386.patch
 ubuntu-downgrade-libgit2-to-1.5.patch
 ubuntu-use-system-compiler-during-tests.patch
 ubuntu-disable-fpmath-tests-for-i386.patch
+ubuntu-make-lint-docs-work-without-rpath.patch
