@@ -1,3 +1,27 @@
+rustc (1.71.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release 1.71.0 (LP: #2027942)
+    - d/patches: Refresh patches
+  * d/p/u-reproducible-dl-stage0.patch,
+    d/p/ubuntu-fix-sysroot-detection.patch,
+    d/p/d-rustc-fix-mips64el-bootstrap.patch,
+    d/p/d-bootstrap-read-beta-version-from-file.patch: Removed patches that
+    were merged by the upstream
+  * d/rules: Remove the src/tools/cargo/Cargo.lock file prior to the build, so
+    that we can re-use the dependencies as many as possible
+  * d/p/ubuntu-make-lint-docs-work-without-rpath.patch: Add a new patch to
+    revert a breaking change made by the upstream where it broke the native
+    rustc build by removing the LD_LIBRARY_PATH during the documentation
+    validation phase
+  * d/prune-unused-deps: Do the re-locking process for Cargo, since Cargo now
+    also has its own workspace, it does not share the lock file with rustc
+    starting in Rust 1.71
+  * d/not-installed: Ignore backup files
+  * d/cargo.bash-completion, d/not-installed: Fix the installation path for
+    bash-completion files, the path has changed since Rust 1.71
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 20 Jul 2023 12:05:15 +0800
+
 rustc (1.70.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.70.0 (LP: #2027639)
