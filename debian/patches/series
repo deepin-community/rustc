@@ -9,7 +9,6 @@ c-0003-tests-add-missing-cross-disabled-checks.patch
 # Patches for upstream
 
 # pending, or forwarded
-u-ignore-reproducible-failure.patch
 u-reproducible-build.patch
 #u-ignore-endian-big-diff.patch
 #u-make-compiletest-work-without-rpath.patch
@@ -17,7 +16,6 @@ u-reproducible-build.patch
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
 u-rustc-llvm-cross-flags.patch
-u-make-tests-work-without-rpath.patch
 #u-allow-system-compiler-rt.patch
 
 # Debian-specific patches, not suitable for upstream
