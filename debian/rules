@@ -406,7 +406,7 @@ ifeq (true,$(BUILD_DOCS))
 	  topdir=$$(echo "$$file" | sed 's,^$(DEB_DESTDIR)/usr/share/doc/rust/html/,,; s,/[^/]*$$,/,; s,^[^/]*$$,,; s,[^/]\+/,../,g'); \
 	  sed -i \
 	    -e "s,https://\(doc\|www\).rust-lang.org/\(favicon.ico\|logos/rust-logo-32x32-blk.png\),$${topdir}rust-logo-32x32-blk.png," \
-	    -e 's,<img src="https://github.com/rust-lang/rust-clippy/workflows/Clippy%20Test/badge.svg[^"]*" alt="\([^"]*\)" />,<span class="deb-privacy-replace--github.com-badge">\1</span>,g' \
+	    -e 's,<img src="https://github.com/rust-lang/rust-clippy/workflows/Clippy%20Test%20(bors)/badge.svg[^"]*" alt="\([^"]*\)" />,<span class="deb-privacy-replace--github.com-badge">\1</span>,g' \
 	    -e 's,<img src="https://img.shields.io/[^"]*" alt="\([^"]*\)" />,<span class="deb-privacy-replace--shields-io">\1</span>,g' "$$file"; \
 	done
 	find $(DEB_DESTDIR) \( -iname '*.html' -empty -o -name .lock -o -name '*.inc' \) -delete;
