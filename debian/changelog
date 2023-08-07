@@ -1,3 +1,12 @@
+rustc (1.71.1+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
+
+  * New upstream release 1.71.1 (LP: #2027942)
+    - Upstream fixed CVE-2023-38497 and updated tar library
+    - d/copyright: Update copyright information for upstream patched crates
+  * d/p/ubuntu-make-lint-docs-work-without-rpath.patch: Remove obsoleted patch
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Sun, 06 Aug 2023 21:17:45 -0600
+
 rustc (1.71.0+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.71.0 (LP: #2027942)
