@@ -430,9 +430,11 @@ Files:
  vendor/lzma-sys/*
  vendor/pkg-config/*
  vendor/proc-macro2/*
+ vendor/proc-macro2-1.0.56/*
  vendor/rustc-demangle/*
  vendor/scoped-tls/*
  vendor/tar/*
+ vendor/tar-0.4.38/*
  vendor/toml/*
  vendor/xz2/*
  vendor/openssl-probe/*
