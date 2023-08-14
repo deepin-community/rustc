@@ -1,3 +1,10 @@
+rustc (1.71.1+dfsg0ubuntu1-0ubuntu2) mantic; urgency=medium
+
+  * d/control: Fix an issue where the build dependency incorrectly specified
+    the upper bound of rustc to <= 1.71.0 instead of 1.71.1 (LP: #2031545)
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Mon, 14 Aug 2023 12:03:34 +0800
+
 rustc (1.71.1+dfsg0ubuntu1-0ubuntu1) mantic; urgency=medium
 
   * New upstream release 1.71.1 (LP: #2027942)
