@@ -35,32 +35,6 @@ index c050fb3..c20c05a 100644
  
      cfg.compile("git2");
  
-diff --git a/src/diff.rs b/src/diff.rs
-index 6949d09..e039c76 100644
---- a/vendor/git2/src/diff.rs
-+++ b/vendor/git2/src/diff.rs
-@@ -266,7 +266,7 @@ impl<'repo> Diff<'repo> {
-         assert!(patch_no > 0);
-         assert!(patch_no <= total_patches);
-         let mut default = DiffFormatEmailOptions::default();
--        let mut raw_opts = opts.map_or(&mut default.raw, |opts| &mut opts.raw);
-+        let raw_opts = opts.map_or(&mut default.raw, |opts| &mut opts.raw);
-         let summary = commit.summary_bytes().unwrap();
-         let mut message = commit.message_bytes();
-         assert!(message.starts_with(summary));
-diff --git a/src/transport.rs b/src/transport.rs
-index 5d46959..74446d0 100644
---- a/vendor/git2/src/transport.rs
-+++ b/vendor/git2/src/transport.rs
-@@ -251,7 +251,7 @@ extern "C" fn subtransport_action(
-             n => panic!("unknown action: {}", n),
-         };
- 
--        let mut transport = &mut *(raw_transport as *mut RawSmartSubtransport);
-+        let transport = &mut *(raw_transport as *mut RawSmartSubtransport);
-         // Note: we only need to generate if rpc is on. Else, for receive-pack and upload-pack
-         // libgit2 reuses the stream generated for receive-pack-ls or upload-pack-ls.
-         let generate_stream =
 diff --git a/tests/add_extensions.rs b/tests/add_extensions.rs
 index 7d80b70..fe37e1e 100644
 --- a/vendor/git2/tests/add_extensions.rs

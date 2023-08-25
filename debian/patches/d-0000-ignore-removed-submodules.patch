@@ -19,7 +19,7 @@ Index: rust/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -18,28 +18,20 @@ members = [
+@@ -20,23 +20,16 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -43,19 +43,14 @@ Index: rust/Cargo.toml
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
-   "src/tools/suggest-tests",
--  "src/tools/generate-windows-sys",
-   "src/tools/rustdoc-gui-test",
- ]
- 
 Index: rust/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -899,10 +899,6 @@ class RustBuild(object):
+@@ -946,10 +946,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
-         args.extend("--verbose" for _ in range(verbose_count))
+         args.extend("--verbose" for _ in range(self.verbose))
 -        if self.use_locked_deps:
 -            args.append("--locked")
 -        if self.use_vendored_sources:
@@ -67,7 +62,7 @@ Index: rust/src/bootstrap/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/builder.rs
 +++ rustc/src/bootstrap/builder.rs
-@@ -672,12 +672,8 @@ impl<'a> Builder<'a> {
+@@ -646,12 +646,8 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -80,7 +75,7 @@ Index: rust/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -686,8 +682,6 @@ impl<'a> Builder<'a> {
+@@ -660,8 +656,6 @@ impl<'a> Builder<'a> {
                  llvm::Llvm,
                  llvm::Sanitizers,
                  tool::Rustfmt,
@@ -89,7 +84,7 @@ Index: rust/src/bootstrap/builder.rs
                  llvm::Lld,
                  llvm::CrtBeginEnd,
                  tool::RustdocGUITest,
-@@ -698,11 +692,7 @@ impl<'a> Builder<'a> {
+@@ -672,12 +666,8 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -97,11 +92,12 @@ Index: rust/src/bootstrap/builder.rs
 -                check::CargoMiri,
                  check::MiroptTestTools,
 -                check::Rls,
--                check::RustAnalyzer,
                  check::Rustfmt,
+-                check::RustAnalyzer,
                  check::Bootstrap
              ),
-@@ -730,7 +720,6 @@ impl<'a> Builder<'a> {
+             Kind::Test => describe!(
+@@ -706,7 +696,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -109,7 +105,7 @@ Index: rust/src/bootstrap/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -746,7 +735,6 @@ impl<'a> Builder<'a> {
+@@ -722,7 +711,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -117,7 +113,7 @@ Index: rust/src/bootstrap/builder.rs
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -783,7 +771,6 @@ impl<'a> Builder<'a> {
+@@ -759,7 +747,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -125,7 +121,7 @@ Index: rust/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -801,16 +788,12 @@ impl<'a> Builder<'a> {
+@@ -777,16 +764,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -142,7 +138,7 @@ Index: rust/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -823,11 +806,9 @@ impl<'a> Builder<'a> {
+@@ -799,11 +782,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -154,7 +150,7 @@ Index: rust/src/bootstrap/builder.rs
                  install::LlvmTools,
                  install::Src,
                  install::Rustc
-@@ -837,7 +818,6 @@ impl<'a> Builder<'a> {
+@@ -813,7 +794,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -162,7 +158,7 @@ Index: rust/src/bootstrap/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -1979,10 +1959,7 @@ impl<'a> Builder<'a> {
+@@ -1965,10 +1945,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -178,7 +174,7 @@ Index: rust/src/bootstrap/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/test.rs
 +++ rustc/src/bootstrap/test.rs
-@@ -2004,17 +2004,7 @@ impl Step for RustcGuide {
+@@ -2129,17 +2129,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -187,7 +183,7 @@ Index: rust/src/bootstrap/test.rs
 -
 -        let src = builder.src.join(relative_path);
 -        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
--        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)) {
+-        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)).is_ok() {
 -            ToolState::TestPass
 -        } else {
 -            ToolState::TestFail
@@ -215,5 +211,5 @@ Index: rust/src/tools/rust-analyzer/Cargo.toml
 +  "crates/proc-macro-api",
 +]
  exclude = ["crates/proc-macro-test/imp"]
+ resolver = "2"
  
- [workspace.package]

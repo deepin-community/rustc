@@ -7,15 +7,15 @@ Forwarded: not-needed
 Last-Update: 2023-07-18
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: rustc/src/bootstrap/config.rs
-===================================================================
---- rustc.orig/src/bootstrap/config.rs
-+++ rustc/src/bootstrap/config.rs
-@@ -1115,7 +1115,6 @@ impl Config {
-         }
- 
-         config.initial_rustc = build.rustc.map(PathBuf::from).unwrap_or_else(|| {
+diff --git a/src/bootstrap/config.rs b/src/bootstrap/config.rs
+index fe932fd6bd..eea7482bd5 100644
+--- a/src/bootstrap/config.rs
++++ b/src/bootstrap/config.rs
+@@ -1235,7 +1235,6 @@ impl Config {
+             config.check_build_rustc_version(&rustc);
+             PathBuf::from(rustc)
+         } else {
 -            config.download_beta_toolchain();
              config.out.join(config.build.triple).join("stage0/bin/rustc")
-         });
+         };
  

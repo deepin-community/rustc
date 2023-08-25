@@ -58,19 +58,6 @@ index a28304e..11f9460 100644
  
          // pkg-config may not be aware of cross-compilation, and require
          // a wrapper script that sets up platform-specific prefixes.
-@@ -470,7 +461,11 @@ impl Config {
-     fn command(&self, name: &str, args: &[&str]) -> Command {
-         let exe = self
-             .targetted_env_var("PKG_CONFIG")
--            .unwrap_or_else(|| OsString::from("pkg-config"));
-+            .unwrap_or_else(|| {
-+                self.env_var_os("DEB_HOST_GNU_TYPE")
-+                    .map(|mut t| { t.push(OsString::from("-pkg-config")); t })
-+                    .unwrap_or_else(|| OsString::from("pkg-config"))
-+            });
-         let mut cmd = Command::new(exe);
-         if self.is_static(name) {
-             cmd.arg("--static");
 diff --git a/vendor/pkg-config/tests/test.rs b/vendor/pkg-config/tests/test.rs
 index 4e04ac0..f884e46 100644
 --- a/vendor/pkg-config/tests/test.rs
