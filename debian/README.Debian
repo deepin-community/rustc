@@ -116,7 +116,7 @@ called "Using rustc in a Debian package".
 Foreign non-Debian platforms
 ----------------------------
 
-Targetting a non-Debian platform is not a common Debian crossbuilding pattern,
+Targeting a non-Debian platform is not a common Debian crossbuilding pattern,
 so we do something ad-hoc for our Debian rust packages.
 
 Instead of libstd-rust-dev:$arch (for an $arch that is not in Debian), we
