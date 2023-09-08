@@ -59,7 +59,7 @@ Build-Depends-Indep:
  clang-16:native,
  libssl-dev,
 Build-Conflicts: gdb-minimal (<< 8.1-0ubuntu6) <!nocheck>
-Standards-Version: 4.2.1
+Standards-Version: 4.6.2
 Homepage: http://www.rust-lang.org/
 Vcs-Git: https://salsa.debian.org/rust-team/rust.git
 Vcs-Browser: https://salsa.debian.org/rust-team/rust
