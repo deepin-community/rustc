@@ -18,7 +18,13 @@ SED_RUSTC_BUILDDEP := sed -ne "/^Build-Depends:/,/^[^[:space:]\#]/{/^ *rustc:nat
 LOCAL_RUST_VERSION := $(shell rustc --version --verbose | sed -ne 's/^release: //p')
 
 include /usr/share/dpkg/buildflags.mk
-export CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+# needed for cross-compilation to avoid passing host CFLAGS to the BUILD
+# compiler
+export TARGET_CFLAGS = $(CFLAGS)
+export TARGET_CXXFLAGS = $(CXXFLAGS)
+export TARGET_CPPFLAGS = $(CPPFLAGS)
+export TARGET_LDFLAGS = $(LDFLAGS)
+unexport CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
 export CARGO_HOME = $(CURDIR)/debian/cargo
 
 # Defines DEB_*_RUST_TYPE triples
