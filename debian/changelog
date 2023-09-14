@@ -1,3 +1,15 @@
+rustc (1.71.1+dfsg0ubuntu2-0ubuntu1) mantic; urgency=medium
+
+  * Remove Windows libraries and dependencies
+    (windows and windows-sys) (LP: #2036123)
+    - d/p/d-0020-remove-windows-dependencies.patch,
+      d/p/d-0021-vendor-remove-windows-dependencies.patch: add patches to
+      remove references to Windows-specific libraries
+    - d/copyright: Exclude all the removed libraries
+    - d/control: Refresh dependency list
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Wed, 06 Sep 2023 16:41:39 -0600
+
 rustc (1.71.1+dfsg0ubuntu1-0ubuntu2) mantic; urgency=medium
 
   * d/control: Fix an issue where the build dependency incorrectly specified
