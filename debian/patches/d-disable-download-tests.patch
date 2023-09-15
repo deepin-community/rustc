@@ -12,12 +12,14 @@ Index: rust/src/bootstrap/config/tests.rs
      if crate::llvm::is_ci_llvm_modified(&parse("")) {
          eprintln!("Detected LLVM as non-available: running in CI and modified LLVM in this change");
          return;
-@@ -40,6 +43,9 @@ fn download_ci_llvm() {
+@@ -39,7 +42,11 @@ fn download_ci_llvm() {
+ //   - https://github.com/rust-lang/rust/pull/109162#issuecomment-1496782487
  #[test]
  fn detect_src_and_out() {
++    // Debian: this will attempt to download a toolchain
++    return;
++
      fn test(cfg: Config, build_dir: Option<&str>) {
-+        // Debian: this will attempt to download a toolchain
-+        return;
 +
          // This will bring absolute form of `src/bootstrap` path
          let current_dir = std::env::current_dir().unwrap();
