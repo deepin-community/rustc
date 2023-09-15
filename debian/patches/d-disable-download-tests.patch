@@ -1,0 +1,24 @@
+Index: rust/src/bootstrap/config/tests.rs
+===================================================================
+--- rust.orig/src/bootstrap/config/tests.rs
++++ rust/src/bootstrap/config/tests.rs
+@@ -11,6 +11,9 @@ fn parse(config: &str) -> Config {
+ 
+ #[test]
+ fn download_ci_llvm() {
++    // Debian: this will attempt to download LLVM
++    return;
++
+     if crate::llvm::is_ci_llvm_modified(&parse("")) {
+         eprintln!("Detected LLVM as non-available: running in CI and modified LLVM in this change");
+         return;
+@@ -40,6 +43,9 @@ fn download_ci_llvm() {
+ #[test]
+ fn detect_src_and_out() {
+     fn test(cfg: Config, build_dir: Option<&str>) {
++        // Debian: this will attempt to download a toolchain
++        return;
++
+         // This will bring absolute form of `src/bootstrap` path
+         let current_dir = std::env::current_dir().unwrap();
+ 
