@@ -1,7 +1,7 @@
 From 1a6f5062adaad5d7f1a4f1cf792f4ee8c3c17e9f Mon Sep 17 00:00:00 2001
 From: liushuyu <zixing.liu@canonical.com>
 Date: Wed, 6 Sep 2023 13:23:24 -0600
-Subject: [PATCH] 123
+Subject: [PATCH] Remove Windows dependencies
 
 ---
  vendor/anstyle-wincon/Cargo.toml   |  7 -------
