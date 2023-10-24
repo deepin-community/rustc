@@ -1,9 +1,33 @@
-rustc (1.71.1+dfsg0ubuntu3-0ubuntu1) noble; urgency=medium
+rustc (1.72.1+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
 
-  * Merge new changes from Debian until Rust 1.70 (LP: #2041325)
-    - Re-applied all the Ubuntu changes since Rust 1.65
-    - d/p/u-fix-get-toml-when-test.patch: removed. This conflicts both on
-      functionalities and compatibilities with other Ubuntu patches.
+  * Cherry-pick new changes from Debian until Rust 1.70 (LP: #2041325)
+    Applied:
+    - Disable download tests
+    - Fix internal cargo-doc links
+    - Fix FTCBS by setting TARGET flags
+    - Update privacy breach removal
+    - Update Files-Excluded and unsuspicious files
+    - Remove obsoleted patches
+  * d/p/u-fix-get-toml-when-test.patch: removed. This conflicts both on
+    functionalities and compatibilities with other Ubuntu patches.
+  * New upstream release 1.72.1 (LP: #2040339)
+    - d/patches: Refresh patches
+    - d/p/d-0000-ignore-removed-submodules.patch: Remove Windows-specific
+      submodule
+    - d/p/d-0021-vendor-remove-windows-dependencies.patch: Remove
+      new Windows dependencies
+    - d/p/ubuntu-fix-short-ice-test.patch: Add a patch to fix short-ice test
+    - d/copyright:
+      - Update copyright information for upstream patched crates
+      - Update excluded dependencies list
+      - Remove windows-bindgen module
+    - d/control: Update vendored dependency list
+    - d/control: update libgit2 B-D requirements to 1.7
+    - d/s/lintian-overrides: Remove unused overrides
+  * Remove fonts-nanum from the dependencies (LP: #2031685)
+    - d/p/ubuntu-disable-nanum-fonts.patch: Add a patch to disable and remove
+      references to the Nanum fonts. We have Noto Sans CJK in the system.
+    - d/control: Remove fonts-nanum from the dependencies
 
  -- Zixing Liu <zixing.liu@canonical.com>  Wed, 11 Oct 2023 14:46:37 -0600
 
