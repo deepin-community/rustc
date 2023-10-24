@@ -19,7 +19,7 @@ Index: rust/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -20,23 +20,16 @@ members = [
+@@ -20,28 +20,20 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -43,6 +43,11 @@ Index: rust/Cargo.toml
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
+   "src/tools/suggest-tests",
+-  "src/tools/generate-windows-sys",
+   "src/tools/rustdoc-gui-test",
+ ]
+ 
 Index: rust/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
