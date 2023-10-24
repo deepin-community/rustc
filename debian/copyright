@@ -26,6 +26,7 @@ Files-Excluded:
  src/tools/remote-test-client
  src/tools/remote-test-server
  src/tools/miri
+ src/tools/generate-windows-sys
 # rust-analyzer parts we don't need (yet)
  src/tools/rust-analyzer/editors
  src/tools/rust-analyzer/.github
