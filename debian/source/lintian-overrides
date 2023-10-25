@@ -7,6 +7,8 @@ rustc source: source-is-missing [vendor/html5ever/data/bench/*.html]
 rustc source: source-is-missing [vendor/minifier/tests/files/minified_main.js]
 rustc source: source-contains-prebuilt-windows-binary [vendor/libloading/tests/nagisa32.dll]
 rustc source: source-contains-prebuilt-windows-binary [vendor/libloading/tests/nagisa64.dll]
+rustc source: source-contains-prebuilt-windows-binary [vendor/libloading-0.7.4/tests/nagisa32.dll]
+rustc source: source-contains-prebuilt-windows-binary [vendor/libloading-0.7.4/tests/nagisa64.dll]
 
 # debian policy bug #649530
 rustc source: mismatched-override missing-license-paragraph-in-dep5-copyright mpl-2.0+
