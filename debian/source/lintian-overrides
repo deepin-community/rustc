@@ -1,5 +1,3 @@
-# Long documentation
-rustc source: source-is-missing [library/stdarch/crates/stdarch-verify/arm-intrinsics.html]
 # Test data
 rustc source: source-is-missing [src/tools/rust-analyzer/crates/ide/src/syntax_highlighting/test_data/*.html]
 rustc source: source-is-missing [tests/rustdoc/notable-trait/doc-notable_trait.*.html]
