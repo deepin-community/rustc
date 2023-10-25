@@ -1,5 +1,4 @@
 usr/bin/cargo
-usr/libexec/cargo-credential-1password  usr/libexec
 debian/scripts/*                        usr/share/cargo/scripts
 debian/bin/cargo                        usr/share/cargo/bin
 usr/share/zsh/site-functions/_cargo     usr/share/zsh/vendor-completions
