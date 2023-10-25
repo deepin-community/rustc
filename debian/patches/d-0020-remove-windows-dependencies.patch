@@ -2,8 +2,8 @@ Index: rustc/compiler/rustc_codegen_ssa/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_codegen_ssa/Cargo.toml
 +++ rustc/compiler/rustc_codegen_ssa/Cargo.toml
-@@ -49,7 +49,3 @@ libc = "0.2.50"
- version = "0.31.1"
+@@ -45,7 +45,3 @@ libc = "0.2.50"
+ version = "0.32.0"
  default-features = false
  features = ["read_core", "elf", "macho", "pe", "xcoff", "unaligned", "archive", "write"]
 -
@@ -16,7 +16,7 @@ Index: rustc/compiler/rustc_data_structures/Cargo.toml
 +++ rustc/compiler/rustc_data_structures/Cargo.toml
 @@ -37,16 +37,6 @@ itertools = "0.10.1"
  [dependencies.parking_lot]
- version = "0.11"
+ version = "0.12"
  
 -[target.'cfg(windows)'.dependencies.windows]
 -version = "0.48.0"
@@ -35,7 +35,7 @@ Index: rustc/compiler/rustc_driver_impl/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_driver_impl/Cargo.toml
 +++ rustc/compiler/rustc_driver_impl/Cargo.toml
-@@ -56,12 +56,6 @@ rustc_mir_transform = { path = "../rustc
+@@ -57,12 +57,6 @@ rustc_mir_transform = { path = "../rustc
  [target.'cfg(unix)'.dependencies]
  libc = "0.2"
  
@@ -52,9 +52,9 @@ Index: rustc/compiler/rustc_errors/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_errors/Cargo.toml
 +++ rustc/compiler/rustc_errors/Cargo.toml
-@@ -26,13 +26,5 @@ termize = "0.1.1"
- serde = { version = "1.0.125", features = [ "derive" ] }
+@@ -27,13 +27,5 @@ serde = { version = "1.0.125", features
  serde_json = "1.0.59"
+ derive_setters = "0.1.6"
  
 -[target.'cfg(windows)'.dependencies.windows]
 -version = "0.48.0"
@@ -70,7 +70,7 @@ Index: rustc/compiler/rustc_session/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_session/Cargo.toml
 +++ rustc/compiler/rustc_session/Cargo.toml
-@@ -25,10 +25,3 @@ termize = "0.1.1"
+@@ -24,10 +24,3 @@ termize = "0.1.1"
  
  [target.'cfg(unix)'.dependencies]
  libc = "0.2"
@@ -117,7 +117,7 @@ Index: rustc/src/tools/compiletest/Cargo.toml
  libc = "0.2"
 -
 -[target.'cfg(windows)'.dependencies]
--miow = "0.5"
+-miow = "0.6"
 -
 -[target.'cfg(windows)'.dependencies.windows]
 -version = "0.48.0"
@@ -144,7 +144,7 @@ Index: rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
 +++ rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
-@@ -77,12 +77,6 @@ tt.workspace = true
+@@ -72,12 +72,6 @@ toolchain.workspace = true
  vfs-notify.workspace = true
  vfs.workspace = true
  
@@ -161,23 +161,33 @@ Index: rustc/src/tools/cargo/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/Cargo.toml
 +++ rustc/src/tools/cargo/Cargo.toml
-@@ -53,7 +53,6 @@ libc = "0.2.144"
- libgit2-sys = "0.15.1"
- log = "0.4.17"
- memchr = "2.1.3"
--miow = "0.5.0"
- opener = "0.5"
- openssl ="0.10.55"
- os_info = "3.5.0"
-@@ -91,7 +90,6 @@ unicode-xid = "0.2.0"
- url = "2.2.2"
- varisat = "0.2.1"
- walkdir = "2.3.1"
+@@ -21,8 +21,6 @@ bytesize = "1.2"
+ cargo = { path = "" }
+ cargo-credential = { version = "0.3.0", path = "credential/cargo-credential" }
+ cargo-credential-libsecret = { version = "0.3.1", path = "credential/cargo-credential-libsecret" }
+-cargo-credential-wincred = { version = "0.3.0", path = "credential/cargo-credential-wincred" }
+-cargo-credential-macos-keychain = { version = "0.3.0", path = "credential/cargo-credential-macos-keychain" }
+ cargo-platform = { path = "crates/cargo-platform", version = "0.1.4" }
+ cargo-test-macro = { path = "crates/cargo-test-macro" }
+ cargo-test-support = { path = "crates/cargo-test-support" }
+@@ -100,7 +98,6 @@ unicode-xid = "0.2.4"
+ url = "2.4.0"
+ varisat = "0.2.2"
+ walkdir = "2.3.3"
 -windows-sys = "0.48"
  
  [package]
  name = "cargo"
-@@ -174,19 +172,6 @@ walkdir.workspace = true
+@@ -125,8 +122,6 @@ bytesize.workspace = true
+ cargo-platform.workspace = true
+ cargo-credential.workspace = true
+ cargo-credential-libsecret.workspace = true
+-cargo-credential-macos-keychain.workspace = true
+-cargo-credential-wincred.workspace = true
+ cargo-util.workspace = true
+ clap = { workspace = true, features = ["wrap_help"] }
+ crates-io.workspace = true
+@@ -186,21 +181,6 @@ walkdir.workspace = true
  [target.'cfg(not(windows))'.dependencies]
  openssl = { workspace = true, optional = true }
  
@@ -188,10 +198,12 @@ Index: rustc/src/tools/cargo/Cargo.toml
 -workspace = true
 -features = [
 -  "Win32_Foundation",
+-  "Win32_Security",
 -  "Win32_Storage_FileSystem",
+-  "Win32_System_IO",
 -  "Win32_System_Console",
--  "Win32_System_Threading",
 -  "Win32_System_JobObjects",
+-  "Win32_System_Threading",
 -]
 -
  [dev-dependencies]
@@ -224,10 +236,23 @@ Index: rustc/src/tools/cargo/crates/home/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/crates/home/Cargo.toml
 +++ rustc/src/tools/cargo/crates/home/Cargo.toml
-@@ -15,6 +15,3 @@ license = "MIT OR Apache-2.0"
- readme = "README.md"
+@@ -14,6 +14,3 @@ include = [
+ license.workspace = true
  repository = "https://github.com/rust-lang/cargo"
  description = "Shared definitions of home directories."
 -
 -[target.'cfg(windows)'.dependencies]
 -windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell"] }
+Index: rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/credential/cargo-credential/Cargo.toml
++++ rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
+@@ -14,8 +14,5 @@ serde_json.workspace = true
+ thiserror.workspace = true
+ time.workspace = true
+ 
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_System_Console", "Win32_Foundation"] }
+-
+ [dev-dependencies]
+ snapbox = { workspace = true, features = ["examples"] }

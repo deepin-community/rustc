@@ -1,10 +1,10 @@
-diff --git a/library/profiler_builtins/build.rs b/library/profiler_builtins/build.rs
-index 1b1f11798d..36dd3b8a91 100644
---- a/library/profiler_builtins/build.rs
-+++ b/library/profiler_builtins/build.rs
-@@ -7,6 +7,18 @@ use std::path::Path;
+Index: rustc/library/profiler_builtins/build.rs
+===================================================================
+--- rustc.orig/library/profiler_builtins/build.rs
++++ rustc/library/profiler_builtins/build.rs
+@@ -13,6 +13,18 @@ fn main() {
+     }
  
- fn main() {
      let target = env::var("TARGET").expect("TARGET was not set");
 +    if target == std::env::var("HOST").unwrap() {
 +        // use system profiler runtime if possible

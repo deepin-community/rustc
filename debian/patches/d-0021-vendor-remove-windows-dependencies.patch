@@ -161,15 +161,15 @@ Index: rustc/vendor/rustix/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/rustix/Cargo.toml
 +++ rustc/vendor/rustix/Cargo.toml
-@@ -186,7 +186,6 @@ termios = []
+@@ -188,7 +188,6 @@ termios = []
  thread = ["linux-raw-sys/prctl"]
  time = []
  use-libc = [
 -    "libc_errno",
      "libc",
  ]
- cc = []
-@@ -237,20 +236,3 @@ package = "errno"
+ use-libc-auxv = []
+@@ -238,20 +237,3 @@ package = "errno"
  [target."cfg(any(target_os = \"android\", target_os = \"linux\"))".dependencies.once_cell]
  version = "1.5.2"
  optional = true
@@ -215,7 +215,7 @@ Index: rustc/vendor/tempfile/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/tempfile/Cargo.toml
 +++ rustc/vendor/tempfile/Cargo.toml
-@@ -53,10 +53,3 @@ features = ["fs"]
+@@ -50,10 +50,3 @@ features = ["fs"]
  
  [target."cfg(target_os = \"redox\")".dependencies.redox_syscall]
  version = "0.3"
@@ -460,40 +460,6 @@ Index: rustc/vendor/parking_lot_core-0.8.6/Cargo.toml
 -    "errhandlingapi",
 -    "handleapi",
 -]
-Index: rustc/vendor/pretty_assertions/Cargo.toml
-===================================================================
---- rustc.orig/vendor/pretty_assertions/Cargo.toml
-+++ rustc/vendor/pretty_assertions/Cargo.toml
-@@ -42,9 +42,3 @@ alloc = []
- default = ["std"]
- std = []
- unstable = []
--
--[target."cfg(windows)".dependencies.ctor]
--version = "0.1.9"
--
--[target."cfg(windows)".dependencies.output_vt100]
--version = "0.1.2"
-Index: rustc/vendor/rustix-0.37.11/Cargo.toml
-===================================================================
---- rustc.orig/vendor/rustix-0.37.11/Cargo.toml
-+++ rustc/vendor/rustix-0.37.11/Cargo.toml
-@@ -233,15 +233,3 @@ package = "errno"
- [target."cfg(any(target_os = \"android\", target_os = \"linux\"))".dependencies.once_cell]
- version = "1.5.2"
- optional = true
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_Networking_WinSock",
--    "Win32_NetworkManagement_IpHelper",
--    "Win32_System_Threading",
--]
--
--[target."cfg(windows)".dev-dependencies.ctor]
--version = "0.2.0"
 Index: rustc/vendor/rustix-0.37.20/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/rustix-0.37.20/Cargo.toml
@@ -547,10 +513,10 @@ Index: rustc/vendor/sysinfo/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/sysinfo/Cargo.toml
 +++ rustc/vendor/sysinfo/Cargo.toml
-@@ -60,41 +60,3 @@ version = "1.0"
+@@ -75,44 +75,3 @@ version = "1.0"
  
  [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
- version = "^0.2.112"
+ version = "^0.2.144"
 -
 -[target."cfg(windows)".dependencies.ntapi]
 -version = "0.4"
@@ -588,6 +554,9 @@ Index: rustc/vendor/sysinfo/Cargo.toml
 -    "securitybaseapi",
 -    "shellapi",
 -    "std",
+-    "iphlpapi",
+-    "winsock2",
+-    "sddl",
 -]
 Index: rustc/vendor/term/Cargo.toml
 ===================================================================
@@ -734,25 +703,38 @@ Index: rustc/vendor/libloading/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/libloading/Cargo.toml
 +++ rustc/vendor/libloading/Cargo.toml
-@@ -42,10 +42,3 @@ version = "1.1"
+@@ -42,11 +42,3 @@ version = "1.1"
  
  [target."cfg(unix)".dependencies.cfg-if]
  version = "1"
 -
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3"
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48"
 -features = [
--    "errhandlingapi",
--    "libloaderapi",
+-    "Win32_Foundation",
+-    "Win32_System_Diagnostics_Debug",
+-    "Win32_System_LibraryLoader",
 -]
 Index: rustc/vendor/opener/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/opener/Cargo.toml
 +++ rustc/vendor/opener/Cargo.toml
-@@ -32,10 +32,6 @@ version = "0.9"
- [target."cfg(target_os = \"linux\")".dependencies.bstr]
- version = "1"
+@@ -40,8 +40,6 @@ version = "0.9"
+ reveal = [
+     "dep:url",
+     "dep:dbus",
+-    "winapi/shtypes",
+-    "winapi/objbase",
+ ]
  
+ [target."cfg(target_os = \"linux\")".dependencies.bstr]
+@@ -56,13 +54,6 @@ optional = true
+ version = "2"
+ optional = true
+ 
+-[target."cfg(windows)".dependencies.normpath]
+-version = "1"
+-
 -[target."cfg(windows)".dependencies.winapi]
 -version = "0.3"
 -features = ["shellapi"]

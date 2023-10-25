@@ -15,11 +15,11 @@ Subject: [PATCH 07/32] d-0000-ignore-removed-submodules
  src/tools/tidy/src/deps.rs         |  4 +++-
  9 files changed, 15 insertions(+), 62 deletions(-)
 
-Index: rust/Cargo.toml
+Index: rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -20,28 +20,20 @@ members = [
+@@ -19,28 +19,20 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -46,13 +46,13 @@ Index: rust/Cargo.toml
    "src/tools/suggest-tests",
 -  "src/tools/generate-windows-sys",
    "src/tools/rustdoc-gui-test",
+   "src/tools/opt-dist",
  ]
- 
-Index: rust/src/bootstrap/bootstrap.py
+Index: rustc/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -946,10 +946,6 @@ class RustBuild(object):
+@@ -944,10 +944,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(self.verbose))
@@ -63,11 +63,11 @@ Index: rust/src/bootstrap/bootstrap.py
          if self.get_toml("metrics", "build"):
              args.append("--features")
              args.append("build-metrics")
-Index: rust/src/bootstrap/builder.rs
+Index: rustc/src/bootstrap/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/builder.rs
 +++ rustc/src/bootstrap/builder.rs
-@@ -646,12 +646,8 @@ impl<'a> Builder<'a> {
+@@ -684,12 +684,8 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -80,7 +80,7 @@ Index: rust/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -660,8 +656,6 @@ impl<'a> Builder<'a> {
+@@ -698,8 +694,6 @@ impl<'a> Builder<'a> {
                  llvm::Llvm,
                  llvm::Sanitizers,
                  tool::Rustfmt,
@@ -89,7 +89,7 @@ Index: rust/src/bootstrap/builder.rs
                  llvm::Lld,
                  llvm::CrtBeginEnd,
                  tool::RustdocGUITest,
-@@ -672,12 +666,8 @@ impl<'a> Builder<'a> {
+@@ -711,12 +705,8 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -102,7 +102,7 @@ Index: rust/src/bootstrap/builder.rs
                  check::Bootstrap
              ),
              Kind::Test => describe!(
-@@ -706,7 +696,6 @@ impl<'a> Builder<'a> {
+@@ -745,7 +735,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -110,7 +110,7 @@ Index: rust/src/bootstrap/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -722,7 +711,6 @@ impl<'a> Builder<'a> {
+@@ -761,7 +750,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -118,7 +118,7 @@ Index: rust/src/bootstrap/builder.rs
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -759,7 +747,6 @@ impl<'a> Builder<'a> {
+@@ -798,7 +786,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -126,7 +126,7 @@ Index: rust/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -777,16 +764,12 @@ impl<'a> Builder<'a> {
+@@ -816,16 +803,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -143,7 +143,7 @@ Index: rust/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -799,11 +782,9 @@ impl<'a> Builder<'a> {
+@@ -838,11 +821,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -155,7 +155,7 @@ Index: rust/src/bootstrap/builder.rs
                  install::LlvmTools,
                  install::Src,
                  install::Rustc
-@@ -813,7 +794,6 @@ impl<'a> Builder<'a> {
+@@ -852,7 +833,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -163,7 +163,7 @@ Index: rust/src/bootstrap/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -1965,10 +1945,7 @@ impl<'a> Builder<'a> {
+@@ -1990,10 +1970,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -175,11 +175,11 @@ Index: rust/src/bootstrap/builder.rs
              cargo.arg("--frozen");
          }
  
-Index: rust/src/bootstrap/test.rs
+Index: rustc/src/bootstrap/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/test.rs
 +++ rustc/src/bootstrap/test.rs
-@@ -2129,17 +2129,7 @@ impl Step for RustcGuide {
+@@ -2143,17 +2143,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -188,7 +188,7 @@ Index: rust/src/bootstrap/test.rs
 -
 -        let src = builder.src.join(relative_path);
 -        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
--        let toolstate = if try_run(builder, rustbook_cmd.arg("linkcheck").arg(&src)).is_ok() {
+-        let toolstate = if builder.run_delaying_failure(rustbook_cmd.arg("linkcheck").arg(&src)) {
 -            ToolState::TestPass
 -        } else {
 -            ToolState::TestFail
@@ -198,10 +198,10 @@ Index: rust/src/bootstrap/test.rs
      }
  }
  
-Index: rust/src/tools/rust-analyzer/Cargo.toml
+Index: rustc/src/tools/rust-analyzer/Cargo.toml
 ===================================================================
---- rust.orig/src/tools/rust-analyzer/Cargo.toml
-+++ rust/src/tools/rust-analyzer/Cargo.toml
+--- rustc.orig/src/tools/rust-analyzer/Cargo.toml
++++ rustc/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
  [workspace]
 -members = ["xtask/", "lib/*", "crates/*"]

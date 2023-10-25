@@ -72,14 +72,14 @@ Index: rustc/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
  See [the announcement of Rust 1.51][5] for details.
  
 -[4]: ../../cargo/reference/resolver.html#feature-resolver-version-2
-+[4]: ../../../cargo-doc/doc/reference/resolver.html#feature-resolver-version-2
++[4]: ../../cargo-doc/doc/reference/resolver.html#feature-resolver-version-2
  [5]: https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#cargos-new-feature-resolver
 -[workspace]: ../../cargo/reference/workspaces.html
--[virtual workspace]: ../../cargo/reference/workspaces.html#virtual-manifest
+-[virtual workspace]: ../../cargo/reference/workspaces.html#virtual-workspace
 -[`resolver` field]: ../../cargo/reference/resolver.html#resolver-versions
-+[workspace]: ../../../cargo-doc/doc/reference/workspaces.html
-+[virtual workspace]: ../../../cargo-doc/doc/reference/workspaces.html#virtual-manifest
-+[`resolver` field]: ../../../cargo-doc/doc/reference/resolver.html#resolver-versions
++[workspace]: ../../cargo-doc/doc/reference/workspaces.html
++[virtual workspace]: ../../cargo-doc/doc/reference/workspaces.html#virtual-workspace
++[`resolver` field]: ../../cargo-doc/doc/reference/resolver.html#resolver-versions
  
  ## Migration
  
@@ -106,7 +106,7 @@ Index: rustc/src/doc/reference/src/conditional-compilation.md
 ===================================================================
 --- rustc.orig/src/doc/reference/src/conditional-compilation.md
 +++ rustc/src/doc/reference/src/conditional-compilation.md
-@@ -370,6 +370,6 @@ println!("I'm running on a {} machine!",
+@@ -376,6 +376,6 @@ println!("I'm running on a {} machine!",
  [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
  [attribute]: attributes.md
  [attributes]: attributes.md
@@ -241,10 +241,10 @@ Index: rustc/src/tools/linkchecker/main.rs
                      if is_exception(file, &target_pretty_path) {
                          report.links_ignored_exception += 1;
                      } else {
-Index: rust/compiler/rustc_error_codes/src/error_codes/E0462.md
+Index: rustc/compiler/rustc_error_codes/src/error_codes/E0462.md
 ===================================================================
---- rust.orig/compiler/rustc_error_codes/src/error_codes/E0462.md
-+++ rust/compiler/rustc_error_codes/src/error_codes/E0462.md
+--- rustc.orig/compiler/rustc_error_codes/src/error_codes/E0462.md
++++ rustc/compiler/rustc_error_codes/src/error_codes/E0462.md
 @@ -26,7 +26,7 @@ prefer `staticlib` for linking with C pr
  `crate_type`s in [this section of the Reference](../reference/linkage.html).
  
@@ -254,20 +254,20 @@ Index: rust/compiler/rustc_error_codes/src/error_codes/E0462.md
     fixing this issue.
   * Recompiling the crate as a `rlib` or `dylib`; formats suitable for Rust
     linking.
-Index: rust/compiler/rustc_error_codes/src/error_codes/E0460.md
+Index: rustc/compiler/rustc_error_codes/src/error_codes/E0460.md
 ===================================================================
---- rust.orig/compiler/rustc_error_codes/src/error_codes/E0460.md
-+++ rust/compiler/rustc_error_codes/src/error_codes/E0460.md
+--- rustc.orig/compiler/rustc_error_codes/src/error_codes/E0460.md
++++ rustc/compiler/rustc_error_codes/src/error_codes/E0460.md
 @@ -68,4 +68,4 @@ This error can be fixed by:
   * Recompiling crate `a` so that both crate `b` and `main` have a uniform
     version to depend on.
  
 -[Cargo]: ../cargo/index.html
 +[Cargo]: ../../cargo-doc/doc/index.html
-Index: rust/compiler/rustc_error_codes/src/error_codes/E0514.md
+Index: rustc/compiler/rustc_error_codes/src/error_codes/E0514.md
 ===================================================================
---- rust.orig/compiler/rustc_error_codes/src/error_codes/E0514.md
-+++ rust/compiler/rustc_error_codes/src/error_codes/E0514.md
+--- rustc.orig/compiler/rustc_error_codes/src/error_codes/E0514.md
++++ rustc/compiler/rustc_error_codes/src/error_codes/E0514.md
 @@ -27,7 +27,7 @@ the compiler cannot be sure about *how*
  versions, and therefore this error occurs.
  
@@ -277,20 +277,20 @@ Index: rust/compiler/rustc_error_codes/src/error_codes/E0514.md
     [Rustup](https://rust-lang.github.io/rustup/), the Rust toolchain installer,
     automatically fixing this issue.
   * Recompiling the crates with a uniform `rustc` version.
-Index: rust/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+Index: rustc/src/doc/unstable-book/src/compiler-flags/branch-protection.md
 ===================================================================
---- rust.orig/src/doc/unstable-book/src/compiler-flags/branch-protection.md
-+++ rust/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+--- rustc.orig/src/doc/unstable-book/src/compiler-flags/branch-protection.md
++++ rustc/src/doc/unstable-book/src/compiler-flags/branch-protection.md
 @@ -15,4 +15,4 @@ For example, `-Z branch-protection=bti,p
  
  Rust's standard library does not ship with BTI or pointer authentication enabled by default.
  In Cargo projects the standard library can be recompiled with pointer authentication using the nightly
 -[build-std](../../cargo/reference/unstable.html#build-std) feature.
 +[build-std](../../../cargo-doc/doc/reference/unstable.html#build-std) feature.
-Index: rust/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+Index: rustc/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
 ===================================================================
---- rust.orig/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
-+++ rust/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+--- rustc.orig/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
++++ rustc/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
 @@ -39,7 +39,7 @@ It is strongly recommended to also enabl
  
  To enable CFG in the standard library, use the [cargo `-Z build-std` functionality][build-std] to recompile the standard library with the same configuration options as the main program.
@@ -300,11 +300,11 @@ Index: rust/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
  
  For example:
  ```cmd
-Index: rust/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+Index: rustc/src/doc/unstable-book/src/compiler-flags/sanitizer.md
 ===================================================================
---- rust.orig/src/doc/unstable-book/src/compiler-flags/sanitizer.md
-+++ rust/src/doc/unstable-book/src/compiler-flags/sanitizer.md
-@@ -691,7 +691,7 @@ It is strongly recommended to combine sa
+--- rustc.orig/src/doc/unstable-book/src/compiler-flags/sanitizer.md
++++ rustc/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+@@ -804,7 +804,7 @@ It is strongly recommended to combine sa
  instrumented standard library, for example using [cargo `-Zbuild-std`
  functionality][build-std].
  
@@ -313,10 +313,10 @@ Index: rust/src/doc/unstable-book/src/compiler-flags/sanitizer.md
  
  # Build scripts and procedural macros
  
-Index: rust/compiler/rustc_error_codes/src/error_codes/E0461.md
+Index: rustc/compiler/rustc_error_codes/src/error_codes/E0461.md
 ===================================================================
---- rust.orig/compiler/rustc_error_codes/src/error_codes/E0461.md
-+++ rust/compiler/rustc_error_codes/src/error_codes/E0461.md
+--- rustc.orig/compiler/rustc_error_codes/src/error_codes/E0461.md
++++ rustc/compiler/rustc_error_codes/src/error_codes/E0461.md
 @@ -25,6 +25,6 @@ architectures. This issue also extends t
  `std` is operating-system specific.
  
@@ -325,10 +325,10 @@ Index: rust/compiler/rustc_error_codes/src/error_codes/E0461.md
 + * Using [Cargo](../../cargo-doc/doc/index.html), the Rust package manager, automatically
     fixing this issue.
   * Recompiling either crate so that they target a consistent target triple.
-Index: rust/compiler/rustc_error_codes/src/error_codes/E0519.md
+Index: rustc/compiler/rustc_error_codes/src/error_codes/E0519.md
 ===================================================================
---- rust.orig/compiler/rustc_error_codes/src/error_codes/E0519.md
-+++ rust/compiler/rustc_error_codes/src/error_codes/E0519.md
+--- rustc.orig/compiler/rustc_error_codes/src/error_codes/E0519.md
++++ rustc/compiler/rustc_error_codes/src/error_codes/E0519.md
 @@ -34,7 +34,7 @@ The above example compiles two crates wi
  impossible for the compiler to distinguish between symbols (`pub` item names).
  
@@ -338,10 +338,10 @@ Index: rust/compiler/rustc_error_codes/src/error_codes/E0519.md
     fixing this issue.
   * Recompiling the crate with different metadata (different name/
     `crate_type`).
-Index: rust/src/doc/rustc/src/linker-plugin-lto.md
+Index: rustc/src/doc/rustc/src/linker-plugin-lto.md
 ===================================================================
---- rust.orig/src/doc/rustc/src/linker-plugin-lto.md
-+++ rust/src/doc/rustc/src/linker-plugin-lto.md
+--- rustc.orig/src/doc/rustc/src/linker-plugin-lto.md
++++ rustc/src/doc/rustc/src/linker-plugin-lto.md
 @@ -112,7 +112,7 @@ targeting Windows-like targets
  This is fixed if you explicitly set the target, for example
  `cargo build --target x86_64-pc-windows-msvc`
@@ -351,11 +351,11 @@ Index: rust/src/doc/rustc/src/linker-plugin-lto.md
  
  If you have dependencies using the `cc` crate, you will need to set these
  environment variables:
-Index: rust/src/doc/rustc/src/platform-support/fuchsia.md
+Index: rustc/src/doc/rustc/src/platform-support/fuchsia.md
 ===================================================================
---- rust.orig/src/doc/rustc/src/platform-support/fuchsia.md
-+++ rust/src/doc/rustc/src/platform-support/fuchsia.md
-@@ -870,7 +870,7 @@ ${SDK_PATH}/tools/${ARCH}/ffx debug conn
+--- rustc.orig/src/doc/rustc/src/platform-support/fuchsia.md
++++ rustc/src/doc/rustc/src/platform-support/fuchsia.md
+@@ -929,7 +929,7 @@ attach and load any relevant debug symbo
  [Fuchsia]: https://fuchsia.dev/
  [source tree]: https://fuchsia.dev/fuchsia-src/get-started/learn/build
  [rustup]: https://rustup.rs/
@@ -364,10 +364,10 @@ Index: rust/src/doc/rustc/src/platform-support/fuchsia.md
  [Fuchsia SDK]: https://chrome-infra-packages.appspot.com/p/fuchsia/sdk/core
  [overview of CML]: https://fuchsia.dev/fuchsia-src/concepts/components/v2/component_manifests
  [reference for the file format]: https://fuchsia.dev/reference/cml
-Index: rust/src/doc/rustc/src/targets/custom.md
+Index: rustc/src/doc/rustc/src/targets/custom.md
 ===================================================================
---- rust.orig/src/doc/rustc/src/targets/custom.md
-+++ rust/src/doc/rustc/src/targets/custom.md
+--- rustc.orig/src/doc/rustc/src/targets/custom.md
++++ rustc/src/doc/rustc/src/targets/custom.md
 @@ -14,4 +14,4 @@ To see it for a different target, add th
  rustc +nightly -Z unstable-options --target=wasm32-unknown-unknown --print target-spec-json
  ```
