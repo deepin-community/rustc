@@ -48,7 +48,6 @@ Build-Depends:
  libjs-mathjax <!nocheck>,
  fonts-open-sans <!nocheck>,
  fonts-font-awesome <!nocheck>,
- fonts-nanum <!nocheck>,
 # below are optional tools even for 'make check'
  gdb (>= 7.12) <!nocheck>,
  libc6-dbg [armhf],
@@ -185,7 +184,7 @@ Architecture: all
 Build-Profiles: <!nodoc>
 Depends: ${misc:Depends},
  libjs-jquery, libjs-highlight.js, libjs-mathjax,
- fonts-open-sans, fonts-font-awesome, fonts-nanum
+ fonts-open-sans, fonts-font-awesome
 Recommends: cargo-doc
 Description: Rust systems programming language - Documentation
  Rust is a curly-brace, block-structured expression language.  It
