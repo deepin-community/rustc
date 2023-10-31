@@ -70,3 +70,4 @@ ubuntu-downgrade-libgit2-to-1.5.patch
 ubuntu-use-system-compiler-during-tests.patch
 d-0020-remove-windows-dependencies.patch
 d-0021-vendor-remove-windows-dependencies.patch
+ubuntu-disable-nanum-fonts.patch
