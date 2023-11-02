@@ -1,0 +1,22 @@
+Description: Fix the short-ice test when rpath edits are disabled
+ short-ice test directly calls the just-built rustc binary for testing
+ backtrace availability. However, if rpath is disabled, this will not
+ succeed due to missing shared libraries. This patch fixes this situation
+ by adding the correct LD_LIBRARY_PATH environment variable.
+Author: Zixing Liu <zixing.liu@canonical.com>
+Forwarded: no
+Last-Update: 2023-11-02
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: rustc/tests/run-make/short-ice/Makefile
+===================================================================
+--- rustc.orig/tests/run-make/short-ice/Makefile
++++ rustc/tests/run-make/short-ice/Makefile
+@@ -2,6 +2,7 @@ include ../tools.mk
+ 
+ # ignore-windows
+ 
++export LD_LIBRARY_PATH := $(shell dirname $(RUSTC_ORIGINAL))/../lib
+ export RUSTC := $(RUSTC_ORIGINAL)
+ export TMPDIR := $(TMPDIR)
+ 

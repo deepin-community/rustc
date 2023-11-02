@@ -71,3 +71,4 @@ ubuntu-use-system-compiler-during-tests.patch
 d-0020-remove-windows-dependencies.patch
 d-0021-vendor-remove-windows-dependencies.patch
 ubuntu-disable-nanum-fonts.patch
+ubuntu-fix-short-ice-test.patch
