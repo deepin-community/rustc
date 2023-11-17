@@ -11,9 +11,9 @@ Index: rustc/compiler/rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc/Cargo.toml
 +++ rustc/compiler/rustc/Cargo.toml
-@@ -14,13 +14,7 @@ rustc_codegen_ssa = { path = "../rustc_c
- # crate is intended to be used by stable MIR consumers, which are not in-tree
+@@ -15,13 +15,7 @@ rustc_codegen_ssa = { path = "../rustc_c
  rustc_smir = { path = "../rustc_smir" }
+ stable_mir = { path = "../stable_mir" }
  
 -[dependencies.jemalloc-sys]
 -version = "0.5.0"

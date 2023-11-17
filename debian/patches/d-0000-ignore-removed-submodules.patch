@@ -47,12 +47,12 @@ Index: rustc/Cargo.toml
 -  "src/tools/generate-windows-sys",
    "src/tools/rustdoc-gui-test",
    "src/tools/opt-dist",
- ]
+   "src/tools/coverage-dump",
 Index: rustc/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -944,10 +944,6 @@ class RustBuild(object):
+@@ -962,10 +962,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(self.verbose))
@@ -67,7 +67,7 @@ Index: rustc/src/bootstrap/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/builder.rs
 +++ rustc/src/bootstrap/builder.rs
-@@ -684,12 +684,8 @@ impl<'a> Builder<'a> {
+@@ -686,12 +686,8 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -80,7 +80,7 @@ Index: rustc/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -698,8 +694,6 @@ impl<'a> Builder<'a> {
+@@ -700,8 +696,6 @@ impl<'a> Builder<'a> {
                  llvm::Llvm,
                  llvm::Sanitizers,
                  tool::Rustfmt,
@@ -89,7 +89,7 @@ Index: rustc/src/bootstrap/builder.rs
                  llvm::Lld,
                  llvm::CrtBeginEnd,
                  tool::RustdocGUITest,
-@@ -711,12 +705,8 @@ impl<'a> Builder<'a> {
+@@ -714,12 +708,8 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -102,7 +102,7 @@ Index: rustc/src/bootstrap/builder.rs
                  check::Bootstrap
              ),
              Kind::Test => describe!(
-@@ -745,7 +735,6 @@ impl<'a> Builder<'a> {
+@@ -750,7 +740,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -110,7 +110,7 @@ Index: rustc/src/bootstrap/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -761,7 +750,6 @@ impl<'a> Builder<'a> {
+@@ -766,7 +755,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -118,7 +118,7 @@ Index: rustc/src/bootstrap/builder.rs
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -798,7 +786,6 @@ impl<'a> Builder<'a> {
+@@ -803,7 +791,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -126,7 +126,7 @@ Index: rustc/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -816,16 +803,12 @@ impl<'a> Builder<'a> {
+@@ -821,16 +808,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -143,7 +143,7 @@ Index: rustc/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -838,11 +821,9 @@ impl<'a> Builder<'a> {
+@@ -843,11 +826,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -155,7 +155,7 @@ Index: rustc/src/bootstrap/builder.rs
                  install::LlvmTools,
                  install::Src,
                  install::Rustc
-@@ -852,7 +833,6 @@ impl<'a> Builder<'a> {
+@@ -857,7 +838,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -163,7 +163,7 @@ Index: rustc/src/bootstrap/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -1990,10 +1970,7 @@ impl<'a> Builder<'a> {
+@@ -1998,10 +1978,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -179,7 +179,7 @@ Index: rustc/src/bootstrap/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/test.rs
 +++ rustc/src/bootstrap/test.rs
-@@ -2143,17 +2143,7 @@ impl Step for RustcGuide {
+@@ -2167,17 +2167,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
