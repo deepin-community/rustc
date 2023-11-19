@@ -1,3 +1,164 @@
+Index: rustc/src/tools/compiletest/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/compiletest/Cargo.toml
++++ rustc/src/tools/compiletest/Cargo.toml
+@@ -28,13 +28,3 @@ home = "0.5.5"
+ 
+ [target.'cfg(unix)'.dependencies]
+ libc = "0.2"
+-
+-[target.'cfg(windows)'.dependencies]
+-miow = "0.6"
+-
+-[target.'cfg(windows)'.dependencies.windows]
+-version = "0.48.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Diagnostics_Debug",
+-]
+Index: rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/rust-analyzer/crates/stdx/Cargo.toml
++++ rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
+@@ -19,10 +19,6 @@ jod-thread = "0.1.2"
+ crossbeam-channel = "0.5.5"
+ # Think twice before adding anything here
+ 
+-[target.'cfg(windows)'.dependencies]
+-miow = "0.5.0"
+-winapi = { version = "0.3.9", features = ["winerror"] }
+-
+ [features]
+ # Uncomment to enable for the whole crate graph
+ # default = [ "backtrace" ]
+Index: rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
++++ rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
+@@ -71,12 +71,6 @@ toolchain.workspace = true
+ vfs-notify.workspace = true
+ vfs.workspace = true
+ 
+-[target.'cfg(windows)'.dependencies]
+-winapi = "0.3.9"
+-
+-[target.'cfg(not(target_env = "msvc"))'.dependencies]
+-jemallocator = { version = "0.5.0", package = "tikv-jemallocator", optional = true }
+-
+ [dev-dependencies]
+ expect-test = "1.4.0"
+ xshell = "0.2.2"
+Index: rustc/src/tools/cargo/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/Cargo.toml
++++ rustc/src/tools/cargo/Cargo.toml
+@@ -24,8 +24,6 @@ bytesize = "1.3"
+ cargo = { path = "" }
+ cargo-credential = { version = "0.4.0", path = "credential/cargo-credential" }
+ cargo-credential-libsecret = { version = "0.3.1", path = "credential/cargo-credential-libsecret" }
+-cargo-credential-wincred = { version = "0.3.0", path = "credential/cargo-credential-wincred" }
+-cargo-credential-macos-keychain = { version = "0.3.0", path = "credential/cargo-credential-macos-keychain" }
+ cargo-platform = { path = "crates/cargo-platform", version = "0.1.4" }
+ cargo-test-macro = { path = "crates/cargo-test-macro" }
+ cargo-test-support = { path = "crates/cargo-test-support" }
+@@ -101,7 +99,6 @@ unicode-xid = "0.2.4"
+ url = "2.4.1"
+ varisat = "0.2.2"
+ walkdir = "2.3.3"
+-windows-sys = "0.48"
+ 
+ [package]
+ name = "cargo"
+@@ -128,8 +125,6 @@ bytesize.workspace = true
+ cargo-platform.workspace = true
+ cargo-credential.workspace = true
+ cargo-credential-libsecret.workspace = true
+-cargo-credential-macos-keychain.workspace = true
+-cargo-credential-wincred.workspace = true
+ cargo-util.workspace = true
+ color-print.workspace = true
+ clap = { workspace = true, features = ["wrap_help"] }
+@@ -189,18 +184,6 @@ walkdir.workspace = true
+ [target.'cfg(not(windows))'.dependencies]
+ openssl = { workspace = true, optional = true }
+ 
+-[target.'cfg(windows)'.dependencies.windows-sys]
+-workspace = true
+-features = [
+-  "Win32_Foundation",
+-  "Win32_Security",
+-  "Win32_Storage_FileSystem",
+-  "Win32_System_IO",
+-  "Win32_System_Console",
+-  "Win32_System_JobObjects",
+-  "Win32_System_Threading",
+-]
+-
+ [dev-dependencies]
+ cargo-test-macro.workspace = true
+ cargo-test-support.workspace = true
+Index: rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/cargo-util/Cargo.toml
++++ rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
+@@ -23,7 +23,3 @@ walkdir.workspace = true
+ 
+ [target.'cfg(target_os = "macos")'.dependencies]
+ core-foundation.workspace = true
+-
+-[target.'cfg(windows)'.dependencies]
+-miow.workspace = true
+-windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console"] }
+Index: rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/cargo-test-support/Cargo.toml
++++ rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
+@@ -29,6 +29,3 @@ tar.workspace = true
+ time.workspace = true
+ toml.workspace = true
+ url.workspace = true
+-
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
+Index: rustc/src/tools/cargo/crates/home/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/home/Cargo.toml
++++ rustc/src/tools/cargo/crates/home/Cargo.toml
+@@ -14,6 +14,3 @@ include = [
+ license.workspace = true
+ repository = "https://github.com/rust-lang/cargo"
+ description = "Shared definitions of home directories."
+-
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell"] }
+Index: rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/credential/cargo-credential/Cargo.toml
++++ rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
+@@ -15,8 +15,5 @@ serde_json.workspace = true
+ thiserror.workspace = true
+ time.workspace = true
+ 
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_System_Console", "Win32_Foundation"] }
+-
+ [dev-dependencies]
+ snapbox = { workspace = true, features = ["examples"] }
+Index: rustc/src/tools/cargo/src/cargo/util/auth/mod.rs
+===================================================================
+--- rustc.orig/src/tools/cargo/src/cargo/util/auth/mod.rs
++++ rustc/src/tools/cargo/src/cargo/util/auth/mod.rs
+@@ -529,8 +529,8 @@ fn credential_action(
+             }
+             "cargo:paseto" => bail!("cargo:paseto requires -Zasymmetric-token"),
+             "cargo:token-from-stdout" => Box::new(BasicProcessCredential {}),
+-            "cargo:wincred" => Box::new(cargo_credential_wincred::WindowsCredential {}),
+-            "cargo:macos-keychain" => Box::new(cargo_credential_macos_keychain::MacKeychain {}),
++            "cargo:wincred" => unreachable!(),
++            "cargo:macos-keychain" => unreachable!(),
+             "cargo:libsecret" => Box::new(cargo_credential_libsecret::LibSecretCredential {}),
+             process => Box::new(CredentialProcessCredential::new(process)),
+         };
 Index: rustc/compiler/rustc_codegen_ssa/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_codegen_ssa/Cargo.toml
@@ -81,6 +242,37 @@ Index: rustc/compiler/rustc_session/Cargo.toml
 -    "Win32_Foundation",
 -    "Win32_System_LibraryLoader",
 -]
+Index: rustc/library/backtrace/Cargo.toml
+===================================================================
+--- rustc.orig/library/backtrace/Cargo.toml
++++ rustc/library/backtrace/Cargo.toml
+@@ -47,9 +47,6 @@ version = "0.32.0"
+ default-features = false
+ features = ['read_core', 'elf', 'macho', 'pe', 'unaligned', 'archive']
+ 
+-[target.'cfg(windows)'.dependencies]
+-winapi = { version = "0.3.9", optional = true }
+-
+ [build-dependencies]
+ # Only needed for Android, but cannot be target dependent
+ # https://github.com/rust-lang/cargo/issues/4932
+@@ -87,16 +84,6 @@ libbacktrace = []
+ libunwind = []
+ unix-backtrace = []
+ verify-winapi = [
+-  'winapi/dbghelp',
+-  'winapi/handleapi',
+-  'winapi/libloaderapi',
+-  'winapi/memoryapi',
+-  'winapi/minwindef',
+-  'winapi/processthreadsapi',
+-  'winapi/synchapi',
+-  'winapi/tlhelp32',
+-  'winapi/winbase',
+-  'winapi/winnt',
+ ]
+ 
+ [[example]]
 Index: rustc/src/bootstrap/Cargo.toml
 ===================================================================
 --- rustc.orig/src/bootstrap/Cargo.toml
@@ -105,169 +297,5 @@ Index: rustc/src/bootstrap/Cargo.toml
 -]
 -
  [dev-dependencies]
- pretty_assertions = "1.2"
+ pretty_assertions = "1.4"
  
-Index: rustc/src/tools/compiletest/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/compiletest/Cargo.toml
-+++ rustc/src/tools/compiletest/Cargo.toml
-@@ -27,13 +27,3 @@ anyhow = "1"
- 
- [target.'cfg(unix)'.dependencies]
- libc = "0.2"
--
--[target.'cfg(windows)'.dependencies]
--miow = "0.6"
--
--[target.'cfg(windows)'.dependencies.windows]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Diagnostics_Debug",
--]
-Index: rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-+++ rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-@@ -19,10 +19,6 @@ jod-thread = "0.1.2"
- crossbeam-channel = "0.5.5"
- # Think twice before adding anything here
- 
--[target.'cfg(windows)'.dependencies]
--miow = "0.5.0"
--winapi = { version = "0.3.9", features = ["winerror"] }
--
- [features]
- # Uncomment to enable for the whole crate graph
- # default = [ "backtrace" ]
-Index: rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
-+++ rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
-@@ -72,12 +72,6 @@ toolchain.workspace = true
- vfs-notify.workspace = true
- vfs.workspace = true
- 
--[target.'cfg(windows)'.dependencies]
--winapi = "0.3.9"
--
--[target.'cfg(not(target_env = "msvc"))'.dependencies]
--jemallocator = { version = "0.5.0", package = "tikv-jemallocator", optional = true }
--
- [dev-dependencies]
- expect-test = "1.4.0"
- xshell = "0.2.2"
-Index: rustc/src/tools/cargo/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/Cargo.toml
-+++ rustc/src/tools/cargo/Cargo.toml
-@@ -21,8 +21,6 @@ bytesize = "1.2"
- cargo = { path = "" }
- cargo-credential = { version = "0.3.0", path = "credential/cargo-credential" }
- cargo-credential-libsecret = { version = "0.3.1", path = "credential/cargo-credential-libsecret" }
--cargo-credential-wincred = { version = "0.3.0", path = "credential/cargo-credential-wincred" }
--cargo-credential-macos-keychain = { version = "0.3.0", path = "credential/cargo-credential-macos-keychain" }
- cargo-platform = { path = "crates/cargo-platform", version = "0.1.4" }
- cargo-test-macro = { path = "crates/cargo-test-macro" }
- cargo-test-support = { path = "crates/cargo-test-support" }
-@@ -100,7 +98,6 @@ unicode-xid = "0.2.4"
- url = "2.4.0"
- varisat = "0.2.2"
- walkdir = "2.3.3"
--windows-sys = "0.48"
- 
- [package]
- name = "cargo"
-@@ -125,8 +122,6 @@ bytesize.workspace = true
- cargo-platform.workspace = true
- cargo-credential.workspace = true
- cargo-credential-libsecret.workspace = true
--cargo-credential-macos-keychain.workspace = true
--cargo-credential-wincred.workspace = true
- cargo-util.workspace = true
- clap = { workspace = true, features = ["wrap_help"] }
- crates-io.workspace = true
-@@ -186,21 +181,6 @@ walkdir.workspace = true
- [target.'cfg(not(windows))'.dependencies]
- openssl = { workspace = true, optional = true }
- 
--[target.'cfg(windows)'.dependencies]
--fwdansi.workspace = true
--
--[target.'cfg(windows)'.dependencies.windows-sys]
--workspace = true
--features = [
--  "Win32_Foundation",
--  "Win32_Security",
--  "Win32_Storage_FileSystem",
--  "Win32_System_IO",
--  "Win32_System_Console",
--  "Win32_System_JobObjects",
--  "Win32_System_Threading",
--]
--
- [dev-dependencies]
- cargo-test-macro.workspace = true
- cargo-test-support.workspace = true
-Index: rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/cargo-util/Cargo.toml
-+++ rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
-@@ -22,7 +22,3 @@ walkdir.workspace = true
- 
- [target.'cfg(target_os = "macos")'.dependencies]
- core-foundation.workspace = true
--
--[target.'cfg(windows)'.dependencies]
--miow.workspace = true
--windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console"] }
-Index: rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-+++ rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-@@ -28,6 +28,3 @@ termcolor.workspace = true
- time.workspace = true
- toml.workspace = true
- url.workspace = true
--
--[target.'cfg(windows)'.dependencies]
--windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
-Index: rustc/src/tools/cargo/crates/home/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/home/Cargo.toml
-+++ rustc/src/tools/cargo/crates/home/Cargo.toml
-@@ -14,6 +14,3 @@ include = [
- license.workspace = true
- repository = "https://github.com/rust-lang/cargo"
- description = "Shared definitions of home directories."
--
--[target.'cfg(windows)'.dependencies]
--windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell"] }
-Index: rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/credential/cargo-credential/Cargo.toml
-+++ rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
-@@ -14,8 +14,5 @@ serde_json.workspace = true
- thiserror.workspace = true
- time.workspace = true
- 
--[target.'cfg(windows)'.dependencies]
--windows-sys = { workspace = true, features = ["Win32_System_Console", "Win32_Foundation"] }
--
- [dev-dependencies]
- snapbox = { workspace = true, features = ["examples"] }
-Index: rustc/src/tools/cargo/src/cargo/util/auth/mod.rs
-===================================================================
---- rustc.orig/src/tools/cargo/src/cargo/util/auth/mod.rs
-+++ rustc/src/tools/cargo/src/cargo/util/auth/mod.rs
-@@ -456,8 +456,8 @@ fn credential_action(
-             "cargo:token" => Box::new(TokenCredential::new(config)),
-             "cargo:paseto" => Box::new(PasetoCredential::new(config)),
-             "cargo:token-from-stdout" => Box::new(BasicProcessCredential {}),
--            "cargo:wincred" => Box::new(cargo_credential_wincred::WindowsCredential {}),
--            "cargo:macos-keychain" => Box::new(cargo_credential_macos_keychain::MacKeychain {}),
-+            "cargo:wincred" => unreachable!(),
-+            "cargo:macos-keychain" => unreachable!(),
-             "cargo:libsecret" => Box::new(cargo_credential_libsecret::LibSecretCredential {}),
-             process => Box::new(CredentialProcessCredential::new(process)),
-         };
