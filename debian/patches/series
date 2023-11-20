@@ -61,6 +61,9 @@ d-rustc-i686-baseline.patch
 # Experimental patch not yet working
 #d-rustc-prefer-dynamic.patch
 d-rustdoc-disable-embedded-fonts.patch
+d-fix-rustix-outline.patch
+
+# cherry-picked from ubuntu
 ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
