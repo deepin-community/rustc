@@ -462,7 +462,7 @@ override_dh_compress:
 override_dh_dwz:
 	# otherwise rustc gets an empty multifile which lintian errors on, causing
 	# FTP auto-reject. this is a work-around, the lintian bug is #955752
-	dh_dwz --no-dwz-multifile
+	dh_dwz --no-dwz-multifile -- -L 100000000
 
 override_dh_makeshlibs:
 	dh_makeshlibs -V
