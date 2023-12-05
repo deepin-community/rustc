@@ -1,9 +1,9 @@
 # lintian does not know about rust arch-specific directories
-libstd-rust-dev binary: arch-dependent-file-not-in-arch-specific-directory [usr/lib/rustlib/*/lib/lib*.rlib]
-libstd-rust-dev binary: breakout-link usr/lib/rustlib/*/lib/lib*.so -> usr/lib/*/lib*.so
+libstd-rust-@RUST_VERSION@-dev binary: arch-dependent-file-not-in-arch-specific-directory [usr/lib/rustlib/*/lib/lib*.rlib]
+libstd-rust-@RUST_VERSION@-dev binary: breakout-link usr/lib/rustlib/*/lib/lib*.so -> usr/lib/*/lib*.so
 
 # lintian doesn't understand rlib files
-libstd-rust-dev binary: no-code-sections [*.rlib]
+libstd-rust-@RUST_VERSION@-dev binary: no-code-sections [*.rlib]
 
 # See debhelper bug #875780. This override is commented out because it's not
 # always needed, but we want it here for documentation purposes. Basically,

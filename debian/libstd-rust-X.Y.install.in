@@ -1,0 +1,2 @@
+usr/lib/rust-${env:RUST_VERSION}/lib/*.so
+usr/lib/${DEB_HOST_MULTIARCH}/*

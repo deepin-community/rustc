@@ -1,0 +1,4 @@
+usr/lib/rust-${env:RUST_VERSION}/bin/cargo
+debian/scripts/*                        usr/lib/rust-${env:RUST_VERSION}/share/cargo/scripts
+debian/bin/cargo                        usr/lib/rust-${env:RUST_VERSION}/share/cargo/bin
+usr/lib/rust-${env:RUST_VERSION}/share/zsh/site-functions/_cargo     usr/lib/rust-${env:RUST_VERSION}/share/zsh/vendor-completions

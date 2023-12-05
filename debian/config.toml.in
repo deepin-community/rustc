@@ -26,7 +26,7 @@ extended = true
 tools = ["cargo", "clippy", "rustfmt", "rustdoc", "rust-analyzer-proc-macro-srv"]
 
 [install]
-prefix = "/usr"
+prefix = "/usr/lib/rust-RUST_VERSION"
 
 [target.DEB_BUILD_RUST_TYPE]
 llvm-config = "LLVM_DESTDIR/usr/lib/llvm-LLVM_VERSION/bin/llvm-config"
