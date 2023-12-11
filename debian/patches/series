@@ -10,8 +10,8 @@ c-0003-tests-add-missing-cross-disabled-checks.patch
 
 # pending, or forwarded
 u-reproducible-build.patch
-#u-ignore-endian-big-diff.patch
-#u-make-compiletest-work-without-rpath.patch
+#u-fix-get-toml-when-test.patch
+u-disable-fp-precision-test-on-i386.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
@@ -68,9 +68,7 @@ ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu-ignore-arm-doctest.patch
 ubuntu-vendor-no-workspace.patch
 ubuntu-use-system-profiler-rt.patch
-ubuntu-disable-sse2-tests-on-i386.patch
 ubuntu-downgrade-libgit2-to-1.5.patch
 ubuntu-use-system-compiler-during-tests.patch
-ubuntu-disable-fpmath-tests-for-i386.patch
 d-0020-remove-windows-dependencies.patch
 d-0021-vendor-remove-windows-dependencies.patch

@@ -4,19 +4,19 @@ Subject: d-0002-mdbook-strip-embedded-libs
 
 Comment: Use https://github.com/infinity0/mdBook/tree/debian to help you rebase the patch on top of a newer version. . Make sure the paths here match the ones in debian/rust-doc.links
 ---
- src/tools/linkchecker/main.rs                      | 28 ++++++-
- vendor/mdbook/src/book/init.rs                     |  6 --
- .../src/renderer/html_handlebars/hbs_renderer.rs   | 80 ++-----------------
- .../mdbook/src/renderer/html_handlebars/search.rs  |  2 -
- vendor/mdbook/src/theme/index.hbs                  | 93 +---------------------
- vendor/mdbook/src/theme/mod.rs                     | 27 -------
- vendor/mdbook/src/theme/searcher/mod.rs            |  2 -
- 7 files changed, 35 insertions(+), 203 deletions(-)
+ src/tools/linkchecker/main.rs                      |  28 +++++-
+ vendor/mdbook/src/book/init.rs                     |  19 ----
+ .../src/renderer/html_handlebars/hbs_renderer.rs   | 110 ++++-----------------
+ .../mdbook/src/renderer/html_handlebars/search.rs  |   2 -
+ vendor/mdbook/src/theme/index.hbs                  |  99 +------------------
+ vendor/mdbook/src/theme/mod.rs                     |  27 -----
+ vendor/mdbook/src/theme/searcher/mod.rs            |   2 -
+ 7 files changed, 47 insertions(+), 240 deletions(-)
 
-Index: rustc-1.70.0-src/src/tools/linkchecker/main.rs
-===================================================================
---- rustc-1.70.0-src.orig/src/tools/linkchecker/main.rs
-+++ rustc-1.70.0-src/src/tools/linkchecker/main.rs
+diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
+index 4170c32..d7dcda7 100644
+--- a/src/tools/linkchecker/main.rs
++++ b/src/tools/linkchecker/main.rs
 @@ -159,7 +159,17 @@ impl Checker {
          for entry in t!(dir.read_dir()).map(|e| t!(e)) {
              let path = entry.path();
@@ -108,15 +108,14 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
  use crate::utils;
  
  use std::borrow::Cow;
-@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
+ use std::collections::BTreeMap;
  use std::collections::HashMap;
  use std::fs::{self, File};
- use std::path::{Path, PathBuf};
 +use std::os::unix::fs::symlink;
+ use std::path::{Path, PathBuf};
  
  use crate::utils::fs::get_404_output_file;
- use handlebars::Handlebars;
-@@ -235,60 +236,8 @@ impl HtmlHandlebars {
+@@ -235,105 +236,28 @@ impl HtmlHandlebars {
          if let Some(contents) = &theme.favicon_svg {
              write_file(destination, "favicon.svg", contents)?;
          }
@@ -139,27 +138,42 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
 -            destination,
 -            "FontAwesome/fonts/fontawesome-webfont.svg",
 -            theme::FONT_AWESOME_SVG,
--        )?;
++        symlink(
++            "/usr/share/fonts-font-awesome/css/font-awesome.min.css",
++            destination.join("css/font-awesome.min.css"),
+         )?;
 -        write_file(
 -            destination,
 -            "FontAwesome/fonts/fontawesome-webfont.ttf",
 -            theme::FONT_AWESOME_TTF,
--        )?;
++        symlink(
++            "/usr/share/fonts-font-awesome/fonts",
++            destination.join("fonts"),
+         )?;
 -        write_file(
 -            destination,
 -            "FontAwesome/fonts/fontawesome-webfont.woff",
 -            theme::FONT_AWESOME_WOFF,
--        )?;
++        symlink(
++            "/usr/share/javascript/highlight.js/styles/atelier-dune-light.css",
++            destination.join("highlight.css"),
+         )?;
 -        write_file(
 -            destination,
 -            "FontAwesome/fonts/fontawesome-webfont.woff2",
 -            theme::FONT_AWESOME_WOFF2,
--        )?;
++        symlink(
++            "/usr/share/javascript/highlight.js/highlight.js",
++            destination.join("highlight.js"),
+         )?;
 -        write_file(
 -            destination,
 -            "FontAwesome/fonts/FontAwesome.ttf",
 -            theme::FONT_AWESOME_TTF,
--        )?;
++        symlink(
++            "/usr/share/javascript/mathjax/MathJax.js",
++            destination.join("MathJax.js"),
+         )?;
 -        if html_config.copy_fonts {
 -            write_file(destination, "fonts/fonts.css", theme::fonts::CSS)?;
 -            for (file_name, contents) in theme::fonts::LICENSES.iter() {
@@ -174,21 +188,25 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
 -                theme::fonts::SOURCE_CODE_PRO.1,
 -            )?;
 -        }
-         if let Some(fonts_css) = &theme.fonts_css {
-             if !fonts_css.is_empty() {
-                 if html_config.copy_fonts {
-@@ -298,7 +247,6 @@ impl HtmlHandlebars {
-                         the `theme/fonts/` directory."
-                     );
-                 }
+-        if let Some(fonts_css) = &theme.fonts_css {
+-            if !fonts_css.is_empty() {
+-                if html_config.copy_fonts {
+-                    warn!(
+-                        "output.html.copy_fonts is deprecated.\n\
+-                        Set copy_fonts=false and ensure the fonts you want are in \
+-                        the `theme/fonts/` directory."
+-                    );
+-                }
 -                write_file(destination, "fonts/fonts.css", &fonts_css)?;
-             }
-         }
-         if !html_config.copy_fonts && theme.fonts_css.is_none() {
-@@ -308,32 +256,11 @@ impl HtmlHandlebars {
-                 Add an empty `theme/fonts/fonts.css` file to squelch this warning."
-             );
-         }
+-            }
+-        }
+-        if !html_config.copy_fonts && theme.fonts_css.is_none() {
+-            warn!(
+-                "output.html.copy_fonts is deprecated.\n\
+-                This book appears to have copy_fonts=false without a fonts.css file.\n\
+-                Add an empty `theme/fonts/fonts.css` file to squelch this warning."
+-            );
+-        }
 -        for font_file in &theme.font_files {
 -            let contents = fs::read(font_file)?;
 -            let filename = font_file.file_name().unwrap();
@@ -215,19 +233,14 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/hbs_renderer.
 -                playground_editor::THEME_TOMORROW_NIGHT_JS,
 -            )?;
 -        }
-+        symlink("/usr/share/fonts-font-awesome/css/font-awesome.min.css", destination.join("css/font-awesome.min.css"))?;
-+        symlink("/usr/share/fonts-font-awesome/fonts", destination.join("fonts"))?;
-+        symlink("/usr/share/javascript/highlight.js/styles/atelier-dune-light.css", destination.join("highlight.css"))?;
-+        symlink("/usr/share/javascript/highlight.js/highlight.js", destination.join("highlight.js"))?;
-+        symlink("/usr/share/javascript/mathjax/MathJax.js", destination.join("MathJax.js"))?;
  
          Ok(())
      }
-Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
-===================================================================
---- rustc-1.70.0-src.orig/vendor/mdbook/src/renderer/html_handlebars/search.rs
-+++ rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
-@@ -53,8 +53,6 @@ pub fn create_files(search_config: &Sear
+diff --git a/vendor/mdbook/src/renderer/html_handlebars/search.rs b/vendor/mdbook/src/renderer/html_handlebars/search.rs
+index a9e2f5c..3e3f69c 100644
+--- a/vendor/mdbook/src/renderer/html_handlebars/search.rs
++++ b/vendor/mdbook/src/renderer/html_handlebars/search.rs
+@@ -53,8 +53,6 @@ pub fn create_files(search_config: &Search, destination: &Path, book: &Book) ->
              format!("Object.assign(window.search, {});", index).as_bytes(),
          )?;
          utils::fs::write_file(destination, "searcher.js", searcher::JS)?;
@@ -236,10 +249,10 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/renderer/html_handlebars/search.rs
          debug!("Copying search files ✓");
      }
  
-Index: rustc-1.70.0-src/vendor/mdbook/src/theme/index.hbs
-===================================================================
---- rustc-1.70.0-src.orig/vendor/mdbook/src/theme/index.hbs
-+++ rustc-1.70.0-src/vendor/mdbook/src/theme/index.hbs
+diff --git a/vendor/mdbook/src/theme/index.hbs b/vendor/mdbook/src/theme/index.hbs
+index 6f3948c..7e5c54c 100644
+--- a/vendor/mdbook/src/theme/index.hbs
++++ b/vendor/mdbook/src/theme/index.hbs
 @@ -33,10 +33,7 @@
          {{/if}}
  
@@ -310,7 +323,7 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/theme/index.hbs
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              <div class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -240,52 +195,6 @@
+@@ -240,54 +195,8 @@
          </script>
          {{/if}}
  
@@ -360,13 +373,17 @@ Index: rustc-1.70.0-src/vendor/mdbook/src/theme/index.hbs
 -        {{/if}}
 -
 -        <script src="{{ path_to_root }}clipboard.min.js"></script>
-         <script src="{{ path_to_root }}highlight.js"></script>
-         <script src="{{ path_to_root }}book.js"></script>
+-        <script src="{{ path_to_root }}highlight.js"></script>
+-        <script src="{{ path_to_root }}book.js"></script>
++        <script src="{{ path_to_root }}highlight.js" type="text/javascript" charset="utf-8"></script>
++        <script src="{{ path_to_root }}book.js" type="text/javascript" charset="utf-8"></script>
  
-Index: rustc-1.70.0-src/vendor/mdbook/src/theme/mod.rs
-===================================================================
---- rustc-1.70.0-src.orig/vendor/mdbook/src/theme/mod.rs
-+++ rustc-1.70.0-src/vendor/mdbook/src/theme/mod.rs
+         <!-- Custom JS scripts -->
+         {{#each additional_js}}
+diff --git a/vendor/mdbook/src/theme/mod.rs b/vendor/mdbook/src/theme/mod.rs
+index 6e6b509..ef8886b 100644
+--- a/vendor/mdbook/src/theme/mod.rs
++++ b/vendor/mdbook/src/theme/mod.rs
 @@ -1,9 +1,5 @@
  #![allow(missing_docs)]
  

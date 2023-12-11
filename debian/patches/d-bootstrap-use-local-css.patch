@@ -7,20 +7,38 @@ Subject: d-bootstrap-use-local-css
  src/bootstrap/doc.rs | 15 ++++-----------
  1 file changed, 4 insertions(+), 11 deletions(-)
 
-diff --git a/src/bootstrap/doc.rs b/src/bootstrap/doc.rs
-index f8ba05c..fb5395d 100644
 --- a/src/bootstrap/doc.rs
 +++ b/src/bootstrap/doc.rs
-@@ -373,6 +373,8 @@ impl Step for Standalone {
+@@ -350,7 +350,27 @@
+                 .arg("--index-page")
                  .arg(&builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
-                 .arg("https://play.rust-lang.org/")
-+                .arg("--markdown-css")
+-                .arg("https://play.rust-lang.org/")
++                .arg("https://play.rust-lang.org/");
++
++            // Debian: librustdoc now generates a resource-suffix for static
++            // files with rustc_hash::FxHasher, so we need to find it.
++            let _dir = out.join("static.files");
++            if _dir.is_dir() {
++                let _css = _dir.read_dir().expect("Debian: failed to read static.files/ when is_dir() == true")
++                    .find_map(|entry| entry.ok().map(|entry| {
++                        let name = entry.file_name().into_string()
++                            .expect("Debian: rustc files should have UTF-8 name");
++                        if name.starts_with("rustdoc-") && name.ends_with(".css") {
++                            Some(name)
++                        } else { None }
++                    })).flatten();
++                if let Some(name) = _css {
++                    cmd.arg("--markdown-css").arg(name);
++                }
++            }
++
++            cmd.arg("--markdown-css")
 +                .arg("rust.css")
                  .arg("-o")
                  .arg(&out)
                  .arg(&path);
-@@ -381,11 +385,6 @@ impl Step for Standalone {
+@@ -359,11 +379,6 @@
                  cmd.arg("--disable-minification");
              }
  

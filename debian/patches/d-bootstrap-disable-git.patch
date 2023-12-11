@@ -14,7 +14,7 @@ Index: rustc/src/bootstrap/channel.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/channel.rs
 +++ rustc/src/bootstrap/channel.rs
-@@ -37,7 +37,11 @@ pub struct Info {
+@@ -37,7 +37,13 @@ pub struct Info {
  impl GitInfo {
      pub fn new(omit_git_hash: bool, dir: &Path) -> GitInfo {
          // See if this even begins to look like a git dir

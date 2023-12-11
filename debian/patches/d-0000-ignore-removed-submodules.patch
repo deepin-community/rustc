@@ -4,7 +4,7 @@ Date: Mon, 20 Feb 2023 21:09:42 -0700
 Subject: [PATCH 07/32] d-0000-ignore-removed-submodules
 
 ---
- Cargo.toml                         | 26 +++++++++-----------------
+ Cargo.toml                         | 17 -----------------
  src/bootstrap/bootstrap.py         |  4 ----
  src/bootstrap/builder.rs           | 18 +-----------------
  src/bootstrap/doc.rs               |  1 -
@@ -12,14 +12,14 @@ Subject: [PATCH 07/32] d-0000-ignore-removed-submodules
  src/tools/clippy/Cargo.toml        |  5 -----
  src/tools/rust-analyzer/Cargo.toml | 11 ++++++++++-
  src/tools/rustfmt/Cargo.toml       |  5 -----
- src/tools/tidy/src/deps.rs         |  2 +-
- 9 files changed, 22 insertions(+), 62 deletions(-)
+ src/tools/tidy/src/deps.rs         |  4 +++-
+ 9 files changed, 15 insertions(+), 62 deletions(-)
 
-Index: rustc/Cargo.toml
+Index: rust/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -18,28 +18,19 @@ members = [
+@@ -18,28 +18,20 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -39,7 +39,7 @@ Index: rustc/Cargo.toml
    "src/tools/jsondoclint",
    "src/tools/html-checker",
 -  "src/tools/bump-stage0",
--  "src/tools/replace-version-placeholder",
+   "src/tools/replace-version-placeholder",
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
    "src/tools/generate-copyright",
@@ -48,23 +48,7 @@ Index: rustc/Cargo.toml
    "src/tools/rustdoc-gui-test",
  ]
  
-@@ -101,6 +93,15 @@ gimli.debug = 0
- miniz_oxide.debug = 0
- object.debug = 0
- 
-+# The only package that ever uses debug builds is bootstrap.
-+# We care a lot about bootstrap's compile times, so don't include debug info for
-+# dependencies, only bootstrap itself.
-+[profile.dev]
-+debug = 0
-+[profile.dev.package]
-+# Only use debuginfo=1 to further reduce compile times.
-+bootstrap.debug = 1
-+
- [patch.crates-io]
- # See comments in `library/rustc-std-workspace-core/README.md` for what's going on
- # here
-Index: rustc/src/bootstrap/bootstrap.py
+Index: rust/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
@@ -79,7 +63,7 @@ Index: rustc/src/bootstrap/bootstrap.py
          if self.get_toml("metrics", "build"):
              args.append("--features")
              args.append("build-metrics")
-Index: rustc/src/bootstrap/builder.rs
+Index: rust/src/bootstrap/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/builder.rs
 +++ rustc/src/bootstrap/builder.rs
@@ -190,7 +174,7 @@ Index: rustc/src/bootstrap/builder.rs
              cargo.arg("--frozen");
          }
  
-Index: rustc/src/bootstrap/test.rs
+Index: rust/src/bootstrap/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/test.rs
 +++ rustc/src/bootstrap/test.rs
@@ -213,10 +197,10 @@ Index: rustc/src/bootstrap/test.rs
      }
  }
  
-Index: rustc/src/tools/rust-analyzer/Cargo.toml
+Index: rust/src/tools/rust-analyzer/Cargo.toml
 ===================================================================
---- rustc.orig/src/tools/rust-analyzer/Cargo.toml
-+++ rustc/src/tools/rust-analyzer/Cargo.toml
+--- rust.orig/src/tools/rust-analyzer/Cargo.toml
++++ rust/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
  [workspace]
 -members = ["xtask/", "lib/*", "crates/*"]

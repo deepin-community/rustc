@@ -7,11 +7,11 @@ Subject: d-0003-cc-psm-rebuild-wasm32
  vendor/psm/build.rs  | 7 ++-----
  2 files changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
-index e3a2b98..9312931 100644
---- a/vendor/cc/src/lib.rs
-+++ b/vendor/cc/src/lib.rs
-@@ -2238,7 +2238,7 @@ impl Build {
+Index: rustc/vendor/cc/src/lib.rs
+===================================================================
+--- rustc.orig/vendor/cc/src/lib.rs
++++ rustc/vendor/cc/src/lib.rs
+@@ -2407,7 +2407,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {
@@ -20,11 +20,12 @@ index e3a2b98..9312931 100644
                  } else if target.contains("vxworks") {
                      if self.cpp {
                          "wr-c++".to_string()
-diff --git a/vendor/psm/build.rs b/vendor/psm/build.rs
-index 01a13bf..30bd68d 100644
---- a/vendor/psm/build.rs
-+++ b/vendor/psm/build.rs
+Index: rustc/vendor/psm/build.rs
+===================================================================
+--- rustc.orig/vendor/psm/build.rs
++++ rustc/vendor/psm/build.rs
 @@ -50,7 +50,7 @@ fn find_assembly(
+         ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
          ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),
          ("riscv64", _, _, _) => Some(("src/arch/riscv64.s", true)),
 -        ("wasm32", _, _, _) => Some(("src/arch/wasm32.o", true)),
@@ -32,8 +33,7 @@ index 01a13bf..30bd68d 100644
          ("loongarch64", _, _, _) => Some(("src/arch/loongarch64.s", true)),
          _ => None,
      }
- }
-@@ -94,11 +94,8 @@ fn main() {
+@@ -97,11 +97,8 @@ fn main() {
          cfg.define(&*format!("CFG_TARGET_ENV_{}", env), None);
      }
  

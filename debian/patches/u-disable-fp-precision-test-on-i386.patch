@@ -1,17 +1,21 @@
-Description: Disable fpmath tests for i386
- This patch disables the floating-point epsilon test for i386 since
- x87 registers are too imprecise and can't produce the expected
- results.
-Author: Zixing Liu <zixing.liu@canonical.com>
+From: liushuyu <liushuyu011@gmail.com>
+Date: Tue, 25 Jul 2023 09:48:12 +0800
+Subject: [PATCH] core library: Disable fpmath tests for i386 ...
+
+This patch disables the floating-point epsilon test for i386 since
+x87 registers are too imprecise and can't produce the expected
+results.
+
 Forwarded: https://github.com/rust-lang/rust/pull/114042
-Last-Update: 2023-07-19
 ---
-This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+ library/core/src/num/f32.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
 diff --git a/library/core/src/num/f32.rs b/library/core/src/num/f32.rs
-index 1c6819b547..8e494f88c9 100644
+index d050d21c8c57..f5c2d1c6bf68 100644
 --- a/library/core/src/num/f32.rs
 +++ b/library/core/src/num/f32.rs
-@@ -799,7 +799,7 @@ impl f32 {
+@@ -800,7 +800,7 @@ impl f32 {
      /// let angle = std::f32::consts::PI;
      ///
      /// let abs_difference = (angle.to_degrees() - 180.0).abs();
