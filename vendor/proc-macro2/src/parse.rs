@@ -104,11 +104,15 @@ fn skip_whitespace(input: Cursor) -> Cursor {
             }
         }
         match byte {
-            b' ' | 0x09..=0x0d => {
+            b' ' | 0x09..=0x0c => {
                 s = s.advance(1);
                 continue;
             }
-            b if b.is_ascii() => {}
+            b'\r' if s.as_bytes().get(1) == Some(&b'\n') => {
+                s = s.advance(2);
+                continue;
+            }
+            b if b <= 0x7f => {}
             _ => {
                 let ch = s.chars().next().unwrap();
                 if is_whitespace(ch) {
@@ -456,7 +460,7 @@ fn cooked_byte_string(mut input: Cursor) -> Result<Cursor, Reject> {
                 }
                 _ => break,
             },
-            b if b.is_ascii() => {}
+            b if b < 0x80 => {}
             _ => break,
         }
     }
