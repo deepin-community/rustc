@@ -35,8 +35,8 @@ Build-Depends:
  bash-completion,
  libcurl4-gnutls-dev | libcurl4-openssl-dev,
  libssh2-1-dev,
- libgit2-dev (>= 1.5.0),
- libgit2-dev (<< 1.6~~),
+ libgit2-dev (>= 1.7.0),
+ libgit2-dev (<< 1.8~~),
  libhttp-parser-dev,
 # test dependencies:
  binutils (>= 2.26) <!nocheck> | binutils-2.26 <!nocheck>,
