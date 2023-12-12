@@ -680,8 +680,8 @@ fn non_ascii_tokens() {
     check_spans("/*** ábc */ x", &[(1, 12, 1, 13)]);
     check_spans(r#""abc""#, &[(1, 0, 1, 5)]);
     check_spans(r#""ábc""#, &[(1, 0, 1, 5)]);
-    check_spans(r##"r#"abc"#"##, &[(1, 0, 1, 8)]);
-    check_spans(r##"r#"ábc"#"##, &[(1, 0, 1, 8)]);
+    check_spans(r###"r#"abc"#"###, &[(1, 0, 1, 8)]);
+    check_spans(r###"r#"ábc"#"###, &[(1, 0, 1, 8)]);
     check_spans("r#\"a\nc\"#", &[(1, 0, 2, 3)]);
     check_spans("r#\"á\nc\"#", &[(1, 0, 2, 3)]);
     check_spans("'a'", &[(1, 0, 1, 3)]);
@@ -739,8 +739,8 @@ fn whitespace() {
     let tokens = various_spaces.parse::<TokenStream>().unwrap();
     assert_eq!(tokens.into_iter().count(), 0);
 
-    let lone_carriage_returns = " \r \r\r\n ";
-    lone_carriage_returns.parse::<TokenStream>().unwrap();
+    let lone_carriage_return = " \r ";
+    lone_carriage_return.parse::<TokenStream>().unwrap_err();
 }
 
 #[test]
