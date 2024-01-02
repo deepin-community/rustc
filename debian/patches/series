@@ -11,7 +11,6 @@ c-0003-tests-add-missing-cross-disabled-checks.patch
 # pending, or forwarded
 u-reproducible-build.patch
 #u-fix-get-toml-when-test.patch
-u-disable-fp-precision-test-on-i386.patch
 
 # not forwarded, or forwarded but unlikely to be merged
 u-ignore-ppc-hangs.patch
@@ -44,7 +43,6 @@ d-bootstrap-use-local-css.patch
 # d-bootstrap-custom-debuginfo-path.patch
 d-bootstrap-permit-symlink-in-docs.patch
 d-test-ignore-avx-44056.patch
-d-bootstrap-cargo-check-cfg.patch
 d-armel-fix-lldb.patch
 
 # Work around for some porterboxes, keep this commented
@@ -61,7 +59,6 @@ d-rustc-i686-baseline.patch
 # Experimental patch not yet working
 #d-rustc-prefer-dynamic.patch
 d-rustdoc-disable-embedded-fonts.patch
-d-fix-rustix-outline.patch
 
 # cherry-picked from ubuntu
 ubuntu-disable-ppc64el-asm-tests.patch

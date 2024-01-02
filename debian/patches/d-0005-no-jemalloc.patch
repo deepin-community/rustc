@@ -11,9 +11,9 @@ Index: rustc/compiler/rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc/Cargo.toml
 +++ rustc/compiler/rustc/Cargo.toml
-@@ -15,13 +15,7 @@ rustc_codegen_ssa = { path = "../rustc_c
- rustc_smir = { path = "../rustc_smir" }
+@@ -20,14 +20,8 @@ rustc_smir = { path = "../rustc_smir" }
  stable_mir = { path = "../stable_mir" }
+ # tidy-alphabetical-end
  
 -[dependencies.jemalloc-sys]
 -version = "0.5.0"
@@ -21,6 +21,7 @@ Index: rustc/compiler/rustc/Cargo.toml
 -features = ['unprefixed_malloc_on_supported_platforms']
 -
  [features]
+ # tidy-alphabetical-start
 -jemalloc = ['jemalloc-sys']
  llvm = ['rustc_driver_impl/llvm']
  max_level_info = ['rustc_driver_impl/max_level_info']

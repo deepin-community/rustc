@@ -1,18 +1,18 @@
-Index: rust/src/bootstrap/config/tests.rs
+Index: rustc/src/bootstrap/src/tests/config.rs
 ===================================================================
---- rust.orig/src/bootstrap/config/tests.rs
-+++ rust/src/bootstrap/config/tests.rs
-@@ -11,6 +11,9 @@ fn parse(config: &str) -> Config {
+--- rustc.orig/src/bootstrap/src/tests/config.rs
++++ rustc/src/bootstrap/src/tests/config.rs
+@@ -18,6 +18,9 @@ fn parse(config: &str) -> Config {
  
  #[test]
  fn download_ci_llvm() {
 +    // Debian: this will attempt to download LLVM
 +    return;
 +
-     if crate::llvm::is_ci_llvm_modified(&parse("")) {
+     if crate::core::build_steps::llvm::is_ci_llvm_modified(&parse("")) {
          eprintln!("Detected LLVM as non-available: running in CI and modified LLVM in this change");
          return;
-@@ -39,7 +42,11 @@ fn download_ci_llvm() {
+@@ -46,7 +49,11 @@ fn download_ci_llvm() {
  //   - https://github.com/rust-lang/rust/pull/109162#issuecomment-1496782487
  #[test]
  fn detect_src_and_out() {

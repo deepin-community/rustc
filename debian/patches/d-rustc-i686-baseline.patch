@@ -7,23 +7,23 @@ Subject: d-rustc-i686-baseline
  compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
+Index: rustc/compiler/rustc_target/src/spec/targets/i686_unknown_linux_gnu.rs
 ===================================================================
---- rust.orig/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-+++ rust/compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-@@ -2,7 +2,7 @@ use crate::spec::{Cc, LinkerFlavor, Lld,
+--- rustc.orig/compiler/rustc_target/src/spec/targets/i686_unknown_linux_gnu.rs
++++ rustc/compiler/rustc_target/src/spec/targets/i686_unknown_linux_gnu.rs
+@@ -2,7 +2,7 @@ use crate::spec::{base, Cc, LinkerFlavor
  
  pub fn target() -> Target {
-     let mut base = super::linux_gnu_base::opts();
+     let mut base = base::linux_gnu::opts();
 -    base.cpu = "pentium4".into();
 +    base.cpu = "pentiumpro".into();
      base.max_atomic_width = Some(64);
      base.supported_sanitizers = SanitizerSet::ADDRESS;
      base.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-m32"]);
-Index: rust/tests/ui/sse2.rs
+Index: rustc/tests/ui/sse2.rs
 ===================================================================
---- rust.orig/tests/ui/sse2.rs
-+++ rust/tests/ui/sse2.rs
+--- rustc.orig/tests/ui/sse2.rs
++++ rustc/tests/ui/sse2.rs
 @@ -15,7 +15,7 @@ fn main() {
          }
          Err(_) => return,
@@ -33,10 +33,10 @@ Index: rust/tests/ui/sse2.rs
          assert!(cfg!(target_feature = "sse2"),
                  "SSE2 was not detected as available on an x86 platform");
      }
-Index: rust/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
+Index: rustc/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
 ===================================================================
---- rust.orig/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
-+++ rust/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
+--- rustc.orig/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
++++ rustc/tests/ui/abi/homogenous-floats-target-feature-mixup.rs
 @@ -24,7 +24,8 @@ fn main() {
      match std::env::var("TARGET") {
          Ok(s) => {

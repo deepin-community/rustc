@@ -9,8 +9,8 @@ Subject: d-bootstrap-no-assume-tools
 
 diff --git a/src/bootstrap/builder/tests.rs b/src/bootstrap/builder/tests.rs
 index 4ab502e..5ce7fc8 100644
---- a/src/bootstrap/builder/tests.rs
-+++ b/src/bootstrap/builder/tests.rs
+--- a/src/bootstrap/src/tests/builder.rs
++++ b/src/bootstrap/src/tests/builder.rs
 @@ -364,9 +364,13 @@ mod dist {
      #[test]
      fn dist_only_cross_host() {

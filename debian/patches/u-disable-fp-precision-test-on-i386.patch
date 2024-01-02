@@ -11,16 +11,3 @@ Forwarded: https://github.com/rust-lang/rust/pull/114042
  library/core/src/num/f32.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/library/core/src/num/f32.rs b/library/core/src/num/f32.rs
-index d050d21c8c57..f5c2d1c6bf68 100644
---- a/library/core/src/num/f32.rs
-+++ b/library/core/src/num/f32.rs
-@@ -800,7 +800,7 @@ impl f32 {
-     /// let angle = std::f32::consts::PI;
-     ///
-     /// let abs_difference = (angle.to_degrees() - 180.0).abs();
--    ///
-+    /// # #[cfg(not(target_arch = "x86"))]
-     /// assert!(abs_difference <= f32::EPSILON);
-     /// ```
-     #[must_use = "this returns the result of the operation, \

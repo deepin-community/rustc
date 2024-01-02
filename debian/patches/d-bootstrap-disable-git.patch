@@ -10,11 +10,11 @@ Forwarded: not-needed
  src/bootstrap/dist.rs    | 5 ++++-
  2 files changed, 9 insertions(+), 2 deletions(-)
 
-Index: rustc/src/bootstrap/channel.rs
+Index: rustc/src/bootstrap/src/utils/channel.rs
 ===================================================================
---- rustc.orig/src/bootstrap/channel.rs
-+++ rustc/src/bootstrap/channel.rs
-@@ -37,7 +37,11 @@ pub struct Info {
+--- rustc.orig/src/bootstrap/src/utils/channel.rs
++++ rustc/src/bootstrap/src/utils/channel.rs
+@@ -36,7 +36,11 @@ pub struct Info {
  impl GitInfo {
      pub fn new(omit_git_hash: bool, dir: &Path) -> GitInfo {
          // See if this even begins to look like a git dir
@@ -27,19 +27,18 @@ Index: rustc/src/bootstrap/channel.rs
              match read_commit_info_file(dir) {
                  Some(info) => return GitInfo::RecordedForTarball(info),
                  None => return GitInfo::Absent,
-Index: rustc/src/bootstrap/dist.rs
+Index: rustc/src/bootstrap/src/core/build_steps/dist.rs
 ===================================================================
---- rustc.orig/src/bootstrap/dist.rs
-+++ rustc/src/bootstrap/dist.rs
-@@ -997,7 +997,10 @@ impl Step for PlainSourceTarball {
-         }
- 
-         // If we're building from git sources, we need to vendor a complete distribution.
--        if builder.rust_info().is_managed_git_subrepository() {
-+        //
-+        // Debian: short-circuited because the Debian package is also in a git
-+        //         repository, but cargo-vendor should not be installed or run.
-+        if false && builder.rust_info().is_managed_git_subrepository() {
-             // Ensure we have the submodules checked out.
-             builder.update_submodule(Path::new("src/tools/cargo"));
-             builder.update_submodule(Path::new("src/tools/rust-analyzer"));
+--- rustc.orig/src/bootstrap/src/core/build_steps/dist.rs
++++ rustc/src/bootstrap/src/core/build_steps/dist.rs
+@@ -994,7 +994,9 @@ impl Step for PlainSourceTarball {
+         if builder.rust_info().is_managed_git_subrepository()
+             || builder.rust_info().is_from_tarball()
+         {
+-            if builder.rust_info().is_managed_git_subrepository() {
++            // Debian: short-circuited because the Debian package is also in a git
++            //         repository, but cargo-vendor should not be installed or run.
++            if false && builder.rust_info().is_managed_git_subrepository() {
+                 // Ensure we have the submodules checked out.
+                 builder.update_submodule(Path::new("src/tools/cargo"));
+             }

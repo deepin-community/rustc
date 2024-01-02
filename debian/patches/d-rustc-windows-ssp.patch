@@ -9,8 +9,8 @@ Bug: https://github.com/rust-lang/rust/issues/68973
 
 diff --git a/compiler/rustc_target/src/spec/windows_gnu_base.rs b/compiler/rustc_target/src/spec/windows_gnu_base.rs
 index d11f1f7..137f8eb 100644
---- a/compiler/rustc_target/src/spec/windows_gnu_base.rs
-+++ b/compiler/rustc_target/src/spec/windows_gnu_base.rs
+--- a/compiler/rustc_target/src/spec/base/windows_gnu.rs
++++ b/compiler/rustc_target/src/spec/base/windows_gnu.rs
 @@ -41,6 +41,8 @@ pub fn opts() -> TargetOptions {
          "-lmsvcrt",
          "-luser32",
