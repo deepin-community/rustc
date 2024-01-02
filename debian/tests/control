@@ -1,7 +1,0 @@
-Test-Command: ./debian/rules build
-Depends: @, @builddeps@
-Restrictions: rw-build-tree, allow-stderr
-
-Tests: create-and-build-crate
-Restrictions: rw-build-tree, allow-stderr
-Depends: @builddeps@
