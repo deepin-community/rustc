@@ -1,3 +1,16 @@
+rustc (1.75.0+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
+
+  * New upstream release 1.75.0 (LP: #2047858)
+    - d/patches: Refresh patches
+    - d/copyright: update the list of unused crates
+    - d/copyright: update copyright data
+    - d/libstd-rust-*: bump version to 1.75
+    - d/patches: remove obsoleted patches
+    - d/s/lintian-overrides: update lintian overrides
+    - d/control: update vendored crate list
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Tue, 02 Jan 2024 12:09:03 -0700
+
 rustc (1.74.1+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
 
   * New upstream release 1.74.1 (LP: #2044036)
