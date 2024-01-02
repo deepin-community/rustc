@@ -361,6 +361,7 @@ Files:
  vendor/anstream/*
  vendor/anstyle/*
  vendor/anstyle-parse/*
+ vendor/anstream-0.5.0/*
 Copyright: 2023 Ed Page <eopage@gmail.com>
 License: MIT or Apache-2.0
 
@@ -467,6 +468,7 @@ Files:
  vendor/git2-curl/*
  vendor/socket2/*
  vendor/toml-0.5.11/*
+ vendor/toml-0.7.5/*
  vendor/tar-0.4.38/*
 Copyright: 2014-2023 Alex Crichton <alex@alexcrichton.com>
            2015-2023 The Rust Project Developers
@@ -726,6 +728,7 @@ Files:
  vendor/itertools/*
  vendor/maplit/*
  vendor/scopeguard/*
+ vendor/itertools-0.10.5/*
 Copyright: 2014-2020 bluss
 License: MIT or Apache-2.0
 Comment:
@@ -738,7 +741,7 @@ Comment:
 
 Files:
  vendor/dirs/*
- vendor/dirs-sys/*
+ vendor/dirs-sys-0.3.7/*
 Copyright: 2015-2020 Simon Ochsenreither <simon@ochsenreither.de>
            2015-2020 dirs-rs contributors
 License: MIT OR Apache-2.0
@@ -782,11 +785,6 @@ Files: vendor/errno/*
 Copyright: 2015-2022 Chris Wong <lambda.fairy@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/lambda-fairy/rust-errno
-
-Files: vendor/errno-dragonfly/*
-Copyright: 2017-2021 Michael Neumann <mneumann@ntecs.de>
-License: MIT
-Comment: see https://github.com/mneumann/errno-dragonfly-rs
 
 Files: vendor/expect-test/*
 Copyright: 2020-2022 rust-analyzer developers
@@ -898,6 +896,7 @@ Comment: see https://github.com/servo/html5ever
 Files:
  vendor/humantime/*
  vendor/humantime-1*/*
+ vendor/humantime-1.3.0/*
 Copyright:
  2016-2018 Paul Colomiets <paul@colomiets.name>
  2016 The humantime Developers
@@ -944,11 +943,6 @@ Copyright: 2018-2021 Kekoa Riggin <kekoariggin@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/zbraniecki/pluralrules
 
-Files: vendor/io-lifetimes/*
-Copyright: 2021-2022 Dan Gohman <dev@sunfishcode.online>
-License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
-Comment: see https://github.com/sunfishcode/io-lifetimes
-
 Files: vendor/is-terminal/*
 Copyright: 2022-2023 softprops <d.tangren@gmail.com>
            2022-2023 Dan Gohman <dev@sunfishcode.online>
@@ -974,21 +968,18 @@ Comment:
  see https://github.com/Kimundi/owning-ref-rs
 
 Files: vendor/libloading/*
- vendor/libloading-0.7.4/*
  vendor/libloading-0.*/*
 Copyright: 2015-2022 Simonas Kazlauskas <libloading@kazlauskas.me>
 License: ISC
 Comment: see https://github.com/nagisa/rust_libloading/
 
 Files: vendor/libm/*
- vendor/libm-0.*/*
 Copyright: 2018-2021 Jorge Aparicio <jorge@japaric.io>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-lang-nursery/libm
 
 Files:
  vendor/linux-raw-sys/*
- vendor/linux-raw-sys-0.*/*
 Copyright: 2021-2022 Dan Gohman <dev@sunfishcode.online>
 License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
 Comment: see https://github.com/sunfishcode/linux-raw-sys
@@ -1123,12 +1114,6 @@ Comment:
  see https://github.com/Amanieu/thread_local-rs
  see https://github.com/Amanieu/parking_lot
 
-Files: vendor/packed_simd_2/*
-Copyright: 2018-2021 Gonzalo Brito Gadeschi <gonzalobg88@gmail.com>
-           2018-2021 Jubilee Young <workingjubilee@gmail.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/rust-lang-nursery/packed_simd
-
 Files: vendor/pathdiff/*
 Copyright: 2017-2020 Manish Goregaokar <manishsmail@gmail.com>
 License: MIT or Apache-2.0
@@ -1232,6 +1217,7 @@ Comment: see https://gitlab.redox-os.org/redox-os/users
 Files:
  vendor/redox_syscall/*
  vendor/redox_syscall-0.2.16/*
+ vendor/redox_syscall-0.3.5/*
 Copyright: 2016-2021 Jeremy Soller <jackpot51@gmail.com>
 License: MIT
 Comment:
@@ -1274,7 +1260,6 @@ Comment: see https://github.com/killercup/rustfix
 
 Files:
  vendor/rustix/*
- vendor/rustix-0.37.6/*
 Copyright: 2020-2023 Dan Gohman <dev@sunfishcode.online>
            2020-2023 Jakub Konka <kubkon@jakubkonka.com>
 License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
@@ -1492,6 +1477,7 @@ Files:
  vendor/tracing-log/*
  vendor/tracing-subscriber/*
  vendor/tracing-core-0.1.30/*
+ vendor/tracing-0.1.37/*
 Copyright:
  2018-2020 Eliza Weisman <eliza@buoyant.io>
  2018-2020 Tokio Contributors <team@tokio.rs>
@@ -1544,11 +1530,6 @@ Files: vendor/unicase/*
 Copyright: 2014-2019 Sean McArthur <sean@seanmonstar.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/seanmonstar/unicase
-
-Files: vendor/unicode_categories/*
-Copyright: 2015-2016 Sean Gillespie <sean@swgillespie.me>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/swgillespie/unicode-categories
 
 Files: vendor/unic-*/*
 Copyright: 2017-2022 The UNIC Project Developers
@@ -2044,6 +2025,7 @@ Files:
  vendor/gix-packetline-blocking/*
  vendor/gix-filter/*
  vendor/gix-trace/*
+ vendor/gix-features-0.35.0/*
 Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
@@ -2059,6 +2041,7 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/contain-rs/bit-vec
 
 Files: vendor/winnow/*
+ vendor/winnow-0.4.7/*
 Copyright: 2023 Ed Page
 License: MIT
 Comment: see https://github.com/winnow-rs/winnow
@@ -2242,6 +2225,7 @@ Comment:
  Relevant discussion in https://github.com/rust-lang/rust/issues/11562
 
 Files: vendor/toml_edit/*
+ vendor/toml_edit-0.19.11/*
 Copyright: 2017-2023 Andronik Ordian <write@reusable.software>
   2017-2023 Ed Page <eopage@gmail.com>
 License: MIT OR Apache-2.0
@@ -2427,12 +2411,6 @@ Files: vendor/nohash-hasher/*
 Copyright: 2018-2020 Parity Technologies <admin@parity.io>
 License: Apache-2.0 OR MIT
 Comment: see https://github.com/paritytech/nohash-hasher
-
-Files: vendor/ui_test-0.*/*
-Copyright: 2022-2023 Oli Scherer
-  2022-2023 Ralf Jung
-License: MIT OR Apache-2.0
-Comment: see https://github.com/oli-obk/ui_test
 
 Files: vendor/tracing-error/*
 Copyright: 2020-2021 Eliza Weisman <eliza@buoyant.io>
@@ -2748,11 +2726,6 @@ Copyright: 2021-2022 Colin Kiegel <kiegel@gmx.de>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/colin-kiegel/rust-derive-builder
 
-Files: vendor/byteyarn/*
-Copyright: 2023 Miguel Young de la Sota <mcyoung@mit.edu>
-License: Apache-2.0
-Comment: see https://github.com/mcy/byteyarn
-
 Files: vendor/pad/*
 Copyright: 2015-2019 Ben S <ogham@bsago.me>
 License: MIT
@@ -2812,6 +2785,65 @@ Files: vendor/color-print-proc-macro/*
 Copyright: 2021-2023 Johann David <johann.david.dev@protonmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://gitlab.com/yolenoyer/color-print
+
+Files: vendor/clap-cargo/*
+Copyright: 2019-2023 Ed Page <eopage@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/crate-ci/clap-cargo
+
+Files: vendor/papergrid/*
+Copyright: 2020-2023 Maxim Zhiburt <zhiburt@gmail.com>
+License: MIT
+Comment: see https://github.com/zhiburt/tabled
+
+Files: vendor/tabled/*
+Copyright: 2020-2023 Maxim Zhiburt <zhiburt@gmail.com>
+License: MIT
+Comment: see https://github.com/zhiburt/tabled
+
+Files: vendor/icu_locid_transform/*
+Copyright: 2022-2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/ui_test/*
+Copyright: 2022-2023 Oli Scherer
+  2022-2023 Ralf Jung
+License: MIT OR Apache-2.0
+Comment: see https://github.com/oli-obk/ui_test
+
+Files: vendor/icu_locid_transform_data/*
+Copyright: 2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/icu_list_data/*
+Copyright: 2023 The ICU4X Project Developers
+License: Unicode-DFS-2016
+Comment: see https://github.com/unicode-org/icu4x
+
+Files: vendor/supports-hyperlinks/*
+Copyright: 2021-2023 Kat Marchán <kzm@zkat.tech>
+License: Apache-2.0
+Comment: see https://github.com/zkat/supports-hyperlinks
+
+Files: vendor/derivative/*
+Copyright: 2016-2021 mcarton <cartonmartin+git@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/mcarton/rust-derivative
+
+Files: vendor/kstring/*
+Copyright: 2020-2022 Ed Page <eopage@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/cobalt-org/kstring
+
+Files: vendor/packed_simd/*
+Copyright: 2018-2023 gnzlbg
+  2018-2023 rust-lang-owner
+  2018-2023 Caleb Zulawski
+  2018-2023 Jubilee
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/packed_simd
 
 License: 0BSD
  Permission to use, copy, modify, and/or distribute this software for
