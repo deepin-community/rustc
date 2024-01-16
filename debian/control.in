@@ -77,8 +77,9 @@ Suggests:
 # llvm is needed for llvm-dwp for -C split-debuginfo=packed
  cargo-@RUST_VERSION@ (= ${binary:Version}),
  llvm-17, lld-17, clang-17,
-Replaces: libstd-rust-@RUST_VERSION@-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
-Breaks: libstd-rust-@RUST_VERSION@-dev (<< 1.26.2+dfsg1+llvm-0ubuntu1~~)
+Provides:
+ libstd-rust-@RUST_VERSION@ (= ${binary:Version}),
+ libstd-rust-@RUST_VERSION@-dev (= ${binary:Version})
 Description: Rust systems programming language
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
