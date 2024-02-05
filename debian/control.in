@@ -79,7 +79,8 @@ Suggests:
  llvm-17, lld-17, clang-17,
 Provides:
  libstd-rust-@RUST_VERSION@ (= ${binary:Version}),
- libstd-rust-@RUST_VERSION@-dev (= ${binary:Version})
+ libstd-rust-@RUST_VERSION@-dev (= ${binary:Version}),
+ rustc (= ${binary:Version})
 Description: Rust systems programming language
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -287,6 +288,7 @@ Recommends:
 Suggests:
  rust-@RUST_VERSION@-doc (>= ${binary:Version}),
  rust-@RUST_VERSION@-src (>= ${binary:Version})
+Provides: rust-all (= ${binary:Version})
 Description: Rust systems programming language - all developer tools
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -312,6 +314,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
           | rustc (= ${binary:Version}),
          binutils,
          gcc | clang | c-compiler
+Provides: cargo (= ${binary:Version})
 Suggests: cargo-@RUST_VERSION@-doc, python3
 Description: Rust package manager
  Cargo is a tool that allows Rust projects to declare their various
