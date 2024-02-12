@@ -418,7 +418,6 @@ Files:
  vendor/cc/*
  vendor/cmake/*
  vendor/env_logger/*
- vendor/env_logger-0.*/*
  vendor/getopts/*
  vendor/glob/*
  vendor/libc/*
@@ -428,7 +427,6 @@ Files:
  vendor/rustc-hash/*
  vendor/time/*
  vendor/bitflags-1.3.2/*
- vendor/env_logger-0.7.1/*
  vendor/regex-syntax-0.6.29/*
 Copyright: 2010-2021 The Rust Project Developers
 License: MIT or Apache-2.0
@@ -568,19 +566,9 @@ Comment: see upstream projects,
  * https://github.com/BurntSushi/aho-corasick
  * https://github.com/BurntSushi/rust-memchr
 
-Files: vendor/array_tool/*
-Copyright: 2015-2018 Daniel P. Clark <6ftdan@gmail.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/danielpclark/array_tool
-
 Files: vendor/autocfg/*
 Copyright: 2018-2020 Josh Stone <cuviper@gmail.com>
 License: Apache-2.0 or MIT
-
-Files: vendor/atty/*
-Copyright: 2015-2017 softprops <d.tangren@gmail.com>
-License: MIT
-Comment: see https://github.com/softprops/atty
 
 Files: vendor/backtrace/*
 Copyright: 2015-2022 The Rust Project Developers
@@ -710,11 +698,6 @@ Copyright: 2015-2022 The Crossbeam Project Developers
 License: MIT or Apache-2.0
 Comment: see https://github.com/crossbeam-rs
 
-Files: vendor/cstr/*
-Copyright: 2018-2020 Xidorn Quan <me@upsuper.org>
-License: MIT
-Comment: see https://github.com/upsuper/cstr
-
 Files: vendor/dashmap/*
 Copyright: 2019-2022 Acrimon <joel.wejdenstal@gmail.com>
 License: MIT
@@ -765,6 +748,7 @@ Files:
  vendor/maplit/*
  vendor/scopeguard/*
  vendor/itertools-0.10.5/*
+ vendor/itertools-0.11.0/*
 Copyright: 2014-2020 bluss
 License: MIT or Apache-2.0
 Comment:
@@ -907,7 +891,6 @@ Comment: see https://github.com/withoutboats/heck
 
 Files:
  vendor/hermit-abi/*
- vendor/hermit-abi-0.*/*
 Copyright: 2019-2019 Stefan Lankes
 License: MIT or Apache-2.0
 Comment: see https://github.com/hermitcore/hermit-abi
@@ -931,8 +914,6 @@ Comment: see https://github.com/servo/html5ever
 
 Files:
  vendor/humantime/*
- vendor/humantime-1*/*
- vendor/humantime-1.3.0/*
 Copyright:
  2016-2018 Paul Colomiets <paul@colomiets.name>
  2016 The humantime Developers
@@ -956,7 +937,6 @@ Comment: see https://github.com/servo/rust-url/
 
 Files:
  vendor/indexmap/*
- vendor/indexmap-1.*/*
 Copyright: 2016-2019 bluss
            2016-2019 Josh Stone <cuviper@gmail.com>
 License: Apache-2.0 or MIT
@@ -1058,7 +1038,6 @@ Comment: see https://github.com/RazrFalcon/memmap2-rs
 
 Files:
  vendor/memoffset/*
- vendor/memoffset-0*/*
 Copyright: 2017-2022 Gilad Naaman <gilad.naaman@gmail.com>
 License: MIT
 Comment: see https://github.com/Gilnaa/memoffset
@@ -1090,14 +1069,6 @@ Copyright: 2014-2018 Matt Brubeck <mbrubeck@limpet.net>
            2014-2018 Jonathan Reem <jonathan.reem@gmail.com>
 License: MIT
 Comment: see https://github.com/mbrubeck/rust-debug-unreachable
-
-Files: vendor/nu-ansi-term/*
-Copyright: 2014-2023 ogham@bsago.me
-           2014-2023 Ryan Scheel (Havvy) <ryan.havvy@gmail.com>
-           2014-2023 Josh Triplett <josh@joshtriplett.org>
-           2014-2023 The Nushell Project Developers
-License: MIT
-Comment: see https://github.com/nushell/nu-ansi-term
 
 Files: vendor/num_cpus/*
 Copyright: 2015 Sean McArthur <sean.monstar@gmail.com>
@@ -1135,14 +1106,10 @@ Comment: see https://github.com/danaugrs/overload
 
 Files:
  vendor/hashbrown/*
- vendor/hashbrown-0.*/*
  vendor/lock_api/*
  vendor/thread_local/*
  vendor/parking_lot/*
- vendor/parking_lot-0.11.2/*
  vendor/parking_lot_core/*
- vendor/parking_lot_core-0.8.6/*
- vendor/hashbrown-0.12.3/*
 Copyright: 2016-2023 Amanieu d'Antras <amanieu@gmail.com>
 License: MIT or Apache-2.0
 Comment:
@@ -1253,7 +1220,6 @@ Comment: see https://gitlab.redox-os.org/redox-os/users
 Files:
  vendor/redox_syscall/*
  vendor/redox_syscall-0.2.16/*
- vendor/redox_syscall-0.3.5/*
 Copyright: 2016-2021 Jeremy Soller <jackpot51@gmail.com>
 License: MIT
 Comment:
@@ -1312,6 +1278,7 @@ License: Apache-2.0 or BSL-1.0
 Comment: see https://github.com/dtolnay/ryu
 
 Files: vendor/self_cell/*
+ vendor/self_cell-0.10.3/*
 Copyright: 2020-2021 Lukas Bergdoll <lukas.bergdoll@gmail.com>
 License: Apache-2.0
 Comment: see https://github.com/Voultapher/self_cell
@@ -1514,18 +1481,13 @@ Files:
  vendor/tracing-subscriber/*
  vendor/tracing-core-0.1.30/*
  vendor/tracing-0.1.37/*
+ vendor/tracing-log-0.1.3/*
 Copyright:
  2018-2020 Eliza Weisman <eliza@buoyant.io>
  2018-2020 Tokio Contributors <team@tokio.rs>
  2018-2020 David Barsky <dbarsky@amazon.com>
 License: MIT
 Comment: see https://github.com/tokio-rs/tracing
-
-Files: vendor/tracing-tree/*
-Copyright: 2020-2020 David Barsky <me@davidbarsky.com>
-           2020-2020 Nathan Whitaker
-License: MIT OR Apache-2.0
-Comment: see https://github.com/davidbarsky/tracing-tree
 
 Files: vendor/twox-hash/*
 Copyright: 2015-2022 Jake Goulding <jake.goulding@gmail.com>
@@ -2750,6 +2712,7 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/faster-hex/*
+ vendor/faster-hex-0.8.1/*
 Copyright: 2018-2023 zhangsoledad <787953403@qq.com>
 License: MIT
 Comment: see https://github.com/NervosFoundation/faster-hex
@@ -2797,13 +2760,6 @@ Files: vendor/number_prefix/*
 Copyright: 2014-2020 Benjamin Sago <ogham@bsago.me>
 License: MIT
 Comment: see https://github.com/ogham/rust-number-prefix
-
-Files: vendor/lsp-server/*
-Copyright: 2019-2023 Alex Kladov
-  2019-2023 Lukas Wirth
-  2019-2023 rust-lang-owner
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server
 
 Files: vendor/ansi_term/*
 Copyright: 2014-2019 ogham@bsago.me
@@ -2880,6 +2836,134 @@ Copyright: 2018-2023 gnzlbg
   2018-2023 Jubilee
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-lang/packed_simd
+
+Files: vendor/ra-ap-rustc_parse_format/*
+Copyright: 2023-2024 Lukas Wirth
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/rust-analyzer-salsa/*
+Copyright: 2023-2024 Salsa developers
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/salsa-rs/salsa
+
+Files: vendor/zerocopy-derive/*
+Copyright: 2019-2024 Joshua Liebow-Feeser <joshlf@google.com>
+License: BSD-2-Clause OR Apache-2.0 OR MIT
+Comment: see https://github.com/google/zerocopy
+
+Files: vendor/arbitrary/*
+Copyright: 2017-2023 The Rust-Fuzz Project Developers
+  2017-2023 Nick Fitzgerald <fitzgen@gmail.com>
+  2017-2023 Manish Goregaokar <manishsmail@gmail.com>
+  2017-2023 Simonas Kazlauskas <arbitrary@kazlauskas.me>
+  2017-2023 Brian L. Troutwine <brian@troutwine.us>
+  2017-2023 Corey Farwell <coreyf@rwell.org>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-fuzz/arbitrary/
+
+Files: vendor/derive_arbitrary/*
+Copyright: 2018-2023 The Rust-Fuzz Project Developers
+  2018-2023 Nick Fitzgerald <fitzgen@gmail.com>
+  2018-2023 Manish Goregaokar <manishsmail@gmail.com>
+  2018-2023 Andre Bogus <bogusandre@gmail.com>
+  2018-2023 Corey Farwell <coreyf@rwell.org>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-fuzz/arbitrary
+
+Files: vendor/nix/*
+Copyright: 2014-2023 The nix-rust Project Developers
+License: MIT
+Comment: see https://github.com/nix-rust/nix
+
+Files: vendor/ctrlc/*
+Copyright: 2015-2023 Antti Keränen <detegr@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/Detegr/rust-ctrlc.git
+
+Files: vendor/unwinding/*
+Copyright: 2021-2023 Gary Guo <gary@garyguo.net>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/nbdd0121/unwinding/
+
+Files: vendor/rust-analyzer-salsa-macros/*
+Copyright: 2023-2024 Salsa developers
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/salsa-rs/salsa
+
+Files: vendor/powerfmt/*
+Copyright: 2023 Jacob Pratt <jacob@jhpratt.dev>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/jhpratt/powerfmt
+
+Files: vendor/libsqlite3-sys/*
+Copyright: 2015-2024 The rusqlite developers
+License: MIT
+Comment: see https://github.com/rusqlite/rusqlite
+
+Files: vendor/ra-ap-rustc_abi/*
+Copyright: 2023-2024 Lukas Wirth
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/hashlink/*
+Copyright: 2019-2024 kyren <kerriganw@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/kyren/hashlink
+
+Files: vendor/fallible-streaming-iterator/*
+Copyright: 2016-2018 Steven Fackler <sfackler@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/sfackler/fallible-streaming-iterator
+
+Files: vendor/zerocopy/*
+Copyright: 2018-2024 Joshua Liebow-Feeser <joshlf@google.com>
+License: BSD-2-Clause OR Apache-2.0 OR MIT
+Comment: see https://github.com/google/zerocopy
+
+Files: vendor/ra-ap-rustc_index_macros/*
+Copyright: 2023-2024 Lukas Wirth
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/typed-arena/*
+Copyright: 2015-2023 The typed-arena developers
+License: MIT
+Comment: see https://github.com/SimonSapin/rust-typed-arena
+
+Files: vendor/shell-words/*
+Copyright: 2018-2022 Tomasz Miąsko <tomasz.miasko@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/tmiasko/shell-words
+
+Files: vendor/ra-ap-rustc_index/*
+Copyright: 2023-2024 Lukas Wirth
+License: MIT OR Apache-2.0
+Comment: see https://github.com/rust-lang/rust
+
+Files: vendor/fst/*
+Copyright: 2015-2021 Andrew Gallant <jamslam@gmail.com>
+License: Unlicense OR MIT
+Comment: see https://github.com/BurntSushi/fst
+
+Files: vendor/rusqlite/*
+Copyright: 2014-2023 The rusqlite developers
+License: MIT
+Comment: see https://github.com/rusqlite/rusqlite
+
+Files: vendor/nu-ansi-term-0.46.0/*
+Copyright: 2021-2024 ogham@bsago.me
+  2021-2024 Ryan Scheel (Havvy) <ryan.havvy@gmail.com>
+  2021-2024 Josh Triplett <josh@joshtriplett.org>
+  2021-2024 The Nushell Project Developers
+License: MIT
+Comment: see https://github.com/nushell/nu-ansi-term
+
+Files: vendor/tracing-tree-0.2.4/*
+Copyright: 2020-2023 David Barsky <me@davidbarsky.com>
+  2020-2023 Nathan Whitaker
+License: MIT OR Apache-2.0
+Comment: see https://github.com/davidbarsky/tracing-tree
 
 License: 0BSD
  Permission to use, copy, modify, and/or distribute this software for
