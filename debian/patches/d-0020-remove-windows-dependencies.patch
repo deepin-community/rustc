@@ -16,26 +16,11 @@ Index: rustc/src/tools/compiletest/Cargo.toml
 -    "Win32_Foundation",
 -    "Win32_System_Diagnostics_Debug",
 -]
-Index: rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-+++ rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
-@@ -19,10 +19,6 @@ jod-thread = "0.1.2"
- crossbeam-channel = "0.5.5"
- # Think twice before adding anything here
- 
--[target.'cfg(windows)'.dependencies]
--miow = "0.5.0"
--winapi = { version = "0.3.9", features = ["winerror"] }
--
- [features]
- # Uncomment to enable for the whole crate graph
- # default = [ "backtrace" ]
 Index: rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
 +++ rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
-@@ -71,12 +71,6 @@ toolchain.workspace = true
+@@ -65,12 +65,6 @@ toolchain.workspace = true
  vfs-notify.workspace = true
  vfs.workspace = true
  
@@ -47,21 +32,21 @@ Index: rustc/src/tools/rust-analyzer/crates/rust-analyzer/Cargo.toml
 -
  [dev-dependencies]
  expect-test = "1.4.0"
- xshell = "0.2.2"
+ xshell.workspace = true
 Index: rustc/src/tools/cargo/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/Cargo.toml
 +++ rustc/src/tools/cargo/Cargo.toml
 @@ -24,8 +24,6 @@ bytesize = "1.3"
  cargo = { path = "" }
- cargo-credential = { version = "0.4.1", path = "credential/cargo-credential" }
- cargo-credential-libsecret = { version = "0.4.1", path = "credential/cargo-credential-libsecret" }
--cargo-credential-macos-keychain = { version = "0.4.1", path = "credential/cargo-credential-macos-keychain" }
--cargo-credential-wincred = { version = "0.4.1", path = "credential/cargo-credential-wincred" }
+ cargo-credential = { version = "0.4.2", path = "credential/cargo-credential" }
+ cargo-credential-libsecret = { version = "0.4.2", path = "credential/cargo-credential-libsecret" }
+-cargo-credential-macos-keychain = { version = "0.4.2", path = "credential/cargo-credential-macos-keychain" }
+-cargo-credential-wincred = { version = "0.4.2", path = "credential/cargo-credential-wincred" }
  cargo-platform = { path = "crates/cargo-platform", version = "0.1.4" }
  cargo-test-macro = { path = "crates/cargo-test-macro" }
  cargo-test-support = { path = "crates/cargo-test-support" }
-@@ -189,27 +187,9 @@ walkdir.workspace = true
+@@ -206,27 +204,9 @@ walkdir.workspace = true
  [target.'cfg(target_os = "linux")'.dependencies]
  cargo-credential-libsecret.workspace = true
  
@@ -89,45 +74,11 @@ Index: rustc/src/tools/cargo/Cargo.toml
  [dev-dependencies]
  cargo-test-macro.workspace = true
  cargo-test-support.workspace = true
-Index: rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/cargo-util/Cargo.toml
-+++ rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
-@@ -23,7 +23,3 @@ walkdir.workspace = true
- 
- [target.'cfg(target_os = "macos")'.dependencies]
- core-foundation.workspace = true
--
--[target.'cfg(windows)'.dependencies]
--miow.workspace = true
--windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console"] }
-Index: rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-+++ rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
-@@ -29,6 +29,3 @@ tar.workspace = true
- time.workspace = true
- toml.workspace = true
- url.workspace = true
--
--[target.'cfg(windows)'.dependencies]
--windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
-Index: rustc/src/tools/cargo/crates/home/Cargo.toml
-===================================================================
---- rustc.orig/src/tools/cargo/crates/home/Cargo.toml
-+++ rustc/src/tools/cargo/crates/home/Cargo.toml
-@@ -15,6 +15,3 @@ include = [
- license.workspace = true
- repository = "https://github.com/rust-lang/cargo"
- description = "Shared definitions of home directories."
--
--[target.'cfg(windows)'.dependencies]
--windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell"] }
 Index: rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/credential/cargo-credential/Cargo.toml
 +++ rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
-@@ -15,8 +15,5 @@ serde_json.workspace = true
+@@ -15,9 +15,6 @@ serde_json.workspace = true
  thiserror.workspace = true
  time.workspace = true
  
@@ -136,12 +87,13 @@ Index: rustc/src/tools/cargo/credential/cargo-credential/Cargo.toml
 -
  [dev-dependencies]
  snapbox = { workspace = true, features = ["examples"] }
+ 
 Index: rustc/compiler/rustc_codegen_ssa/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_codegen_ssa/Cargo.toml
 +++ rustc/compiler/rustc_codegen_ssa/Cargo.toml
 @@ -49,7 +49,3 @@ libc = "0.2.50"
- version = "0.32.0"
+ version = "0.32.1"
  default-features = false
  features = ["read_core", "elf", "macho", "pe", "xcoff", "unaligned", "archive", "write"]
 -
@@ -173,7 +125,7 @@ Index: rustc/compiler/rustc_driver_impl/Cargo.toml
 ===================================================================
 --- rustc.orig/compiler/rustc_driver_impl/Cargo.toml
 +++ rustc/compiler/rustc_driver_impl/Cargo.toml
-@@ -58,12 +58,6 @@ tracing = { version = "0.1.35" }
+@@ -59,12 +59,6 @@ tracing = { version = "0.1.35" }
  libc = "0.2"
  # tidy-alphabetical-end
  
@@ -256,7 +208,7 @@ Index: rustc/src/bootstrap/Cargo.toml
 ===================================================================
 --- rustc.orig/src/bootstrap/Cargo.toml
 +++ rustc/src/bootstrap/Cargo.toml
-@@ -66,21 +66,6 @@ sysinfo = { version = "0.26.0", optional
+@@ -65,21 +65,6 @@ sysinfo = { version = "0.26.0", optional
  [target.'cfg(not(target_os = "solaris"))'.dependencies]
  fd-lock = "3.0.13"
  
@@ -278,3 +230,61 @@ Index: rustc/src/bootstrap/Cargo.toml
  [dev-dependencies]
  pretty_assertions = "1.4"
  
+Index: rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/cargo-test-support/Cargo.toml
++++ rustc/src/tools/cargo/crates/cargo-test-support/Cargo.toml
+@@ -31,8 +31,5 @@ toml.workspace = true
+ url.workspace = true
+ walkdir.workspace = true
+ 
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
+-
+ [lints]
+ workspace = true
+Index: rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/cargo-util/Cargo.toml
++++ rustc/src/tools/cargo/crates/cargo-util/Cargo.toml
+@@ -22,12 +22,5 @@ tempfile.workspace = true
+ tracing.workspace = true
+ walkdir.workspace = true
+ 
+-[target.'cfg(target_os = "macos")'.dependencies]
+-core-foundation.workspace = true
+-
+-[target.'cfg(windows)'.dependencies]
+-miow.workspace = true
+-windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Console"] }
+-
+ [lints]
+ workspace = true
+Index: rustc/src/tools/cargo/crates/home/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/crates/home/Cargo.toml
++++ rustc/src/tools/cargo/crates/home/Cargo.toml
+@@ -16,8 +16,5 @@ license.workspace = true
+ repository = "https://github.com/rust-lang/cargo"
+ description = "Shared definitions of home directories."
+ 
+-[target.'cfg(windows)'.dependencies]
+-windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Com"] }
+-
+ [lints]
+ workspace = true
+Index: rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/rust-analyzer/crates/stdx/Cargo.toml
++++ rustc/src/tools/rust-analyzer/crates/stdx/Cargo.toml
+@@ -20,10 +20,6 @@ crossbeam-channel = "0.5.5"
+ itertools.workspace = true
+ # Think twice before adding anything here
+ 
+-[target.'cfg(windows)'.dependencies]
+-miow = "0.6.0"
+-winapi = { version = "0.3.9", features = ["winerror"] }
+-
+ [features]
+ # Uncomment to enable for the whole crate graph
+ # default = [ "backtrace" ]
