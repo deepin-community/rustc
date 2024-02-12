@@ -11,9 +11,9 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/builder.rs
 +++ rustc/src/bootstrap/src/core/builder.rs
-@@ -1452,6 +1452,18 @@ impl<'a> Builder<'a> {
-             hostflags.arg("--check-cfg=values(bootstrap)");
-         }
+@@ -1467,6 +1467,18 @@ impl<'a> Builder<'a> {
+         hostflags.arg("-Zunstable-options");
+         hostflags.arg("--check-cfg=cfg(bootstrap)");
  
 +        // Debian-specific stuff here
 +        // set linker flags from LDFLAGS

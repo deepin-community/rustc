@@ -29,23 +29,22 @@ Index: rustc/src/doc/edition-guide/src/editions/advanced-migrations.md
  
 -[`cargo check`]: ../../cargo/commands/cargo-check.html
 -[`cargo fix`]: ../../cargo/commands/cargo-fix.html
-+[`cargo check`]: ../../../cargo-doc/doc/commands/cargo-check.html
-+[`cargo fix`]: ../../../cargo-doc/doc/commands/cargo-fix.html
++[`cargo check`]: ../../cargo-doc/commands/cargo-check.html
++[`cargo fix`]: ../../cargo-doc/commands/cargo-fix.html
  [`explicit-outlives-requirements`]:  ../../rustc/lints/listing/allowed-by-default.html#explicit-outlives-requirements
  [`keyword-idents`]: ../../rustc/lints/listing/allowed-by-default.html#keyword-idents
- [`rustfix`]: https://github.com/rust-lang/rustfix
+ [`rustfix`]: https://crates.io/crates/rustfix
  [`unused-extern-crates`]: ../../rustc/lints/listing/allowed-by-default.html#unused-extern-crates
 -[Cargo features]: ../../cargo/reference/features.html
 -[Cargo package]: ../../cargo/reference/manifest.html#the-package-section
 -[Cargo targets]: ../../cargo/reference/cargo-targets.html
--[Cargo workspace]: ../../cargo/reference/workspaces.html
-+[Cargo features]: ../../../cargo-doc/doc/reference/features.html
-+[Cargo package]: ../../../cargo-doc/doc/reference/manifest.html#the-package-section
-+[Cargo targets]: ../../../cargo-doc/doc/reference/cargo-targets.html
-+[Cargo workspace]: ../../../cargo-doc/doc/reference/workspaces.html
++[Cargo features]: ../../cargo-doc/reference/features.html
++[Cargo package]: ../../cargo-doc/reference/manifest.html#the-package-section
++[Cargo targets]: ../../cargo-doc/reference/cargo-targets.html
+ [Cargo workspace]: ../../cargo/reference/workspaces.html
  [CLI flag]: ../../rustc/lints/levels.html#via-compiler-flag
 -[Code generation]: ../../cargo/reference/build-script-examples.html#code-generation
-+[Code generation]: ../../../cargo-doc/doc/reference/build-script-examples.html#code-generation
++[Code generation]: ../../cargo-doc/reference/build-script-examples.html#code-generation
  [conditional compilation]: ../../reference/conditional-compilation.html
  [documentation tests]: ../../rustdoc/documentation-tests.html
  [JSON messages]: ../../rustc/json.html
@@ -93,7 +92,7 @@ Index: rustc/src/doc/index.md
 ===================================================================
 --- rustc.orig/src/doc/index.md
 +++ rustc/src/doc/index.md
-@@ -130,7 +130,7 @@ their differences.
+@@ -128,7 +128,7 @@ historical editions.
  
  ### The Cargo Book
  
@@ -106,7 +105,7 @@ Index: rustc/src/doc/reference/src/conditional-compilation.md
 ===================================================================
 --- rustc.orig/src/doc/reference/src/conditional-compilation.md
 +++ rustc/src/doc/reference/src/conditional-compilation.md
-@@ -376,6 +376,6 @@ println!("I'm running on a {} machine!",
+@@ -377,6 +377,6 @@ println!("I'm running on a {} machine!",
  [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
  [attribute]: attributes.md
  [attributes]: attributes.md
@@ -304,7 +303,7 @@ Index: rustc/src/doc/unstable-book/src/compiler-flags/sanitizer.md
 ===================================================================
 --- rustc.orig/src/doc/unstable-book/src/compiler-flags/sanitizer.md
 +++ rustc/src/doc/unstable-book/src/compiler-flags/sanitizer.md
-@@ -804,7 +804,7 @@ It is strongly recommended to combine sa
+@@ -813,7 +813,7 @@ It is strongly recommended to combine sa
  instrumented standard library, for example using [cargo `-Zbuild-std`
  functionality][build-std].
  
@@ -355,7 +354,7 @@ Index: rustc/src/doc/rustc/src/platform-support/fuchsia.md
 ===================================================================
 --- rustc.orig/src/doc/rustc/src/platform-support/fuchsia.md
 +++ rustc/src/doc/rustc/src/platform-support/fuchsia.md
-@@ -929,7 +929,7 @@ attach and load any relevant debug symbo
+@@ -931,7 +931,7 @@ attach and load any relevant debug symbo
  [Fuchsia]: https://fuchsia.dev/
  [source tree]: https://fuchsia.dev/fuchsia-src/get-started/learn/build
  [rustup]: https://rustup.rs/

@@ -260,8 +260,8 @@ Index: rustc/vendor/mdbook/src/theme/index.hbs
 +        <script async src="MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
          {{/if}}
      </head>
-     <body>
-@@ -61,48 +58,6 @@
+     <body class="sidebar-visible no-js">
+@@ -61,53 +58,6 @@
              var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "{{ preferred_dark_theme }}" : "{{ default_theme }}";
          </script>
  
@@ -287,30 +287,35 @@ Index: rustc/vendor/mdbook/src/theme/index.hbs
 -            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
 -            if (theme === null || theme === undefined) { theme = default_theme; }
 -            var html = document.querySelector('html');
--            html.classList.remove('no-js')
 -            html.classList.remove('{{ default_theme }}')
 -            html.classList.add(theme);
--            html.classList.add('js');
+-            var body = document.querySelector('body');
+-            body.classList.remove('no-js')
+-            body.classList.add('js');
 -        </script>
+-
+-        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 -
 -        <!-- Hide / unhide sidebar before it is displayed -->
 -        <script>
--            var html = document.querySelector('html');
+-            var body = document.querySelector('body');
 -            var sidebar = null;
+-            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
 -            if (document.body.clientWidth >= 1080) {
 -                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
 -                sidebar = sidebar || 'visible';
 -            } else {
 -                sidebar = 'hidden';
 -            }
--            html.classList.remove('sidebar-visible');
--            html.classList.add("sidebar-" + sidebar);
+-            sidebar_toggle.checked = sidebar === 'visible';
+-            body.classList.remove('sidebar-visible');
+-            body.classList.add("sidebar-" + sidebar);
 -        </script>
 -
          <nav id="sidebar" class="sidebar" aria-label="Table of contents">
              <div class="sidebar-scrollbox">
                  {{#toc}}{{/toc}}
-@@ -262,54 +217,8 @@
+@@ -269,54 +219,8 @@
          </script>
          {{/if}}
  
