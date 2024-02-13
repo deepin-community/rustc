@@ -38,6 +38,7 @@ Build-Depends:
  libgit2-dev (>= 1.7.0),
  libgit2-dev (<< 1.8~~),
  libhttp-parser-dev,
+ libsqlite3-dev,
 # test dependencies:
  binutils (>= 2.26) <!nocheck> | binutils-2.26 <!nocheck>,
  git <!nocheck>,

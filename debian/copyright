@@ -38,6 +38,9 @@ Files-Excluded:
  vendor/libssh2-sys/libssh2
  vendor/curl-sys/curl
  vendor/libz-sys/src/zlib*
+ vendor/libsqlite3-sys/*/sqlite3.c
+ vendor/libsqlite3-sys/*/sqlite3.h
+ vendor/libsqlite3-sys/*/sqlite3ext.h
 # Embedded binary blobs
  vendor/jsonpath_lib/docs
  vendor/mdbook/src/theme/playground_editor
