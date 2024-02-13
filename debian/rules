@@ -271,7 +271,7 @@ ifeq (true,$(BUILD_WASM))
 endif
 ifeq (true,$(BUILD_DOCS))
 	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS)
-	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS) cargo # document cargo APIs
+	$(RUSTBUILD) doc $(RUSTBUILD_FLAGS) cargo src/tools/cargo/src/doc # document cargo APIs
 endif
 
 TEST_LOG = debian/rustc-tests.log

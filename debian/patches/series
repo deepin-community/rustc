@@ -38,7 +38,6 @@ d-bootstrap-rustflags.patch
 d-bootstrap-install-symlinks.patch
 d-bootstrap-disable-git.patch
 d-bootstrap-no-assume-tools.patch
-d-bootstrap-cargo-doc-paths.patch
 d-bootstrap-use-local-css.patch
 # d-bootstrap-custom-debuginfo-path.patch
 d-bootstrap-permit-symlink-in-docs.patch
