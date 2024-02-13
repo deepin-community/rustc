@@ -68,5 +68,6 @@ ubuntu-use-system-profiler-rt.patch
 ubuntu-use-system-compiler-during-tests.patch
 d-0020-remove-windows-dependencies.patch
 d-0021-vendor-remove-windows-dependencies.patch
+d-0022-rust-by-example-strip-embedded-libs.patch
 ubuntu-disable-nanum-fonts.patch
 ubuntu-upgrade-cc-to-1.0.85.patch
