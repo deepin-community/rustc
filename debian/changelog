@@ -1,3 +1,21 @@
+rustc-1.76 (1.76.0+dfsg0ubuntu1-0ubuntu2) oracular; urgency=medium
+
+  * Transition Rust toolchain package to a versioned scheme (LP: #2054748)
+    - d/*: move all the scripts to the <name>-X.Y.in format so that they
+      are generated per version
+    - d/rules: install files into their per-version directories
+    - d/cargo-*: use a wrapper script to help cargo select the rustc binary
+    - d/rules, d/cargo-X.Y.install.in: try to fix the installation logic
+    - d/control.in: remove libllvm17 from B-D as it breaks the build after
+      armhf time_t 64 bit transition
+  * d/get-stage0.py: fix stage0 download
+  * d/rules: add checks for checking source package
+    - Re-generate auto-generated files if the input files are changed
+    - Check if the source package name in the changelog is correct
+    - Check and delete auto-generated files on dh_clean
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Sun, 25 Feb 2024 14:51:25 -0700
+
 rustc (1.76.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.76.0 (LP: #2052985)
