@@ -1,3 +1,21 @@
+rustc (1.76.0+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
+
+  * New upstream release 1.76.0 (LP: #2052985)
+    - d/patches: Refresh patches
+    - d/copyright: update the list of unused crates
+    - d/copyright: update copyright data
+    - d/libstd-rust-*: bump version to 1.76
+    - d/patches: remove obsoleted patches
+    - d/s/lintian-overrides: update lintian overrides
+    - d/control: update vendored crate list
+    - d/p/ubuntu-upgrade-cc-to-1.0.85.patch: backport cc 1.0.85
+    - d/p/d-0022-rust-by-example-strip-embedded-libs.patch: strip embedded
+      CSS and JS libraries
+    - d/p/d-bootstrap-cargo-doc-paths.patch: remove patch and build Cargo book
+  * Remove libllvm17 dependency due to time_t transition renaming
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Mon, 12 Feb 2024 15:32:15 -0700
+
 rustc (1.75.0+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
 
   * New upstream release 1.75.0 (LP: #2047858)

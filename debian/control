@@ -22,7 +22,6 @@ Build-Depends:
  llvm-17-tools:native,
  libclang-rt-17-dev (>= 1:17.0.2),
  libclang-common-17-dev (>= 1:17.0.2),
- libllvm17 (>= 1:17.0.2),
  cmake (>= 3.0) | cmake3,
 # needed by some vendor crates
  pkg-config,
