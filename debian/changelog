@@ -13,6 +13,8 @@ rustc (1.76.0+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
       CSS and JS libraries
     - d/p/d-bootstrap-cargo-doc-paths.patch: remove patch and build Cargo book
   * Remove libllvm17 dependency due to time_t transition renaming
+  * d/p/ubuntu-skip-gdb-tests.patch: temporarily disables gdb tests to
+    workaround test failures.
 
  -- Zixing Liu <zixing.liu@canonical.com>  Mon, 12 Feb 2024 15:32:15 -0700
 
