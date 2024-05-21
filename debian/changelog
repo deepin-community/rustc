@@ -1,4 +1,4 @@
-rustc (1.76.0+dfsg0ubuntu1-0ubuntu1) noble; urgency=medium
+rustc (1.76.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.76.0 (LP: #2052985)
     - d/patches: Refresh patches
