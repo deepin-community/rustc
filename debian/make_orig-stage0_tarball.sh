@@ -7,7 +7,7 @@
 set -e
 
 upstream_version="$(dpkg-parsechangelog -SVersion | sed -e 's/\(.*\)-.*/\1/g')"
-upstream_bootstrap_arch="${upstream_bootstrap_arch:-amd64 arm64 armhf i386 mips64 mips64el powerpc ppc64 ppc64el s390x}"
+upstream_bootstrap_arch="${upstream_bootstrap_arch:-amd64 arm64 armhf i386 ppc64el s390x riscv64}"
 
 rm -f stage0/*/*.sha256
 mkdir -p stage0 build && ln -sf ../stage0 build/cache
@@ -29,7 +29,8 @@ stamp=@${SOURCE_DATE_EPOCH:-$(date +%s)}
 touch --date="$stamp" stage0/dpkg-source-dont-rename-parent-directory
 tar --mtime="$stamp" --clamp-mtime \
   --owner=root --group=root \
-  -cJf "../rustc_${upstream_version}.orig-stage0.tar.xz" \
+  -I 'xz -T0' \
+  -cvf "../rustc_${upstream_version}.orig-stage0.tar.xz" \
   --transform "s/^stage0\///" \
   stage0/*
 

@@ -6,7 +6,12 @@
 import sys
 
 import bootstrap
-from bootstrap import RustBuild
+from bootstrap import RustBuild, FakeArgs
+
+class Args(FakeArgs):
+    def __init__(self):
+        super().__init__()
+        self.config = None
 
 class DownloadOnlyRustBuild(RustBuild):
     triple = None
@@ -25,7 +30,7 @@ def main(argv):
     triple = argv.pop(1)
     DownloadOnlyRustBuild.triple = triple
     bootstrap.RustBuild = DownloadOnlyRustBuild
-    bootstrap.bootstrap(False)
+    bootstrap.bootstrap(Args())
 
 if __name__ == '__main__':
     main(sys.argv)
