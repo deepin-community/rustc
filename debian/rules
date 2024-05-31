@@ -402,6 +402,9 @@ debian/dh_auto_install.stamp:
 	# Remove Cargo made package cache
 	rm -v $(CURDIR)/debian/cargo/.package-cache
 
+	# Install the cargo wrapper
+	install -Dvm755 debian/cargo-$(RUST_VERSION).sh $(DEB_DESTDIR)/usr/bin/cargo-$(RUST_VERSION)
+
 	touch "$@"
 
 override_dh_auto_install-arch: debian/dh_auto_install.stamp

@@ -1,0 +1,2 @@
+#!/bin/bash -e
+RUSTC="${RUSTC:-/usr/lib/rust-@RUST_VERSION@/bin/rustc}" exec /usr/lib/rust-@RUST_VERSION@/bin/cargo "$@"
