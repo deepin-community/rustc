@@ -178,6 +178,15 @@ ifneq (,$(filter $(DEB_BUILD_ARCH), mips mipsel))
   SYSTEM_WORKAROUNDS += export MALLOC_ARENA_MAX=1;
 endif
 
+# List generated files
+FILES_TO_PRECONFIGURE := $(wildcard debian/*.in)
+FILES_TO_PRECONFIGURE_OUT := $(subst X.Y,$(RUST_VERSION),\
+  $(filter-out debian/control,\
+    $(patsubst %.in,%,$(FILES_TO_PRECONFIGURE))\
+  )\
+)
+DEFINED_SRC_NAME = $(shell dpkg-parsechangelog -S Source)
+
 %:
 	$(SYSTEM_WORKAROUNDS) dh $@ --parallel --with bash-completion
 
@@ -193,7 +202,11 @@ override_dh_clean: debian/control
 	# Upstream contains a lot of these
 	dh_clean -XCargo.toml.orig
 
-debian/preconfigure.stamp:
+debian/preconfigure.stamp: $(FILES_TO_PRECONFIGURE) debian/changelog
+ifneq ($(DEFINED_SRC_NAME),rustc-$(RUST_VERSION))
+	$(error Source package name is incorrect:\
+	  Source: $(DEFINED_SRC_NAME), expected: rustc-$(RUST_VERSION). Please check d/changelog)
+endif
 	for f in debian/*.in; do \
 		f2=$$(echo $$f | sed 's/\.in$$//;s/X\.Y/$(RUST_VERSION)/'); \
 		echo "$$f => $$f2"; \
@@ -267,6 +280,7 @@ override_dh_auto_clean:
 	$(RM) -rf build tmp debian/cargo_home config.stamp config.mk Makefile
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/*.stamp
 	$(RM) -rf $(SRC_CLEAN) config.toml
+	$(RM) -rf $(FILES_TO_PRECONFIGURE_OUT) debian/preconfigure.stamp
 
 debian/dh_auto_build.stamp:
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS)
