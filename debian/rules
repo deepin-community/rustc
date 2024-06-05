@@ -276,11 +276,16 @@ ifeq (true,$(BUILD_DOCS))
 	sed -i -e 's/^docs = false/docs = true/' debian/config.toml
 endif
 
-override_dh_auto_clean:
+override_dh_auto_clean: debian/preconfigure.stamp
 	$(RM) -rf build tmp debian/cargo_home config.stamp config.mk Makefile
 	$(RM) -rf $(TEST_LOG) debian/config.toml debian/*.stamp
 	$(RM) -rf $(SRC_CLEAN) config.toml
+
+# Clean auto-generated packaging scripts
+# Not included in auto_clean as this will break the source package build
+clean_generated:
 	$(RM) -rf $(FILES_TO_PRECONFIGURE_OUT) debian/preconfigure.stamp
+.PHONY: clean_generated
 
 debian/dh_auto_build.stamp:
 	$(RUSTBUILD) build $(RUSTBUILD_FLAGS)
