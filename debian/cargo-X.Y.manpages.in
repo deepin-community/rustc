@@ -1,2 +1,1 @@
 usr/lib/rust-${env:RUST_VERSION}/share/man/man1/cargo-*.1
-usr/lib/rust-${env:RUST_VERSION}/share/man/man1/cargo.1

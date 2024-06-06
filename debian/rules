@@ -507,8 +507,14 @@ override_dh_dwz:
 	dh_dwz --no-dwz-multifile -- -L 100000000
 
 override_dh_installman:
+	# Append version suffxies for rustc manpages
 	mv debian/tmp/usr/lib/rust-$(RUST_VERSION)/share/man/man1/rustc.1 debian/tmp/usr/lib/rust-$(RUST_VERSION)/share/man/man1/rustc-$(RUST_VERSION).1
 	mv debian/tmp/usr/lib/rust-$(RUST_VERSION)/share/man/man1/rustdoc.1 debian/tmp/usr/lib/rust-$(RUST_VERSION)/share/man/man1/rustdoc-$(RUST_VERSION).1
+	# Append version suffixes for cargo manpages
+	for i in debian/tmp/usr/lib/rust-$(RUST_VERSION)/share/man/man1/cargo*.1*; do \
+	  f2="$$(echo $$i | sed 's/cargo/cargo-$(RUST_VERSION)/')";\
+	  mv -v "$$i" "$$f2"; \
+	done
 	dh_installman
 
 override_dh_makeshlibs:
