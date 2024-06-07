@@ -2,22 +2,26 @@ Index: rustc/vendor/anstream-0.5.0/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/anstream-0.5.0/Cargo.toml
 +++ rustc/vendor/anstream-0.5.0/Cargo.toml
-@@ -133,8 +133,4 @@ default = [
+@@ -131,10 +131,4 @@ auto = [
+ ]
+ default = [
      "auto",
-     "wincon",
+-    "wincon",
  ]
 -wincon = ["dep:anstyle-wincon"]
 -
 -[target."cfg(windows)".dependencies.anstyle-wincon]
 -version = "2.0.0"
 -optional = true
-+wincon = []
 Index: rustc/vendor/anstream/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/anstream/Cargo.toml
 +++ rustc/vendor/anstream/Cargo.toml
-@@ -137,8 +137,4 @@ default = [
-     "wincon",
+@@ -134,11 +134,5 @@ auto = [
+ ]
+ default = [
+     "auto",
+-    "wincon",
  ]
  test = []
 -wincon = ["dep:anstyle-wincon"]
@@ -25,22 +29,6 @@ Index: rustc/vendor/anstream/Cargo.toml
 -[target."cfg(windows)".dependencies.anstyle-wincon]
 -version = "3.0.1"
 -optional = true
-+wincon = []
-Index: rustc/vendor/anstyle-query/Cargo.toml
-===================================================================
---- rustc.orig/vendor/anstyle-query/Cargo.toml
-+++ rustc/vendor/anstyle-query/Cargo.toml
-@@ -71,10 +71,3 @@ replace = """
- <!-- next-url -->
- [Unreleased]: https://github.com/rust-cli/anstyle/compare/{{tag_name}}...HEAD"""
- search = "<!-- next-url -->"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52.0"
--features = [
--    "Win32_System_Console",
--    "Win32_Foundation",
--]
 Index: rustc/vendor/backtrace/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/backtrace/Cargo.toml
@@ -141,7 +129,7 @@ Index: rustc/vendor/ctrlc/Cargo.toml
  default-features = false
  
 -[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48"
+-version = "0.52"
 -features = [
 -    "Win32_Foundation",
 -    "Win32_System_Threading",
@@ -150,7 +138,7 @@ Index: rustc/vendor/ctrlc/Cargo.toml
 -]
 -
 -[target."cfg(windows)".dev-dependencies.windows-sys]
--version = "0.48"
+-version = "0.52"
 -features = [
 -    "Win32_Storage_FileSystem",
 -    "Win32_Foundation",
@@ -196,30 +184,6 @@ Index: rustc/vendor/curl/Cargo.toml
  [badges.appveyor]
  repository = "alexcrichton/curl-rust"
  
-Index: rustc/vendor/dirs-sys-0.3.7/Cargo.toml
-===================================================================
---- rustc.orig/vendor/dirs-sys-0.3.7/Cargo.toml
-+++ rustc/vendor/dirs-sys-0.3.7/Cargo.toml
-@@ -22,6 +22,3 @@ version = "0.4"
- default-features = false
- [target."cfg(unix)".dependencies.libc]
- version = "0.2"
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3"
--features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
-Index: rustc/vendor/dirs-sys-next/Cargo.toml
-===================================================================
---- rustc.orig/vendor/dirs-sys-next/Cargo.toml
-+++ rustc/vendor/dirs-sys-next/Cargo.toml
-@@ -25,8 +25,5 @@ version = "0.4.0"
- default-features = false
- [target."cfg(unix)".dependencies.libc]
- version = "0.2"
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3"
--features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
- [badges.maintenance]
- status = "as-is"
 Index: rustc/vendor/errno/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/errno/Cargo.toml
@@ -235,48 +199,6 @@ Index: rustc/vendor/errno/Cargo.toml
 -    "Win32_Foundation",
 -    "Win32_System_Diagnostics_Debug",
 -]
-Index: rustc/vendor/fd-lock/Cargo.toml
-===================================================================
---- rustc.orig/vendor/fd-lock/Cargo.toml
-+++ rustc/vendor/fd-lock/Cargo.toml
-@@ -43,11 +43,3 @@ version = "3.0.8"
- [target."cfg(unix)".dependencies.rustix]
- version = "0.38.0"
- features = ["fs"]
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_Storage_FileSystem",
--    "Win32_System_IO",
--]
-Index: rustc/vendor/filetime/Cargo.toml
-===================================================================
---- rustc.orig/vendor/filetime/Cargo.toml
-+++ rustc/vendor/filetime/Cargo.toml
-@@ -38,10 +38,3 @@ version = "0.4.1"
- 
- [target."cfg(unix)".dependencies.libc]
- version = "0.2.27"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52.0"
--features = [
--    "Win32_Foundation",
--    "Win32_Storage_FileSystem",
--]
-Index: rustc/vendor/gix-discover/Cargo.toml
-===================================================================
---- rustc.orig/vendor/gix-discover/Cargo.toml
-+++ rustc/vendor/gix-discover/Cargo.toml
-@@ -61,6 +61,3 @@ version = "3.2.0"
- 
- [target."cfg(target_os = \"macos\")".dev-dependencies.defer]
- version = "0.1.0"
--
--[target."cfg(windows)".dependencies.dunce]
--version = "1.0.3"
 Index: rustc/vendor/gix-sec/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/gix-sec/Cargo.toml
@@ -287,31 +209,16 @@ Index: rustc/vendor/gix-sec/Cargo.toml
  version = "0.2.123"
 -
 -[target."cfg(windows)".dependencies.gix-path]
--version = "^0.10.1"
+-version = "^0.10.3"
 -
 -[target."cfg(windows)".dependencies.windows]
--version = "0.48"
+-version = "0.52.0"
 -features = [
 -    "Win32_Foundation",
 -    "Win32_Security_Authorization",
 -    "Win32_Storage_FileSystem",
 -    "Win32_System_Memory",
 -    "Win32_System_Threading",
--]
-Index: rustc/vendor/home/Cargo.toml
-===================================================================
---- rustc.orig/vendor/home/Cargo.toml
-+++ rustc/vendor/home/Cargo.toml
-@@ -27,10 +27,3 @@ readme = "README.md"
- license = "MIT OR Apache-2.0"
- repository = "https://github.com/rust-lang/cargo"
- resolver = "2"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_UI_Shell",
 -]
 Index: rustc/vendor/iana-time-zone/Cargo.toml
 ===================================================================
@@ -336,56 +243,6 @@ Index: rustc/vendor/ignore/Cargo.toml
 -
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.2"
-Index: rustc/vendor/is-terminal/Cargo.toml
-===================================================================
---- rustc.orig/vendor/is-terminal/Cargo.toml
-+++ rustc/vendor/is-terminal/Cargo.toml
-@@ -54,14 +54,3 @@ features = ["stdio"]
- 
- [target."cfg(target_os = \"hermit\")".dependencies.hermit-abi]
- version = "0.3.0"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_Storage_FileSystem",
--    "Win32_System_Console",
--]
--
--[target."cfg(windows)".dev-dependencies.tempfile]
--version = "3"
-Index: rustc/vendor/libloading-0.7.4/Cargo.toml
-===================================================================
---- rustc.orig/vendor/libloading-0.7.4/Cargo.toml
-+++ rustc/vendor/libloading-0.7.4/Cargo.toml
-@@ -42,10 +42,3 @@ version = "1.1"
- 
- [target."cfg(unix)".dependencies.cfg-if]
- version = "1"
--
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3"
--features = [
--    "errhandlingapi",
--    "libloaderapi",
--]
-Index: rustc/vendor/libloading/Cargo.toml
-===================================================================
---- rustc.orig/vendor/libloading/Cargo.toml
-+++ rustc/vendor/libloading/Cargo.toml
-@@ -42,11 +42,3 @@ version = "1.1"
- 
- [target."cfg(unix)".dependencies.cfg-if]
- version = "1"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Diagnostics_Debug",
--    "Win32_System_LibraryLoader",
--]
 Index: rustc/vendor/libssh2-sys/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/libssh2-sys/Cargo.toml
@@ -447,21 +304,6 @@ Index: rustc/vendor/native-tls/Cargo.toml
 -
 -[target."cfg(target_os = \"windows\")".dependencies.schannel]
 -version = "0.1.17"
-Index: rustc/vendor/opener-0.5.2/Cargo.toml
-===================================================================
---- rustc.orig/vendor/opener-0.5.2/Cargo.toml
-+++ rustc/vendor/opener-0.5.2/Cargo.toml
-@@ -32,10 +32,6 @@ version = "0.9"
- [target."cfg(target_os = \"linux\")".dependencies.bstr]
- version = "1"
- 
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3"
--features = ["shellapi"]
--
- [badges.appveyor]
- branch = "master"
- repository = "Seeker14491/opener"
 Index: rustc/vendor/opener/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/opener/Cargo.toml
@@ -567,21 +409,11 @@ Index: rustc/vendor/rustix/Cargo.toml
 -
 -[target."cfg(windows)".dev-dependencies.ctor]
 -version = "0.2.0"
-Index: rustc/vendor/same-file/Cargo.toml
-===================================================================
---- rustc.orig/vendor/same-file/Cargo.toml
-+++ rustc/vendor/same-file/Cargo.toml
-@@ -25,5 +25,3 @@ license = "Unlicense/MIT"
- repository = "https://github.com/BurntSushi/same-file"
- [dev-dependencies.doc-comment]
- version = "0.3"
--[target."cfg(windows)".dependencies.winapi-util]
--version = "0.1.1"
 Index: rustc/vendor/snapbox/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/snapbox/Cargo.toml
 +++ rustc/vendor/snapbox/Cargo.toml
-@@ -161,7 +161,6 @@ cmd = [
+@@ -165,7 +165,6 @@ cmd = [
      "dep:os_pipe",
      "dep:wait-timeout",
      "dep:libc",
@@ -589,13 +421,13 @@ Index: rustc/vendor/snapbox/Cargo.toml
  ]
  color = [
      "dep:anstream",
-@@ -199,8 +198,3 @@ structured-data = ["dep:serde_json"]
+@@ -203,8 +202,3 @@ structured-data = ["dep:serde_json"]
  [target."cfg(unix)".dependencies.libc]
  version = "0.2.137"
  optional = true
 -
 -[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
+-version = "0.52.0"
 -features = ["Win32_Foundation"]
 -optional = true
 Index: rustc/vendor/socket2/Cargo.toml
@@ -614,75 +446,11 @@ Index: rustc/vendor/socket2/Cargo.toml
 -    "ws2ipdef",
 -    "ws2tcpip",
 -]
-Index: rustc/vendor/stacker/Cargo.toml
+Index: rustc/vendor/sysinfo-0.29.11/Cargo.toml
 ===================================================================
---- rustc.orig/vendor/stacker/Cargo.toml
-+++ rustc/vendor/stacker/Cargo.toml
-@@ -43,13 +43,3 @@ version = "0.1.7"
- 
- [build-dependencies.cc]
- version = "1.0.2"
--
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3.6"
--features = [
--    "memoryapi",
--    "winbase",
--    "fibersapi",
--    "processthreadsapi",
--    "minwindef",
--]
-Index: rustc/vendor/sysinfo-0.26.7/Cargo.toml
-===================================================================
---- rustc.orig/vendor/sysinfo-0.26.7/Cargo.toml
-+++ rustc/vendor/sysinfo-0.26.7/Cargo.toml
-@@ -60,41 +60,3 @@ version = "1.0"
- 
- [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
- version = "^0.2.112"
--
--[target."cfg(windows)".dependencies.ntapi]
--version = "0.4"
--
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3.9"
--features = [
--    "errhandlingapi",
--    "fileapi",
--    "handleapi",
--    "heapapi",
--    "ifdef",
--    "ioapiset",
--    "minwindef",
--    "pdh",
--    "psapi",
--    "synchapi",
--    "sysinfoapi",
--    "winbase",
--    "winerror",
--    "winioctl",
--    "winnt",
--    "oleauto",
--    "wbemcli",
--    "rpcdce",
--    "combaseapi",
--    "objidl",
--    "powerbase",
--    "netioapi",
--    "lmcons",
--    "lmaccess",
--    "lmapibuf",
--    "memoryapi",
--    "ntlsa",
--    "securitybaseapi",
--    "shellapi",
--    "std",
--]
-Index: rustc/vendor/sysinfo/Cargo.toml
-===================================================================
---- rustc.orig/vendor/sysinfo/Cargo.toml
-+++ rustc/vendor/sysinfo/Cargo.toml
-@@ -75,44 +75,3 @@ version = "1.0"
+--- rustc.orig/vendor/sysinfo-0.29.11/Cargo.toml
++++ rustc/vendor/sysinfo-0.29.11/Cargo.toml
+@@ -76,44 +76,3 @@ version = "1.0"
  
  [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
  version = "^0.2.144"
@@ -727,6 +495,55 @@ Index: rustc/vendor/sysinfo/Cargo.toml
 -    "winsock2",
 -    "sddl",
 -]
+Index: rustc/vendor/sysinfo/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/sysinfo/Cargo.toml
++++ rustc/vendor/sysinfo/Cargo.toml
+@@ -77,44 +77,3 @@ version = "1.18"
+ 
+ [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
+ version = "^0.2.150"
+-
+-[target."cfg(windows)".dependencies.ntapi]
+-version = "0.4"
+-
+-[target."cfg(windows)".dependencies.windows]
+-version = "0.52"
+-features = [
+-    "Wdk_System_SystemInformation",
+-    "Wdk_System_SystemServices",
+-    "Wdk_System_Threading",
+-    "Win32_Foundation",
+-    "Win32_NetworkManagement_IpHelper",
+-    "Win32_NetworkManagement_NetManagement",
+-    "Win32_NetworkManagement_Ndis",
+-    "Win32_Networking_WinSock",
+-    "Win32_Security",
+-    "Win32_Security_Authentication_Identity",
+-    "Win32_Security_Authorization",
+-    "Win32_Storage_FileSystem",
+-    "Win32_System_Com",
+-    "Win32_System_Diagnostics_Debug",
+-    "Win32_System_IO",
+-    "Win32_System_Ioctl",
+-    "Win32_System_LibraryLoader",
+-    "Win32_System_Kernel",
+-    "Win32_System_Memory",
+-    "Win32_System_Ole",
+-    "Win32_System_Performance",
+-    "Win32_System_Power",
+-    "Win32_System_ProcessStatus",
+-    "Win32_System_Registry",
+-    "Win32_System_RemoteDesktop",
+-    "Win32_System_Rpc",
+-    "Win32_System_SystemInformation",
+-    "Win32_System_SystemServices",
+-    "Win32_System_Threading",
+-    "Win32_System_Variant",
+-    "Win32_System_WindowsProgramming",
+-    "Win32_System_Wmi",
+-    "Win32_UI_Shell",
+-]
 Index: rustc/vendor/tempfile/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/tempfile/Cargo.toml
@@ -737,7 +554,7 @@ Index: rustc/vendor/tempfile/Cargo.toml
  version = "0.4"
 -
 -[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48"
+-version = "0.52"
 -features = [
 -    "Win32_Storage_FileSystem",
 -    "Win32_Foundation",
@@ -759,45 +576,6 @@ Index: rustc/vendor/term/Cargo.toml
  [badges.appveyor]
  repository = "Stebalien/term"
  
-Index: rustc/vendor/termcolor/Cargo.toml
-===================================================================
---- rustc.orig/vendor/termcolor/Cargo.toml
-+++ rustc/vendor/termcolor/Cargo.toml
-@@ -35,6 +35,3 @@ name = "termcolor"
- bench = false
- 
- [dev-dependencies]
--
--[target."cfg(windows)".dependencies.winapi-util]
--version = "0.1.3"
-Index: rustc/vendor/terminal_size/Cargo.toml
-===================================================================
---- rustc.orig/vendor/terminal_size/Cargo.toml
-+++ rustc/vendor/terminal_size/Cargo.toml
-@@ -30,10 +30,3 @@ repository = "https://github.com/eminenc
- [target."cfg(not(windows))".dependencies.rustix]
- version = "0.38.0"
- features = ["termios"]
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Console",
--]
-Index: rustc/vendor/termize/Cargo.toml
-===================================================================
---- rustc.orig/vendor/termize/Cargo.toml
-+++ rustc/vendor/termize/Cargo.toml
-@@ -49,8 +49,5 @@ rpath = false
- [dependencies]
- [target."cfg(unix)".dependencies.libc]
- version = "0.2.66"
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3.8"
--features = ["handleapi", "processenv", "wincon", "winbase"]
- [badges.cirrus-ci]
- repository = "JohnTitor/termize"
 Index: rustc/vendor/tokio/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/tokio/Cargo.toml
@@ -847,6 +625,166 @@ Index: rustc/vendor/tokio/Cargo.toml
 -features = [
 -    "Win32_Foundation",
 -    "Win32_Security_Authorization",
+-]
+Index: rustc/vendor/anstyle-query/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/anstyle-query/Cargo.toml
++++ rustc/vendor/anstyle-query/Cargo.toml
+@@ -71,10 +71,3 @@ replace = """
+ <!-- next-url -->
+ [Unreleased]: https://github.com/rust-cli/anstyle/compare/{{tag_name}}...HEAD"""
+ search = "<!-- next-url -->"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_System_Console",
+-    "Win32_Foundation",
+-]
+Index: rustc/vendor/dirs-sys-0.3.7/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/dirs-sys-0.3.7/Cargo.toml
++++ rustc/vendor/dirs-sys-0.3.7/Cargo.toml
+@@ -22,6 +22,3 @@ version = "0.4"
+ default-features = false
+ [target."cfg(unix)".dependencies.libc]
+ version = "0.2"
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3"
+-features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
+Index: rustc/vendor/dirs-sys-next/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/dirs-sys-next/Cargo.toml
++++ rustc/vendor/dirs-sys-next/Cargo.toml
+@@ -25,8 +25,5 @@ version = "0.4.0"
+ default-features = false
+ [target."cfg(unix)".dependencies.libc]
+ version = "0.2"
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3"
+-features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
+ [badges.maintenance]
+ status = "as-is"
+Index: rustc/vendor/fd-lock/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/fd-lock/Cargo.toml
++++ rustc/vendor/fd-lock/Cargo.toml
+@@ -43,11 +43,3 @@ version = "3.0.8"
+ [target."cfg(unix)".dependencies.rustix]
+ version = "0.38.0"
+ features = ["fs"]
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Storage_FileSystem",
+-    "Win32_System_IO",
+-]
+Index: rustc/vendor/filetime/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/filetime/Cargo.toml
++++ rustc/vendor/filetime/Cargo.toml
+@@ -38,10 +38,3 @@ version = "0.4.1"
+ 
+ [target."cfg(unix)".dependencies.libc]
+ version = "0.2.27"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Storage_FileSystem",
+-]
+Index: rustc/vendor/home/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/home/Cargo.toml
++++ rustc/vendor/home/Cargo.toml
+@@ -28,14 +28,6 @@ readme = "README.md"
+ license = "MIT OR Apache-2.0"
+ repository = "https://github.com/rust-lang/cargo"
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_UI_Shell",
+-    "Win32_System_Com",
+-]
+-
+ [lints.clippy]
+ dbg_macro = "warn"
+ disallowed_methods = "warn"
+Index: rustc/vendor/is-terminal/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/is-terminal/Cargo.toml
++++ rustc/vendor/is-terminal/Cargo.toml
+@@ -55,13 +55,5 @@ features = ["stdio"]
+ [target."cfg(target_os = \"hermit\")".dependencies.hermit-abi]
+ version = "0.3.0"
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Storage_FileSystem",
+-    "Win32_System_Console",
+-]
+-
+ [target."cfg(windows)".dev-dependencies.tempfile]
+ version = "3"
+Index: rustc/vendor/libloading/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/libloading/Cargo.toml
++++ rustc/vendor/libloading/Cargo.toml
+@@ -42,11 +42,3 @@ version = "1.1"
+ 
+ [target."cfg(unix)".dependencies.cfg-if]
+ version = "1"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Diagnostics_Debug",
+-    "Win32_System_LibraryLoader",
+-]
+Index: rustc/vendor/same-file/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/same-file/Cargo.toml
++++ rustc/vendor/same-file/Cargo.toml
+@@ -25,5 +25,3 @@ license = "Unlicense/MIT"
+ repository = "https://github.com/BurntSushi/same-file"
+ [dev-dependencies.doc-comment]
+ version = "0.3"
+-[target."cfg(windows)".dependencies.winapi-util]
+-version = "0.1.1"
+Index: rustc/vendor/termcolor/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/termcolor/Cargo.toml
++++ rustc/vendor/termcolor/Cargo.toml
+@@ -34,7 +34,3 @@ repository = "https://github.com/BurntSu
+ name = "termcolor"
+ bench = false
+ 
+-[dev-dependencies]
+-
+-[target."cfg(windows)".dependencies.winapi-util]
+-version = "0.1.3"
+Index: rustc/vendor/terminal_size/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/terminal_size/Cargo.toml
++++ rustc/vendor/terminal_size/Cargo.toml
+@@ -30,10 +30,3 @@ repository = "https://github.com/eminenc
+ [target."cfg(not(windows))".dependencies.rustix]
+ version = "0.38.0"
+ features = ["termios"]
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Console",
 -]
 Index: rustc/vendor/walkdir/Cargo.toml
 ===================================================================

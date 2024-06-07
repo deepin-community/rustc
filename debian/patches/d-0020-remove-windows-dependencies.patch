@@ -208,6 +208,15 @@ Index: rustc/src/bootstrap/Cargo.toml
 ===================================================================
 --- rustc.orig/src/bootstrap/Cargo.toml
 +++ rustc/src/bootstrap/Cargo.toml
+@@ -36,7 +36,7 @@ test = false
+ # Most of the time updating these dependencies requires modifications
+ # to the bootstrap codebase; otherwise, some targets will fail. That's
+ # why these dependencies are explicitly pinned.
+-cc = "=1.0.73"
++cc = "=1.0.83"
+ cmake = "=0.1.48"
+ 
+ build_helper = { path = "../tools/build_helper" }
 @@ -66,21 +66,6 @@ xz2 = "0.1"
  # Dependencies needed by the build-metrics feature
  sysinfo = { version = "0.30", optional = true }
