@@ -52,7 +52,7 @@ Index: rustc/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -962,10 +962,6 @@ class RustBuild(object):
+@@ -983,10 +983,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(self.verbose))
@@ -63,11 +63,11 @@ Index: rustc/src/bootstrap/bootstrap.py
          if self.get_toml("metrics", "build"):
              args.append("--features")
              args.append("build-metrics")
-Index: rustc/src/bootstrap/builder.rs
+Index: rustc/src/bootstrap/src/core/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/builder.rs
 +++ rustc/src/bootstrap/src/core/builder.rs
-@@ -686,12 +686,8 @@ impl<'a> Builder<'a> {
+@@ -698,12 +698,8 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -80,7 +80,7 @@ Index: rustc/src/bootstrap/builder.rs
                  tool::RustAnalyzerProcMacroSrv,
                  tool::RustDemangler,
                  tool::Rustdoc,
-@@ -700,8 +696,6 @@ impl<'a> Builder<'a> {
+@@ -712,8 +708,6 @@ impl<'a> Builder<'a> {
                  llvm::Llvm,
                  llvm::Sanitizers,
                  tool::Rustfmt,
@@ -89,7 +89,7 @@ Index: rustc/src/bootstrap/builder.rs
                  llvm::Lld,
                  llvm::CrtBeginEnd,
                  tool::RustdocGUITest,
-@@ -714,12 +708,8 @@ impl<'a> Builder<'a> {
+@@ -726,12 +720,8 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -102,7 +102,7 @@ Index: rustc/src/bootstrap/builder.rs
                  check::Bootstrap
              ),
              Kind::Test => describe!(
-@@ -750,7 +740,6 @@ impl<'a> Builder<'a> {
+@@ -764,7 +754,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -110,7 +110,7 @@ Index: rustc/src/bootstrap/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -766,7 +755,6 @@ impl<'a> Builder<'a> {
+@@ -780,7 +769,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -118,7 +118,7 @@ Index: rustc/src/bootstrap/builder.rs
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -803,7 +791,6 @@ impl<'a> Builder<'a> {
+@@ -817,7 +805,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -126,7 +126,7 @@ Index: rustc/src/bootstrap/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -821,16 +808,12 @@ impl<'a> Builder<'a> {
+@@ -837,16 +824,12 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -143,7 +143,7 @@ Index: rustc/src/bootstrap/builder.rs
                  // It seems that PlainSourceTarball somehow changes how some of the tools
                  // perceive their dependencies (see #93033) which would invalidate fingerprints
                  // and force us to rebuild tools after vendoring dependencies.
-@@ -843,11 +826,9 @@ impl<'a> Builder<'a> {
+@@ -859,11 +842,9 @@ impl<'a> Builder<'a> {
                  install::Docs,
                  install::Std,
                  install::Cargo,
@@ -155,7 +155,7 @@ Index: rustc/src/bootstrap/builder.rs
                  install::LlvmTools,
                  install::Src,
                  install::Rustc
-@@ -857,7 +838,6 @@ impl<'a> Builder<'a> {
+@@ -873,7 +854,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -163,7 +163,7 @@ Index: rustc/src/bootstrap/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -1998,10 +1978,7 @@ impl<'a> Builder<'a> {
+@@ -2082,10 +2062,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -175,11 +175,11 @@ Index: rustc/src/bootstrap/builder.rs
              cargo.arg("--frozen");
          }
  
-Index: rustc/src/bootstrap/test.rs
+Index: rustc/src/bootstrap/src/core/build_steps/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/build_steps/test.rs
 +++ rustc/src/bootstrap/src/core/build_steps/test.rs
-@@ -2167,17 +2167,7 @@ impl Step for RustcGuide {
+@@ -2322,17 +2322,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -205,9 +205,9 @@ Index: rustc/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@
  [workspace]
 -members = ["xtask/", "lib/*", "crates/*"]
-+members = [
++members = [ 
 +  "xtask/",
-+  "lib/*",
++  "lib/*",  
 +  "crates/proc-macro-srv",
 +  "crates/proc-macro-srv-cli",
 +  "crates/tt",
@@ -215,6 +215,6 @@ Index: rustc/src/tools/rust-analyzer/Cargo.toml
 +  "crates/paths",
 +  "crates/proc-macro-api",
 +]
- exclude = ["crates/proc-macro-test/imp"]
+ exclude = ["crates/proc-macro-srv/proc-macro-test/imp"]
  resolver = "2"
  

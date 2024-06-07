@@ -1,7 +1,7 @@
 Index: rustc/src/bootstrap/src/tests/config.rs
 ===================================================================
---- rustc.orig/src/bootstrap/src/tests/config.rs
-+++ rustc/src/bootstrap/src/tests/config.rs
+--- rustc.orig/src/bootstrap/src/core/config/tests.rs
++++ rustc/src/bootstrap/src/core/config/tests.rs
 @@ -18,6 +18,9 @@ fn parse(config: &str) -> Config {
  
  #[test]
