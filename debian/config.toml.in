@@ -25,6 +25,9 @@ docs = false
 extended = true
 tools = ["cargo", "clippy", "rustfmt", "rustdoc", "rust-analyzer-proc-macro-srv"]
 
+# we use pre-built LLVM, so can't optimize compiler-rt
+optimized-compiler-builtins = false
+
 [install]
 prefix = "/usr/lib/rust-RUST_VERSION"
 
