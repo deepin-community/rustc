@@ -4,15 +4,15 @@ Subject: d-0003-cc-psm-rebuild-wasm32
 
 Forwarded: not-needed
 ---
- vendor/cc/src/lib.rs | 2 +-
- vendor/psm/build.rs  | 7 ++-----
+ vendor/cc-1.0.92/src/lib.rs | 2 +-
+ vendor/psm-0.1.21/build.rs  | 7 ++-----
  2 files changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/vendor/cc/src/lib.rs b/vendor/cc/src/lib.rs
-index 92b8eff..72c5610 100644
---- a/vendor/cc/src/lib.rs
-+++ b/vendor/cc/src/lib.rs
-@@ -2779,7 +2779,7 @@ impl Build {
+diff --git a/vendor/cc-1.0.92/src/lib.rs b/vendor/cc-1.0.92/src/lib.rs
+index 17a9c05..693a733 100644
+--- a/vendor/cc-1.0.92/src/lib.rs
++++ b/vendor/cc-1.0.92/src/lib.rs
+@@ -2815,7 +2815,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"
                  {
@@ -21,10 +21,10 @@ index 92b8eff..72c5610 100644
                  } else if target.contains("vxworks") {
                      if self.cpp {
                          "wr-c++".to_string()
-diff --git a/vendor/psm/build.rs b/vendor/psm/build.rs
+diff --git a/vendor/psm-0.1.21/build.rs b/vendor/psm-0.1.21/build.rs
 index 9d40212..e39549d 100644
---- a/vendor/psm/build.rs
-+++ b/vendor/psm/build.rs
+--- a/vendor/psm-0.1.21/build.rs
++++ b/vendor/psm-0.1.21/build.rs
 @@ -50,7 +50,7 @@ fn find_assembly(
          ("sparc", _, _, _) => Some(("src/arch/sparc_sysv.s", true)),
          ("riscv32", _, _, _) => Some(("src/arch/riscv.s", true)),

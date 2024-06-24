@@ -8,10 +8,10 @@ Subject: c-disable-fs-specific-test
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/tools/cargo/tests/testsuite/metadata.rs b/src/tools/cargo/tests/testsuite/metadata.rs
-index a8b276e..d479cc1 100644
+index ca23688..d2564b1 100644
 --- a/src/tools/cargo/tests/testsuite/metadata.rs
 +++ b/src/tools/cargo/tests/testsuite/metadata.rs
-@@ -4001,7 +4001,7 @@ fn dep_kinds_workspace() {
+@@ -4004,7 +4004,7 @@ fn dep_kinds_workspace() {
  // Creating non-utf8 path is an OS-specific pain, so let's run this only on
  // linux, where arbitrary bytes work.
  #[cfg(target_os = "linux")]

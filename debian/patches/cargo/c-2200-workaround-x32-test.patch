@@ -8,10 +8,10 @@ Bug: https://github.com/rust-lang/cargo/issues/10005
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/tools/cargo/tests/testsuite/cfg.rs b/src/tools/cargo/tests/testsuite/cfg.rs
-index 79df558..afe23b3 100644
+index 069dd64..2b4cc62 100644
 --- a/src/tools/cargo/tests/testsuite/cfg.rs
 +++ b/src/tools/cargo/tests/testsuite/cfg.rs
-@@ -280,7 +280,7 @@ fn any_ok() {
+@@ -284,7 +284,7 @@ fn any_ok() {
  
  // https://github.com/rust-lang/cargo/issues/5313
  #[cargo_test]

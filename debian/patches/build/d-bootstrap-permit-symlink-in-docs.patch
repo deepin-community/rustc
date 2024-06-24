@@ -8,7 +8,7 @@ Forwarded: not-needed
  1 file changed, 1 insertion(+)
 
 diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core/build_steps/dist.rs
-index eadc954..054a1d2 100644
+index 0b5e333..85c5edb 100644
 --- a/src/bootstrap/src/core/build_steps/dist.rs
 +++ b/src/bootstrap/src/core/build_steps/dist.rs
 @@ -78,6 +78,7 @@ impl Step for Docs {

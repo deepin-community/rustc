@@ -9,10 +9,10 @@ Forwarded: not-needed
  2 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core/build_steps/dist.rs
-index 012d64e..eadc954 100644
+index 770a5cd..0b5e333 100644
 --- a/src/bootstrap/src/core/build_steps/dist.rs
 +++ b/src/bootstrap/src/core/build_steps/dist.rs
-@@ -992,8 +992,10 @@ impl Step for PlainSourceTarball {
+@@ -998,8 +998,10 @@ impl Step for PlainSourceTarball {
  
          // If we're building from git or tarball sources, we need to vendor
          // a complete distribution.
@@ -23,8 +23,8 @@ index 012d64e..eadc954 100644
 +        //         repository, but cargo-vendor should not be installed or run.
 +        if false
          {
-             if builder.rust_info().is_managed_git_subrepository() {
-                 // Ensure we have the submodules checked out.
+             // Ensure we have all submodules from src and other directories checked out.
+             for submodule in builder.get_all_submodules() {
 diff --git a/src/bootstrap/src/utils/channel.rs b/src/bootstrap/src/utils/channel.rs
 index 88988c3..e5c6cd1 100644
 --- a/src/bootstrap/src/utils/channel.rs

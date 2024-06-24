@@ -17,7 +17,7 @@ Signed-off-by: Fabian Grünbichler <debian@fabian.gruenbichler.email>
  1 file changed, 6 insertions(+)
 
 diff --git a/src/tools/cargo/tests/testsuite/build_script.rs b/src/tools/cargo/tests/testsuite/build_script.rs
-index a60c59b..3efca33 100644
+index d8fed64..851b5b2 100644
 --- a/src/tools/cargo/tests/testsuite/build_script.rs
 +++ b/src/tools/cargo/tests/testsuite/build_script.rs
 @@ -741,6 +741,9 @@ fn custom_build_linker_bad_host_with_arch() {

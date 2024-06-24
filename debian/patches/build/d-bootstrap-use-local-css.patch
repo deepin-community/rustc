@@ -9,7 +9,7 @@ Forwarded: not-needed
  1 file changed, 21 insertions(+), 6 deletions(-)
 
 diff --git a/src/bootstrap/src/core/build_steps/doc.rs b/src/bootstrap/src/core/build_steps/doc.rs
-index 51b5cdc..c36b095 100644
+index 38c48bd..e2fb48b 100644
 --- a/src/bootstrap/src/core/build_steps/doc.rs
 +++ b/src/bootstrap/src/core/build_steps/doc.rs
 @@ -363,7 +363,27 @@ impl Step for Standalone {

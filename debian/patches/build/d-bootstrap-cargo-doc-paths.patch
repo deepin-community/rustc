@@ -94,10 +94,10 @@ index 12876e2..09bd221 100644
   * Recompiling the crate with different metadata (different name/
     `crate_type`).
 diff --git a/src/doc/edition-guide/book.toml b/src/doc/edition-guide/book.toml
-index 7841b64..7094175 100644
+index 77867ae..a9b440b 100644
 --- a/src/doc/edition-guide/book.toml
 +++ b/src/doc/edition-guide/book.toml
-@@ -53,15 +53,15 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+@@ -55,15 +55,15 @@ search.use-boolean-and = true
  "/rust-2018/the-compiler/incremental-compilation-for-faster-compiles.html" = "https://blog.rust-lang.org/2018/02/15/Rust-1.24.html#incremental-compilation"
  "/rust-2018/the-compiler/an-attribute-for-deprecation.html" = "../../../reference/attributes/diagnostics.html#the-deprecated-attribute"
  "/rust-2018/rustup-for-managing-rust-versions.html" = "https://rust-lang.github.io/rustup/"
@@ -121,14 +121,14 @@ index 7841b64..7094175 100644
  "/rust-2018/cargo-and-crates-io/crates-io-disallows-wildcard-dependencies.html" = "https://blog.rust-lang.org/2016/01/21/Rust-1.6.html#cratesio-disallows-wildcards"
  "/rust-2018/documentation/index.html" = "../../../index.html"
  "/rust-2018/documentation/new-editions-of-the-book.html" = "../../../book/index.html"
-@@ -93,4 +93,4 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+@@ -95,4 +95,4 @@ search.use-boolean-and = true
  "/rust-next/future.html" = "../../std/future/trait.Future.html"
  "/rust-next/alloc.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#the-alloc-crate-is-stable"
  "/rust-next/maybe-uninit.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#maybeuninitt-instead-of-memuninitialized"
 -"/rust-next/cargo-vendor.html" = "../../cargo/commands/cargo-vendor.html"
 +"/rust-next/cargo-vendor.html" = "../../../../cargo/book/commands/cargo-vendor.html"
 diff --git a/src/doc/edition-guide/src/editions/advanced-migrations.md b/src/doc/edition-guide/src/editions/advanced-migrations.md
-index a1a5d80..0c3b0c8 100644
+index d2f07b0..ef52242 100644
 --- a/src/doc/edition-guide/src/editions/advanced-migrations.md
 +++ b/src/doc/edition-guide/src/editions/advanced-migrations.md
 @@ -186,18 +186,18 @@ Afterwards, the line with `extern crate rand;` in `src/lib.rs` will be removed.
@@ -252,7 +252,7 @@ index 82864b0..db1508c 100644
  To use this feature locally, you typically will use the `RUSTFLAGS` environment
  variable to specify flags to the compiler through Cargo. For example to compile
 diff --git a/src/doc/reference/src/procedural-macros.md b/src/doc/reference/src/procedural-macros.md
-index 7d69ab7..5d744c9 100644
+index 32b847c..0cf09eb 100644
 --- a/src/doc/reference/src/procedural-macros.md
 +++ b/src/doc/reference/src/procedural-macros.md
 @@ -331,7 +331,7 @@ Note that neither declarative nor procedural macros support doc comment tokens
@@ -359,17 +359,17 @@ index dbb7414..73876b0 100644
  For example:
  ```cmd
 diff --git a/src/doc/unstable-book/src/compiler-flags/sanitizer.md b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
-index c8fd154..40e1ea4 100644
+index 72b44e0..cfe71b2 100644
 --- a/src/doc/unstable-book/src/compiler-flags/sanitizer.md
 +++ b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
-@@ -851,7 +851,7 @@ It is strongly recommended to combine sanitizers with recompiled and
+@@ -854,7 +854,7 @@ It is strongly recommended to combine sanitizers with recompiled and
  instrumented standard library, for example using [cargo `-Zbuild-std`
  functionality][build-std].
  
 -[build-std]: ../../cargo/reference/unstable.html#build-std
 +[build-std]: ../../../../cargo/book/reference/unstable.html#build-std
  
- # Build scripts and procedural macros
+ # Working with other languages
  
 diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
 index c8ecfd3..e625bc8 100644

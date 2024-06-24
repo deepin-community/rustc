@@ -7,15 +7,15 @@ order to both reduce the orig tarball and the vendored crates within.
 
 Forwarded: not-needed
 ---
- Cargo.toml                                 |  7 ----
+ Cargo.toml                                 |  7 -----
  src/bootstrap/bootstrap.py                 |  4 ---
- src/bootstrap/src/core/build_steps/test.rs | 12 +------
- src/bootstrap/src/core/builder.rs          | 54 +++++++-----------------------
- src/tools/rust-analyzer/Cargo.toml         | 11 +++++-
- 5 files changed, 24 insertions(+), 64 deletions(-)
+ src/bootstrap/src/core/build_steps/test.rs | 12 +-------
+ src/bootstrap/src/core/builder.rs          | 47 ++++++------------------------
+ src/tools/rust-analyzer/Cargo.toml         | 11 ++++++-
+ 5 files changed, 20 insertions(+), 61 deletions(-)
 
 diff --git a/Cargo.toml b/Cargo.toml
-index 5dd315e..ef2da2b 100644
+index 1379e4c..37150f2 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -20,23 +20,16 @@ members = [
@@ -43,10 +43,10 @@ index 5dd315e..ef2da2b 100644
    "src/tools/lld-wrapper",
    "src/tools/collect-license-metadata",
 diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
-index 6e49bcc..73d9414 100644
+index e464e44..e176c4c 100644
 --- a/src/bootstrap/bootstrap.py
 +++ b/src/bootstrap/bootstrap.py
-@@ -985,10 +985,6 @@ class RustBuild(object):
+@@ -991,10 +991,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(self.verbose))
@@ -58,10 +58,10 @@ index 6e49bcc..73d9414 100644
              args.append("--features")
              args.append("build-metrics")
 diff --git a/src/bootstrap/src/core/build_steps/test.rs b/src/bootstrap/src/core/build_steps/test.rs
-index 690e20f..49c92df 100644
+index 411ed99..2b8f1d1 100644
 --- a/src/bootstrap/src/core/build_steps/test.rs
 +++ b/src/bootstrap/src/core/build_steps/test.rs
-@@ -2363,17 +2363,7 @@ impl Step for RustcGuide {
+@@ -2472,17 +2472,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -81,43 +81,10 @@ index 690e20f..49c92df 100644
  }
  
 diff --git a/src/bootstrap/src/core/builder.rs b/src/bootstrap/src/core/builder.rs
-index 7f93fdc..c5f1e72 100644
+index d0d9b1c..19691dd 100644
 --- a/src/bootstrap/src/core/builder.rs
 +++ b/src/bootstrap/src/core/builder.rs
-@@ -557,20 +557,20 @@ impl<'a> ShouldRun<'a> {
-         static SUBMODULES_PATHS: OnceLock<Vec<String>> = OnceLock::new();
- 
-         let init_submodules_paths = |src: &PathBuf| {
--            let file = File::open(src.join(".gitmodules")).unwrap();
-+            //let file = File::open(src.join(".gitmodules")).unwrap();
- 
-             let mut submodules_paths = vec![];
--            for line in BufReader::new(file).lines() {
--                if let Ok(line) = line {
--                    let line = line.trim();
--
--                    if line.starts_with("path") {
--                        let actual_path =
--                            line.split(' ').last().expect("Couldn't get value of path");
--                        submodules_paths.push(actual_path.to_owned());
--                    }
--                }
--            }
-+            //for line in BufReader::new(file).lines() {
-+            //    if let Ok(line) = line {
-+            //        let line = line.trim();
-+
-+            //        if line.starts_with("path") {
-+            //            let actual_path =
-+            //                line.split(' ').last().expect("Couldn't get value of path");
-+            //            submodules_paths.push(actual_path.to_owned());
-+            //        }
-+            //    }
-+            //}
- 
-             submodules_paths
-         };
-@@ -744,25 +744,14 @@ impl<'a> Builder<'a> {
+@@ -724,25 +724,14 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -143,7 +110,7 @@ index 7f93fdc..c5f1e72 100644
                  tool::OptimizedDist,
                  tool::CoverageDump,
                  tool::LlvmBitcodeLinker
-@@ -773,12 +762,7 @@ impl<'a> Builder<'a> {
+@@ -781,12 +770,7 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -156,7 +123,7 @@ index 7f93fdc..c5f1e72 100644
                  check::Bootstrap,
              ),
              Kind::Test => describe!(
-@@ -811,7 +795,6 @@ impl<'a> Builder<'a> {
+@@ -820,7 +804,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -164,15 +131,16 @@ index 7f93fdc..c5f1e72 100644
                  test::ErrorIndex,
                  test::Distcheck,
                  test::RunMakeFullDeps,
-@@ -827,7 +810,6 @@ impl<'a> Builder<'a> {
+@@ -836,8 +819,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
 -                test::Miri,
+-                test::CargoMiri,
                  test::Clippy,
                  test::RustDemangler,
                  test::CompiletestTest,
-@@ -864,7 +846,6 @@ impl<'a> Builder<'a> {
+@@ -876,7 +857,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -180,7 +148,7 @@ index 7f93fdc..c5f1e72 100644
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -884,12 +865,9 @@ impl<'a> Builder<'a> {
+@@ -896,12 +876,9 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -191,9 +159,9 @@ index 7f93fdc..c5f1e72 100644
                  dist::Clippy,
 -                dist::Miri,
                  dist::LlvmTools,
+                 dist::LlvmBitcodeLinker,
                  dist::RustDev,
-                 dist::Bootstrap,
-@@ -911,11 +889,9 @@ impl<'a> Builder<'a> {
+@@ -924,11 +901,9 @@ impl<'a> Builder<'a> {
                  // install the same binaries twice for each tool, leaving backup files (*.old) as a result.
                  install::Rustc,
                  install::Cargo,
@@ -205,7 +173,7 @@ index 7f93fdc..c5f1e72 100644
                  install::LlvmTools,
                  install::Src,
              ),
-@@ -924,7 +900,6 @@ impl<'a> Builder<'a> {
+@@ -937,7 +912,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -213,7 +181,7 @@ index 7f93fdc..c5f1e72 100644
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -2016,10 +1991,7 @@ impl<'a> Builder<'a> {
+@@ -2076,10 +2050,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -225,8 +193,33 @@ index 7f93fdc..c5f1e72 100644
              cargo.arg("--frozen");
          }
  
+@@ -2231,16 +2202,16 @@ impl<'a> Builder<'a> {
+         static SUBMODULES_PATHS: OnceLock<Vec<String>> = OnceLock::new();
+ 
+         let init_submodules_paths = |src: &PathBuf| {
+-            let file = File::open(src.join(".gitmodules")).unwrap();
++           //let file = File::open(src.join(".gitmodules")).unwrap();
+ 
+             let mut submodules_paths = vec![];
+-            for line in BufReader::new(file).lines().map_while(Result::ok) {
+-                let line = line.trim();
+-                if line.starts_with("path") {
+-                    let actual_path = line.split(' ').last().expect("Couldn't get value of path");
+-                    submodules_paths.push(actual_path.to_owned());
+-                }
+-            }
++            //for line in BufReader::new(file).lines().map_while(Result::ok) {
++            //    let line = line.trim();
++            //    if line.starts_with("path") {
++            //        let actual_path = line.split(' ').last().expect("Couldn't get value of path");
++            //        submodules_paths.push(actual_path.to_owned());
++            //    }
++            //}
+ 
+             submodules_paths
+         };
 diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
-index 440f46a..80e7422 100644
+index f7e3ae5..771ae2a 100644
 --- a/src/tools/rust-analyzer/Cargo.toml
 +++ b/src/tools/rust-analyzer/Cargo.toml
 @@ -1,5 +1,14 @@

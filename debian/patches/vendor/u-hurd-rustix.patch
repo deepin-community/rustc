@@ -1,27 +1,16 @@
 From: Samuel Thibault <samuel.thibault@ens-lyon.org>
-Date: Tue May 28 18:20:53 2024 +0200
+Date: Tue, 28 May 2024 18:20:53 +0200
 Subject: Fix hurd build (#1064)
 
 Forwarded: https://github.com/bytecodealliance/rustix/pull/1064
 ---
-commit 3346526711e885611c770ad09764b8ff8d2924ce
-Author: Samuel Thibault <samuel.thibault@ens-lyon.org>
-Date:   Tue May 28 18:20:53 2024 +0200
+ vendor/rustix-0.38.32/src/fs/mod.rs | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)
 
-    Fix hurd build (#1064)
-    
-    * hurd: Fix build
-    
-    6ec74e03c8ba ("Fix handling of negative timestamps in `Stat`. (#999)") broke
-    the hurd build, where we have a st_[acm]tim timespec instead of st_[acm],
-    like on aix and nto.
-    
-    * aix, nto, hurd: Implement impl StatExt
-
-diff --git a/vendor/rustix/src/fs/mod.rs b/vendor/rustix/src/fs/mod.rs
-index a4282088..110cf79b 100644
---- a/vendor/rustix/src/fs/mod.rs
-+++ b/vendor/rustix/src/fs/mod.rs
+diff --git a/vendor/rustix-0.38.32/src/fs/mod.rs b/vendor/rustix-0.38.32/src/fs/mod.rs
+index a428208..110cf79 100644
+--- a/vendor/rustix-0.38.32/src/fs/mod.rs
++++ b/vendor/rustix-0.38.32/src/fs/mod.rs
 @@ -150,7 +150,7 @@ pub use std::os::wasi::fs::{DirEntryExt, FileExt, FileTypeExt, MetadataExt, Open
  /// the Unix epoch. Until the next semver bump, these unsigned fields are
  /// deprecated, and this trait provides accessors which return their values

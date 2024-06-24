@@ -1,6 +1,34 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:41 +0200
+Subject: ubuntu-disable-ppc64el-asm-tests
+
+Forwarded: not-needed
+---
+ compiler/rustc_lint/src/builtin.rs      | 5 ++++-
+ compiler/rustc_lint_defs/src/builtin.rs | 2 ++
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/compiler/rustc_lint/src/builtin.rs b/compiler/rustc_lint/src/builtin.rs
+index 0c89e18..868865d 100644
+--- a/compiler/rustc_lint/src/builtin.rs
++++ b/compiler/rustc_lint/src/builtin.rs
+@@ -2739,7 +2739,10 @@ declare_lint! {
+     /// ### Example
+     ///
+     /// ```rust,compile_fail
+-    /// # #![feature(asm_experimental_arch)]
++    /// #![cfg_attr(
++    ///  not(any(target_arch = "powerpc64", target_arch = "s390x")),
++    ///  feature(asm_experimental_arch)
++    /// )]
+     /// use std::arch::asm;
+     ///
+     /// fn main() {
+diff --git a/compiler/rustc_lint_defs/src/builtin.rs b/compiler/rustc_lint_defs/src/builtin.rs
+index e74cc38..a5ca4c4 100644
 --- a/compiler/rustc_lint_defs/src/builtin.rs
 +++ b/compiler/rustc_lint_defs/src/builtin.rs
-@@ -2913,11 +2913,13 @@ declare_lint! {
+@@ -3099,11 +3099,13 @@ declare_lint! {
      ///
      /// use std::arch::asm;
      ///

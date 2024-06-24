@@ -4,13 +4,13 @@ Subject: u-hurd-gix-index-2
 
 ===================================================================
 ---
- vendor/gix-index/src/fs.rs | 6 +++++-
+ vendor/gix-index-0.33.0/src/fs.rs | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/vendor/gix-index/src/fs.rs b/vendor/gix-index/src/fs.rs
+diff --git a/vendor/gix-index-0.33.0/src/fs.rs b/vendor/gix-index-0.33.0/src/fs.rs
 index 5fb369f..2feff9d 100644
---- a/vendor/gix-index/src/fs.rs
-+++ b/vendor/gix-index/src/fs.rs
+--- a/vendor/gix-index-0.33.0/src/fs.rs
++++ b/vendor/gix-index-0.33.0/src/fs.rs
 @@ -117,10 +117,14 @@ impl Metadata {
  
      /// Return the device id on which the file is located, or 0 on windows.

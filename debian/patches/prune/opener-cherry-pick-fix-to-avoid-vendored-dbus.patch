@@ -1,0 +1,46 @@
+From: =?utf-8?q?Fabian_Gr=C3=BCnbichler?= <f.gruenbichler@proxmox.com>
+Date: Mon, 24 Jun 2024 14:37:53 +0200
+Subject: opener: cherry-pick fix to avoid vendored dbus
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+this is part of opener 0.7.1 as b6ead409a9a60f7a2705cf5f2be167719959440e
+
+Forwarded: https://github.com/Seeker14491/opener/pull/31
+
+Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
+
+Workaround for rust-lang/cargo#10788
+As described in Cargo Issue 10788, until Rust 1.71 there were
+cases where the dependency/feature syntax would not work correctly
+when used in combination with the dep:dependency syntax. Workarounds
+include adding an explicit feature
+
+dependency = ["dep:dependency"]
+
+but in many (most?) cases it is enough to only enable the dependency feature
+if the dependency is already enabled, via the dependency?/feature
+syntax.
+
+For context, here are some workarounds employed by others:
+- mstange/samply@89456d4
+- alexrudy/tonic@f386954
+- jwodder/confab@6f0e2fc
+---
+ vendor/opener-0.7.0/Cargo.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/vendor/opener-0.7.0/Cargo.toml b/vendor/opener-0.7.0/Cargo.toml
+index 6915256..46739db 100644
+--- a/vendor/opener-0.7.0/Cargo.toml
++++ b/vendor/opener-0.7.0/Cargo.toml
+@@ -34,7 +34,7 @@ rustdoc-args = [
+ ]
+ 
+ [features]
+-dbus-vendored = ["dbus/vendored"]
++dbus-vendored = ["dbus?/vendored"]
+ default = ["dbus-vendored"]
+ reveal = [
+     "dep:url",

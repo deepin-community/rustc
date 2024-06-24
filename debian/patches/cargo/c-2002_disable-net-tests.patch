@@ -11,7 +11,7 @@ Forwarded: TODO
  4 files changed, 68 insertions(+), 67 deletions(-)
 
 diff --git a/src/tools/cargo/tests/testsuite/credential_process.rs b/src/tools/cargo/tests/testsuite/credential_process.rs
-index 19e08b6..d700abb 100644
+index b097d9d..3453672 100644
 --- a/src/tools/cargo/tests/testsuite/credential_process.rs
 +++ b/src/tools/cargo/tests/testsuite/credential_process.rs
 @@ -64,7 +64,7 @@ fn get_token_test() -> (Project, TestRegistry) {
@@ -122,7 +122,7 @@ index b215958..d4f3678 100644
      let p = project()
          .file(
 diff --git a/src/tools/cargo/tests/testsuite/publish.rs b/src/tools/cargo/tests/testsuite/publish.rs
-index 745a6a6..d94493a 100644
+index f618183..9b0333f 100644
 --- a/src/tools/cargo/tests/testsuite/publish.rs
 +++ b/src/tools/cargo/tests/testsuite/publish.rs
 @@ -88,7 +88,7 @@ fn validate_upload_li() {

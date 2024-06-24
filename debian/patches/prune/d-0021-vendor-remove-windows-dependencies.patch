@@ -20,73 +20,74 @@ Forwarded: not-needed
 
 Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
 ---
- vendor/android-tzdata/Cargo.toml      |  1 +
- vendor/ansi_term/Cargo.toml           |  3 ---
- vendor/anstream/Cargo.toml            |  7 ------
- vendor/anstyle-query/Cargo.toml       |  6 -----
- vendor/backtrace/Cargo.toml           | 14 ------------
- vendor/chrono/Cargo.toml              | 10 +--------
- vendor/colored/Cargo.toml             |  7 ------
- vendor/console/Cargo.toml             | 12 ----------
- vendor/ctrlc/Cargo.toml               | 18 ---------------
- vendor/curl-sys/Cargo.toml            |  7 ------
- vendor/curl/Cargo.toml                | 11 ----------
- vendor/dirs-sys-0.3.7/Cargo.toml      |  3 ---
- vendor/dirs-sys-next/Cargo.toml       |  3 ---
- vendor/dlmalloc/Cargo.toml            |  9 --------
- vendor/env_logger/Cargo.toml          |  2 +-
- vendor/errno/Cargo.toml               |  6 -----
- vendor/fd-lock/Cargo.toml             |  8 -------
- vendor/filetime/Cargo.toml            |  7 ------
- vendor/gix-sec/Cargo.toml             | 13 -----------
- vendor/home/Cargo.toml                |  8 -------
- vendor/iana-time-zone/Cargo.toml      |  3 ---
- vendor/ignore-0.4.20/Cargo.toml       |  3 ---
- vendor/ignore/Cargo.toml              |  2 --
- vendor/is-terminal/Cargo.toml         | 11 ----------
- vendor/libloading/Cargo.toml          |  7 ------
- vendor/libsqlite3-sys/Cargo.toml      | 10 ---------
- vendor/libssh2-sys/Cargo.toml         |  8 -------
- vendor/mio/Cargo.toml                 | 11 ----------
- vendor/native-tls/Cargo.toml          |  3 ---
- vendor/nu-ansi-term-0.46.0/Cargo.toml | 10 ---------
- vendor/opener-0.5.2/Cargo.toml        |  4 ----
- vendor/opener/Cargo.toml              |  9 --------
- vendor/os_info/Cargo.toml             | 15 -------------
- vendor/parking_lot_core/Cargo.toml    |  3 ---
- vendor/reqwest/Cargo.toml             |  6 -----
- vendor/rusqlite/Cargo.toml            |  2 +-
- vendor/rustix/Cargo.toml              | 17 ---------------
- vendor/same-file/Cargo.toml           |  2 --
- vendor/snapbox/Cargo.toml             |  6 -----
- vendor/socket2/Cargo.toml             | 10 ---------
- vendor/stacker/Cargo.toml             | 10 ---------
- vendor/sysinfo/Cargo.toml             | 41 -----------------------------------
- vendor/tempfile/Cargo.toml            |  7 ------
- vendor/term/Cargo.toml                |  6 -----
- vendor/termcolor/Cargo.toml           |  3 ---
- vendor/terminal_size/Cargo.toml       |  7 ------
- vendor/termize/Cargo.toml             |  3 ---
- vendor/tokio-native-tls/Cargo.toml    | 17 ---------------
- vendor/tokio/Cargo.toml               | 21 ------------------
- vendor/uuid/Cargo.toml                |  1 -
- vendor/walkdir/Cargo.toml             |  3 ---
- vendor/yansi-term/Cargo.toml          |  3 ---
- 52 files changed, 4 insertions(+), 415 deletions(-)
+ vendor/android-tzdata-0.1.1/Cargo.toml       |  1 +
+ vendor/ansi_term-0.12.1/Cargo.toml           |  3 --
+ vendor/anstream-0.6.13/Cargo.toml            |  7 -----
+ vendor/anstyle-query-1.0.2/Cargo.toml        |  6 ----
+ vendor/backtrace-0.3.71/Cargo.toml           | 14 ----------
+ vendor/chrono-0.4.38/Cargo.toml              |  9 +-----
+ vendor/colored-2.1.0/Cargo.toml              |  7 -----
+ vendor/console-0.15.8/Cargo.toml             | 12 --------
+ vendor/ctrlc-3.4.4/Cargo.toml                | 18 ------------
+ vendor/curl-0.4.46/Cargo.toml                | 11 --------
+ vendor/curl-sys-0.4.72+curl-8.6.0/Cargo.toml |  7 -----
+ vendor/dbus-0.9.7/Cargo.toml                 |  4 ---
+ vendor/dirs-sys-0.3.7/Cargo.toml             |  3 --
+ vendor/dirs-sys-next-0.1.2/Cargo.toml        |  3 --
+ vendor/dlmalloc-0.2.6/Cargo.toml             |  9 ------
+ vendor/env_logger-0.11.3/Cargo.toml          |  2 +-
+ vendor/errno-0.3.8/Cargo.toml                |  6 ----
+ vendor/fd-lock-4.0.2/Cargo.toml              |  8 ------
+ vendor/filetime-0.2.23/Cargo.toml            |  7 -----
+ vendor/gix-sec-0.10.6/Cargo.toml             | 13 ---------
+ vendor/home-0.5.9/Cargo.toml                 |  8 ------
+ vendor/iana-time-zone-0.1.60/Cargo.toml      |  3 --
+ vendor/ignore-0.4.20/Cargo.toml              |  3 --
+ vendor/ignore-0.4.22/Cargo.toml              |  2 --
+ vendor/is-terminal-0.4.12/Cargo.toml         | 11 --------
+ vendor/libloading-0.8.3/Cargo.toml           |  7 -----
+ vendor/libssh2-sys-0.3.0/Cargo.toml          |  8 ------
+ vendor/mio-0.8.11/Cargo.toml                 | 11 --------
+ vendor/native-tls-0.2.11/Cargo.toml          |  3 --
+ vendor/nu-ansi-term-0.46.0/Cargo.toml        | 10 -------
+ vendor/nu-ansi-term-0.49.0/Cargo.toml        | 10 -------
+ vendor/opener-0.5.2/Cargo.toml               |  4 ---
+ vendor/opener-0.6.1/Cargo.toml               |  9 ------
+ vendor/opener-0.7.0/Cargo.toml               | 12 --------
+ vendor/os_info-3.8.2/Cargo.toml              | 12 --------
+ vendor/parking_lot_core-0.9.9/Cargo.toml     |  3 --
+ vendor/reqwest-0.11.27/Cargo.toml            |  6 ----
+ vendor/rustix-0.38.32/Cargo.toml             | 17 ------------
+ vendor/same-file-1.0.6/Cargo.toml            |  2 --
+ vendor/snapbox-0.5.9/Cargo.toml              |  6 ----
+ vendor/socket2-0.5.6/Cargo.toml              | 10 -------
+ vendor/stacker-0.1.15/Cargo.toml             | 10 -------
+ vendor/sysinfo-0.30.8/Cargo.toml             | 41 ----------------------------
+ vendor/tempfile-3.10.1/Cargo.toml            |  7 -----
+ vendor/term-0.7.0/Cargo.toml                 |  6 ----
+ vendor/termcolor-1.4.1/Cargo.toml            |  3 --
+ vendor/terminal_size-0.3.0/Cargo.toml        |  7 -----
+ vendor/termize-0.1.1/Cargo.toml              |  3 --
+ vendor/tokio-1.37.0/Cargo.toml               | 21 --------------
+ vendor/tokio-native-tls-0.3.1/Cargo.toml     | 17 ------------
+ vendor/uuid-1.8.0/Cargo.toml                 |  1 -
+ vendor/walkdir-2.5.0/Cargo.toml              |  3 --
+ vendor/yansi-term-0.1.2/Cargo.toml           |  3 --
+ 53 files changed, 3 insertions(+), 426 deletions(-)
 
-diff --git a/vendor/android-tzdata/Cargo.toml b/vendor/android-tzdata/Cargo.toml
+diff --git a/vendor/android-tzdata-0.1.1/Cargo.toml b/vendor/android-tzdata-0.1.1/Cargo.toml
 index 805128a..0682717 100644
---- a/vendor/android-tzdata/Cargo.toml
-+++ b/vendor/android-tzdata/Cargo.toml
+--- a/vendor/android-tzdata-0.1.1/Cargo.toml
++++ b/vendor/android-tzdata-0.1.1/Cargo.toml
 @@ -32,3 +32,4 @@ repository = "https://github.com/RumovZ/android-tzdata"
  
  [dev-dependencies.zip]
  version = "0.6.4"
 +repository = "https://github.com/rust-cli/concolor"
-diff --git a/vendor/ansi_term/Cargo.toml b/vendor/ansi_term/Cargo.toml
+diff --git a/vendor/ansi_term-0.12.1/Cargo.toml b/vendor/ansi_term-0.12.1/Cargo.toml
 index 0e5feba..3256c75 100644
---- a/vendor/ansi_term/Cargo.toml
-+++ b/vendor/ansi_term/Cargo.toml
+--- a/vendor/ansi_term-0.12.1/Cargo.toml
++++ b/vendor/ansi_term-0.12.1/Cargo.toml
 @@ -38,6 +38,3 @@ version = "1.0.39"
  
  [features]
@@ -94,10 +95,10 @@ index 0e5feba..3256c75 100644
 -[target."cfg(target_os=\"windows\")".dependencies.winapi]
 -version = "0.3.4"
 -features = ["consoleapi", "errhandlingapi", "fileapi", "handleapi", "processenv"]
-diff --git a/vendor/anstream/Cargo.toml b/vendor/anstream/Cargo.toml
+diff --git a/vendor/anstream-0.6.13/Cargo.toml b/vendor/anstream-0.6.13/Cargo.toml
 index 94b329d..de559f1 100644
---- a/vendor/anstream/Cargo.toml
-+++ b/vendor/anstream/Cargo.toml
+--- a/vendor/anstream-0.6.13/Cargo.toml
++++ b/vendor/anstream-0.6.13/Cargo.toml
 @@ -130,11 +130,4 @@ version = "0.2.0"
  auto = ["dep:anstyle-query"]
  default = [
@@ -110,10 +111,10 @@ index 94b329d..de559f1 100644
 -[target."cfg(windows)".dependencies.anstyle-wincon]
 -version = "3.0.1"
 -optional = true
-diff --git a/vendor/anstyle-query/Cargo.toml b/vendor/anstyle-query/Cargo.toml
+diff --git a/vendor/anstyle-query-1.0.2/Cargo.toml b/vendor/anstyle-query-1.0.2/Cargo.toml
 index 63fead3..b3cc66e 100644
---- a/vendor/anstyle-query/Cargo.toml
-+++ b/vendor/anstyle-query/Cargo.toml
+--- a/vendor/anstyle-query-1.0.2/Cargo.toml
++++ b/vendor/anstyle-query-1.0.2/Cargo.toml
 @@ -72,9 +72,3 @@ replace = """
  [Unreleased]: https://github.com/rust-cli/anstyle/compare/{{tag_name}}...HEAD"""
  search = "<!-- next-url -->"
@@ -124,11 +125,11 @@ index 63fead3..b3cc66e 100644
 -    "Win32_System_Console",
 -    "Win32_Foundation",
 -]
-diff --git a/vendor/backtrace/Cargo.toml b/vendor/backtrace/Cargo.toml
-index c13e7ee..7b01a6f 100644
---- a/vendor/backtrace/Cargo.toml
-+++ b/vendor/backtrace/Cargo.toml
-@@ -104,16 +104,6 @@ serialize-serde = ["serde"]
+diff --git a/vendor/backtrace-0.3.71/Cargo.toml b/vendor/backtrace-0.3.71/Cargo.toml
+index 6ac3a6d..0749f23 100644
+--- a/vendor/backtrace-0.3.71/Cargo.toml
++++ b/vendor/backtrace-0.3.71/Cargo.toml
+@@ -105,16 +105,6 @@ serialize-serde = ["serde"]
  std = []
  unix-backtrace = []
  verify-winapi = [
@@ -145,7 +146,7 @@ index c13e7ee..7b01a6f 100644
  ]
  
  [target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.addr2line]
-@@ -139,7 +129,3 @@ features = [
+@@ -141,7 +131,3 @@ features = [
      "archive",
  ]
  default-features = false
@@ -153,11 +154,11 @@ index c13e7ee..7b01a6f 100644
 -[target."cfg(windows)".dependencies.winapi]
 -version = "0.3.9"
 -optional = true
-diff --git a/vendor/chrono/Cargo.toml b/vendor/chrono/Cargo.toml
-index 9f0f82f..59a8890 100644
---- a/vendor/chrono/Cargo.toml
-+++ b/vendor/chrono/Cargo.toml
-@@ -87,7 +87,7 @@ version = "1"
+diff --git a/vendor/chrono-0.4.38/Cargo.toml b/vendor/chrono-0.4.38/Cargo.toml
+index 1971471..e15e312 100644
+--- a/vendor/chrono-0.4.38/Cargo.toml
++++ b/vendor/chrono-0.4.38/Cargo.toml
+@@ -88,7 +88,7 @@ version = "1"
  __internal_bench = []
  alloc = []
  clock = [
@@ -166,7 +167,7 @@ index 9f0f82f..59a8890 100644
      "iana-time-zone",
      "android-tzdata",
      "now",
-@@ -124,7 +124,6 @@ wasmbind = [
+@@ -125,7 +125,6 @@ wasmbind = [
      "wasm-bindgen",
      "js-sys",
  ]
@@ -174,21 +175,20 @@ index 9f0f82f..59a8890 100644
  
  [target."cfg(all(target_arch = \"wasm32\", not(any(target_os = \"emscripten\", target_os = \"wasi\"))))".dependencies.js-sys]
  version = "0.3"
-@@ -145,10 +144,3 @@ optional = true
- version = "0.1.45"
+@@ -147,9 +146,3 @@ version = "0.1.45"
  features = ["fallback"]
  optional = true
--
+ 
 -[target."cfg(windows)".dependencies.windows-targets]
 -version = "0.52"
 -optional = true
 -
 -[target."cfg(windows)".dev-dependencies.windows-bindgen]
--version = "0.52"
-diff --git a/vendor/colored/Cargo.toml b/vendor/colored/Cargo.toml
+-version = "0.56"
+diff --git a/vendor/colored-2.1.0/Cargo.toml b/vendor/colored-2.1.0/Cargo.toml
 index c2134d7..9399b38 100644
---- a/vendor/colored/Cargo.toml
-+++ b/vendor/colored/Cargo.toml
+--- a/vendor/colored-2.1.0/Cargo.toml
++++ b/vendor/colored-2.1.0/Cargo.toml
 @@ -39,10 +39,3 @@ version = "=1.0.0-beta.3"
  
  [features]
@@ -200,10 +200,10 @@ index c2134d7..9399b38 100644
 -    "Win32_Foundation",
 -    "Win32_System_Console",
 -]
-diff --git a/vendor/console/Cargo.toml b/vendor/console/Cargo.toml
+diff --git a/vendor/console-0.15.8/Cargo.toml b/vendor/console-0.15.8/Cargo.toml
 index ecc237c..5e47717 100644
---- a/vendor/console/Cargo.toml
-+++ b/vendor/console/Cargo.toml
+--- a/vendor/console-0.15.8/Cargo.toml
++++ b/vendor/console-0.15.8/Cargo.toml
 @@ -58,15 +58,3 @@ default = [
      "ansi-parsing",
  ]
@@ -220,10 +220,10 @@ index ecc237c..5e47717 100644
 -    "Win32_Storage_FileSystem",
 -    "Win32_UI_Input_KeyboardAndMouse",
 -]
-diff --git a/vendor/ctrlc/Cargo.toml b/vendor/ctrlc/Cargo.toml
-index 82ebb42..a364e82 100644
---- a/vendor/ctrlc/Cargo.toml
-+++ b/vendor/ctrlc/Cargo.toml
+diff --git a/vendor/ctrlc-3.4.4/Cargo.toml b/vendor/ctrlc-3.4.4/Cargo.toml
+index cd496d1..414adee 100644
+--- a/vendor/ctrlc-3.4.4/Cargo.toml
++++ b/vendor/ctrlc-3.4.4/Cargo.toml
 @@ -56,23 +56,5 @@ features = [
  ]
  default-features = false
@@ -248,28 +248,10 @@ index 82ebb42..a364e82 100644
 -
  [badges.maintenance]
  status = "passively-maintained"
-diff --git a/vendor/curl-sys/Cargo.toml b/vendor/curl-sys/Cargo.toml
-index ea20c03..0751f3d 100644
---- a/vendor/curl-sys/Cargo.toml
-+++ b/vendor/curl-sys/Cargo.toml
-@@ -73,13 +73,6 @@ zlib-ng-compat = [
- version = "0.9.64"
- optional = true
- 
--[target."cfg(target_env = \"msvc\")".build-dependencies.vcpkg]
--version = "0.2"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52"
--features = ["Win32_Networking_WinSock"]
--
- [badges.appveyor]
- repository = "alexcrichton/curl-rust"
- 
-diff --git a/vendor/curl/Cargo.toml b/vendor/curl/Cargo.toml
+diff --git a/vendor/curl-0.4.46/Cargo.toml b/vendor/curl-0.4.46/Cargo.toml
 index fc961dd..d102279 100644
---- a/vendor/curl/Cargo.toml
-+++ b/vendor/curl/Cargo.toml
+--- a/vendor/curl-0.4.46/Cargo.toml
++++ b/vendor/curl-0.4.46/Cargo.toml
 @@ -116,17 +116,6 @@ optional = true
  version = "0.9.64"
  optional = true
@@ -288,6 +270,38 @@ index fc961dd..d102279 100644
  [badges.appveyor]
  repository = "alexcrichton/curl-rust"
  
+diff --git a/vendor/curl-sys-0.4.72+curl-8.6.0/Cargo.toml b/vendor/curl-sys-0.4.72+curl-8.6.0/Cargo.toml
+index ea20c03..0751f3d 100644
+--- a/vendor/curl-sys-0.4.72+curl-8.6.0/Cargo.toml
++++ b/vendor/curl-sys-0.4.72+curl-8.6.0/Cargo.toml
+@@ -73,13 +73,6 @@ zlib-ng-compat = [
+ version = "0.9.64"
+ optional = true
+ 
+-[target."cfg(target_env = \"msvc\")".build-dependencies.vcpkg]
+-version = "0.2"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Networking_WinSock"]
+-
+ [badges.appveyor]
+ repository = "alexcrichton/curl-rust"
+ 
+diff --git a/vendor/dbus-0.9.7/Cargo.toml b/vendor/dbus-0.9.7/Cargo.toml
+index d9f6d84..e04d90b 100644
+--- a/vendor/dbus-0.9.7/Cargo.toml
++++ b/vendor/dbus-0.9.7/Cargo.toml
+@@ -63,9 +63,5 @@ no-string-validation = []
+ stdfd = []
+ vendored = ["libdbus-sys/vendored"]
+ 
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3.0"
+-features = ["winsock2"]
+-
+ [badges.maintenance]
+ status = "actively-developed"
 diff --git a/vendor/dirs-sys-0.3.7/Cargo.toml b/vendor/dirs-sys-0.3.7/Cargo.toml
 index 9951d24..0a86f4d 100644
 --- a/vendor/dirs-sys-0.3.7/Cargo.toml
@@ -299,10 +313,10 @@ index 9951d24..0a86f4d 100644
 -[target."cfg(windows)".dependencies.winapi]
 -version = "0.3"
 -features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
-diff --git a/vendor/dirs-sys-next/Cargo.toml b/vendor/dirs-sys-next/Cargo.toml
+diff --git a/vendor/dirs-sys-next-0.1.2/Cargo.toml b/vendor/dirs-sys-next-0.1.2/Cargo.toml
 index e9d8d0c..acb2eb7 100644
---- a/vendor/dirs-sys-next/Cargo.toml
-+++ b/vendor/dirs-sys-next/Cargo.toml
+--- a/vendor/dirs-sys-next-0.1.2/Cargo.toml
++++ b/vendor/dirs-sys-next-0.1.2/Cargo.toml
 @@ -25,8 +25,5 @@ version = "0.4.0"
  default-features = false
  [target."cfg(unix)".dependencies.libc]
@@ -312,10 +326,10 @@ index e9d8d0c..acb2eb7 100644
 -features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
  [badges.maintenance]
  status = "as-is"
-diff --git a/vendor/dlmalloc/Cargo.toml b/vendor/dlmalloc/Cargo.toml
+diff --git a/vendor/dlmalloc-0.2.6/Cargo.toml b/vendor/dlmalloc-0.2.6/Cargo.toml
 index dbc517b..dfc6b0e 100644
---- a/vendor/dlmalloc/Cargo.toml
-+++ b/vendor/dlmalloc/Cargo.toml
+--- a/vendor/dlmalloc-0.2.6/Cargo.toml
++++ b/vendor/dlmalloc-0.2.6/Cargo.toml
 @@ -62,12 +62,3 @@ rustc-dep-of-std = [
  [target."cfg(all(unix, not(target_arch = \"wasm32\")))".dependencies.libc]
  version = "0.2"
@@ -329,10 +343,10 @@ index dbc517b..dfc6b0e 100644
 -    "Win32_System_Threading",
 -    "Win32_System_SystemInformation",
 -]
-diff --git a/vendor/env_logger/Cargo.toml b/vendor/env_logger/Cargo.toml
-index 3c1e3e6..4805266 100644
---- a/vendor/env_logger/Cargo.toml
-+++ b/vendor/env_logger/Cargo.toml
+diff --git a/vendor/env_logger-0.11.3/Cargo.toml b/vendor/env_logger-0.11.3/Cargo.toml
+index 8ef5b93..44ae34a 100644
+--- a/vendor/env_logger-0.11.3/Cargo.toml
++++ b/vendor/env_logger-0.11.3/Cargo.toml
 @@ -99,7 +99,7 @@ harness = false
  
  [dependencies.anstream]
@@ -342,10 +356,10 @@ index 3c1e3e6..4805266 100644
  optional = true
  default-features = false
  
-diff --git a/vendor/errno/Cargo.toml b/vendor/errno/Cargo.toml
+diff --git a/vendor/errno-0.3.8/Cargo.toml b/vendor/errno-0.3.8/Cargo.toml
 index e1d0bf5..60eeb86 100644
---- a/vendor/errno/Cargo.toml
-+++ b/vendor/errno/Cargo.toml
+--- a/vendor/errno-0.3.8/Cargo.toml
++++ b/vendor/errno-0.3.8/Cargo.toml
 @@ -41,9 +41,3 @@ default-features = false
  version = "0.2"
  default-features = false
@@ -356,10 +370,10 @@ index e1d0bf5..60eeb86 100644
 -    "Win32_Foundation",
 -    "Win32_System_Diagnostics_Debug",
 -]
-diff --git a/vendor/fd-lock/Cargo.toml b/vendor/fd-lock/Cargo.toml
+diff --git a/vendor/fd-lock-4.0.2/Cargo.toml b/vendor/fd-lock-4.0.2/Cargo.toml
 index 88826bc..fbf815d 100644
---- a/vendor/fd-lock/Cargo.toml
-+++ b/vendor/fd-lock/Cargo.toml
+--- a/vendor/fd-lock-4.0.2/Cargo.toml
++++ b/vendor/fd-lock-4.0.2/Cargo.toml
 @@ -43,11 +43,3 @@ version = "3.0.8"
  [target."cfg(unix)".dependencies.rustix]
  version = "0.38.0"
@@ -372,10 +386,10 @@ index 88826bc..fbf815d 100644
 -    "Win32_Storage_FileSystem",
 -    "Win32_System_IO",
 -]
-diff --git a/vendor/filetime/Cargo.toml b/vendor/filetime/Cargo.toml
+diff --git a/vendor/filetime-0.2.23/Cargo.toml b/vendor/filetime-0.2.23/Cargo.toml
 index 0540ffb..2c65fa5 100644
---- a/vendor/filetime/Cargo.toml
-+++ b/vendor/filetime/Cargo.toml
+--- a/vendor/filetime-0.2.23/Cargo.toml
++++ b/vendor/filetime-0.2.23/Cargo.toml
 @@ -38,10 +38,3 @@ version = "0.4.1"
  
  [target."cfg(unix)".dependencies.libc]
@@ -387,17 +401,17 @@ index 0540ffb..2c65fa5 100644
 -    "Win32_Foundation",
 -    "Win32_Storage_FileSystem",
 -]
-diff --git a/vendor/gix-sec/Cargo.toml b/vendor/gix-sec/Cargo.toml
-index 33cc57e..7ad9564 100644
---- a/vendor/gix-sec/Cargo.toml
-+++ b/vendor/gix-sec/Cargo.toml
+diff --git a/vendor/gix-sec-0.10.6/Cargo.toml b/vendor/gix-sec-0.10.6/Cargo.toml
+index df523e8..da37840 100644
+--- a/vendor/gix-sec-0.10.6/Cargo.toml
++++ b/vendor/gix-sec-0.10.6/Cargo.toml
 @@ -57,16 +57,3 @@ serde = [
  
  [target."cfg(not(windows))".dependencies.libc]
  version = "0.2.123"
 -
 -[target."cfg(windows)".dependencies.gix-path]
--version = "^0.10.4"
+-version = "^0.10.7"
 -
 -[target."cfg(windows)".dependencies.windows-sys]
 -version = "0.52.0"
@@ -408,10 +422,10 @@ index 33cc57e..7ad9564 100644
 -    "Win32_System_Memory",
 -    "Win32_System_Threading",
 -]
-diff --git a/vendor/home/Cargo.toml b/vendor/home/Cargo.toml
+diff --git a/vendor/home-0.5.9/Cargo.toml b/vendor/home-0.5.9/Cargo.toml
 index 93e3432..3bb226f 100644
---- a/vendor/home/Cargo.toml
-+++ b/vendor/home/Cargo.toml
+--- a/vendor/home-0.5.9/Cargo.toml
++++ b/vendor/home-0.5.9/Cargo.toml
 @@ -28,14 +28,6 @@ readme = "README.md"
  license = "MIT OR Apache-2.0"
  repository = "https://github.com/rust-lang/cargo"
@@ -427,10 +441,10 @@ index 93e3432..3bb226f 100644
  [lints.clippy]
  dbg_macro = "warn"
  disallowed_methods = "warn"
-diff --git a/vendor/iana-time-zone/Cargo.toml b/vendor/iana-time-zone/Cargo.toml
+diff --git a/vendor/iana-time-zone-0.1.60/Cargo.toml b/vendor/iana-time-zone-0.1.60/Cargo.toml
 index ad54889..5db5668 100644
---- a/vendor/iana-time-zone/Cargo.toml
-+++ b/vendor/iana-time-zone/Cargo.toml
+--- a/vendor/iana-time-zone-0.1.60/Cargo.toml
++++ b/vendor/iana-time-zone-0.1.60/Cargo.toml
 @@ -52,6 +52,3 @@ version = "0.1.5"
  
  [target."cfg(target_os = \"haiku\")".dependencies.iana-time-zone-haiku]
@@ -449,27 +463,27 @@ index b397dcf..2022a87 100644
 -
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.2"
-diff --git a/vendor/ignore/Cargo.toml b/vendor/ignore/Cargo.toml
+diff --git a/vendor/ignore-0.4.22/Cargo.toml b/vendor/ignore-0.4.22/Cargo.toml
 index d038e57..8a6dc8e 100644
---- a/vendor/ignore/Cargo.toml
-+++ b/vendor/ignore/Cargo.toml
+--- a/vendor/ignore-0.4.22/Cargo.toml
++++ b/vendor/ignore-0.4.22/Cargo.toml
 @@ -77,5 +77,3 @@ version = "0.5.8"
  [features]
  simd-accel = []
  
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.2"
-diff --git a/vendor/is-terminal/Cargo.toml b/vendor/is-terminal/Cargo.toml
-index 08933a7..b4b0482 100644
---- a/vendor/is-terminal/Cargo.toml
-+++ b/vendor/is-terminal/Cargo.toml
-@@ -54,14 +54,3 @@ features = ["stdio"]
+diff --git a/vendor/is-terminal-0.4.12/Cargo.toml b/vendor/is-terminal-0.4.12/Cargo.toml
+index 98a8829..01ce09a 100644
+--- a/vendor/is-terminal-0.4.12/Cargo.toml
++++ b/vendor/is-terminal-0.4.12/Cargo.toml
+@@ -57,14 +57,3 @@ features = ["stdio"]
  
  [target."cfg(target_os = \"hermit\")".dependencies.hermit-abi]
  version = "0.3.0"
 -
 -[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48.0"
+-version = "0.52.0"
 -features = [
 -    "Win32_Foundation",
 -    "Win32_Storage_FileSystem",
@@ -478,27 +492,25 @@ index 08933a7..b4b0482 100644
 -
 -[target."cfg(windows)".dev-dependencies.tempfile]
 -version = "3"
-diff --git a/vendor/libloading/Cargo.toml b/vendor/libloading/Cargo.toml
-index f56c1b3..302b4ef 100644
---- a/vendor/libloading/Cargo.toml
-+++ b/vendor/libloading/Cargo.toml
-@@ -40,12 +40,5 @@ version = "0.2"
- [dev-dependencies.static_assertions]
- version = "1.1"
+diff --git a/vendor/libloading-0.8.3/Cargo.toml b/vendor/libloading-0.8.3/Cargo.toml
+index d5e5548..2204533 100644
+--- a/vendor/libloading-0.8.3/Cargo.toml
++++ b/vendor/libloading-0.8.3/Cargo.toml
+@@ -42,10 +42,3 @@ version = "1.1"
  
--[dev-dependencies.windows-sys]
--version = "0.52"
--features = ["Win32_Foundation"]
--
  [target."cfg(unix)".dependencies.cfg-if]
  version = "1"
 -
 -[target."cfg(windows)".dependencies.windows-targets]
 -version = ">=0.48, <0.53"
-diff --git a/vendor/libssh2-sys/Cargo.toml b/vendor/libssh2-sys/Cargo.toml
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Foundation"]
+diff --git a/vendor/libssh2-sys-0.3.0/Cargo.toml b/vendor/libssh2-sys-0.3.0/Cargo.toml
 index 45f4a71..516644c 100644
---- a/vendor/libssh2-sys/Cargo.toml
-+++ b/vendor/libssh2-sys/Cargo.toml
+--- a/vendor/libssh2-sys-0.3.0/Cargo.toml
++++ b/vendor/libssh2-sys-0.3.0/Cargo.toml
 @@ -43,16 +43,8 @@ version = "1.0.25"
  version = "0.3.11"
  
@@ -516,10 +528,10 @@ index 45f4a71..516644c 100644
 -[target."cfg(windows)".dependencies.openssl-sys]
 -version = "0.9.35"
 -optional = true
-diff --git a/vendor/mio/Cargo.toml b/vendor/mio/Cargo.toml
+diff --git a/vendor/mio-0.8.11/Cargo.toml b/vendor/mio-0.8.11/Cargo.toml
 index 5d112d9..467ab24 100644
---- a/vendor/mio/Cargo.toml
-+++ b/vendor/mio/Cargo.toml
+--- a/vendor/mio-0.8.11/Cargo.toml
++++ b/vendor/mio-0.8.11/Cargo.toml
 @@ -103,8 +103,6 @@ default = ["log"]
  net = []
  os-ext = [
@@ -542,10 +554,10 @@ index 5d112d9..467ab24 100644
 -    "Win32_System_IO",
 -    "Win32_System_WindowsProgramming",
 -]
-diff --git a/vendor/native-tls/Cargo.toml b/vendor/native-tls/Cargo.toml
+diff --git a/vendor/native-tls-0.2.11/Cargo.toml b/vendor/native-tls-0.2.11/Cargo.toml
 index a059236..d36b44b 100644
---- a/vendor/native-tls/Cargo.toml
-+++ b/vendor/native-tls/Cargo.toml
+--- a/vendor/native-tls-0.2.11/Cargo.toml
++++ b/vendor/native-tls-0.2.11/Cargo.toml
 @@ -61,6 +61,3 @@ version = "0.1"
  
  [target."cfg(not(any(target_os = \"windows\", target_os = \"macos\", target_os = \"ios\")))".dependencies.openssl-sys]
@@ -571,6 +583,24 @@ index 209e055..aa40f02 100644
 -    "handleapi",
 -    "processenv",
 -]
+diff --git a/vendor/nu-ansi-term-0.49.0/Cargo.toml b/vendor/nu-ansi-term-0.49.0/Cargo.toml
+index f36dade..3e86523 100644
+--- a/vendor/nu-ansi-term-0.49.0/Cargo.toml
++++ b/vendor/nu-ansi-term-0.49.0/Cargo.toml
+@@ -42,13 +42,3 @@ version = "1.0.94"
+ [features]
+ derive_serde_style = ["serde"]
+ gnu_legacy = []
+-
+-[target."cfg(windows)".dependencies.windows]
+-version = "0.48.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Console",
+-    "Win32_Storage_FileSystem",
+-    "Win32_Security",
+-]
+-package = "windows-sys"
 diff --git a/vendor/opener-0.5.2/Cargo.toml b/vendor/opener-0.5.2/Cargo.toml
 index 8d91b5e..2d7313b 100644
 --- a/vendor/opener-0.5.2/Cargo.toml
@@ -586,10 +616,10 @@ index 8d91b5e..2d7313b 100644
  [badges.appveyor]
  branch = "master"
  repository = "Seeker14491/opener"
-diff --git a/vendor/opener/Cargo.toml b/vendor/opener/Cargo.toml
+diff --git a/vendor/opener-0.6.1/Cargo.toml b/vendor/opener-0.6.1/Cargo.toml
 index 79b4be9..69cc269 100644
---- a/vendor/opener/Cargo.toml
-+++ b/vendor/opener/Cargo.toml
+--- a/vendor/opener-0.6.1/Cargo.toml
++++ b/vendor/opener-0.6.1/Cargo.toml
 @@ -40,8 +40,6 @@ version = "0.9"
  reveal = [
      "dep:url",
@@ -613,33 +643,59 @@ index 79b4be9..69cc269 100644
  [badges.appveyor]
  branch = "master"
  repository = "Seeker14491/opener"
-diff --git a/vendor/os_info/Cargo.toml b/vendor/os_info/Cargo.toml
-index 52a062f..e1f347b 100644
---- a/vendor/os_info/Cargo.toml
-+++ b/vendor/os_info/Cargo.toml
-@@ -48,18 +48,3 @@ version = "1"
+diff --git a/vendor/opener-0.7.0/Cargo.toml b/vendor/opener-0.7.0/Cargo.toml
+index 46739db..df53740 100644
+--- a/vendor/opener-0.7.0/Cargo.toml
++++ b/vendor/opener-0.7.0/Cargo.toml
+@@ -39,7 +39,6 @@ default = ["dbus-vendored"]
+ reveal = [
+     "dep:url",
+     "dep:dbus",
+-    "windows-sys/Win32_System_Com",
+ ]
+ 
+ [target."cfg(target_os = \"linux\")".dependencies.bstr]
+@@ -53,16 +52,5 @@ optional = true
+ version = "2"
+ optional = true
+ 
+-[target."cfg(windows)".dependencies.normpath]
+-version = "1"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_UI_Shell",
+-    "Win32_UI_WindowsAndMessaging",
+-]
+-
+ [badges.maintenance]
+ status = "passively-maintained"
+diff --git a/vendor/os_info-3.8.2/Cargo.toml b/vendor/os_info-3.8.2/Cargo.toml
+index 9aa2067..c1a79b8 100644
+--- a/vendor/os_info-3.8.2/Cargo.toml
++++ b/vendor/os_info-3.8.2/Cargo.toml
+@@ -48,15 +48,3 @@ version = "1"
  
  [features]
  default = ["serde"]
 -
--[target."cfg(windows)".dependencies.winapi]
--version = "0.3.8"
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
 -features = [
--    "minwindef",
--    "ntdef",
--    "ntstatus",
--    "sysinfoapi",
--    "winnt",
--    "winuser",
--    "libloaderapi",
--    "processthreadsapi",
--    "winerror",
--    "winreg",
+-    "Win32_Foundation",
+-    "Win32_System_LibraryLoader",
+-    "Win32_System_Registry",
+-    "Win32_System_SystemInformation",
+-    "Win32_System_SystemServices",
+-    "Win32_System_Threading",
+-    "Win32_UI_WindowsAndMessaging",
 -]
-diff --git a/vendor/parking_lot_core/Cargo.toml b/vendor/parking_lot_core/Cargo.toml
+diff --git a/vendor/parking_lot_core-0.9.9/Cargo.toml b/vendor/parking_lot_core-0.9.9/Cargo.toml
 index 83d9f23..dbe1534 100644
---- a/vendor/parking_lot_core/Cargo.toml
-+++ b/vendor/parking_lot_core/Cargo.toml
+--- a/vendor/parking_lot_core-0.9.9/Cargo.toml
++++ b/vendor/parking_lot_core-0.9.9/Cargo.toml
 @@ -61,6 +61,3 @@ version = "0.4"
  
  [target."cfg(unix)".dependencies.libc]
@@ -647,10 +703,10 @@ index 83d9f23..dbe1534 100644
 -
 -[target."cfg(windows)".dependencies.windows-targets]
 -version = "0.48.0"
-diff --git a/vendor/reqwest/Cargo.toml b/vendor/reqwest/Cargo.toml
-index c5b6f53..30ec5e9 100644
---- a/vendor/reqwest/Cargo.toml
-+++ b/vendor/reqwest/Cargo.toml
+diff --git a/vendor/reqwest-0.11.27/Cargo.toml b/vendor/reqwest-0.11.27/Cargo.toml
+index 6a6a648..32e2c9e 100644
+--- a/vendor/reqwest-0.11.27/Cargo.toml
++++ b/vendor/reqwest-0.11.27/Cargo.toml
 @@ -455,9 +455,3 @@ features = ["serde-serialize"]
  
  [target."cfg(target_arch = \"wasm32\")".dev-dependencies.wasm-bindgen-test]
@@ -661,10 +717,10 @@ index c5b6f53..30ec5e9 100644
 -
 -[target."cfg(windows)".dependencies.winreg]
 -version = "0.50.0"
-diff --git a/vendor/rustix/Cargo.toml b/vendor/rustix/Cargo.toml
-index 8184720..974c881 100644
---- a/vendor/rustix/Cargo.toml
-+++ b/vendor/rustix/Cargo.toml
+diff --git a/vendor/rustix-0.38.32/Cargo.toml b/vendor/rustix-0.38.32/Cargo.toml
+index 589611b..55de475 100644
+--- a/vendor/rustix-0.38.32/Cargo.toml
++++ b/vendor/rustix-0.38.32/Cargo.toml
 @@ -253,20 +253,3 @@ package = "errno"
  [target."cfg(any(target_os = \"android\", target_os = \"linux\"))".dependencies.once_cell]
  version = "1.5.2"
@@ -686,20 +742,20 @@ index 8184720..974c881 100644
 -
 -[target."cfg(windows)".dev-dependencies.ctor]
 -version = "0.2.0"
-diff --git a/vendor/same-file/Cargo.toml b/vendor/same-file/Cargo.toml
+diff --git a/vendor/same-file-1.0.6/Cargo.toml b/vendor/same-file-1.0.6/Cargo.toml
 index 4f66820..11ef472 100644
---- a/vendor/same-file/Cargo.toml
-+++ b/vendor/same-file/Cargo.toml
+--- a/vendor/same-file-1.0.6/Cargo.toml
++++ b/vendor/same-file-1.0.6/Cargo.toml
 @@ -25,5 +25,3 @@ license = "Unlicense/MIT"
  repository = "https://github.com/BurntSushi/same-file"
  [dev-dependencies.doc-comment]
  version = "0.3"
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.1"
-diff --git a/vendor/snapbox/Cargo.toml b/vendor/snapbox/Cargo.toml
-index 8cba1ec..68db44f 100644
---- a/vendor/snapbox/Cargo.toml
-+++ b/vendor/snapbox/Cargo.toml
+diff --git a/vendor/snapbox-0.5.9/Cargo.toml b/vendor/snapbox-0.5.9/Cargo.toml
+index 9c80c0f..79e3485 100644
+--- a/vendor/snapbox-0.5.9/Cargo.toml
++++ b/vendor/snapbox-0.5.9/Cargo.toml
 @@ -169,7 +169,6 @@ cmd = [
      "dep:os_pipe",
      "dep:wait-timeout",
@@ -717,10 +773,10 @@ index 8cba1ec..68db44f 100644
 -version = "0.52.0"
 -features = ["Win32_Foundation"]
 -optional = true
-diff --git a/vendor/socket2/Cargo.toml b/vendor/socket2/Cargo.toml
+diff --git a/vendor/socket2-0.5.6/Cargo.toml b/vendor/socket2-0.5.6/Cargo.toml
 index 8d36ede..2fb6394 100644
---- a/vendor/socket2/Cargo.toml
-+++ b/vendor/socket2/Cargo.toml
+--- a/vendor/socket2-0.5.6/Cargo.toml
++++ b/vendor/socket2-0.5.6/Cargo.toml
 @@ -75,13 +75,3 @@ all = []
  
  [target."cfg(unix)".dependencies.libc]
@@ -735,10 +791,10 @@ index 8d36ede..2fb6394 100644
 -    "Win32_System_Threading",
 -    "Win32_System_WindowsProgramming",
 -]
-diff --git a/vendor/stacker/Cargo.toml b/vendor/stacker/Cargo.toml
+diff --git a/vendor/stacker-0.1.15/Cargo.toml b/vendor/stacker-0.1.15/Cargo.toml
 index 160cbc0..ba02aac 100644
---- a/vendor/stacker/Cargo.toml
-+++ b/vendor/stacker/Cargo.toml
+--- a/vendor/stacker-0.1.15/Cargo.toml
++++ b/vendor/stacker-0.1.15/Cargo.toml
 @@ -43,13 +43,3 @@ version = "0.1.7"
  
  [build-dependencies.cc]
@@ -753,11 +809,11 @@ index 160cbc0..ba02aac 100644
 -    "processthreadsapi",
 -    "minwindef",
 -]
-diff --git a/vendor/sysinfo/Cargo.toml b/vendor/sysinfo/Cargo.toml
-index fbc96e4..5f0ef2d 100644
---- a/vendor/sysinfo/Cargo.toml
-+++ b/vendor/sysinfo/Cargo.toml
-@@ -77,44 +77,3 @@ version = "1.18"
+diff --git a/vendor/sysinfo-0.30.8/Cargo.toml b/vendor/sysinfo-0.30.8/Cargo.toml
+index fc1b398..92387fc 100644
+--- a/vendor/sysinfo-0.30.8/Cargo.toml
++++ b/vendor/sysinfo-0.30.8/Cargo.toml
+@@ -78,44 +78,3 @@ version = "1.18"
  
  [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
  version = "^0.2.153"
@@ -802,10 +858,10 @@ index fbc96e4..5f0ef2d 100644
 -    "Win32_System_Wmi",
 -    "Win32_UI_Shell",
 -]
-diff --git a/vendor/tempfile/Cargo.toml b/vendor/tempfile/Cargo.toml
+diff --git a/vendor/tempfile-3.10.1/Cargo.toml b/vendor/tempfile-3.10.1/Cargo.toml
 index ee1016f..88f6a24 100644
---- a/vendor/tempfile/Cargo.toml
-+++ b/vendor/tempfile/Cargo.toml
+--- a/vendor/tempfile-3.10.1/Cargo.toml
++++ b/vendor/tempfile-3.10.1/Cargo.toml
 @@ -47,10 +47,3 @@ nightly = []
  [target."cfg(any(unix, target_os = \"wasi\"))".dependencies.rustix]
  version = "0.38.31"
@@ -817,10 +873,10 @@ index ee1016f..88f6a24 100644
 -    "Win32_Storage_FileSystem",
 -    "Win32_Foundation",
 -]
-diff --git a/vendor/term/Cargo.toml b/vendor/term/Cargo.toml
+diff --git a/vendor/term-0.7.0/Cargo.toml b/vendor/term-0.7.0/Cargo.toml
 index e89261e..ad5d62b 100644
---- a/vendor/term/Cargo.toml
-+++ b/vendor/term/Cargo.toml
+--- a/vendor/term-0.7.0/Cargo.toml
++++ b/vendor/term-0.7.0/Cargo.toml
 @@ -28,12 +28,6 @@ version = "2"
  
  [features]
@@ -834,10 +890,10 @@ index e89261e..ad5d62b 100644
  [badges.appveyor]
  repository = "Stebalien/term"
  
-diff --git a/vendor/termcolor/Cargo.toml b/vendor/termcolor/Cargo.toml
+diff --git a/vendor/termcolor-1.4.1/Cargo.toml b/vendor/termcolor-1.4.1/Cargo.toml
 index f90eaca..d32db67 100644
---- a/vendor/termcolor/Cargo.toml
-+++ b/vendor/termcolor/Cargo.toml
+--- a/vendor/termcolor-1.4.1/Cargo.toml
++++ b/vendor/termcolor-1.4.1/Cargo.toml
 @@ -35,6 +35,3 @@ name = "termcolor"
  bench = false
  
@@ -845,10 +901,10 @@ index f90eaca..d32db67 100644
 -
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.3"
-diff --git a/vendor/terminal_size/Cargo.toml b/vendor/terminal_size/Cargo.toml
+diff --git a/vendor/terminal_size-0.3.0/Cargo.toml b/vendor/terminal_size-0.3.0/Cargo.toml
 index f810025..0fbe3a1 100644
---- a/vendor/terminal_size/Cargo.toml
-+++ b/vendor/terminal_size/Cargo.toml
+--- a/vendor/terminal_size-0.3.0/Cargo.toml
++++ b/vendor/terminal_size-0.3.0/Cargo.toml
 @@ -30,10 +30,3 @@ repository = "https://github.com/eminence/terminal-size"
  [target."cfg(not(windows))".dependencies.rustix]
  version = "0.38.0"
@@ -860,10 +916,10 @@ index f810025..0fbe3a1 100644
 -    "Win32_Foundation",
 -    "Win32_System_Console",
 -]
-diff --git a/vendor/termize/Cargo.toml b/vendor/termize/Cargo.toml
+diff --git a/vendor/termize-0.1.1/Cargo.toml b/vendor/termize-0.1.1/Cargo.toml
 index d248f4d..9bd9f37 100644
---- a/vendor/termize/Cargo.toml
-+++ b/vendor/termize/Cargo.toml
+--- a/vendor/termize-0.1.1/Cargo.toml
++++ b/vendor/termize-0.1.1/Cargo.toml
 @@ -49,8 +49,5 @@ rpath = false
  [dependencies]
  [target."cfg(unix)".dependencies.libc]
@@ -873,35 +929,10 @@ index d248f4d..9bd9f37 100644
 -features = ["handleapi", "processenv", "wincon", "winbase"]
  [badges.cirrus-ci]
  repository = "JohnTitor/termize"
-diff --git a/vendor/tokio-native-tls/Cargo.toml b/vendor/tokio-native-tls/Cargo.toml
-index 76be3d3..3ada811 100644
---- a/vendor/tokio-native-tls/Cargo.toml
-+++ b/vendor/tokio-native-tls/Cargo.toml
-@@ -76,20 +76,3 @@ version = "0.10"
- 
- [target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dev-dependencies.security-framework]
- version = "0.2"
--
--[target."cfg(windows)".dev-dependencies.schannel]
--version = "0.1"
--
--[target."cfg(windows)".dev-dependencies.winapi]
--version = "0.3"
--features = [
--    "lmcons",
--    "basetsd",
--    "minwinbase",
--    "minwindef",
--    "ntdef",
--    "sysinfoapi",
--    "timezoneapi",
--    "wincrypt",
--    "winerror",
--]
-diff --git a/vendor/tokio/Cargo.toml b/vendor/tokio/Cargo.toml
-index a0d1781..686cba9 100644
---- a/vendor/tokio/Cargo.toml
-+++ b/vendor/tokio/Cargo.toml
+diff --git a/vendor/tokio-1.37.0/Cargo.toml b/vendor/tokio-1.37.0/Cargo.toml
+index 0826335..6273a66 100644
+--- a/vendor/tokio-1.37.0/Cargo.toml
++++ b/vendor/tokio-1.37.0/Cargo.toml
 @@ -130,11 +130,6 @@ net = [
      "mio/os-ext",
      "mio/net",
@@ -948,10 +979,35 @@ index a0d1781..686cba9 100644
 -    "Win32_Foundation",
 -    "Win32_Security_Authorization",
 -]
-diff --git a/vendor/uuid/Cargo.toml b/vendor/uuid/Cargo.toml
-index 320fd4c..5bca384 100644
---- a/vendor/uuid/Cargo.toml
-+++ b/vendor/uuid/Cargo.toml
+diff --git a/vendor/tokio-native-tls-0.3.1/Cargo.toml b/vendor/tokio-native-tls-0.3.1/Cargo.toml
+index 76be3d3..3ada811 100644
+--- a/vendor/tokio-native-tls-0.3.1/Cargo.toml
++++ b/vendor/tokio-native-tls-0.3.1/Cargo.toml
+@@ -76,20 +76,3 @@ version = "0.10"
+ 
+ [target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dev-dependencies.security-framework]
+ version = "0.2"
+-
+-[target."cfg(windows)".dev-dependencies.schannel]
+-version = "0.1"
+-
+-[target."cfg(windows)".dev-dependencies.winapi]
+-version = "0.3"
+-features = [
+-    "lmcons",
+-    "basetsd",
+-    "minwinbase",
+-    "minwindef",
+-    "ntdef",
+-    "sysinfoapi",
+-    "timezoneapi",
+-    "wincrypt",
+-    "winerror",
+-]
+diff --git a/vendor/uuid-1.8.0/Cargo.toml b/vendor/uuid-1.8.0/Cargo.toml
+index 6bc7d113..e6df87a 100644
+--- a/vendor/uuid-1.8.0/Cargo.toml
++++ b/vendor/uuid-1.8.0/Cargo.toml
 @@ -197,7 +197,6 @@ version = "0.3"
  
  [target."cfg(target = \"wasm32-unknown-unknown\")".dev-dependencies.wasm-bindgen]
@@ -960,10 +1016,10 @@ index 320fd4c..5bca384 100644
  [badges.is-it-maintained-issue-resolution]
  repository = "uuid-rs/uuid"
  
-diff --git a/vendor/walkdir/Cargo.toml b/vendor/walkdir/Cargo.toml
+diff --git a/vendor/walkdir-2.5.0/Cargo.toml b/vendor/walkdir-2.5.0/Cargo.toml
 index 4fda2f4..1741677 100644
---- a/vendor/walkdir/Cargo.toml
-+++ b/vendor/walkdir/Cargo.toml
+--- a/vendor/walkdir-2.5.0/Cargo.toml
++++ b/vendor/walkdir-2.5.0/Cargo.toml
 @@ -39,9 +39,6 @@ version = "1.0.1"
  [dev-dependencies.doc-comment]
  version = "0.3"
@@ -974,10 +1030,10 @@ index 4fda2f4..1741677 100644
  [badges.appveyor]
  repository = "BurntSushi/walkdir"
  
-diff --git a/vendor/yansi-term/Cargo.toml b/vendor/yansi-term/Cargo.toml
+diff --git a/vendor/yansi-term-0.1.2/Cargo.toml b/vendor/yansi-term-0.1.2/Cargo.toml
 index 0317866..88ce8ef 100644
---- a/vendor/yansi-term/Cargo.toml
-+++ b/vendor/yansi-term/Cargo.toml
+--- a/vendor/yansi-term-0.1.2/Cargo.toml
++++ b/vendor/yansi-term-0.1.2/Cargo.toml
 @@ -36,9 +36,6 @@ version = "1.0"
  
  [features]

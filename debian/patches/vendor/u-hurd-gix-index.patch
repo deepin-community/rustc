@@ -10,13 +10,13 @@ Date:   Sun May 26 21:13:40 2024 +0200
 
     GNU/Hurd uses a st_[mc]tim timespec, like aix
 ---
- vendor/gix-index/src/fs.rs | 16 ++++++++--------
+ vendor/gix-index-0.33.0/src/fs.rs | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/vendor/gix-index/src/fs.rs b/vendor/gix-index/src/fs.rs
+diff --git a/vendor/gix-index-0.33.0/src/fs.rs b/vendor/gix-index-0.33.0/src/fs.rs
 index a9acb155..5fb369f 100644
---- a/vendor/gix-index/src/fs.rs
-+++ b/vendor/gix-index/src/fs.rs
+--- a/vendor/gix-index-0.33.0/src/fs.rs
++++ b/vendor/gix-index-0.33.0/src/fs.rs
 @@ -54,16 +54,16 @@ impl Metadata {
      pub fn modified(&self) -> Option<SystemTime> {
          #[cfg(not(windows))]
