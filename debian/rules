@@ -279,7 +279,7 @@ debian/dh_auto_configure.stamp: debian/config.toml check-no-old-llvm
 	# fail the build if the vendored sources info is out-of-date
 	CARGO_VENDOR_DIR=$(CURDIR)/vendor /usr/share/cargo/bin/dh-cargo-vendored-sources
 	# fail the build if we accidentally vendored openssl, indicates we pulled in unnecessary dependencies
-	test ! -e vendor/openssl-src
+	test ! -e vendor/openssl-src-*
 	# fail the build if our version contains ~exp and we are not releasing to experimental
 	# v="$(DEB_VERSION)"; test "$$v" = "$${v%~exp*}" -o "$(DEB_DISTRIBUTION)" = "experimental" -o "$(DEB_DISTRIBUTION)" = "UNRELEASED"
 	$(PRECONFIGURE_CHECK)
@@ -289,7 +289,9 @@ debian/dh_auto_configure.stamp: debian/config.toml check-no-old-llvm
 	# We patched some crates so have to rm the checksums
 	find vendor -name .cargo-checksum.json -execdir "$(CURDIR)/debian/prune-checksums" "{}" +
 	# Link against system liblzma, see https://github.com/alexcrichton/xz2-rs/issues/16
-	echo 'fn main() { println!("cargo:rustc-link-lib=lzma"); }' > vendor/lzma-sys/build.rs
+	for c in vendor/lzma-sys-*; do \
+		echo 'fn main() { println!("cargo:rustc-link-lib=lzma"); }' > "$$c/build.rs"; \
+	done
 	# We don't run ./configure because we use debian/config.toml directly
 	ln -sf debian/config.toml config.toml
 	touch "$@"
@@ -498,10 +500,10 @@ override_dh_install-indep:
 		-o -name '.eslintrc.js' \
 		\) -delete
 	# Remove files that autoload remote resources, caught by lintian
-	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/cssparser/docs/*.html
-	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/kuchiki/docs/*.html
-	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/url/docs/*.html
-	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/xz2/.gitmodules
+	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/cssparser-*/docs/*.html
+	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/kuchiki-*/docs/*.html
+	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/url-*/docs/*.html
+	$(RM) -rf debian/rust-$(RUST_VERSION)-src/usr/src/rustc-*/vendor/xz2-*/.gitmodules
 
 override_dh_installchangelogs:
 	dh_installchangelogs RELEASES.md
