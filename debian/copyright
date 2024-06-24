@@ -34,6 +34,7 @@ Files-Excluded:
  src/tools/clippy/util/gh-pages
 # Embedded C libraries
  vendor/curl-sys-*/curl
+ vendor/libdbus-sys-*/vendor
  vendor/libgit2-sys-*/libgit2
  vendor/libssh2-sys-*/libssh2
  vendor/libsqlite3-sys-*/sqlite3/*.c
