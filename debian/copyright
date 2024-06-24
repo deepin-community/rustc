@@ -7,10 +7,10 @@ Files-Excluded:
 # Pre-generated docs
  src/tools/rustfmt/docs
 # Fonts already in Debian, covered by d-0003-mdbook-strip-embedded-libs.patch
- vendor/mdbook/src/theme/fonts
- vendor/mdbook/src/theme/FontAwesome
- vendor/mdbook/src/theme/highlight.js
- vendor/mdbook/src/theme/highlight.css
+ vendor/mdbook-*/src/theme/fonts
+ vendor/mdbook-*/src/theme/FontAwesome
+ vendor/mdbook-*/src/theme/highlight.js
+ vendor/mdbook-*/src/theme/highlight.css
 # DOCX versions of TRPL book prepared for No Starch Press
  src/doc/book/nostarch/docx
 # Exclude submodules https://github.com/rust-lang/rust/tree/master/src/tools
@@ -33,20 +33,28 @@ Files-Excluded:
 # Embedded GH pages
  src/tools/clippy/util/gh-pages
 # Embedded C libraries
+ vendor/curl-sys-*/curl
+ vendor/libgit2-sys-*/libgit2
+ vendor/libssh2-sys-*/libssh2
+ vendor/libsqlite3-sys-*/sqlite3/*.c
+ vendor/libsqlite3-sys-*/sqlite3/*.h
+ vendor/libsqlite3-sys-*/sqlcipher/*.c
+ vendor/libsqlite3-sys-*/sqlcipher/*.h
+ vendor/libz-sys-*/src/zlib*
  vendor/lzma-sys*/xz-*
- vendor/libgit2-sys/libgit2
- vendor/libssh2-sys/libssh2
- vendor/curl-sys/curl
- vendor/libz-sys/src/zlib*
- vendor/libsqlite3-sys/sqlite3/*.c
- vendor/libsqlite3-sys/sqlite3/*.h
- vendor/libsqlite3-sys/sqlcipher/*.c
- vendor/libsqlite3-sys/sqlcipher/*.h
 # Embedded binary blobs
- vendor/jsonpath_lib/docs
- vendor/mdbook/src/theme/playground_editor
- vendor/psm/src/arch/wasm32.o
+ vendor/jsonpath_lib-*/docs
+ vendor/mdbook-*/src/theme/playground_editor
+ vendor/psm-*/src/arch/wasm32.o
  vendor/winapi-*/*/*.a
+# test binary files
+ vendor/libloading-*/tests/*.dll
+# Misc
+ vendor/*/icon_CLion.svg
+ vendor/prettydiff-*/screens/*.png
+ vendor/wasm-bindgen-*/guide
+ vendor/wasm-bindgen-*/examples/import_js/index.js
+ vendor/wasm-bindgen-*/examples/import_js/webpack.config.js
 # Non-Linux components
  src/tools/cargo/credential/cargo-credential-wincred
  src/tools/cargo/credential/cargo-credential-macos-keychain
