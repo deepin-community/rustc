@@ -20,8 +20,19 @@ ORIG_M1=$(prev_stable $ORIG)
 NEW_M1=$(prev_stable $NEW)
 ORIG_R="${ORIG/./\\.}" # match a literal dot, otherwise this might sometimes match e.g. debhelper (>= 9.20141010)
 
-WASI_CI="$(grep -Rl "git clone https://github.com/WebAssembly/wasi-libc" ../src/ci | head -n1)"
-WASI_COMMIT="$(egrep -o '\b[0-9A-Fa-f]{7}' "$WASI_CI")"
+WASI_CI="$(grep -Rl "^RUN curl -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-.*" ../src/ci | head -n1)"
+WASI_SDK_VER="$(egrep -o '\bwasi-sdk-[0-9]+\b' "$WASI_CI" | head -n1)"
+
+if [ -z "$WASI_SDK_VER" ]; then
+  echo >&2 "error: could not determine WASI_SDK version used by rustc upstream!"
+  exit 1
+fi
+
+WASI_TMP="$(mktemp -d)"
+git clone https://github.com/WebAssembly/wasi-sdk -b "$WASI_SDK_VER" "$WASI_TMP"
+WASI_COMMIT="$( (cd "$WASI_TMP" && git submodule status src/wasi-libc | sed -e 's/^-//' | egrep -o '^[0-9a-f]{7}') )"
+rm -rf "$WASI_TMP"
+
 WASI_REGEX='wasi-libc \(([><=]+) 0.0~git([0-9]+).([0-9a-f]+)([~+]+)\)'
 
 if [ -z "$WASI_COMMIT" -o "$(printf '%s\n' "$WASI_COMMIT" | wc -l)" != 1 ]; then
