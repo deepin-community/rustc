@@ -91,7 +91,7 @@ def prepare_debian(cargo_home, registry, cratespec, host_gnu_type, ldflags, link
     elif not os.path.exists(registry_path):
         raise ValueError("non-existent registry: %s" % registry)
 
-    rustflags = "-C debuginfo=2 --cap-lints warn".split()
+    rustflags = "-C debuginfo=2 -C strip=none --cap-lints warn".split()
     rustflags.extend(["-C", "linker=%s-gcc" % host_gnu_type])
     for f in ldflags:
         rustflags.extend(["-C", "link-arg=%s" % f])
@@ -123,6 +123,9 @@ directory = "{0}"
 
 [build]
 rustflags = {1}
+
+[profile.release]
+debug = true
 """.format(registry_path, repr(rustflags)))
 
     return 0
