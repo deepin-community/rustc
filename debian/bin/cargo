@@ -114,7 +114,7 @@ def prepare_debian(cargo_home, registry, cratespec, host_gnu_type, ldflags, link
     #rustflags.extend(["-C", "prefer-dynamic"])
 
     os.makedirs(cargo_home, exist_ok=True)
-    with open("%s/config" % cargo_home, "w") as fp:
+    with open("%s/config.toml" % cargo_home, "w") as fp:
         fp.write("""[source.crates-io]
 replace-with = "dh-cargo-registry"
 
@@ -192,7 +192,7 @@ def main(*args):
 
     if "RUSTFLAGS" in os.environ:
         # see https://github.com/rust-lang/cargo/issues/6338 for explanation on why we must do this
-        log("unsetting RUSTFLAGS and assuming it will be (or already was) added to $CARGO_HOME/config")
+        log("unsetting RUSTFLAGS and assuming it will be (or already was) added to $CARGO_HOME/config.toml")
         extra_rustflags = os.environ["RUSTFLAGS"]
         del os.environ["RUSTFLAGS"]
     else:
@@ -239,7 +239,7 @@ def main(*args):
             shutil.rmtree(cargo_home)
         return 0
 
-    cargo_config = "%s/config" % cargo_home
+    cargo_config = "%s/config.toml" % cargo_home
     if not os.path.exists(cargo_config):
         raise ValueError("does not exist: %s, did you run `cargo prepare-debian <registry>`?" % cargo_config)
 
