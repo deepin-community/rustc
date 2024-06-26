@@ -10,11 +10,11 @@ Forwarded: no
  tests/ui/threads-sendsync/mpsc_stress.rs              | 1 +
  4 files changed, 10 insertions(+)
 
-diff --git a/tests/run-make/long-linker-command-lines/foo.rs b/tests/run-make/long-linker-command-lines/foo.rs
-index db238c0..c8ad6b8 100644
---- a/tests/run-make/long-linker-command-lines/foo.rs
-+++ b/tests/run-make/long-linker-command-lines/foo.rs
-@@ -44,6 +44,13 @@ fn read_linker_args(path: &Path) -> String {
+Index: rustc-1.79.0+dfsg1/tests/run-make/long-linker-command-lines/foo.rs
+===================================================================
+--- rustc-1.79.0+dfsg1.orig/tests/run-make/long-linker-command-lines/foo.rs
++++ rustc-1.79.0+dfsg1/tests/run-make/long-linker-command-lines/foo.rs
+@@ -44,6 +44,13 @@ fn read_linker_args(path: &Path) -> Stri
      }
  }
  
@@ -28,10 +28,10 @@ index db238c0..c8ad6b8 100644
  fn main() {
      let tmpdir = PathBuf::from(env::var_os("TMPDIR").unwrap());
      let ok = tmpdir.join("ok");
-diff --git a/tests/ui/associated-consts/issue-93775.rs b/tests/ui/associated-consts/issue-93775.rs
-index c9044e2..a49a280 100644
---- a/tests/ui/associated-consts/issue-93775.rs
-+++ b/tests/ui/associated-consts/issue-93775.rs
+Index: rustc-1.79.0+dfsg1/tests/ui/associated-consts/issue-93775.rs
+===================================================================
+--- rustc-1.79.0+dfsg1.orig/tests/ui/associated-consts/issue-93775.rs
++++ rustc-1.79.0+dfsg1/tests/ui/associated-consts/issue-93775.rs
 @@ -1,5 +1,6 @@
  //@ build-pass
  // ignore-tidy-linelength
@@ -39,10 +39,10 @@ index c9044e2..a49a280 100644
  
  // Regression for #93775, needs build-pass to test it.
  
-diff --git a/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs b/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
-index c0ffed2..6693c07 100644
---- a/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
-+++ b/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
+Index: rustc-1.79.0+dfsg1/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
+===================================================================
+--- rustc-1.79.0+dfsg1.orig/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
++++ rustc-1.79.0+dfsg1/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
 @@ -1,5 +1,6 @@
  //@ build-pass
  // ignore-tidy-filelength
@@ -50,10 +50,10 @@ index c0ffed2..6693c07 100644
  #![crate_type = "rlib"]
  
  fn banana(v: &str) -> u32 {
-diff --git a/tests/ui/threads-sendsync/mpsc_stress.rs b/tests/ui/threads-sendsync/mpsc_stress.rs
-index f5354c6..413239e 100644
---- a/tests/ui/threads-sendsync/mpsc_stress.rs
-+++ b/tests/ui/threads-sendsync/mpsc_stress.rs
+Index: rustc-1.79.0+dfsg1/tests/ui/threads-sendsync/mpsc_stress.rs
+===================================================================
+--- rustc-1.79.0+dfsg1.orig/tests/ui/threads-sendsync/mpsc_stress.rs
++++ rustc-1.79.0+dfsg1/tests/ui/threads-sendsync/mpsc_stress.rs
 @@ -1,6 +1,7 @@
  //@ run-pass
  //@ compile-flags:--test
@@ -62,3 +62,14 @@ index f5354c6..413239e 100644
  
  use std::sync::mpsc::channel;
  use std::sync::mpsc::TryRecvError;
+Index: rustc-1.79.0+dfsg1/tests/crashes/115994.rs
+===================================================================
+--- rustc-1.79.0+dfsg1.orig/tests/crashes/115994.rs
++++ rustc-1.79.0+dfsg1/tests/crashes/115994.rs
+@@ -1,5 +1,6 @@
+ //@ known-bug: #115994
+ //@ compile-flags: -Cdebuginfo=2 --crate-type lib
++//@ ignore-hurd
+ 
+ // To prevent "overflow while adding drop-check rules".
+ use std::mem::ManuallyDrop;
