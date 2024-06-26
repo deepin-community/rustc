@@ -249,7 +249,7 @@ Description: Rust linter
 Package: rustfmt-@RUST_VERSION@
 Architecture: any
 Multi-Arch: allowed
-Depends: ${misc:Depends}, ${shlibs:Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends}, libstd-rust-@RUST_VERSION@ (= ${binary:Version}),
 Recommends: cargo-@RUST_VERSION@
 Description: Rust formatting helper
  Rust is a curly-brace, block-structured expression language.  It
