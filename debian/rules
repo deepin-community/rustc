@@ -446,7 +446,9 @@ debian/dh_auto_install.stamp:
 	done
 
 	# Remove Cargo made package cache
-	rm -v $(CURDIR)/debian/cargo/.package-cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache-mutate
+	rm -vf $(CURDIR)/debian/cargo/.global-cache
 
 	# Install the cargo wrapper
 	install -Dvm755 debian/cargo-$(RUST_VERSION).sh $(DEB_DESTDIR)/usr/bin/cargo-$(RUST_VERSION)
@@ -460,6 +462,11 @@ ifeq (true,$(BUILD_WINDOWS))
 	  --target $(WINDOWS_ARCH)-pc-windows-gnu \
 	  library/std
 endif
+	# Remove Cargo made package cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache-mutate
+	rm -vf $(CURDIR)/debian/cargo/.global-cache
+
 
 override_dh_auto_install-indep: debian/dh_auto_install.stamp
 ifeq (true,$(BUILD_WASM))
@@ -486,6 +493,11 @@ ifeq (true,$(BUILD_DOCS))
 	done
 	find $(DEB_DESTDIR) \( -iname '*.html' -empty -o -name .lock -o -name '*.inc' \) -delete;
 endif
+	# Remove Cargo made package cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache
+	rm -vf $(CURDIR)/debian/cargo/.package-cache-mutate
+	rm -vf $(CURDIR)/debian/cargo/.global-cache
+
 
 override_dh_install-indep:
 	dh_install
