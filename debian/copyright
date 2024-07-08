@@ -550,7 +550,6 @@ Files:
  vendor/socket2/*
  vendor/toml-0.5.11/*
  vendor/toml-0.7.5/*
- vendor/tar-0.4.38/*
 Copyright: 2014-2023 Alex Crichton <alex@alexcrichton.com>
            2015-2023 The Rust Project Developers
 License: MIT or Apache-2.0
@@ -598,6 +597,7 @@ Comment: see https://github.com/notriddle/ammonia
 
 Files:
  vendor/annotate-snippets/*
+ vendor/annotate-snippets-0.9.1/*
 Copyright: 2018-2020 Zibi Braniecki <gandalf@mozilla.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/zbraniecki/annotate-snippets-rs
@@ -605,7 +605,6 @@ Comment: see https://github.com/zbraniecki/annotate-snippets-rs
 Files:
  vendor/aho-corasick/*
  vendor/memchr/*
- vendor/aho-corasick-0.7.20/*
 Copyright: 2015 Andrew Gallant <jamslam@gmail.com>
            2015-2018 bluss
 License: MIT or Unlicense
@@ -777,7 +776,6 @@ Files:
  vendor/syn-1.*/*
  vendor/unicode-ident/*
  vendor/itoa-0.4.8/*
- vendor/syn-1.0.109/*
 Copyright: 2016-2022 David Tolnay <dtolnay@gmail.com>
 License: MIT or Apache-2.0
 Comment:
@@ -926,7 +924,7 @@ Comment: see https://github.com/vn-ki/gsgdt-rs
 
 Files:
  vendor/handlebars/*
- vendor/handlebars-3.5.5/*
+ vendor/handlebars-4.3.7/*
 Copyright: 2014-2017 Ning Sun <sunng@about.me>
 License: MIT
 Comment: see https://github.com/sunng87/handlebars-rust
@@ -1031,7 +1029,6 @@ Comment:
  see https://github.com/Kimundi/owning-ref-rs
 
 Files: vendor/libloading/*
- vendor/libloading-0.*/*
 Copyright: 2015-2022 Simonas Kazlauskas <libloading@kazlauskas.me>
 License: ISC
 Comment: see https://github.com/nagisa/rust_libloading/
@@ -1432,7 +1429,7 @@ License: MIT
 Comment: see https://github.com/mystor/synstructure
 
 Files: vendor/sysinfo/*
- vendor/sysinfo-0.26.7/*
+ vendor/sysinfo-0.29.11/*
 Copyright: 2015-2022 Guillaume Gomez <guillaume1.gomez@gmail.com>
 License: MIT
 Comment: see https://github.com/GuillaumeGomez/sysinfo
@@ -2070,7 +2067,6 @@ Files:
  vendor/gix-packetline-blocking/*
  vendor/gix-filter/*
  vendor/gix-trace/*
- vendor/gix-features-0.35.0/*
 Copyright: 2023 Sebastian Thiel <sebastian.thiel@icloud.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
@@ -2379,7 +2375,6 @@ Comment: see https://github.com/bodil/sized-chunks
 
 Files:
  vendor/quick-error/*
- vendor/quick-error-1.2.3/*
 Copyright: 2015-2021 Paul Colomiets <paul@colomiets.name>
   2015-2021 Colin Kiegel <kiegel@gmx.de>
 License: MIT OR Apache-2.0
@@ -2494,12 +2489,6 @@ Copyright: 2018-2023 Sean McArthur <sean@seanmonstar.com>
 License: MIT
 Comment: see https://github.com/seanmonstar/want
 
-Files: vendor/thiserror-core/*
-Copyright: 2022-2023 David Tolnay <dtolnay@gmail.com>
-  2022-2023 Florian Uekermann <florian@code.green>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/FlorianUekermann/thiserror/tree/core
-
 Files: vendor/anes/*
 Copyright: 2019 Robert Vojta <rvojta@me.com>
 License: MIT OR Apache-2.0
@@ -2535,12 +2524,6 @@ Files:
 Copyright: 2017-2023 Ted Driggs <ted.driggs@outlook.com>
 License: MIT
 Comment: see https://github.com/TedDriggs/darling
-
-Files: vendor/thiserror-core-impl/*
-Copyright: 2022-2023 David Tolnay <dtolnay@gmail.com>
-  2022-2023 Florian Uekermann <florian@code.green>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/FlorianUekermann/thiserror/tree/core
 
 Files: vendor/tower-service/*
 Copyright: 2018-2022 Tower Maintainers <team@tower-rs.com>
@@ -2759,7 +2742,6 @@ License: MIT OR Apache-2.0
 Comment: see https://github.com/Byron/gitoxide
 
 Files: vendor/faster-hex/*
- vendor/faster-hex-0.8.1/*
 Copyright: 2018-2023 zhangsoledad <787953403@qq.com>
 License: MIT
 Comment: see https://github.com/NervosFoundation/faster-hex
@@ -2884,11 +2866,6 @@ Copyright: 2018-2023 gnzlbg
 License: MIT OR Apache-2.0
 Comment: see https://github.com/rust-lang/packed_simd
 
-Files: vendor/ra-ap-rustc_parse_format/*
-Copyright: 2023-2024 Lukas Wirth
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/rust
-
 Files: vendor/rust-analyzer-salsa/*
 Copyright: 2023-2024 Salsa developers
 License: Apache-2.0 OR MIT
@@ -2948,11 +2925,6 @@ Copyright: 2015-2024 The rusqlite developers
 License: MIT
 Comment: see https://github.com/rusqlite/rusqlite
 
-Files: vendor/ra-ap-rustc_abi/*
-Copyright: 2023-2024 Lukas Wirth
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/rust
-
 Files: vendor/hashlink/*
 Copyright: 2019-2024 kyren <kerriganw@gmail.com>
 License: MIT OR Apache-2.0
@@ -2968,25 +2940,10 @@ Copyright: 2018-2024 Joshua Liebow-Feeser <joshlf@google.com>
 License: BSD-2-Clause OR Apache-2.0 OR MIT
 Comment: see https://github.com/google/zerocopy
 
-Files: vendor/ra-ap-rustc_index_macros/*
-Copyright: 2023-2024 Lukas Wirth
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/rust
-
-Files: vendor/typed-arena/*
-Copyright: 2015-2023 The typed-arena developers
-License: MIT
-Comment: see https://github.com/SimonSapin/rust-typed-arena
-
 Files: vendor/shell-words/*
 Copyright: 2018-2022 Tomasz Miąsko <tomasz.miasko@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/tmiasko/shell-words
-
-Files: vendor/ra-ap-rustc_index/*
-Copyright: 2023-2024 Lukas Wirth
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/rust
 
 Files: vendor/fst/*
 Copyright: 2015-2021 Andrew Gallant <jamslam@gmail.com>
