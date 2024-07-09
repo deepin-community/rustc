@@ -1,3 +1,27 @@
+rustc-1.77 (1.77.2+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
+
+  [ Zixing Liu ]
+
+  * New upstream release 1.77.2 (LP: #2070410)
+    - d/patches: Refresh patches
+    - d/copyright: update the list of unused crates
+    - d/copyright: update copyright data
+    - d/libstd-rust-*: bump version to 1.77
+    - d/patches: remove obsoleted patches   
+    - d/s/lintian-overrides*: update lintian overrides
+    - d/control: update vendored crate list
+  * d/p/ubuntu-add-s390x-allowed-features.patch: fix s390x build with backchain
+  * d/tests: fix self-build tests when rust-defaults package does not point to
+    the current versioned package
+  * d/control: Build-Depends solely on versioned packages
+
+  [ Fabian Grünbichler ]
+
+  * config: don't attempt to optimize compiler-rt
+  * update upstream unsuspicious files
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Mon, 08 Jul 2024 23:49:29 -0600
+
 rustc-1.76 (1.76.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.76.0 (LP: #2052985)
