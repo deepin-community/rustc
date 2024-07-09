@@ -207,7 +207,7 @@ ifneq ($(DEFINED_SRC_NAME),rustc-$(RUST_VERSION))
 	$(error Source package name is incorrect:\
 	  Source: $(DEFINED_SRC_NAME), expected: rustc-$(RUST_VERSION). Please check d/changelog)
 endif
-	for f in debian/*.in; do \
+	for f in debian/*.in debian/source/*.in; do \
 		f2=$$(echo $$f | sed 's/\.in$$//;s/X\.Y/$(RUST_VERSION)/'); \
 		echo "$$f => $$f2"; \
 		sed -e 's|@RUST_VERSION@|$(RUST_VERSION)|g' \
