@@ -1,3 +1,0 @@
-usr/share/man/man1/gdb.1.gz usr/share/man/man1/rust-${env:RUST_VERSION}-gdb.1.gz
-usr/lib/rust-${env:RUST_VERSION}/bin/rust-gdb usr/bin/rust-${env:RUST_VERSION}-gdb
-usr/lib/rust-${env:RUST_VERSION}/bin/rust-gdbgui usr/bin/rust-${env:RUST_VERSION}-gdbgui

@@ -1,5 +1,0 @@
-usr/lib/rust-${env:RUST_VERSION}/bin/rust-gdb
-usr/lib/rust-${env:RUST_VERSION}/bin/rust-gdbgui
-usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/etc/gdb_load_rust_pretty_printers.py
-usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/etc/gdb_lookup.py
-usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/etc/gdb_providers.py

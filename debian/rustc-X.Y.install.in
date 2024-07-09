@@ -1,7 +1,0 @@
-usr/lib/rust-${env:RUST_VERSION}/bin/rustc
-usr/lib/rust-${env:RUST_VERSION}/bin/rustdoc
-usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/etc/rust_types.py
-usr/lib/rust-${env:RUST_VERSION}/libexec/rust-analyzer-proc-macro-srv
-debian/architecture.mk usr/share/rustc-${env:RUST_VERSION}/
-debian/wasi-node usr/share/rustc-${env:RUST_VERSION}/bin/
-Cargo.lock usr/share/doc/rustc-${env:RUST_VERSION}/
