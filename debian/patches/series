@@ -71,3 +71,4 @@ d-0022-rust-by-example-strip-embedded-libs.patch
 ubuntu-disable-nanum-fonts.patch
 ubuntu-upgrade-cc-to-1.0.85.patch
 ubuntu-skip-gdb-tests.patch
+ubuntu-add-s390x-allowed-features.patch
