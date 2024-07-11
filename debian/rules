@@ -14,6 +14,7 @@ RUST_LONG_VERSION := $(shell echo '$(DEB_VERSION_UPSTREAM)' | sed -re 's/([^+]+)
 RUST_PREV_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)-1"."0}')
 RUST_NEXT_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)+1"."$$3+1}')
 LIBSTD_PKG := libstd-rust-$(RUST_VERSION)
+RUST_DESTDIR ?= /usr
 # Sed expression that matches the "rustc" we have in our Build-Depends field
 SED_RUSTC_BUILDDEP := sed -ne "/^Build-Depends:/,/^[^[:space:]\#]/{/^ *rustc:native .*,/p}" debian/control
 # Version of /usr/bin/rustc
@@ -84,6 +85,11 @@ RUSTBUILD_TEST_FLAGS =
 # TODO: remove when we update cargo to 1.55 / 0.56
 # upstream bug still exists and is under investigation, but is hidden by newer cargo
 export CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL=0
+
+# autopkgtest-related logic
+ifneq (,$(RUST_TEST_SELFBUILD))
+RUST_DESTDIR = /usr/lib/rust-$(RUST_VERSION)
+endif
 
 update-version:
 	oldver=$(shell $(SED_RUSTC_BUILDDEP) | sed -ne 's/.*(<= \(.*\)).*/\1/gp' | $(SED_VERSION_SHORT)); \

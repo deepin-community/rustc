@@ -1,4 +1,4 @@
-Test-Command: ./debian/rules build
+Test-Command: ./debian/rules build RUST_TEST_SELFBUILD=1
 Depends: @, @builddeps@
 Restrictions: rw-build-tree, allow-stderr
 
