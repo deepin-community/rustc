@@ -1,2 +1,2 @@
-usr/share/man/man1/lldb-17.1.gz usr/share/man/man1/rust-${env:RUST_VERSION}-lldb.1.gz
+usr/share/man/man1/lldb-18.1.gz usr/share/man/man1/rust-${env:RUST_VERSION}-lldb.1.gz
 usr/lib/rust-${env:RUST_VERSION}/bin/rust-lldb usr/bin/rust-${env:RUST_VERSION}-lldb
