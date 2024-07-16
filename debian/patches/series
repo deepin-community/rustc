@@ -1,74 +1,52 @@
-# Cargo patches
-c-2002_disable-net-tests.patch
-c-2003-workaround-qemu-vfork-command-not-found.patch
-
-c-2200-workaround-x32-test.patch
-c-disable-fs-specific-test.patch
-c-0003-tests-add-missing-cross-disabled-checks.patch
-
-# Patches for upstream
-
-# pending, or forwarded
-u-reproducible-build.patch
-#u-fix-get-toml-when-test.patch
-
-# not forwarded, or forwarded but unlikely to be merged
-u-ignore-ppc-hangs.patch
-u-rustc-llvm-cross-flags.patch
-#u-allow-system-compiler-rt.patch
-
-# Debian-specific patches, not suitable for upstream
-d-disable-download-tests.patch
-
-## Patches needed by debian/prune-unused-deps, for building bootstrap
-d-0000-ignore-removed-submodules.patch
-d-0001-pkg-config-no-special-snowflake.patch
-d-0002-mdbook-strip-embedded-libs.patch
-d-0003-cc-psm-rebuild-wasm32.patch
-#d-0004-clippy-feature-sync.patch
-d-0005-no-jemalloc.patch
-# cargo
-d-0010-cargo-remove-vendored-c-crates.patch
-d-0011-cargo-remove-nghttp2.patch
-d-0012-cargo-always-return-dev-channel.patch
-
-## Patches to the build process, including doc path tweaks
-## Should not change resulting rustc behaviour
-d-bootstrap-rustflags.patch
-d-bootstrap-install-symlinks.patch
-d-bootstrap-disable-git.patch
-d-bootstrap-no-assume-tools.patch
-d-bootstrap-use-local-css.patch
-# d-bootstrap-custom-debuginfo-path.patch
-d-bootstrap-permit-symlink-in-docs.patch
-d-test-ignore-avx-44056.patch
-d-armel-fix-lldb.patch
-
-# Work around for some porterboxes, keep this commented
-#d-test-host-duplicates.patch
-# Experimental patch not yet working
-#d-bootstrap-use-system-compiler-rt.patch
-
-## Patches to rustc behaviour, including path lookup tweaks
-d-rust-gdb-paths
-d-rust-lldb-paths
-d-rustc-add-soname.patch
-d-rustc-windows-ssp.patch
-d-rustc-i686-baseline.patch
-# Experimental patch not yet working
-#d-rustc-prefer-dynamic.patch
-d-rustdoc-disable-embedded-fonts.patch
-
-# cherry-picked from ubuntu
-ubuntu-disable-ppc64el-asm-tests.patch
-ubuntu-ignore-arm-doctest.patch
-ubuntu-vendor-no-workspace.patch
-ubuntu-use-system-profiler-rt.patch
-ubuntu-use-system-compiler-during-tests.patch
-d-0020-remove-windows-dependencies.patch
-d-0021-vendor-remove-windows-dependencies.patch
-d-0022-rust-by-example-strip-embedded-libs.patch
-ubuntu-disable-nanum-fonts.patch
-ubuntu-upgrade-cc-to-1.0.85.patch
-ubuntu-skip-gdb-tests.patch
-ubuntu-add-s390x-allowed-features.patch
+cargo/c-2002_disable-net-tests.patch
+cargo/c-2003-workaround-qemu-vfork-command-not-found.patch
+cargo/c-2200-workaround-x32-test.patch
+cargo/c-disable-fs-specific-test.patch
+cargo/c-0003-tests-add-missing-cross-disabled-checks.patch
+cargo/d-0012-cargo-always-return-dev-channel.patch
+upstream/u-fix-get-toml-when-test.patch
+upstream/u-avoid-blessing-cargo-deps-s-source-code-in-ui-tests.patch
+upstream/u-ignore-ppc-hangs.patch
+upstream/u-rustc-llvm-cross-flags.patch
+upstream/u-hurd-tests.patch
+upstream/d-ignore-test_arc_condvar_poison-ppc.patch
+upstream/d-disable-download-tests.patch
+upstream/u-set-the-host-library-path-in-run-make-v2.patch
+prune/d-0000-ignore-removed-submodules.patch
+prune/d-0001-pkg-config-no-special-snowflake.patch
+prune/d-0002-mdbook-strip-embedded-libs.patch
+prune/d-0005-no-jemalloc.patch
+prune/d-0010-cargo-remove-vendored-c-crates.patch
+prune/d-0011-cargo-remove-nghttp2.patch
+prune/d-0020-remove-windows-dependencies.patch
+prune/d-0021-vendor-remove-windows-dependencies.patch
+vendor/u-hurd-backtrace.patch
+vendor/u-hurd-gix-index.patch
+vendor/u-hurd-gix-index-2.patch
+vendor/u-hurd-socket2.patch
+vendor/u-hurd-rustix.patch
+vendor/d-0003-cc-psm-rebuild-wasm32.patch
+build/d-bootstrap-rustflags.patch
+build/d-bootstrap-install-symlinks.patch
+build/d-bootstrap-disable-git.patch
+build/d-bootstrap-no-assume-tools.patch
+build/d-bootstrap-cargo-doc-paths.patch
+build/d-bootstrap-use-local-css.patch
+build/d-bootstrap-custom-debuginfo-path.patch
+build/d-bootstrap-permit-symlink-in-docs.patch
+build/d-test-ignore-avx-44056.patch
+build/d-armel-fix-lldb.patch
+behaviour/d-rust-gdb-paths.patch
+behaviour/d-rust-lldb-paths.patch
+behaviour/d-rustc-add-soname.patch
+behaviour/d-rustc-windows-ssp.patch
+behaviour/d-rustc-i686-baseline.patch
+behaviour/d-rustdoc-disable-embedded-fonts.patch
+ubuntu/ubuntu-disable-ppc64el-asm-tests.patch
+ubuntu/ubuntu-ignore-arm-doctest.patch
+ubuntu/ubuntu-vendor-no-workspace.patch
+ubuntu/ubuntu-use-system-compiler-during-tests.patch
+upstream/Revert-loongarch-add-frecipe-and-relax-target-feature.patch
+ubuntu/ubuntu-disable-nanum-fonts.patch
+ubuntu/ubuntu-skip-gdb-tests.patch
+ubuntu/ubuntu-add-s390x-allowed-features.patch

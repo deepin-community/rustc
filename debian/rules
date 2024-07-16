@@ -52,8 +52,7 @@ endif
 ifeq (armhf,$(DEB_TARGET_ARCH))
 CLANG_RT_ARCH = armhf
 endif
-export DEB_LLVM_VERSION = $(LLVM_VERSION)
-export DEB_CLANG_RT_ARCH = $(CLANG_RT_ARCH)
+export LLVM_PROFILER_RT_LIB = /usr/lib/clang/$(LLVM_VERSION)/lib/linux/libclang_rt.profile-$(CLANG_RT_ARCH).a
 # Cargo-specific flags
 export LIBSSH2_SYS_USE_PKG_CONFIG=1
 # Make it easier to test against a custom LLVM
