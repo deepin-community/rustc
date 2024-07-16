@@ -9,9 +9,19 @@ Forwarded: not-needed
 Last-Update: 2022-08-25
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
---- a/Cargo.toml
-+++ b/Cargo.toml
-@@ -42,6 +42,9 @@
+Index: rustc/Cargo.toml
+===================================================================
+--- rustc.orig/Cargo.toml
++++ rustc/Cargo.toml
+@@ -35,7 +35,6 @@ members = [
+   "src/tools/collect-license-metadata",
+   "src/tools/generate-copyright",
+   "src/tools/suggest-tests",
+-  "src/tools/generate-windows-sys",
+   "src/tools/rustdoc-gui-test",
+   "src/tools/opt-dist",
+   "src/tools/coverage-dump",
+@@ -56,6 +55,9 @@ exclude = [
    "src/tools/x",
    # stdarch has its own Cargo workspace
    "library/stdarch",
