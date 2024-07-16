@@ -11,9 +11,9 @@ Index: rustc/src/bootstrap/src/core/config/config.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/config/config.rs
 +++ rustc/src/bootstrap/src/core/config/config.rs
-@@ -1283,7 +1283,6 @@ impl Config {
+@@ -1467,7 +1467,6 @@ impl Config {
              }
-             PathBuf::from(rustc)
+             rustc
          } else {
 -            config.download_beta_toolchain();
              config.out.join(config.build.triple).join("stage0/bin/rustc")
