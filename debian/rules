@@ -191,6 +191,7 @@ FILES_TO_PRECONFIGURE_OUT := $(subst X.Y,$(RUST_VERSION),\
   )\
 )
 DEFINED_SRC_NAME = $(shell dpkg-parsechangelog -S Source)
+DEFINED_SRC_VERSION = $(shell cut -f1 -d' ' < $(CURDIR)/version)
 
 %:
 	$(SYSTEM_WORKAROUNDS) dh $@ --parallel --with bash-completion
@@ -208,6 +209,10 @@ override_dh_clean: debian/control
 	dh_clean -XCargo.toml.orig
 
 debian/preconfigure.stamp: $(FILES_TO_PRECONFIGURE) debian/changelog
+ifneq ($(RUST_LONG_VERSION),$(DEFINED_SRC_VERSION))
+	$(error Version is incorrect:\
+	  Source: $(RUST_LONG_VERSION), expected $(DEFINED_SRC_VERSION). Please check d/changelog)
+endif
 ifneq ($(DEFINED_SRC_NAME),rustc-$(RUST_VERSION))
 	$(error Source package name is incorrect:\
 	  Source: $(DEFINED_SRC_NAME), expected: rustc-$(RUST_VERSION). Please check d/changelog)
