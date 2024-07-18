@@ -11,8 +11,8 @@ include /usr/share/dpkg/architecture.mk
 SED_VERSION_SHORT := sed -re 's/([^.]+)\.([^.]+)\..*/\1.\2/'
 RUST_VERSION := $(shell echo '$(DEB_VERSION_UPSTREAM)' | $(SED_VERSION_SHORT))
 RUST_LONG_VERSION := $(shell echo '$(DEB_VERSION_UPSTREAM)' | sed -re 's/([^+]+).*/\1/')
-RUST_PREV_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)-1"."0}')
-RUST_NEXT_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)+1"."$$3+1}')
+RUST_PREV_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)-1}')
+RUST_NEXT_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)+1}')
 LIBSTD_PKG := libstd-rust-$(RUST_VERSION)
 RUST_DESTDIR ?= /usr
 # Sed expression that matches the "rustc" we have in our Build-Depends field
@@ -229,6 +229,8 @@ debian/config.toml: debian/config.toml.in debian/rules debian/preconfigure.stamp
 	u="$(DEB_VERSION_UPSTREAM)"; \
 	if [ "$$u" != "$${u%~beta.*+dfsg*}" ]; then channel="beta"; \
 	else channel="stable"; fi; \
+	if [ -e /usr/lib/rust-$(RUST_VERSION) ]; then RUST_DESTDIR=/usr/lib/rust-$(RUST_VERSION); \
+	else RUST_DESTDIR=/usr/lib/rust-$(RUST_PREV_VERSION); fi; \
 	m4  -DRELEASE_CHANNEL="$$channel" \
 		-DDEB_BUILD_RUST_TYPE="$(DEB_BUILD_RUST_TYPE)" \
 		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
@@ -240,7 +242,7 @@ debian/config.toml: debian/config.toml.in debian/rules debian/preconfigure.stamp
 		-DVERBOSITY="$(VERBOSITY)" \
 		-DLLVM_DESTDIR="$(LLVM_DESTDIR)" \
 		-DLLVM_VERSION="$(LLVM_VERSION)" \
-		-DRUST_DESTDIR="$(RUST_DESTDIR)" \
+		-DRUST_DESTDIR="${RUST_DESTDIR}" \
 		-DRUST_VERSION="$(RUST_VERSION)" \
 		"$<" > "$@"
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \
