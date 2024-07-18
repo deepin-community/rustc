@@ -14,7 +14,6 @@ RUST_LONG_VERSION := $(shell echo '$(DEB_VERSION_UPSTREAM)' | sed -re 's/([^+]+)
 RUST_PREV_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)-1}')
 RUST_NEXT_VERSION=$(shell echo '$(RUST_LONG_VERSION)' | awk 'BEGIN{FS="."} {print $$1"."($$2)+1}')
 LIBSTD_PKG := libstd-rust-$(RUST_VERSION)
-RUST_DESTDIR ?= /usr
 # Sed expression that matches the "rustc" we have in our Build-Depends field
 SED_RUSTC_BUILDDEP := sed -ne "/^Build-Depends:/,/^[^[:space:]\#]/{/^ *rustc:native .*,/p}" debian/control
 # Version of /usr/bin/rustc
@@ -44,15 +43,20 @@ DEB_DESTDIR := $(CURDIR)/debian/tmp
 # Use system LLVM (comment out to use vendored LLVM)
 LLVM_VERSION = 18
 OLD_LLVM_VERSION = $(shell echo "$$(($(LLVM_VERSION)-1))")
-# used by the patched profiler build script
-CLANG_RT_ARCH := $(DEB_TARGET_GNU_CPU)
-ifeq (i386,$(DEB_TARGET_ARCH))
-CLANG_RT_ARCH = i386
+# used by the upstream profiler build script
+CLANG_RT_TRIPLE := $(shell llvm-config-$(LLVM_VERSION) --host-target)
+LLVM_PROFILER_RT_LIB = /usr/lib/clang/$(LLVM_VERSION)/lib/$(CLANG_RT_TRIPLE)/libclang_rt.profile.a
+ifneq ($(wildcard $(LLVM_PROFILER_RT_LIB)),)
+# Clang per-target layout
+export LLVM_PROFILER_RT_LIB := /../../$(LLVM_PROFILER_RT_LIB)
+else
+# Clang legacy layout
+CLANG_RT_ARCH := $(shell echo '$(CLANG_RT_TRIPLE)' | cut -f1 -d-)
+ifeq ($(DEB_HOST_ARCH),armhf)
+CLANG_RT_ARCH := armhf
 endif
-ifeq (armhf,$(DEB_TARGET_ARCH))
-CLANG_RT_ARCH = armhf
+export LLVM_PROFILER_RT_LIB := /../../usr/lib/clang/$(LLVM_VERSION)/lib/linux/libclang_rt.profile-$(CLANG_RT_ARCH).a
 endif
-export LLVM_PROFILER_RT_LIB = clang/$(LLVM_VERSION)/lib/linux/libclang_rt.profile-$(CLANG_RT_ARCH).a
 # Cargo-specific flags
 export LIBSSH2_SYS_USE_PKG_CONFIG=1
 # Make it easier to test against a custom LLVM
@@ -229,12 +233,21 @@ endif
 	done
 	touch "$@"
 
+# Find a suitable bootstrapping toolchain
+ifneq ($(RUST_DESTDIR),)
+  # Skip auto-detection and use specified toolchain
+else ifneq ($(wildcard /usr/lib/rust-$(RUST_VERSION)/bin/rustc),)
+  RUST_DESTDIR = /usr/lib/rust-$(RUST_VERSION)
+else ifneq ($(wildcard /usr/lib/rust-$(RUST_PREV_VERSION)/bin/rustc),)
+  RUST_DESTDIR = /usr/lib/rust-$(RUST_PREV_VERSION)
+else
+  $(error No suitable Rust toolchain found to bootstrap Rust $(RUST_VERSION))
+endif
+
 debian/config.toml: debian/config.toml.in debian/rules debian/preconfigure.stamp
 	u="$(DEB_VERSION_UPSTREAM)"; \
 	if [ "$$u" != "$${u%~beta.*+dfsg*}" ]; then channel="beta"; \
 	else channel="stable"; fi; \
-	if [ -e /usr/lib/rust-$(RUST_VERSION) ]; then RUST_DESTDIR=/usr/lib/rust-$(RUST_VERSION); \
-	else RUST_DESTDIR=/usr/lib/rust-$(RUST_PREV_VERSION); fi; \
 	m4  -DRELEASE_CHANNEL="$$channel" \
 		-DDEB_BUILD_RUST_TYPE="$(DEB_BUILD_RUST_TYPE)" \
 		-DDEB_HOST_RUST_TYPE="$(DEB_HOST_RUST_TYPE)" \
@@ -246,7 +259,7 @@ debian/config.toml: debian/config.toml.in debian/rules debian/preconfigure.stamp
 		-DVERBOSITY="$(VERBOSITY)" \
 		-DLLVM_DESTDIR="$(LLVM_DESTDIR)" \
 		-DLLVM_VERSION="$(LLVM_VERSION)" \
-		-DRUST_DESTDIR="${RUST_DESTDIR}" \
+		-DRUST_DESTDIR="$(RUST_DESTDIR)" \
 		-DRUST_VERSION="$(RUST_VERSION)" \
 		"$<" > "$@"
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \
