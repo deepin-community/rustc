@@ -476,7 +476,7 @@ ifeq (true,$(BUILD_DOCS))
 	@set -e; \
 	find $(DEB_DESTDIR)/usr/share/doc/*/html -iname '*.html' | \
 	while read file; do \
-	  topdir=$$(echo "$$file" | sed 's,^$(DEB_DESTDIR)/usr/share/doc/rust-$(RUST_VERSION)/html/,,; s,/[^/]*$$,/,; s,^[^/]*$$,,; s,[^/]\+/,../,g'); \
+	  topdir=$$(echo "$$file" | sed 's,^$(DEB_DESTDIR)/usr/lib/rust-$(RUST_VERSION)/share/doc/docs/html/,,; s,/[^/]*$$,/,; s,^[^/]*$$,,; s,[^/]\+/,../,g'); \
 	  sed -i \
 	    -e "s,https://\(doc\|www\).rust-lang.org/\(favicon.ico\|logos/rust-logo-32x32-blk.png\),$${topdir}rust-logo-32x32-blk.png," \
 	    -e 's,<img src="https://github.com/rust-lang/rust-clippy/workflows/Clippy%20Test%20(bors)/badge.svg[^"]*" alt="\([^"]*\)" />,<span class="deb-privacy-replace--github.com-badge">\1</span>,g' \
