@@ -1,0 +1,64 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:39 +0200
+Subject: These tests hang or make the box OOM
+
+Forwarded: no
+---
+ tests/run-make/long-linker-command-lines/foo.rs       | 7 +++++++
+ tests/ui/associated-consts/issue-93775.rs             | 1 +
+ tests/ui/issues/issue-74564-if-expr-stack-overflow.rs | 1 +
+ tests/ui/threads-sendsync/mpsc_stress.rs              | 1 +
+ 4 files changed, 10 insertions(+)
+
+diff --git a/tests/run-make/long-linker-command-lines/foo.rs b/tests/run-make/long-linker-command-lines/foo.rs
+index db238c0..c8ad6b8 100644
+--- a/tests/run-make/long-linker-command-lines/foo.rs
++++ b/tests/run-make/long-linker-command-lines/foo.rs
+@@ -44,6 +44,13 @@ fn read_linker_args(path: &Path) -> String {
+     }
+ }
+ 
++#[cfg(target_os = "hurd")]
++// Debian: test causes build to fail on hurd
++fn main() {
++    return;
++}
++
++#[cfg(not(target_os = "hurd"))]
+ fn main() {
+     let tmpdir = PathBuf::from(env::var_os("TMPDIR").unwrap());
+     let ok = tmpdir.join("ok");
+diff --git a/tests/ui/associated-consts/issue-93775.rs b/tests/ui/associated-consts/issue-93775.rs
+index c9044e2..a49a280 100644
+--- a/tests/ui/associated-consts/issue-93775.rs
++++ b/tests/ui/associated-consts/issue-93775.rs
+@@ -1,5 +1,6 @@
+ //@ build-pass
+ // ignore-tidy-linelength
++// ignore-hurd
+ 
+ // Regression for #93775, needs build-pass to test it.
+ 
+diff --git a/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs b/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
+index c0ffed2..6693c07 100644
+--- a/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
++++ b/tests/ui/issues/issue-74564-if-expr-stack-overflow.rs
+@@ -1,5 +1,6 @@
+ //@ build-pass
+ // ignore-tidy-filelength
++// ignore-hurd
+ #![crate_type = "rlib"]
+ 
+ fn banana(v: &str) -> u32 {
+diff --git a/tests/ui/threads-sendsync/mpsc_stress.rs b/tests/ui/threads-sendsync/mpsc_stress.rs
+index f5354c6..413239e 100644
+--- a/tests/ui/threads-sendsync/mpsc_stress.rs
++++ b/tests/ui/threads-sendsync/mpsc_stress.rs
+@@ -1,6 +1,7 @@
+ //@ run-pass
+ //@ compile-flags:--test
+ //@ needs-threads
++//@ ignore-hurd
+ 
+ use std::sync::mpsc::channel;
+ use std::sync::mpsc::TryRecvError;

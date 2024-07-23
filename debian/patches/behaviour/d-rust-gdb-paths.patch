@@ -1,0 +1,25 @@
+From: Angus Lees <gus@debian.org>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Hardcode GDB python module directory
+
+Debian package installs python modules into a fixed directory, so
+just hardcode path in wrapper script.
+
+Forwarded: not-needed
+---
+ src/etc/rust-gdbgui | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/etc/rust-gdbgui b/src/etc/rust-gdbgui
+index 471810c..be62b44 100755
+--- a/src/etc/rust-gdbgui
++++ b/src/etc/rust-gdbgui
+@@ -40,7 +40,7 @@ else
+ fi
+ 
+ # Find out where the pretty printer Python module is
+-RUSTC_SYSROOT="$("$RUSTC" --print=sysroot)"
++RUSTC_SYSROOT="$(if type "$RUSTC" >/dev/null 2>&1; then "$RUSTC" --print=sysroot; else echo /usr; fi)"
+ GDB_PYTHON_MODULE_DIRECTORY="$RUSTC_SYSROOT/lib/rustlib/etc"
+ # Get the commit hash for path remapping
+ RUSTC_COMMIT_HASH="$("$RUSTC" -vV | sed -n 's/commit-hash: \([a-zA-Z0-9_]*\)/\1/p')"

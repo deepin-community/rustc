@@ -1,0 +1,42 @@
+From: =?utf-8?q?Fabian_Gr=C3=BCnbichler?= <debian@fabian.gruenbichler.email>
+Date: Sat, 19 Nov 2022 10:24:08 +0100
+Subject: [PATCH] tests: add missing cross disabled checks
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+cross_conmpile::alternate states it should only be used in test cases
+after checking cross_compile::disabled(), which is missing here. these
+tests fail despite setting CFG_DISABLE_CROSS_TESTS on i386, since both
+the host and the alternate cross target would be i686 in that case.
+
+
+Signed-off-by: Fabian Grünbichler <debian@fabian.gruenbichler.email>
+---
+ src/tools/cargo/tests/testsuite/build_script.rs | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/tools/cargo/tests/testsuite/build_script.rs b/src/tools/cargo/tests/testsuite/build_script.rs
+index a60c59b..3efca33 100644
+--- a/src/tools/cargo/tests/testsuite/build_script.rs
++++ b/src/tools/cargo/tests/testsuite/build_script.rs
+@@ -741,6 +741,9 @@ fn custom_build_linker_bad_host_with_arch() {
+ #[cargo_test]
+ fn custom_build_env_var_rustc_linker_cross_arch_host() {
+     let target = rustc_host();
++    if cross_compile::disabled() {
++        return;
++    }
+     let cross_target = cross_compile::alternate();
+     let p = project()
+         .file(
+@@ -779,6 +782,9 @@ fn custom_build_env_var_rustc_linker_cross_arch_host() {
+ #[cargo_test]
+ fn custom_build_linker_bad_cross_arch_host() {
+     let target = rustc_host();
++    if cross_compile::disabled() {
++        return;
++    }
+     let cross_target = cross_compile::alternate();
+     let p = project()
+         .file(

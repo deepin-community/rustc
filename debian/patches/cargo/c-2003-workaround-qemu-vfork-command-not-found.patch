@@ -1,0 +1,28 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:38 +0200
+Subject: c-2003-workaround-qemu-vfork-command-not-found
+
+===================================================================
+---
+ src/tools/cargo/crates/cargo-test-macro/src/lib.rs | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/tools/cargo/crates/cargo-test-macro/src/lib.rs b/src/tools/cargo/crates/cargo-test-macro/src/lib.rs
+index f813b83..93e28da 100644
+--- a/src/tools/cargo/crates/cargo-test-macro/src/lib.rs
++++ b/src/tools/cargo/crates/cargo-test-macro/src/lib.rs
+@@ -229,6 +229,14 @@ fn check_command(command_path: &Path, args: &[&str]) -> bool {
+         }
+     };
+     if !output.status.success() {
++        // Debian specific patch, upstream wontfix:
++        // qemu has a faulty vfork where it fails to fail if a command is not
++        // found, with a unix_wait_status of 32512, or 0x7f00, 7f meaning
++        // exit code 127. See https://github.com/rust-lang/rust/issues/90825
++        use std::os::unix::process::ExitStatusExt;
++        if output.status.into_raw() == 0x7f00 {
++            return false;
++        }
+         panic!(
+             "expected command `{command_name}` to be runnable, got error {}:\n\
+             stderr:{}\n\

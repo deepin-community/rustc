@@ -1,0 +1,28 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: set tools to those built in Debian
+
+Forwarded: not-needed
+===================================================================
+---
+ src/bootstrap/src/core/builder/tests.rs | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/bootstrap/src/core/builder/tests.rs b/src/bootstrap/src/core/builder/tests.rs
+index 7739303..168f092 100644
+--- a/src/bootstrap/src/core/builder/tests.rs
++++ b/src/bootstrap/src/core/builder/tests.rs
+@@ -387,9 +387,13 @@ mod dist {
+     #[test]
+     fn dist_only_cross_host() {
+         let b = TargetSelection::from_user("B");
++        let mut tools = std::collections::HashSet::new();
++        tools.insert("clippy".to_string());
++        tools.insert("rustfmt".to_string());
+         let mut config = configure(&["A", "B"], &["A", "B"]);
+         config.docs = false;
+         config.extended = true;
++        config.tools = Some(tools);
+         config.hosts = vec![b];
+         let mut cache = run_build(&[], config);
+ 

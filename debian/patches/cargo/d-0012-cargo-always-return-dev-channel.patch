@@ -1,0 +1,26 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Mon, 6 May 2024 10:25:32 +0200
+Subject: d-0012-cargo-always-return-dev-channel
+
+Last-Update: 2023-05-30
+Forwarded: not-needed
+---
+ src/tools/cargo/src/cargo/core/features.rs | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/tools/cargo/src/cargo/core/features.rs b/src/tools/cargo/src/cargo/core/features.rs
+index f3290da..3420706 100644
+--- a/src/tools/cargo/src/cargo/core/features.rs
++++ b/src/tools/cargo/src/cargo/core/features.rs
+@@ -1265,9 +1265,8 @@ pub fn channel() -> String {
+             return "dev".to_string();
+         }
+     }
+-    crate::version()
+-        .release_channel
+-        .unwrap_or_else(|| String::from("dev"))
++    // Debian: always return dev channel
++    String::from("dev")
+ }
+ 
+ /// Only for testing and developing. See ["Running with gitoxide as default git backend in tests"][1].

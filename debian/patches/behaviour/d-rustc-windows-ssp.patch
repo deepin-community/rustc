@@ -1,0 +1,22 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-rustc-windows-ssp
+
+Bug: https://github.com/rust-lang/rust/issues/68973
+---
+ compiler/rustc_target/src/spec/base/windows_gnu.rs | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/compiler/rustc_target/src/spec/base/windows_gnu.rs b/compiler/rustc_target/src/spec/base/windows_gnu.rs
+index 25f02dc..402bb29 100644
+--- a/compiler/rustc_target/src/spec/base/windows_gnu.rs
++++ b/compiler/rustc_target/src/spec/base/windows_gnu.rs
+@@ -42,6 +42,8 @@ pub fn opts() -> TargetOptions {
+         "-lmsvcrt",
+         "-luser32",
+         "-lkernel32",
++        "-lssp_nonshared",
++        "-lssp",
+     ];
+     let mut late_link_args =
+         TargetOptions::link_args(LinkerFlavor::Gnu(Cc::No, Lld::No), mingw_libs);

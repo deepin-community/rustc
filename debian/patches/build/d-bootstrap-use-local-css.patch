@@ -1,0 +1,55 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: d-bootstrap-use-local-css
+
+Forwarded: not-needed
+===================================================================
+---
+ src/bootstrap/src/core/build_steps/doc.rs | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/bootstrap/src/core/build_steps/doc.rs b/src/bootstrap/src/core/build_steps/doc.rs
+index 51b5cdc..c36b095 100644
+--- a/src/bootstrap/src/core/build_steps/doc.rs
++++ b/src/bootstrap/src/core/build_steps/doc.rs
+@@ -363,7 +363,27 @@ impl Step for Standalone {
+                 .arg("--index-page")
+                 .arg(&builder.src.join("src/doc/index.md"))
+                 .arg("--markdown-playground-url")
+-                .arg("https://play.rust-lang.org/")
++                .arg("https://play.rust-lang.org/");
++
++            // Debian: librustdoc now generates a resource-suffix for static
++            // files with rustc_hash::FxHasher, so we need to find it.
++            let _dir = out.join("static.files");
++            if _dir.is_dir() {
++                let _css = _dir.read_dir().expect("Debian: failed to read static.files/ when is_dir() == true")
++                    .find_map(|entry| entry.ok().map(|entry| {
++                        let name = entry.file_name().into_string()
++                            .expect("Debian: rustc files should have UTF-8 name");
++                        if name.starts_with("rustdoc-") && name.ends_with(".css") {
++                            Some(format!("static.files/{name}"))
++                        } else { None }
++                    })).flatten();
++                if let Some(name) = _css {
++                    cmd.arg("--markdown-css").arg(name);
++                }
++            }
++
++            cmd.arg("--markdown-css")
++                .arg("rust.css")
+                 .arg("-o")
+                 .arg(&out)
+                 .arg(&path);
+@@ -372,11 +392,6 @@ impl Step for Standalone {
+                 cmd.arg("--disable-minification");
+             }
+ 
+-            if filename == "not_found.md" {
+-                cmd.arg("--markdown-css").arg("https://doc.rust-lang.org/rust.css");
+-            } else {
+-                cmd.arg("--markdown-css").arg("rust.css");
+-            }
+             builder.run(&mut cmd);
+         }
+ 

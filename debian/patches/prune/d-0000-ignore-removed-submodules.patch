@@ -1,0 +1,247 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Sat, 2 Oct 2021 01:07:59 +0100
+Subject: d-0000-ignore-removed-submodules
+
+Description: remove upstream parts that are not needed for the Debian build, in
+order to both reduce the orig tarball and the vendored crates within.
+
+Forwarded: not-needed
+---
+ Cargo.toml                                 |  7 ----
+ src/bootstrap/bootstrap.py                 |  4 ---
+ src/bootstrap/src/core/build_steps/test.rs | 12 +------
+ src/bootstrap/src/core/builder.rs          | 54 +++++++-----------------------
+ src/tools/rust-analyzer/Cargo.toml         | 11 +++++-
+ 5 files changed, 24 insertions(+), 64 deletions(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 5dd315e..ef2da2b 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -20,23 +20,16 @@ members = [
+   "src/tools/tidy",
+   "src/tools/tier-check",
+   "src/tools/build-manifest",
+-  "src/tools/remote-test-client",
+-  "src/tools/remote-test-server",
+   "src/tools/rust-installer",
+   "src/tools/rust-demangler",
+   "src/tools/rustdoc",
+-  "src/tools/rls",
+   "src/tools/rustfmt",
+-  "src/tools/miri",
+-  "src/tools/miri/cargo-miri",
+   "src/tools/rustdoc-themes",
+   "src/tools/unicode-table-generator",
+-  "src/tools/expand-yaml-anchors",
+   "src/tools/jsondocck",
+   "src/tools/jsondoclint",
+   "src/tools/llvm-bitcode-linker",
+   "src/tools/html-checker",
+-  "src/tools/bump-stage0",
+   "src/tools/replace-version-placeholder",
+   "src/tools/lld-wrapper",
+   "src/tools/collect-license-metadata",
+diff --git a/src/bootstrap/bootstrap.py b/src/bootstrap/bootstrap.py
+index 6e49bcc..73d9414 100644
+--- a/src/bootstrap/bootstrap.py
++++ b/src/bootstrap/bootstrap.py
+@@ -985,10 +985,6 @@ class RustBuild(object):
+         args = [self.cargo(), "build", "--manifest-path",
+                 os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
+         args.extend("--verbose" for _ in range(self.verbose))
+-        if self.use_locked_deps:
+-            args.append("--locked")
+-        if self.use_vendored_sources:
+-            args.append("--frozen")
+         if self.get_toml("metrics", "build"):
+             args.append("--features")
+             args.append("build-metrics")
+diff --git a/src/bootstrap/src/core/build_steps/test.rs b/src/bootstrap/src/core/build_steps/test.rs
+index 690e20f..49c92df 100644
+--- a/src/bootstrap/src/core/build_steps/test.rs
++++ b/src/bootstrap/src/core/build_steps/test.rs
+@@ -2363,17 +2363,7 @@ impl Step for RustcGuide {
+     }
+ 
+     fn run(self, builder: &Builder<'_>) {
+-        let relative_path = Path::new("src").join("doc").join("rustc-dev-guide");
+-        builder.update_submodule(&relative_path);
+-
+-        let src = builder.src.join(relative_path);
+-        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
+-        let toolstate = if builder.run_delaying_failure(rustbook_cmd.arg("linkcheck").arg(&src)) {
+-            ToolState::TestPass
+-        } else {
+-            ToolState::TestFail
+-        };
+-        builder.save_toolstate("rustc-dev-guide", toolstate);
++        builder.save_toolstate("rustc-dev-guide", ToolState::TestPass);
+     }
+ }
+ 
+diff --git a/src/bootstrap/src/core/builder.rs b/src/bootstrap/src/core/builder.rs
+index 7f93fdc..c5f1e72 100644
+--- a/src/bootstrap/src/core/builder.rs
++++ b/src/bootstrap/src/core/builder.rs
+@@ -557,20 +557,20 @@ impl<'a> ShouldRun<'a> {
+         static SUBMODULES_PATHS: OnceLock<Vec<String>> = OnceLock::new();
+ 
+         let init_submodules_paths = |src: &PathBuf| {
+-            let file = File::open(src.join(".gitmodules")).unwrap();
++            //let file = File::open(src.join(".gitmodules")).unwrap();
+ 
+             let mut submodules_paths = vec![];
+-            for line in BufReader::new(file).lines() {
+-                if let Ok(line) = line {
+-                    let line = line.trim();
+-
+-                    if line.starts_with("path") {
+-                        let actual_path =
+-                            line.split(' ').last().expect("Couldn't get value of path");
+-                        submodules_paths.push(actual_path.to_owned());
+-                    }
+-                }
+-            }
++            //for line in BufReader::new(file).lines() {
++            //    if let Ok(line) = line {
++            //        let line = line.trim();
++
++            //        if line.starts_with("path") {
++            //            let actual_path =
++            //                line.split(' ').last().expect("Couldn't get value of path");
++            //            submodules_paths.push(actual_path.to_owned());
++            //        }
++            //    }
++            //}
+ 
+             submodules_paths
+         };
+@@ -744,25 +744,14 @@ impl<'a> Builder<'a> {
+                 tool::Linkchecker,
+                 tool::CargoTest,
+                 tool::Compiletest,
+-                tool::RemoteTestServer,
+-                tool::RemoteTestClient,
+                 tool::RustInstaller,
+                 tool::Cargo,
+-                tool::Rls,
+-                tool::RustAnalyzer,
+                 tool::RustAnalyzerProcMacroSrv,
+                 tool::RustDemangler,
+                 tool::Rustdoc,
+                 tool::Clippy,
+                 tool::CargoClippy,
+-                llvm::Llvm,
+-                llvm::Sanitizers,
+                 tool::Rustfmt,
+-                tool::Miri,
+-                tool::CargoMiri,
+-                llvm::Lld,
+-                llvm::CrtBeginEnd,
+-                tool::RustdocGUITest,
+                 tool::OptimizedDist,
+                 tool::CoverageDump,
+                 tool::LlvmBitcodeLinker
+@@ -773,12 +762,7 @@ impl<'a> Builder<'a> {
+                 check::Rustdoc,
+                 check::CodegenBackend,
+                 check::Clippy,
+-                check::Miri,
+-                check::CargoMiri,
+-                check::MiroptTestTools,
+-                check::Rls,
+                 check::Rustfmt,
+-                check::RustAnalyzer,
+                 check::Bootstrap,
+             ),
+             Kind::Test => describe!(
+@@ -811,7 +795,6 @@ impl<'a> Builder<'a> {
+                 test::TierCheck,
+                 test::Cargotest,
+                 test::Cargo,
+-                test::RustAnalyzer,
+                 test::ErrorIndex,
+                 test::Distcheck,
+                 test::RunMakeFullDeps,
+@@ -827,7 +810,6 @@ impl<'a> Builder<'a> {
+                 test::EmbeddedBook,
+                 test::EditionGuide,
+                 test::Rustfmt,
+-                test::Miri,
+                 test::Clippy,
+                 test::RustDemangler,
+                 test::CompiletestTest,
+@@ -864,7 +846,6 @@ impl<'a> Builder<'a> {
+                 doc::CargoBook,
+                 doc::Clippy,
+                 doc::ClippyBook,
+-                doc::Miri,
+                 doc::EmbeddedBook,
+                 doc::EditionGuide,
+                 doc::StyleGuide,
+@@ -884,12 +865,9 @@ impl<'a> Builder<'a> {
+                 dist::Analysis,
+                 dist::Src,
+                 dist::Cargo,
+-                dist::Rls,
+-                dist::RustAnalyzer,
+                 dist::Rustfmt,
+                 dist::RustDemangler,
+                 dist::Clippy,
+-                dist::Miri,
+                 dist::LlvmTools,
+                 dist::RustDev,
+                 dist::Bootstrap,
+@@ -911,11 +889,9 @@ impl<'a> Builder<'a> {
+                 // install the same binaries twice for each tool, leaving backup files (*.old) as a result.
+                 install::Rustc,
+                 install::Cargo,
+-                install::RustAnalyzer,
+                 install::Rustfmt,
+                 install::RustDemangler,
+                 install::Clippy,
+-                install::Miri,
+                 install::LlvmTools,
+                 install::Src,
+             ),
+@@ -924,7 +900,6 @@ impl<'a> Builder<'a> {
+                 run::BuildManifest,
+                 run::BumpStage0,
+                 run::ReplaceVersionPlaceholder,
+-                run::Miri,
+                 run::CollectLicenseMetadata,
+                 run::GenerateCopyright,
+                 run::GenerateWindowsSys,
+@@ -2016,10 +1991,7 @@ impl<'a> Builder<'a> {
+             }
+         }
+ 
+-        if self.config.locked_deps {
+-            cargo.arg("--locked");
+-        }
+-        if self.config.vendor || self.is_sudo {
++        if self.is_sudo {
+             cargo.arg("--frozen");
+         }
+ 
+diff --git a/src/tools/rust-analyzer/Cargo.toml b/src/tools/rust-analyzer/Cargo.toml
+index 440f46a..80e7422 100644
+--- a/src/tools/rust-analyzer/Cargo.toml
++++ b/src/tools/rust-analyzer/Cargo.toml
+@@ -1,5 +1,14 @@
+ [workspace]
+-members = ["xtask/", "lib/*", "crates/*"]
++members = [
++  "xtask/",
++  "lib/*",
++  "crates/proc-macro-srv",
++  "crates/proc-macro-srv-cli",
++  "crates/tt",
++  "crates/mbe",
++  "crates/paths",
++  "crates/proc-macro-api",
++]
+ exclude = ["crates/proc-macro-srv/proc-macro-test/imp"]
+ resolver = "2"
+ 

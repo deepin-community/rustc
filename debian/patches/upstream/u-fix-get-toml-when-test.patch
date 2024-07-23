@@ -1,0 +1,54 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:38 +0200
+Subject: Fix get_toml() when cfg(test)
+
+Bug: https://github.com/rust-lang/rust/issues/105766
+Last-Update: 2023-03-29
+
+When cfg(test), Config::parse doesn't parse a config.toml but uses default
+values, failing when the initial rustc is needed. This is a workaround before
+upstream issue gets solved.
+Last-Update: 2023-03-29
+---
+ src/bootstrap/src/core/config/config.rs | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/bootstrap/src/core/config/config.rs b/src/bootstrap/src/core/config/config.rs
+index 3e1bc9a..11878db 100644
+--- a/src/bootstrap/src/core/config/config.rs
++++ b/src/bootstrap/src/core/config/config.rs
+@@ -1197,8 +1197,32 @@ impl Config {
+ 
+     pub fn parse(args: &[String]) -> Config {
+         #[cfg(test)]
+-        fn get_toml(_: &Path) -> TomlConfig {
+-            TomlConfig::default()
++        fn get_toml(file: &Path) -> TomlConfig {
++            // Debian: We use previous version as a custom rustc, which
++            // unfortunately won't be picked up because config.toml isn't
++            // read when cfg!(test). Making tests use the entirety of our
++            // config.toml isn't feasible either as it panicks on
++            // GitRepo::Llvm (d-bootstrap-custom-debuginfo-path.patch), so
++            // only give paths of initial rustc and cargo.
++            let contents =
++                t!(fs::read_to_string(file), format!("config file {} not found", file.display()));
++            // Deserialize to Value and then TomlConfig to prevent the Deserialize impl of
++            // TomlConfig and sub types to be monomorphized 5x by toml.
++            toml::from_str(&contents)
++                .and_then(|table: toml::Value| TomlConfig::deserialize(table))
++                .map(|table| {
++                    let mut config = TomlConfig::default();
++                    let mut build = Build::default();
++                    let cbuild = table.build.unwrap();
++                    build.rustc = cbuild.rustc;
++                    build.cargo = cbuild.cargo;
++                    config.build = Some(build);
++                    config
++                })
++                .unwrap_or_else(|err| {
++                    eprintln!("failed to parse TOML configuration '{}': {err}", file.display());
++                    crate::detail_exit(2);
++                })
+         }
+ 
+         #[cfg(not(test))]

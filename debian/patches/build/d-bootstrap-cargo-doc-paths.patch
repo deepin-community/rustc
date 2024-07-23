@@ -1,0 +1,388 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: Fix links to cargo-doc
+
+We package cargo docs in a slightly different location; also tweak linkchecker
+to not fail these links.
+
+Forwarded: not-needed
+---
+ compiler/rustc_error_codes/src/error_codes/E0460.md    |  2 +-
+ compiler/rustc_error_codes/src/error_codes/E0461.md    |  2 +-
+ compiler/rustc_error_codes/src/error_codes/E0462.md    |  2 +-
+ compiler/rustc_error_codes/src/error_codes/E0514.md    |  2 +-
+ compiler/rustc_error_codes/src/error_codes/E0519.md    |  2 +-
+ src/doc/edition-guide/book.toml                        | 18 +++++++++---------
+ .../edition-guide/src/editions/advanced-migrations.md  | 14 +++++++-------
+ ...ansitioning-an-existing-project-to-a-new-edition.md |  4 ++--
+ .../src/rust-2021/default-cargo-resolver.md            | 10 +++++-----
+ src/doc/index.md                                       |  2 +-
+ src/doc/reference/src/conditional-compilation.md       |  2 +-
+ src/doc/reference/src/introduction.md                  |  4 ++--
+ src/doc/reference/src/linkage.md                       |  2 +-
+ src/doc/reference/src/procedural-macros.md             |  2 +-
+ src/doc/rustc/src/linker-plugin-lto.md                 |  2 +-
+ src/doc/rustc/src/platform-support/fuchsia.md          |  2 +-
+ src/doc/rustc/src/targets/custom.md                    |  2 +-
+ src/doc/rustc/src/tests/index.md                       |  4 ++--
+ src/doc/rustc/src/what-is-rustc.md                     |  2 +-
+ .../src/compiler-flags/branch-protection.md            |  2 +-
+ .../src/compiler-flags/control-flow-guard.md           |  2 +-
+ src/doc/unstable-book/src/compiler-flags/sanitizer.md  |  2 +-
+ src/tools/linkchecker/main.rs                          |  4 ++++
+ 23 files changed, 47 insertions(+), 43 deletions(-)
+
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0460.md b/compiler/rustc_error_codes/src/error_codes/E0460.md
+index 001678a..e8b77bf 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0460.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0460.md
+@@ -68,4 +68,4 @@ This error can be fixed by:
+  * Recompiling crate `a` so that both crate `b` and `main` have a uniform
+    version to depend on.
+ 
+-[Cargo]: ../cargo/index.html
++[Cargo]: ../../../cargo/book/index.html
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0461.md b/compiler/rustc_error_codes/src/error_codes/E0461.md
+index 33105c4..088833d 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0461.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0461.md
+@@ -25,6 +25,6 @@ architectures. This issue also extends to any difference in target triples, as
+ `std` is operating-system specific.
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](../../../cargo/book/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling either crate so that they target a consistent target triple.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0462.md b/compiler/rustc_error_codes/src/error_codes/E0462.md
+index 4509cc6..b0538b9 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0462.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0462.md
+@@ -26,7 +26,7 @@ prefer `staticlib` for linking with C programs. Learn more about different
+ `crate_type`s in [this section of the Reference](../reference/linkage.html).
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](../../../cargo/book/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling the crate as a `rlib` or `dylib`; formats suitable for Rust
+    linking.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0514.md b/compiler/rustc_error_codes/src/error_codes/E0514.md
+index ce2bbc5..0b2dab8 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0514.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0514.md
+@@ -27,7 +27,7 @@ the compiler cannot be sure about *how* to call a function between compiler
+ versions, and therefore this error occurs.
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager and
++ * Using [Cargo](../../../cargo/book/index.html), the Rust package manager and
+    [Rustup](https://rust-lang.github.io/rustup/), the Rust toolchain installer,
+    automatically fixing this issue.
+  * Recompiling the crates with a uniform `rustc` version.
+diff --git a/compiler/rustc_error_codes/src/error_codes/E0519.md b/compiler/rustc_error_codes/src/error_codes/E0519.md
+index 12876e2..09bd221 100644
+--- a/compiler/rustc_error_codes/src/error_codes/E0519.md
++++ b/compiler/rustc_error_codes/src/error_codes/E0519.md
+@@ -34,7 +34,7 @@ The above example compiles two crates with exactly the same name and
+ impossible for the compiler to distinguish between symbols (`pub` item names).
+ 
+ This error can be fixed by:
+- * Using [Cargo](../cargo/index.html), the Rust package manager, automatically
++ * Using [Cargo](../../../cargo/book/index.html), the Rust package manager, automatically
+    fixing this issue.
+  * Recompiling the crate with different metadata (different name/
+    `crate_type`).
+diff --git a/src/doc/edition-guide/book.toml b/src/doc/edition-guide/book.toml
+index 7841b64..7094175 100644
+--- a/src/doc/edition-guide/book.toml
++++ b/src/doc/edition-guide/book.toml
+@@ -53,15 +53,15 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+ "/rust-2018/the-compiler/incremental-compilation-for-faster-compiles.html" = "https://blog.rust-lang.org/2018/02/15/Rust-1.24.html#incremental-compilation"
+ "/rust-2018/the-compiler/an-attribute-for-deprecation.html" = "../../../reference/attributes/diagnostics.html#the-deprecated-attribute"
+ "/rust-2018/rustup-for-managing-rust-versions.html" = "https://rust-lang.github.io/rustup/"
+-"/rust-2018/cargo-and-crates-io/index.html" = "../../../cargo/index.html"
+-"/rust-2018/cargo-and-crates-io/cargo-check-for-faster-checking.html" = "../../../cargo/commands/cargo-check.html"
+-"/rust-2018/cargo-and-crates-io/cargo-install-for-easy-installation-of-tools.html" = "../../../cargo/commands/cargo-install.html"
++"/rust-2018/cargo-and-crates-io/index.html" = "../../../../../cargo/book/index.html"
++"/rust-2018/cargo-and-crates-io/cargo-check-for-faster-checking.html" = "../../../../../cargo/book/commands/cargo-check.html"
++"/rust-2018/cargo-and-crates-io/cargo-install-for-easy-installation-of-tools.html" = "../../../../../cargo/book/commands/cargo-install.html"
+ "/rust-2018/cargo-and-crates-io/cargo-new-defaults-to-a-binary-project.html" = "https://blog.rust-lang.org/2018/03/29/Rust-1.25.html#cargo-features"
+-"/rust-2018/cargo-and-crates-io/cargo-rustc-for-passing-arbitrary-flags-to-rustc.html" = "../../../cargo/commands/cargo-rustc.html"
+-"/rust-2018/cargo-and-crates-io/cargo-workspaces-for-multi-package-projects.html" = "../../../cargo/reference/workspaces.html"
+-"/rust-2018/cargo-and-crates-io/multi-file-examples.html" = "../../../cargo/guide/project-layout.html"
+-"/rust-2018/cargo-and-crates-io/replacing-dependencies-with-patch.html" = "../../../cargo/reference/overriding-dependencies.html#the-patch-section"
+-"/rust-2018/cargo-and-crates-io/cargo-can-use-a-local-registry-replacement.html" = "../../../cargo/reference/source-replacement.html"
++"/rust-2018/cargo-and-crates-io/cargo-rustc-for-passing-arbitrary-flags-to-rustc.html" = "../../../../../cargo/book/commands/cargo-rustc.html"
++"/rust-2018/cargo-and-crates-io/cargo-workspaces-for-multi-package-projects.html" = "../../../../../cargo/book/reference/workspaces.html"
++"/rust-2018/cargo-and-crates-io/multi-file-examples.html" = "../../../../../cargo/book/guide/project-layout.html"
++"/rust-2018/cargo-and-crates-io/replacing-dependencies-with-patch.html" = "../../../../../cargo/book/reference/overriding-dependencies.html#the-patch-section"
++"/rust-2018/cargo-and-crates-io/cargo-can-use-a-local-registry-replacement.html" = "../../../../../cargo/book/reference/source-replacement.html"
+ "/rust-2018/cargo-and-crates-io/crates-io-disallows-wildcard-dependencies.html" = "https://blog.rust-lang.org/2016/01/21/Rust-1.6.html#cratesio-disallows-wildcards"
+ "/rust-2018/documentation/index.html" = "../../../index.html"
+ "/rust-2018/documentation/new-editions-of-the-book.html" = "../../../book/index.html"
+@@ -93,4 +93,4 @@ git-repository-url = "https://github.com/rust-lang/edition-guide"
+ "/rust-next/future.html" = "../../std/future/trait.Future.html"
+ "/rust-next/alloc.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#the-alloc-crate-is-stable"
+ "/rust-next/maybe-uninit.html" = "https://blog.rust-lang.org/2019/07/04/Rust-1.36.0.html#maybeuninitt-instead-of-memuninitialized"
+-"/rust-next/cargo-vendor.html" = "../../cargo/commands/cargo-vendor.html"
++"/rust-next/cargo-vendor.html" = "../../../../cargo/book/commands/cargo-vendor.html"
+diff --git a/src/doc/edition-guide/src/editions/advanced-migrations.md b/src/doc/edition-guide/src/editions/advanced-migrations.md
+index a1a5d80..0c3b0c8 100644
+--- a/src/doc/edition-guide/src/editions/advanced-migrations.md
++++ b/src/doc/edition-guide/src/editions/advanced-migrations.md
+@@ -186,18 +186,18 @@ Afterwards, the line with `extern crate rand;` in `src/lib.rs` will be removed.
+ 
+ We're now more idiomatic, and we didn't have to fix our code manually!
+ 
+-[`cargo check`]: ../../cargo/commands/cargo-check.html
+-[`cargo fix`]: ../../cargo/commands/cargo-fix.html
++[`cargo check`]: ../../../../cargo/book/commands/cargo-check.html
++[`cargo fix`]: ../../../../cargo/book/commands/cargo-fix.html
+ [`explicit-outlives-requirements`]:  ../../rustc/lints/listing/allowed-by-default.html#explicit-outlives-requirements
+ [`keyword-idents`]: ../../rustc/lints/listing/allowed-by-default.html#keyword-idents
+ [`rustfix`]: https://crates.io/crates/rustfix
+ [`unused-extern-crates`]: ../../rustc/lints/listing/allowed-by-default.html#unused-extern-crates
+-[Cargo features]: ../../cargo/reference/features.html
+-[Cargo package]: ../../cargo/reference/manifest.html#the-package-section
+-[Cargo targets]: ../../cargo/reference/cargo-targets.html
+-[Cargo workspace]: ../../cargo/reference/workspaces.html
++[Cargo features]: ../../../../cargo/book/reference/features.html
++[Cargo package]: ../../../../cargo/book/reference/manifest.html#the-package-section
++[Cargo targets]: ../../../../cargo/book/reference/cargo-targets.html
++[Cargo workspace]: ../../../../cargo/book/reference/workspaces.html
+ [CLI flag]: ../../rustc/lints/levels.html#via-compiler-flag
+-[Code generation]: ../../cargo/reference/build-script-examples.html#code-generation
++[Code generation]: ../../../../cargo/book/reference/build-script-examples.html#code-generation
+ [conditional compilation]: ../../reference/conditional-compilation.html
+ [documentation tests]: ../../rustdoc/documentation-tests.html
+ [JSON messages]: ../../rustc/json.html
+diff --git a/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md b/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
+index 9e22504..5ba0dcc 100644
+--- a/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
++++ b/src/doc/edition-guide/src/editions/transitioning-an-existing-project-to-a-new-edition.md
+@@ -101,8 +101,8 @@ The steps are roughly similar to the stable channel:
+ > on nightly along with more information about their status.
+ > A few months before the edition is stabilized, all of the new features should be fully implemented, and the [Rust Blog] will announce a call for testing.
+ 
+-[`cargo fix`]: ../../cargo/commands/cargo-fix.html
+-[`cargo test`]: ../../cargo/commands/cargo-test.html
++[`cargo fix`]: ../../../../cargo/book/commands/cargo-fix.html
++[`cargo test`]: ../../../../cargo/book/commands/cargo-test.html
+ [Advanced migration strategies]: advanced-migrations.md
+ [nightly channel]: ../../book/appendix-07-nightly-rust.html
+ [Rust Blog]: https://blog.rust-lang.org/
+diff --git a/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md b/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
+index 5f6653d..99332c3 100644
+--- a/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
++++ b/src/doc/edition-guide/src/rust-2021/default-cargo-resolver.md
+@@ -21,11 +21,11 @@ The new feature resolver no longer merges all requested features for
+ crates that are depended on in multiple ways.
+ See [the announcement of Rust 1.51][5] for details.
+ 
+-[4]: ../../cargo/reference/resolver.html#feature-resolver-version-2
++[4]: ../../../../cargo/book/reference/resolver.html#feature-resolver-version-2
+ [5]: https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#cargos-new-feature-resolver
+-[workspace]: ../../cargo/reference/workspaces.html
+-[virtual workspace]: ../../cargo/reference/workspaces.html#virtual-workspace
+-[`resolver` field]: ../../cargo/reference/resolver.html#resolver-versions
++[workspace]: ../../../../cargo/book/reference/workspaces.html
++[virtual workspace]: ../../../../cargo/book/reference/workspaces.html#virtual-workspace
++[`resolver` field]: ../../../../cargo/book/reference/resolver.html#resolver-versions
+ 
+ ## Migration
+ 
+@@ -176,4 +176,4 @@ This snippet of output shows that the project `foo` depends on `bar` with the "d
+ Then, `bar` depends on `bstr` as a build-dependency with the "default" feature.
+ We can further see that `bstr`'s  "default" feature enables "unicode" (among other features).
+ 
+-[`cargo tree`]: ../../cargo/commands/cargo-tree.html
++[`cargo tree`]: ../../../../cargo/book/commands/cargo-tree.html
+diff --git a/src/doc/index.md b/src/doc/index.md
+index 8ad5b42..f93d3da 100644
+--- a/src/doc/index.md
++++ b/src/doc/index.md
+@@ -128,7 +128,7 @@ historical editions.
+ 
+ ### The Cargo Book
+ 
+-[The Cargo Book](cargo/index.html) is a guide to Cargo, Rust's build tool and
++[The Cargo Book](../../cargo/book/index.html) is a guide to Cargo, Rust's build tool and
+ dependency manager.
+ 
+ ### The Rustdoc Book
+diff --git a/src/doc/reference/src/conditional-compilation.md b/src/doc/reference/src/conditional-compilation.md
+index e245c13..ee5104b 100644
+--- a/src/doc/reference/src/conditional-compilation.md
++++ b/src/doc/reference/src/conditional-compilation.md
+@@ -392,6 +392,6 @@ println!("I'm running on a {} machine!", machine_kind);
+ [`target_feature` attribute]: attributes/codegen.md#the-target_feature-attribute
+ [attribute]: attributes.md
+ [attributes]: attributes.md
+-[cargo-feature]: ../cargo/reference/features.html
++[cargo-feature]: ../../../cargo/book/reference/features.html
+ [crate type]: linkage.md
+ [static C runtime]: linkage.md#static-and-dynamic-c-runtimes
+diff --git a/src/doc/reference/src/introduction.md b/src/doc/reference/src/introduction.md
+index 9038efd..770680d 100644
+--- a/src/doc/reference/src/introduction.md
++++ b/src/doc/reference/src/introduction.md
+@@ -135,8 +135,8 @@ We also want the reference to be as normative as possible, so if you see anythin
+ [the Rust Reference repository]: https://github.com/rust-lang/reference/
+ [Unstable Book]: https://doc.rust-lang.org/nightly/unstable-book/
+ [_Expression_]: expressions.md
+-[cargo book]: ../cargo/index.html
+-[cargo reference]: ../cargo/reference/index.html
++[cargo book]: ../../../cargo/book/index.html
++[cargo reference]: ../../../cargo/book/reference/index.html
+ [expressions chapter]: expressions.html
+ [file an issue]: https://github.com/rust-lang/reference/issues
+ [lifetime of temporaries]: expressions.html#temporaries
+diff --git a/src/doc/reference/src/linkage.md b/src/doc/reference/src/linkage.md
+index 82864b0..db1508c 100644
+--- a/src/doc/reference/src/linkage.md
++++ b/src/doc/reference/src/linkage.md
+@@ -201,7 +201,7 @@ fn main() {
+ }
+ ```
+ 
+-[cargo]: ../cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
++[cargo]: ../../../cargo/book/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+ 
+ To use this feature locally, you typically will use the `RUSTFLAGS` environment
+ variable to specify flags to the compiler through Cargo. For example to compile
+diff --git a/src/doc/reference/src/procedural-macros.md b/src/doc/reference/src/procedural-macros.md
+index 7d69ab7..5d744c9 100644
+--- a/src/doc/reference/src/procedural-macros.md
++++ b/src/doc/reference/src/procedural-macros.md
+@@ -331,7 +331,7 @@ Note that neither declarative nor procedural macros support doc comment tokens
+ their equivalent `#[doc = r"str"]` attributes when passed to macros.
+ 
+ [Attribute macros]: #attribute-macros
+-[Cargo's build scripts]: ../cargo/reference/build-scripts.html
++[Cargo's build scripts]: ../../../cargo/book/reference/build-scripts.html
+ [Derive macros]: #derive-macros
+ [Function-like macros]: #function-like-procedural-macros
+ [`Delimiter::None`]: ../proc_macro/enum.Delimiter.html#variant.None
+diff --git a/src/doc/rustc/src/linker-plugin-lto.md b/src/doc/rustc/src/linker-plugin-lto.md
+index ff80f14..99745bc 100644
+--- a/src/doc/rustc/src/linker-plugin-lto.md
++++ b/src/doc/rustc/src/linker-plugin-lto.md
+@@ -112,7 +112,7 @@ targeting Windows-like targets
+ This is fixed if you explicitly set the target, for example
+ `cargo build --target x86_64-pc-windows-msvc`
+ Without an explicit --target the flags will be passed to all compiler invocations (including build
+-scripts and proc macros), see [cargo docs on rustflags](../cargo/reference/config.html#buildrustflags)
++scripts and proc macros), see [cargo docs on rustflags](../../../cargo/book/reference/config.html#buildrustflags)
+ 
+ If you have dependencies using the `cc` crate, you will need to set these
+ environment variables:
+diff --git a/src/doc/rustc/src/platform-support/fuchsia.md b/src/doc/rustc/src/platform-support/fuchsia.md
+index 34ab3cd..d3dac67 100644
+--- a/src/doc/rustc/src/platform-support/fuchsia.md
++++ b/src/doc/rustc/src/platform-support/fuchsia.md
+@@ -931,7 +931,7 @@ attach and load any relevant debug symbols.
+ [Fuchsia]: https://fuchsia.dev/
+ [source tree]: https://fuchsia.dev/fuchsia-src/get-started/learn/build
+ [rustup]: https://rustup.rs/
+-[cargo]: ../../cargo/index.html
++[cargo]: ../../../../cargo/book/index.html
+ [Fuchsia SDK]: https://chrome-infra-packages.appspot.com/p/fuchsia/sdk/core
+ [overview of CML]: https://fuchsia.dev/fuchsia-src/concepts/components/v2/component_manifests
+ [reference for the file format]: https://fuchsia.dev/reference/cml
+diff --git a/src/doc/rustc/src/targets/custom.md b/src/doc/rustc/src/targets/custom.md
+index a67cb10..764ed34 100644
+--- a/src/doc/rustc/src/targets/custom.md
++++ b/src/doc/rustc/src/targets/custom.md
+@@ -14,4 +14,4 @@ To see it for a different target, add the `--target` flag:
+ rustc +nightly -Z unstable-options --target=wasm32-unknown-unknown --print target-spec-json
+ ```
+ 
+-To use a custom target, see the (unstable) [`build-std` feature](../../cargo/reference/unstable.html#build-std) of `cargo`.
++To use a custom target, see the (unstable) [`build-std` feature](../../../../cargo/book/reference/unstable.html#build-std) of `cargo`.
+diff --git a/src/doc/rustc/src/tests/index.md b/src/doc/rustc/src/tests/index.md
+index 32baed9..2c36c1d 100644
+--- a/src/doc/rustc/src/tests/index.md
++++ b/src/doc/rustc/src/tests/index.md
+@@ -301,7 +301,7 @@ Experimental support for using custom test harnesses is available on the
+ [`--test` option]: ../command-line-arguments.md#option-test
+ [`-Z panic-abort-tests`]: https://github.com/rust-lang/rust/issues/67650
+ [`available_parallelism`]: ../../std/thread/fn.available_parallelism.html
+-[`cargo test`]: ../../cargo/commands/cargo-test.html
++[`cargo test`]: ../../../../cargo/book/commands/cargo-test.html
+ [`libtest`]: ../../test/index.html
+ [`main` function]: ../../reference/crates-and-source-files.html#main-functions
+ [`Result`]: ../../std/result/index.html
+@@ -311,7 +311,7 @@ Experimental support for using custom test harnesses is available on the
+ [attribute-should_panic]: ../../reference/attributes/testing.html#the-should_panic-attribute
+ [attribute-test]: ../../reference/attributes/testing.html#the-test-attribute
+ [bench-docs]: ../../unstable-book/library-features/test.html
+-[Cargo]: ../../cargo/index.html
++[Cargo]: ../../../../cargo/book/index.html
+ [crate type]: ../../reference/linkage.html
+ [custom_test_frameworks documentation]: ../../unstable-book/language-features/custom-test-frameworks.html
+ [nightly channel]: ../../book/appendix-07-nightly-rust.html
+diff --git a/src/doc/rustc/src/what-is-rustc.md b/src/doc/rustc/src/what-is-rustc.md
+index 39a05cf..7e450ae 100644
+--- a/src/doc/rustc/src/what-is-rustc.md
++++ b/src/doc/rustc/src/what-is-rustc.md
+@@ -5,7 +5,7 @@ language, provided by the project itself. Compilers take your source code and
+ produce binary code, either as a library or executable.
+ 
+ Most Rust programmers don't invoke `rustc` directly, but instead do it through
+-[Cargo](../cargo/index.html). It's all in service of `rustc` though! If you
++[Cargo](../../../cargo/book/index.html). It's all in service of `rustc` though! If you
+ want to see how Cargo calls `rustc`, you can
+ 
+ ```bash
+diff --git a/src/doc/unstable-book/src/compiler-flags/branch-protection.md b/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+index ca56648..85285e3 100644
+--- a/src/doc/unstable-book/src/compiler-flags/branch-protection.md
++++ b/src/doc/unstable-book/src/compiler-flags/branch-protection.md
+@@ -15,4 +15,4 @@ For example, `-Z branch-protection=bti,pac-ret,leaf` is valid, but
+ 
+ Rust's standard library does not ship with BTI or pointer authentication enabled by default.
+ In Cargo projects the standard library can be recompiled with pointer authentication using the nightly
+-[build-std](../../cargo/reference/unstable.html#build-std) feature.
++[build-std](../../../../cargo/book/reference/unstable.html#build-std) feature.
+diff --git a/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md b/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+index dbb7414..73876b0 100644
+--- a/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
++++ b/src/doc/unstable-book/src/compiler-flags/control-flow-guard.md
+@@ -39,7 +39,7 @@ It is strongly recommended to also enable CFG checks for all linked libraries, i
+ 
+ To enable CFG in the standard library, use the [cargo `-Z build-std` functionality][build-std] to recompile the standard library with the same configuration options as the main program.
+ 
+-[build-std]: ../../cargo/reference/unstable.html#build-std
++[build-std]: ../../../../cargo/book/reference/unstable.html#build-std
+ 
+ For example:
+ ```cmd
+diff --git a/src/doc/unstable-book/src/compiler-flags/sanitizer.md b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+index c8fd154..40e1ea4 100644
+--- a/src/doc/unstable-book/src/compiler-flags/sanitizer.md
++++ b/src/doc/unstable-book/src/compiler-flags/sanitizer.md
+@@ -851,7 +851,7 @@ It is strongly recommended to combine sanitizers with recompiled and
+ instrumented standard library, for example using [cargo `-Zbuild-std`
+ functionality][build-std].
+ 
+-[build-std]: ../../cargo/reference/unstable.html#build-std
++[build-std]: ../../../../cargo/book/reference/unstable.html#build-std
+ 
+ # Build scripts and procedural macros
+ 
+diff --git a/src/tools/linkchecker/main.rs b/src/tools/linkchecker/main.rs
+index c8ecfd3..e625bc8 100644
+--- a/src/tools/linkchecker/main.rs
++++ b/src/tools/linkchecker/main.rs
+@@ -288,6 +288,10 @@ impl Checker {
+                         return;
+                     }
+                 }
++                if url.contains("../../cargo/book/") {
++                    // link to related cargo-doc, ok for our Debian build
++                    return;
++                }
+                 if is_exception(file, &target_pretty_path) {
+                     report.links_ignored_exception += 1;
+                 } else {

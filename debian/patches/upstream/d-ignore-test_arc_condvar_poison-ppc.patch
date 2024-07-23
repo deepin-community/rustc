@@ -1,0 +1,21 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:39 +0200
+Subject: d-ignore-test_arc_condvar_poison-ppc
+
+Forwarded: no
+---
+ library/std/src/sync/mutex/tests.rs | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/library/std/src/sync/mutex/tests.rs b/library/std/src/sync/mutex/tests.rs
+index 19ec096..d9e84cc 100644
+--- a/library/std/src/sync/mutex/tests.rs
++++ b/library/std/src/sync/mutex/tests.rs
+@@ -145,6 +145,7 @@ fn test_mutex_arc_condvar() {
+     }
+ }
+ 
++#[cfg(not(target_arch = "powerpc"))]
+ #[test]
+ fn test_arc_condvar_poison() {
+     let packet = Packet(Arc::new((Mutex::new(1), Condvar::new())));

@@ -1,0 +1,33 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:39 +0200
+Subject: d-disable-download-tests
+
+Forwarded: no
+---
+ src/bootstrap/src/core/config/tests.rs | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/bootstrap/src/core/config/tests.rs b/src/bootstrap/src/core/config/tests.rs
+index 6ac573c..2733f31 100644
+--- a/src/bootstrap/src/core/config/tests.rs
++++ b/src/bootstrap/src/core/config/tests.rs
+@@ -24,6 +24,9 @@ fn parse(config: &str) -> Config {
+ 
+ #[test]
+ fn download_ci_llvm() {
++    // Debian: this will attempt to download LLVM
++    return;
++
+     if crate::core::build_steps::llvm::is_ci_llvm_modified(&parse("")) {
+         eprintln!("Detected LLVM as non-available: running in CI and modified LLVM in this change");
+         return;
+@@ -55,6 +58,9 @@ fn download_ci_llvm() {
+ //   - https://github.com/rust-lang/rust/pull/109162#issuecomment-1496782487
+ #[test]
+ fn detect_src_and_out() {
++    // Debian: this will attempt to download a toolchain
++    return;
++
+     fn test(cfg: Config, build_dir: Option<&str>) {
+         // This will bring absolute form of `src/bootstrap` path
+         let current_dir = std::env::current_dir().unwrap();

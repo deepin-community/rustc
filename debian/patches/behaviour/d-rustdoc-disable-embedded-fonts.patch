@@ -1,0 +1,43 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 14 Jul 2022 13:17:39 +0200
+Subject: removed some embedded fonts
+
+Forwarded: not-needed
+===================================================================
+---
+ src/librustdoc/html/static/css/rustdoc.css | 8 --------
+ src/librustdoc/html/static_files.rs        | 2 --
+ 2 files changed, 10 deletions(-)
+
+diff --git a/src/librustdoc/html/static/css/rustdoc.css b/src/librustdoc/html/static/css/rustdoc.css
+index 9993dfb..bbb6995 100644
+--- a/src/librustdoc/html/static/css/rustdoc.css
++++ b/src/librustdoc/html/static/css/rustdoc.css
+@@ -86,14 +86,6 @@
+ 	font-display: swap;
+ }
+ 
+-/* Avoid using legacy CJK serif fonts in Windows like Batang. */
+-@font-face {
+-	font-family: 'NanumBarunGothic';
+-	src: url("NanumBarunGothic-0f09457c7a19b7c6.ttf.woff2") format("woff2");
+-	font-display: swap;
+-	unicode-range: U+AC00-D7AF, U+1100-11FF, U+3130-318F, U+A960-A97F, U+D7B0-D7FF;
+-}
+-
+ * {
+ 	box-sizing: border-box;
+ }
+diff --git a/src/librustdoc/html/static_files.rs b/src/librustdoc/html/static_files.rs
+index ca9a78f..2fd45fb 100644
+--- a/src/librustdoc/html/static_files.rs
++++ b/src/librustdoc/html/static_files.rs
+@@ -119,8 +119,6 @@ static_files! {
+     source_code_pro_semibold => "static/fonts/SourceCodePro-Semibold.ttf.woff2",
+     source_code_pro_italic => "static/fonts/SourceCodePro-It.ttf.woff2",
+     source_code_pro_license => "static/fonts/SourceCodePro-LICENSE.txt",
+-    nanum_barun_gothic_regular => "static/fonts/NanumBarunGothic.ttf.woff2",
+-    nanum_barun_gothic_license => "static/fonts/NanumBarunGothic-LICENSE.txt",
+ }
+ 
+ pub(crate) static SCRAPE_EXAMPLES_HELP_MD: &str = include_str!("static/scrape-examples-help.md");

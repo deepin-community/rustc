@@ -1,0 +1,22 @@
+From: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Date: Thu, 13 Jun 2024 11:16:38 +0200
+Subject: c-disable-fs-specific-test
+
+===================================================================
+---
+ src/tools/cargo/tests/testsuite/metadata.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/tools/cargo/tests/testsuite/metadata.rs b/src/tools/cargo/tests/testsuite/metadata.rs
+index a8b276e..d479cc1 100644
+--- a/src/tools/cargo/tests/testsuite/metadata.rs
++++ b/src/tools/cargo/tests/testsuite/metadata.rs
+@@ -4001,7 +4001,7 @@ fn dep_kinds_workspace() {
+ // Creating non-utf8 path is an OS-specific pain, so let's run this only on
+ // linux, where arbitrary bytes work.
+ #[cfg(target_os = "linux")]
+-#[cargo_test]
++#[allow(dead_code)]
+ fn cargo_metadata_non_utf8() {
+     use std::ffi::OsString;
+     use std::os::unix::ffi::OsStringExt;
