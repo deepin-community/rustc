@@ -1,3 +1,30 @@
+rustc-1.78 (1.78.0+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
+
+  * New upstream release 1.78.0 (LP: #2075108)
+    - d/control{,.in}: rename to rust-1.78 and re-generate
+    - d/p/ubuntu/ubuntu-use-system-profiler-rt.patch: remove the patch as 
+      we will use the upstream mechanism to specify the LLVM clang-rt
+      instead of patching in a hardcoded one
+    - d/p/ubuntu/ubuntu-add-s390x-allowed-features.patch: refresh the patch
+    - d/copyright: remove unused vendored dependencies
+    - d/copyright: update copyright data for vendored dependencies
+    - d/p/ubuntu/ubuntu-vendor-no-workspace.patch: refresh patch
+    - d/p/ubuntu/ubuntu-use-system-compiler-during-tests.patch: refresh the patch
+    - d/s/lintian-overrides: re-generate for Rust 1.78
+    - d/*: upgrade to LLVM 18.1
+    - d/rules: adapt to changed docs install path
+  * d/rules: add forced version check logic so that it will be difficult to
+    screw up the version numbers when upgrading the package
+  * d/rules: workaround path lookup issues with LLVM profiler runtime
+  * d/rules: use upstream mechanism to specify LLVM clang-rt files
+  * d/patches: synchronize patches from Debian
+  * d/watch: get release information from GitHub but still download tarballs
+    from Rust Forge
+  * d/libstd-rust-1.76.lintian-overrides: remove auto-generated files
+  * d/{rule,config.toml.in,README.source}: rename RUST_DESTDIR to RUST_BOOTSTRAP_DIR
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 25 Jul 2024 08:46:38 -0600
+
 rustc-1.77 (1.77.2+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
 
   [ Zixing Liu ]
