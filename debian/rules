@@ -91,7 +91,7 @@ export CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_OPT_LEVEL=0
 
 # autopkgtest-related logic
 ifneq (,$(RUST_TEST_SELFBUILD))
-RUST_DESTDIR = /usr/lib/rust-$(RUST_VERSION)
+RUST_BOOTSTRAP_DIR = /usr/lib/rust-$(RUST_VERSION)
 endif
 
 update-version:
@@ -119,8 +119,8 @@ ifeq (0,$(HAVE_BINARY_TARBALL))
     # In this case, we use the distro's rustc - either the previous or current version.
     ifeq (,$(findstring pkg.rustc.dlstage0,$(DEB_BUILD_PROFILES)))
         # Make it easier to test against a custom rustc
-        ifneq (,$(RUST_DESTDIR))
-        RUST_LIBRARY_PATH := $(RUST_DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH):$(RUST_DESTDIR)/usr/lib
+        ifneq (,$(RUST_BOOTSTRAP_DIR))
+        RUST_LIBRARY_PATH := $(RUST_BOOTSTRAP_DIR)/usr/lib/$(DEB_HOST_MULTIARCH):$(RUST_BOOTSTRAP_DIR)/usr/lib
         LD_LIBRARY_PATH := $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):$(RUST_LIBRARY_PATH),$(RUST_LIBRARY_PATH))
         export LD_LIBRARY_PATH
         endif
@@ -234,12 +234,12 @@ endif
 	touch "$@"
 
 # Find a suitable bootstrapping toolchain
-ifneq ($(RUST_DESTDIR),)
+ifneq ($(RUST_BOOTSTRAP_DIR),)
   # Skip auto-detection and use specified toolchain
 else ifneq ($(wildcard /usr/lib/rust-$(RUST_VERSION)/bin/rustc),)
-  RUST_DESTDIR = /usr/lib/rust-$(RUST_VERSION)
+  RUST_BOOTSTRAP_DIR = /usr/lib/rust-$(RUST_VERSION)
 else ifneq ($(wildcard /usr/lib/rust-$(RUST_PREV_VERSION)/bin/rustc),)
-  RUST_DESTDIR = /usr/lib/rust-$(RUST_PREV_VERSION)
+  RUST_BOOTSTRAP_DIR = /usr/lib/rust-$(RUST_PREV_VERSION)
 else
   $(error No suitable Rust toolchain found to bootstrap Rust $(RUST_VERSION))
 endif
@@ -259,7 +259,7 @@ debian/config.toml: debian/config.toml.in debian/rules debian/preconfigure.stamp
 		-DVERBOSITY="$(VERBOSITY)" \
 		-DLLVM_DESTDIR="$(LLVM_DESTDIR)" \
 		-DLLVM_VERSION="$(LLVM_VERSION)" \
-		-DRUST_DESTDIR="$(RUST_DESTDIR)" \
+		-DRUST_BOOTSTRAP_DIR="$(RUST_BOOTSTRAP_DIR)" \
 		-DRUST_VERSION="$(RUST_VERSION)" \
 		"$<" > "$@"
 	if $(DOWNLOAD_BOOTSTRAP) || [ $(HAVE_BINARY_TARBALL) != 0 ]; \

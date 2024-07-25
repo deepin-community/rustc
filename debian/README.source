@@ -223,7 +223,7 @@ $ ver=1.20; VERSION=FIXME;
 $ for i in rustc libstd-rust-$ver libstd-rust-dev; do \
     dpkg -x ../"$i"_*${VERSION}_*.deb .; done
 $ cd ../rustc
-$ debian/rules RUST_DESTDIR=$PWD/../rust-destdir build
+$ debian/rules RUST_BOOTSTRAP_DIR=$PWD/../rust-destdir build
 
 
 Useful links

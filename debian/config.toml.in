@@ -7,8 +7,8 @@ locked-deps = false
 verbose = VERBOSITY
 profiler = true
 
-rustc = "RUST_DESTDIR/bin/rustc"
-cargo = "RUST_DESTDIR/bin/cargo"
+rustc = "RUST_BOOTSTRAP_DIR/bin/rustc"
+cargo = "RUST_BOOTSTRAP_DIR/bin/cargo"
 
 build = "DEB_BUILD_RUST_TYPE"
 host = ["DEB_HOST_RUST_TYPE"]
