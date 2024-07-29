@@ -1,3 +1,41 @@
+rustc-1.79 (1.79.0+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
+
+  [ Zixing Liu ]
+  * New upstream release 1.79.0 (LP: #2076205)
+  * d/p/ubuntu/ubuntu-add-s390x-allowed-features.patch: backport the patch
+  * d/p/ubuntu/ubuntu-disable-ppc64el-asm-tests.patch: refresh the patch
+  * d/p/prune/d-0021-vendor-remove-windows-dependencies.patch: refresh the patch
+  * d/copyright: update the list of unused Rust dependencies
+  * d/control.in: update vendored dependency list
+  * d/p/build/d-bootstrap-disable-git.patch: fix the patch so that version
+    information is still included correctly when building under
+    Debian or Ubuntu
+  * d/p/prune/d-0020-remove-windows-dependencies.patch: refresh the patch
+  * d/p/prune/d-0021-vendor-remove-windows-dependencies.patch: refresh
+    the patch
+  * d/source/lintian-overrides.in: add another ignore pattern for rustdoc tests
+  * d/copyright: remove unused globs
+
+  [ Fabian Grünbichler ]
+  * d/copyright: adapt to vendor/ version suffix
+  * early-stage update of patches for 1.79.0
+  * d/copyright: also exclude vendored libdbus
+  * update Files-Excluded for 1.79.0
+  * upstream unsuspicious: adapt to new vendor suffix
+  * update upstream unsuspicious for 1.79
+  * d/update-version.sh: adapt to wasi-libc/sdk changes
+  * d/rules: fix for suffixed vendored crates
+  * config: adapt to new change tracking mechanism
+  * cargo wrapper: switch to config.toml
+  * cargo wrapper: ensure debug symbols are not stripped
+  * add missing rustfmt dependency (Closes: #1074290)
+  * build: remove more cache files (Closes: #1074373)
+
+  [ Samuel Thibault ]
+  * Avoid hurd-stuck test
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Mon, 29 Jul 2024 03:04:07 -0600
+
 rustc-1.78 (1.78.0+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.78.0 (LP: #2075108)
