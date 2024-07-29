@@ -1044,3 +1044,315 @@ index 0317866..88ce8ef 100644
  [badges.maintenance]
  status = "actively-developed"
  
+diff --git a/vendor/backtrace-0.3.69/Cargo.toml b/vendor/backtrace-0.3.69/Cargo.toml
+index c13e7ee3071..7b01a6f121e 100644
+--- a/vendor/backtrace-0.3.69/Cargo.toml
++++ b/vendor/backtrace-0.3.69/Cargo.toml
+@@ -104,16 +104,6 @@ serialize-serde = ["serde"]
+ std = []
+ unix-backtrace = []
+ verify-winapi = [
+-    "winapi/dbghelp",
+-    "winapi/handleapi",
+-    "winapi/libloaderapi",
+-    "winapi/memoryapi",
+-    "winapi/minwindef",
+-    "winapi/processthreadsapi",
+-    "winapi/synchapi",
+-    "winapi/tlhelp32",
+-    "winapi/winbase",
+-    "winapi/winnt",
+ ]
+ 
+ [target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.addr2line]
+@@ -139,7 +129,3 @@ features = [
+     "archive",
+ ]
+ default-features = false
+-
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3.9"
+-optional = true
+diff --git a/vendor/command-group-2.1.0/Cargo.toml b/vendor/command-group-2.1.0/Cargo.toml
+index 5c3928de093..95ad1fb1d0d 100644
+--- a/vendor/command-group-2.1.0/Cargo.toml
++++ b/vendor/command-group-2.1.0/Cargo.toml
+@@ -94,15 +94,3 @@ features = [
+     "signal",
+ ]
+ default-features = false
+-
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3.9"
+-features = [
+-    "impl-default",
+-    "handleapi",
+-    "ioapiset",
+-    "jobapi2",
+-    "processthreadsapi",
+-    "tlhelp32",
+-    "winbase",
+-]
+diff --git a/vendor/cranelift-jit-0.107.0/Cargo.toml b/vendor/cranelift-jit-0.107.0/Cargo.toml
+index c266c12b30d..5f18310c3b8 100644
+--- a/vendor/cranelift-jit-0.107.0/Cargo.toml
++++ b/vendor/cranelift-jit-0.107.0/Cargo.toml
+@@ -81,14 +81,6 @@ version = "0.107.0"
+ default = []
+ selinux-fix = ["memmap2"]
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_LibraryLoader",
+-    "Win32_System_Memory",
+-]
+-
+ [lints.clippy]
+ all = "allow"
+ 
+diff --git a/vendor/ctrlc-3.4.2/Cargo.toml b/vendor/ctrlc-3.4.2/Cargo.toml
+index 82ebb4233b8..a364e82a06c 100644
+--- a/vendor/ctrlc-3.4.2/Cargo.toml
++++ b/vendor/ctrlc-3.4.2/Cargo.toml
+@@ -56,23 +56,5 @@ features = [
+ ]
+ default-features = false
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Threading",
+-    "Win32_Security",
+-    "Win32_System_Console",
+-]
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.52"
+-features = [
+-    "Win32_Storage_FileSystem",
+-    "Win32_Foundation",
+-    "Win32_System_IO",
+-    "Win32_System_Console",
+-]
+-
+ [badges.maintenance]
+ status = "passively-maintained"
+diff --git a/vendor/errno-0.3.1/Cargo.toml b/vendor/errno-0.3.1/Cargo.toml
+index bf54b1f4681..bafbca7dc5e 100644
+--- a/vendor/errno-0.3.1/Cargo.toml
++++ b/vendor/errno-0.3.1/Cargo.toml
+@@ -40,10 +40,3 @@ version = "0.2"
+ 
+ [target."cfg(unix)".dependencies.libc]
+ version = "0.2"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Diagnostics_Debug",
+-]
+diff --git a/vendor/ignore-0.4.21/Cargo.toml b/vendor/ignore-0.4.21/Cargo.toml
+index 60ab32a56d7..053b46828cd 100644
+--- a/vendor/ignore-0.4.21/Cargo.toml
++++ b/vendor/ignore-0.4.21/Cargo.toml
+@@ -76,6 +76,3 @@ version = "0.5.8"
+ 
+ [features]
+ simd-accel = []
+-
+-[target."cfg(windows)".dependencies.winapi-util]
+-version = "0.1.2"
+diff --git a/vendor/normpath-1.2.0/Cargo.toml b/vendor/normpath-1.2.0/Cargo.toml
+index e68ea2a9b9a..485baf10f99 100644
+--- a/vendor/normpath-1.2.0/Cargo.toml
++++ b/vendor/normpath-1.2.0/Cargo.toml
+@@ -73,17 +73,7 @@ version = "3.0"
+ 
+ [features]
+ localization = [
+-    "windows-sys/Win32_UI_Shell",
+-    "windows-sys/Win32_UI_WindowsAndMessaging",
+ ]
+ 
+ [target."cfg(not(windows))".dev-dependencies.libc]
+ version = "0.2"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Storage_FileSystem"]
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Foundation"]
+diff --git a/vendor/notify-6.1.1/Cargo.toml b/vendor/notify-6.1.1/Cargo.toml
+index 34600c917e1..2a4612eded5 100644
+--- a/vendor/notify-6.1.1/Cargo.toml
++++ b/vendor/notify-6.1.1/Cargo.toml
+@@ -107,14 +107,3 @@ optional = true
+ version = "0.8"
+ features = ["os-ext"]
+ optional = true
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48.0"
+-features = [
+-    "Win32_System_Threading",
+-    "Win32_Foundation",
+-    "Win32_Storage_FileSystem",
+-    "Win32_Security",
+-    "Win32_System_WindowsProgramming",
+-    "Win32_System_IO",
+-]
+diff --git a/vendor/rustix-0.38.28/Cargo.toml b/vendor/rustix-0.38.28/Cargo.toml
+index 626847308e4..836b76525a5 100644
+--- a/vendor/rustix-0.38.28/Cargo.toml
++++ b/vendor/rustix-0.38.28/Cargo.toml
+@@ -199,7 +199,6 @@ thread = ["linux-raw-sys/prctl"]
+ time = []
+ use-explicitly-provided-auxv = []
+ use-libc = [
+-    "libc_errno",
+     "libc",
+ ]
+ use-libc-auxv = []
+@@ -252,20 +251,3 @@ package = "errno"
+ [target."cfg(any(target_os = \"android\", target_os = \"linux\"))".dependencies.once_cell]
+ version = "1.5.2"
+ optional = true
+-
+-[target."cfg(windows)".dependencies.libc_errno]
+-version = "0.3.8"
+-default-features = false
+-package = "errno"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Networking_WinSock",
+-    "Win32_NetworkManagement_IpHelper",
+-    "Win32_System_Threading",
+-]
+-
+-[target."cfg(windows)".dev-dependencies.ctor]
+-version = "0.2.0"
+diff --git a/vendor/rustix-0.38.8/Cargo.toml b/vendor/rustix-0.38.8/Cargo.toml
+index 4818c80081b..c3cb8e6809d 100644
+--- a/vendor/rustix-0.38.8/Cargo.toml
++++ b/vendor/rustix-0.38.8/Cargo.toml
+@@ -188,7 +188,6 @@ termios = []
+ thread = ["linux-raw-sys/prctl"]
+ time = []
+ use-libc = [
+-    "libc_errno",
+     "libc",
+ ]
+ use-libc-auxv = []
+@@ -238,20 +237,3 @@ package = "errno"
+ [target."cfg(any(target_os = \"android\", target_os = \"linux\"))".dependencies.once_cell]
+ version = "1.5.2"
+ optional = true
+-
+-[target."cfg(windows)".dependencies.libc_errno]
+-version = "0.3.1"
+-default-features = false
+-package = "errno"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Networking_WinSock",
+-    "Win32_NetworkManagement_IpHelper",
+-    "Win32_System_Threading",
+-]
+-
+-[target."cfg(windows)".dev-dependencies.ctor]
+-version = "0.2.0"
+diff --git a/vendor/sysinfo-0.30.5/Cargo.toml b/vendor/sysinfo-0.30.5/Cargo.toml
+index 50152383265..e08e0a08f03 100644
+--- a/vendor/sysinfo-0.30.5/Cargo.toml
++++ b/vendor/sysinfo-0.30.5/Cargo.toml
+@@ -77,44 +77,3 @@ version = "1.18"
+ 
+ [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
+ version = "^0.2.150"
+-
+-[target."cfg(windows)".dependencies.ntapi]
+-version = "0.4"
+-
+-[target."cfg(windows)".dependencies.windows]
+-version = "0.52"
+-features = [
+-    "Wdk_System_SystemInformation",
+-    "Wdk_System_SystemServices",
+-    "Wdk_System_Threading",
+-    "Win32_Foundation",
+-    "Win32_NetworkManagement_IpHelper",
+-    "Win32_NetworkManagement_NetManagement",
+-    "Win32_NetworkManagement_Ndis",
+-    "Win32_Networking_WinSock",
+-    "Win32_Security",
+-    "Win32_Security_Authentication_Identity",
+-    "Win32_Security_Authorization",
+-    "Win32_Storage_FileSystem",
+-    "Win32_System_Com",
+-    "Win32_System_Diagnostics_Debug",
+-    "Win32_System_IO",
+-    "Win32_System_Ioctl",
+-    "Win32_System_LibraryLoader",
+-    "Win32_System_Kernel",
+-    "Win32_System_Memory",
+-    "Win32_System_Ole",
+-    "Win32_System_Performance",
+-    "Win32_System_Power",
+-    "Win32_System_ProcessStatus",
+-    "Win32_System_Registry",
+-    "Win32_System_RemoteDesktop",
+-    "Win32_System_Rpc",
+-    "Win32_System_SystemInformation",
+-    "Win32_System_SystemServices",
+-    "Win32_System_Threading",
+-    "Win32_System_Variant",
+-    "Win32_System_WindowsProgramming",
+-    "Win32_System_Wmi",
+-    "Win32_UI_Shell",
+-]
+diff --git a/vendor/tempfile-3.7.1/Cargo.toml b/vendor/tempfile-3.7.1/Cargo.toml
+index add243a5b87..48c199a0fd2 100644
+--- a/vendor/tempfile-3.7.1/Cargo.toml
++++ b/vendor/tempfile-3.7.1/Cargo.toml
+@@ -50,10 +50,3 @@ features = ["fs"]
+ 
+ [target."cfg(target_os = \"redox\")".dependencies.redox_syscall]
+ version = "0.3"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.48"
+-features = [
+-    "Win32_Storage_FileSystem",
+-    "Win32_Foundation",
+-]
+diff --git a/vendor/wasmtime-jit-icache-coherence-20.0.0/Cargo.toml b/vendor/wasmtime-jit-icache-coherence-20.0.0/Cargo.toml
+index 62c1ae8268f..9672240765e 100644
+--- a/vendor/wasmtime-jit-icache-coherence-20.0.0/Cargo.toml
++++ b/vendor/wasmtime-jit-icache-coherence-20.0.0/Cargo.toml
+@@ -29,14 +29,6 @@ one-core = []
+ version = "0.2.112"
+ default-features = true
+ 
+-[target."cfg(target_os = \"windows\")".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Threading",
+-    "Win32_System_Diagnostics_Debug",
+-]
+-
+ [lints.clippy]
+ all = "allow"
+ 
