@@ -8,26 +8,10 @@ Forwarded: not-needed
  compiler/rustc_lint_defs/src/builtin.rs | 2 ++
  2 files changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/compiler/rustc_lint/src/builtin.rs b/compiler/rustc_lint/src/builtin.rs
-index 0c89e18..868865d 100644
---- a/compiler/rustc_lint/src/builtin.rs
-+++ b/compiler/rustc_lint/src/builtin.rs
-@@ -2739,7 +2739,10 @@ declare_lint! {
-     /// ### Example
-     ///
-     /// ```rust,compile_fail
--    /// # #![feature(asm_experimental_arch)]
-+    /// #![cfg_attr(
-+    ///  not(any(target_arch = "powerpc64", target_arch = "s390x")),
-+    ///  feature(asm_experimental_arch)
-+    /// )]
-     /// use std::arch::asm;
-     ///
-     /// fn main() {
-diff --git a/compiler/rustc_lint_defs/src/builtin.rs b/compiler/rustc_lint_defs/src/builtin.rs
-index e74cc38..a5ca4c4 100644
---- a/compiler/rustc_lint_defs/src/builtin.rs
-+++ b/compiler/rustc_lint_defs/src/builtin.rs
+Index: rustc/compiler/rustc_lint_defs/src/builtin.rs
+===================================================================
+--- rustc.orig/compiler/rustc_lint_defs/src/builtin.rs
++++ rustc/compiler/rustc_lint_defs/src/builtin.rs
 @@ -3099,11 +3099,13 @@ declare_lint! {
      ///
      /// use std::arch::asm;
@@ -42,17 +26,3 @@ index e74cc38..a5ca4c4 100644
      /// #[naked]
      /// pub extern "Rust" fn rust_abi() -> u32 {
      ///     unsafe { asm!("", options(noreturn)); }
---- a/compiler/rustc_lint/src/builtin.rs
-+++ b/compiler/rustc_lint/src/builtin.rs
-@@ -3130,7 +3130,10 @@ declare_lint! {
-     /// ### Example
-     ///
-     /// ```rust,compile_fail
--    /// # #![feature(asm_experimental_arch)]
-+    /// #![cfg_attr(
-+    ///  not(any(target_arch = "powerpc64", target_arch = "s390x")),
-+    ///  feature(asm_experimental_arch)
-+    /// )]
-     /// use std::arch::asm;
-     ///
-     /// fn main() {
