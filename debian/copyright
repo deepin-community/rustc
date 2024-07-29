@@ -223,6 +223,16 @@ Files-Excluded:
  vendor/winapi-util-0.1.6
  vendor/winapi-x86_64-pc-windows-gnu-0.4.0
  vendor/windows-0.52.0
+ vendor/windows-bindgen-0.56.0
+ vendor/windows-core-0.52.0
+ vendor/windows-metadata-0.56.0
+ vendor/windows-sys-0.48.0
+ vendor/windows-sys-0.52.0
+ vendor/windows-targets-0.48.1
+ vendor/windows-targets-0.48.5
+ vendor/windows-targets-0.52.0
+ vendor/windows-targets-0.52.4
+ vendor/windows-targets-0.52.5
  vendor/windows_aarch64_gnullvm-0.48.0
  vendor/windows_aarch64_gnullvm-0.48.5
  vendor/windows_aarch64_gnullvm-0.52.0
