@@ -1,8 +1,0 @@
-usr/bin/lld-17 usr/bin/rust-${env:RUST_VERSION}-lld
-usr/bin/clang-17 usr/bin/rust-${env:RUST_VERSION}-clang
-usr/bin/llvm-dwp-17 usr/bin/rust-${env:RUST_VERSION}-llvm-dwp
-# for -Z gcc-ld=lld, see compiler/rustc_codegen_ssa/src/back/link.rs for logic
-usr/bin/rust-${env:RUST_VERSION}-lld usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/${env:DEB_HOST_RUST_TYPE}/bin/gcc-ld/ld
-usr/bin/rust-${env:RUST_VERSION}-lld usr/lib/rust-${env:RUST_VERSION}/lib/rustlib/${env:DEB_HOST_RUST_TYPE}/bin/gcc-ld/ld64
-usr/lib/rust-${env:RUST_VERSION}/bin/rustc usr/bin/rustc-${env:RUST_VERSION}
-usr/lib/rust-${env:RUST_VERSION}/bin/rustdoc usr/bin/rustdoc-${env:RUST_VERSION}

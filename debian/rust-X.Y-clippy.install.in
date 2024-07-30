@@ -1,2 +1,0 @@
-usr/lib/rust-${env:RUST_VERSION}/bin/clippy-driver
-usr/lib/rust-${env:RUST_VERSION}/bin/cargo-clippy
