@@ -8,10 +8,10 @@ Forwarded: not-needed
  src/bootstrap/src/utils/channel.rs         | 6 ++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core/build_steps/dist.rs
-index 770a5cd..0b5e333 100644
---- a/src/bootstrap/src/core/build_steps/dist.rs
-+++ b/src/bootstrap/src/core/build_steps/dist.rs
+Index: rustc/src/bootstrap/src/core/build_steps/dist.rs
+===================================================================
+--- rustc.orig/src/bootstrap/src/core/build_steps/dist.rs
++++ rustc/src/bootstrap/src/core/build_steps/dist.rs
 @@ -998,8 +998,10 @@ impl Step for PlainSourceTarball {
  
          // If we're building from git or tarball sources, we need to vendor
@@ -25,11 +25,11 @@ index 770a5cd..0b5e333 100644
          {
              // Ensure we have all submodules from src and other directories checked out.
              for submodule in builder.get_all_submodules() {
-diff --git a/src/bootstrap/src/utils/channel.rs b/src/bootstrap/src/utils/channel.rs
-index 88988c3..e5c6cd1 100644
---- a/src/bootstrap/src/utils/channel.rs
-+++ b/src/bootstrap/src/utils/channel.rs
-@@ -35,6 +35,12 @@ pub struct Info {
+Index: rustc/src/bootstrap/src/utils/channel.rs
+===================================================================
+--- rustc.orig/src/bootstrap/src/utils/channel.rs
++++ rustc/src/bootstrap/src/utils/channel.rs
+@@ -35,8 +35,13 @@ pub struct Info {
  
  impl GitInfo {
      pub fn new(omit_git_hash: bool, dir: &Path) -> GitInfo {
@@ -38,7 +38,9 @@ index 88988c3..e5c6cd1 100644
 +        //         repository, but we don't want to parse gitinfo. This is
 +        //         needed for the bootstrap tests to work which running for
 +        //         Debian git.
-+        return GitInfo::Absent;
          // See if this even begins to look like a git dir
-         if !dir.join(".git").exists() {
+-        if !dir.join(".git").exists() {
++        if true {
              match read_commit_info_file(dir) {
+                 Some(info) => return GitInfo::RecordedForTarball(info),
+                 None => return GitInfo::Absent,
