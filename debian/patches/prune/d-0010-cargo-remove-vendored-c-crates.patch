@@ -11,12 +11,12 @@ Forwarded: not-needed
  src/tools/cargo/Cargo.toml | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/src/tools/cargo/Cargo.toml b/src/tools/cargo/Cargo.toml
-index 9f2b4a0..c844fd4 100644
---- a/src/tools/cargo/Cargo.toml
-+++ b/src/tools/cargo/Cargo.toml
+Index: rustc/src/tools/cargo/Cargo.toml
+===================================================================
+--- rustc.orig/src/tools/cargo/Cargo.toml
++++ rustc/src/tools/cargo/Cargo.toml
 @@ -77,7 +77,7 @@ proptest = "1.4.0"
- pulldown-cmark = { version = "0.10.2", default-features = false, features = ["html"] }
+ pulldown-cmark = { version = "0.10.3", default-features = false, features = ["html"] }
  rand = "0.8.5"
  regex = "1.10.4"
 -rusqlite = { version = "0.31.0", features = ["bundled"] }

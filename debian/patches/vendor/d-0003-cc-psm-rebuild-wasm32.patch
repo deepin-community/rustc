@@ -4,14 +4,14 @@ Subject: d-0003-cc-psm-rebuild-wasm32
 
 Forwarded: not-needed
 ---
- vendor/cc-1.0.92/src/lib.rs | 2 +-
+ vendor/cc-1.0.97/src/lib.rs | 2 +-
  vendor/psm-0.1.21/build.rs  | 7 ++-----
  2 files changed, 3 insertions(+), 6 deletions(-)
 
 diff --git a/vendor/cc-1.0.92/src/lib.rs b/vendor/cc-1.0.92/src/lib.rs
 index 17a9c05..693a733 100644
---- a/vendor/cc-1.0.92/src/lib.rs
-+++ b/vendor/cc-1.0.92/src/lib.rs
+--- a/vendor/cc-1.0.97/src/lib.rs
++++ b/vendor/cc-1.0.97/src/lib.rs
 @@ -2815,7 +2815,7 @@ impl Build {
                      || target == "wasm32-unknown-wasi"
                      || target == "wasm32-unknown-unknown"

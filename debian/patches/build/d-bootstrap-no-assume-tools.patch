@@ -8,18 +8,18 @@ Forwarded: not-needed
  src/bootstrap/src/core/builder/tests.rs | 4 ++++
  1 file changed, 4 insertions(+)
 
-diff --git a/src/bootstrap/src/core/builder/tests.rs b/src/bootstrap/src/core/builder/tests.rs
-index caec463..9d83cc8f 100644
---- a/src/bootstrap/src/core/builder/tests.rs
-+++ b/src/bootstrap/src/core/builder/tests.rs
-@@ -387,9 +387,13 @@ mod dist {
+Index: rustc/src/bootstrap/src/core/builder/tests.rs
+===================================================================
+--- rustc.orig/src/bootstrap/src/core/builder/tests.rs
++++ rustc/src/bootstrap/src/core/builder/tests.rs
+@@ -426,9 +426,13 @@ mod dist {
      #[test]
      fn dist_only_cross_host() {
-         let b = TargetSelection::from_user("B");
+         let b = TargetSelection::from_user("B-B");
 +        let mut tools = std::collections::HashSet::new();
 +        tools.insert("clippy".to_string());
 +        tools.insert("rustfmt".to_string());
-         let mut config = configure(&["A", "B"], &["A", "B"]);
+         let mut config = configure(&["A-A", "B-B"], &["A-A", "B-B"]);
          config.docs = false;
          config.extended = true;
 +        config.tools = Some(tools);

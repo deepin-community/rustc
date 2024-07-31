@@ -10,8 +10,8 @@ Forwarded: https://github.com/rust-lang/socket2/pull/474
 
 diff --git a/vendor/socket2-0.5.6/src/sockaddr.rs b/vendor/socket2-0.5.6/src/sockaddr.rs
 index 6df22fd..185f421 100644
---- a/vendor/socket2-0.5.6/src/sockaddr.rs
-+++ b/vendor/socket2-0.5.6/src/sockaddr.rs
+--- a/vendor/socket2-0.5.7/src/sockaddr.rs
++++ b/vendor/socket2-0.5.7/src/sockaddr.rs
 @@ -290,6 +290,7 @@ impl From<SocketAddrV4> for SockAddr {
              target_os = "freebsd",
              target_os = "haiku",
@@ -30,8 +30,8 @@ index 6df22fd..185f421 100644
              target_os = "netbsd",
 diff --git a/vendor/socket2-0.5.6/src/sys/unix.rs b/vendor/socket2-0.5.6/src/sys/unix.rs
 index 805b6d5..1683ff2 100644
---- a/vendor/socket2-0.5.6/src/sys/unix.rs
-+++ b/vendor/socket2-0.5.6/src/sys/unix.rs
+--- a/vendor/socket2-0.5.7/src/sys/unix.rs
++++ b/vendor/socket2-0.5.7/src/sys/unix.rs
 @@ -138,6 +138,7 @@ pub(crate) use libc::IP_HDRINCL;
      target_os = "aix",
      target_os = "dragonfly",
