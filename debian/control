@@ -1,4 +1,4 @@
-Source: rustc-1.79
+Source: rustc-1.80
 Section: devel
 Priority: optional
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
@@ -15,8 +15,8 @@ Build-Depends:
  dh-cargo (>= 28ubuntu1~),
  dpkg-dev (>= 1.17.14),
  python3:native,
- cargo-1.78 | cargo-1.79 <!pkg.rustc.dlstage0>,
- rustc-1.78 | rustc-1.79 <!pkg.rustc.dlstage0>,
+ cargo-1.79 | cargo-1.80 <!pkg.rustc.dlstage0>,
+ rustc-1.79 | rustc-1.80 <!pkg.rustc.dlstage0>,
  llvm-18-dev:native,
  llvm-18-tools:native,
  libclang-rt-18-dev (>= 1:18.1.2),
@@ -61,19 +61,19 @@ Standards-Version: 4.6.2
 Homepage: http://www.rust-lang.org/
 Vcs-Git: https://salsa.debian.org/rust-team/rust.git
 Vcs-Browser: https://salsa.debian.org/rust-team/rust
-XS-Vendored-Sources-Rust: addr2line@0.21.0, adler@1.0.2, ahash@0.8.11, aho-corasick@1.1.3, allocator-api2@0.2.16, always-assert@0.2.0, ammonia@3.3.0, android-tzdata@0.1.1, android_system_properties@0.1.5, anes@0.1.6, annotate-snippets@0.10.2, annotate-snippets@0.11.1, annotate-snippets@0.9.2, ansi_term@0.12.1, anstream@0.6.13, anstyle-lossy@1.1.0, anstyle-parse@0.2.3, anstyle-query@1.0.2, anstyle-svg@0.1.3, anstyle@1.0.6, anyhow@1.0.82, ar_archive_writer@0.2.0, arbitrary@1.3.2, arc-swap@1.7.1, arrayvec@0.7.4, askama@0.12.1, askama_derive@0.12.5, askama_escape@0.10.3, askama_parser@0.2.1, autocfg@1.2.0, backtrace@0.3.71, base16ct@0.2.0, base64@0.21.7, base64@0.22.1, base64ct@1.6.0, basic-toml@0.1.9, bincode@1.3.3, bit-set@0.5.3, bit-vec@0.6.3, bitflags@1.3.2, bitflags@2.5.0, bitmaps@2.1.0, block-buffer@0.10.4, bstr@1.6.0, bstr@1.9.1, bumpalo@3.16.0, bytecount@0.6.7, byteorder@1.5.0, bytes@1.6.0, bytesize@1.3.0, camino@1.1.6, cargo-platform@0.1.8, cargo_metadata@0.15.4, cargo_metadata@0.18.1, cast@0.3.0, cc@1.0.73, cc@1.0.92, cfg-if@1.0.0, cfg_aliases@0.1.1, chrono@0.4.38, ciborium-io@0.2.2, ciborium-ll@0.2.2, ciborium@0.2.2, clap-cargo@0.12.0, clap@4.5.4, clap_builder@4.5.2, clap_complete@4.5.1, clap_derive@4.5.4, clap_lex@0.7.0, clru@0.6.1, cmake@0.1.48, color-eyre@0.6.3, color-print-proc-macro@0.3.5, color-print@0.3.5, color-spantrace@0.2.1, colorchoice@1.0.0, colored@2.1.0, comma@1.0.0, compiler_builtins@0.1.109, console@0.15.8, const-oid@0.9.6, content_inspector@0.2.4, core-foundation-sys@0.8.6, core-foundation@0.9.4, countme@3.0.1, cov-mark@2.0.0-pre.1, cpufeatures@0.2.12, crc32fast@1.4.0, criterion-plot@0.5.0, criterion@0.5.1, crossbeam-channel@0.5.12, crossbeam-deque@0.8.5, crossbeam-epoch@0.9.18, crossbeam-utils@0.8.19, crunchy@0.2.2, crypto-bigint@0.5.5, crypto-common@0.1.6, ct-codecs@1.1.1, ctrlc@3.4.4, curl-sys@0.4.72+curl-8.6.0, curl@0.4.46, darling@0.20.8, darling_core@0.20.8, darling_macro@0.20.8, dashmap@5.5.3, datafrog@2.0.1, dbus@0.9.7, der@0.7.9, deranged@0.3.11, derivative@2.2.0, derive_arbitrary@1.3.2, derive_builder@0.20.0, derive_builder_core@0.20.0, derive_builder_macro@0.20.0, derive_more@0.99.17, derive_setters@0.1.6, diff@0.1.13, digest@0.10.7, dirs-next@2.0.0, dirs-sys-next@0.1.2, dirs-sys@0.3.7, dirs@4.0.0, displaydoc@0.2.4, dissimilar@1.0.7, dlmalloc@0.2.6, drop_bomb@0.1.5, dunce@1.0.4, ecdsa@0.16.9, ed25519-compact@2.1.1, either@1.10.0, elasticlunr-rs@3.0.2, elliptic-curve@0.13.8, elsa@1.7.1, ena@0.14.2, encoding_rs@0.8.33, env_filter@0.1.0, env_logger@0.11.3, equivalent@1.0.1, erased-serde@0.4.4, errno@0.3.8, escargot@0.5.10, expect-test@1.5.0, eyre@0.6.12, fallible-iterator@0.3.0, fallible-streaming-iterator@0.1.9, faster-hex@0.9.0, fastrand@2.1.0, fd-lock@4.0.2, ff@0.13.0, fiat-crypto@0.2.7, field-offset@0.3.6, filetime@0.2.23, flate2@1.0.28, fluent-bundle@0.15.2, fluent-langneg@0.13.0, fluent-syntax@0.11.0, fnv@1.0.7, foreign-types-shared@0.1.1, foreign-types@0.3.2, form_urlencoded@1.2.1, fortanix-sgx-abi@0.5.0, fs-err@2.11.0, fs_extra@1.3.0, fst@0.4.7, futf@0.1.5, futures-channel@0.3.30, futures-core@0.3.30, futures-executor@0.3.30, futures-io@0.3.30, futures-macro@0.3.30, futures-sink@0.3.30, futures-task@0.3.30, futures-util@0.3.30, futures@0.3.30, generic-array@0.14.7, getopts@0.2.21, getrandom@0.2.13, gimli@0.28.1, git2-curl@0.19.0, git2@0.18.3, gix-actor@0.31.2, gix-attributes@0.22.2, gix-bitmap@0.2.11, gix-chunk@0.4.8, gix-command@0.3.7, gix-commitgraph@0.24.2, gix-config-value@0.14.6, gix-config@0.37.0, gix-credentials@0.24.2, gix-date@0.8.6, gix-diff@0.44.0, gix-dir@0.5.0, gix-discover@0.32.0, gix-features@0.38.2, gix-filter@0.11.2, gix-fs@0.11.0, gix-glob@0.16.2, gix-hash@0.14.2, gix-hashtable@0.5.2, gix-ignore@0.11.2, gix-index@0.33.0, gix-lock@14.0.0, gix-macros@0.1.5, gix-negotiate@0.13.1, gix-object@0.42.2, gix-odb@0.61.0, gix-pack@0.51.0, gix-packetline-blocking@0.17.4, gix-packetline@0.17.5, gix-path@0.10.7, gix-pathspec@0.7.5, gix-prompt@0.8.5, gix-protocol@0.45.1, gix-quote@0.4.12, gix-ref@0.44.0, gix-refspec@0.23.0, gix-revision@0.27.1, gix-revwalk@0.13.1, gix-sec@0.10.6, gix-submodule@0.11.0, gix-tempfile@14.0.0, gix-trace@0.1.9, gix-transport@0.42.1, gix-traverse@0.39.1, gix-url@0.27.3, gix-utils@0.1.12, gix-validate@0.8.5, gix-worktree@0.34.0, gix@0.63.0, glob@0.3.1, globset@0.4.13, globset@0.4.14, group@0.13.0, gsgdt@0.1.2, h2@0.3.26, half@2.4.0, handlebars@5.1.2, hashbrown@0.14.3, hashlink@0.9.0, heck@0.4.1, heck@0.5.0, hermit-abi@0.3.9, hex@0.4.3, hkdf@0.12.4, hmac@0.12.1, home@0.5.9, html-escape@0.2.13, html5ever@0.26.0, http-auth@0.1.9, http-body@0.4.6, http@0.2.12, httparse@1.8.0, httpdate@1.0.3, humansize@2.1.3, humantime@2.1.0, hyper-tls@0.5.0, hyper@0.14.28, iana-time-zone-haiku@0.1.2, iana-time-zone@0.1.60, icu_list@1.4.0, icu_list_data@1.4.0, icu_locid@1.4.0, icu_locid_transform@1.4.0, icu_locid_transform_data@1.4.0, icu_provider@1.4.0, icu_provider_adapters@1.4.0, icu_provider_macros@1.4.0, ident_case@1.0.1, idna@0.5.0, if_chain@1.0.2, ignore@0.4.20, ignore@0.4.22, im-rc@15.1.0, indenter@0.3.3, indexmap@2.2.6, indicatif@0.17.8, indoc@1.0.9, instant@0.1.12, intl-memoizer@0.5.1, intl_pluralrules@7.0.2, ipnet@2.9.0, is-terminal@0.4.12, itertools@0.10.5, itertools@0.11.0, itertools@0.12.1, itoa@0.4.8, itoa@1.0.11, jobserver@0.1.28, jod-thread@0.1.2, js-sys@0.3.69, jsonpath_lib@0.3.0, kstring@2.0.0, la-arena@0.3.1, lazy_static@1.4.0, lazycell@1.3.0, leb128@0.2.5, levenshtein@1.0.5, libc@0.2.153, libdbus-sys@0.2.5, libgit2-sys@0.16.2+1.7.2, libloading@0.8.3, libm@0.2.8, libredox@0.1.3, libsqlite3-sys@0.28.0, libssh2-sys@0.3.0, libz-sys@1.1.16, line-index@0.1.1, linked-hash-map@0.5.6, linux-raw-sys@0.4.13, litemap@0.7.2, lock_api@0.4.11, log@0.4.21, lsp-server@0.7.6, lsp-types@0.95.0, lz4_flex@0.11.2, lzma-sys@0.1.20, mac@0.1.1, maplit@1.0.2, markup5ever@0.11.0, matchers@0.1.0, maybe-async@0.2.10, md-5@0.10.6, mdbook@0.4.37, measureme@11.0.1, memchr@2.5.0, memchr@2.7.2, memmap2@0.2.3, memmap2@0.5.10, memmap2@0.9.4, memoffset@0.9.1, mime@0.3.17, mime_guess@2.0.4, minifier@0.3.0, minimal-lexical@0.2.1, miniz_oxide@0.7.2, mio@0.8.11, native-tls@0.2.11, new_debug_unreachable@1.0.6, nix@0.28.0, nohash-hasher@0.2.0, nom@7.1.3, normalize-line-endings@0.3.0, nu-ansi-term@0.46.0, nu-ansi-term@0.49.0, num-conv@0.1.0, num-traits@0.2.18, num_cpus@1.16.0, num_threads@0.1.7, number_prefix@0.4.0, object@0.32.2, object@0.33.0, object@0.34.0, odht@0.3.1, once_cell@1.19.0, oorandom@11.1.3, opener@0.5.2, opener@0.6.1, opener@0.7.0, openssl-macros@0.1.1, openssl-probe@0.1.5, openssl-sys@0.9.102, openssl@0.10.64, ordered-float@2.10.1, orion@0.17.6, os_info@3.8.2, overload@0.1.1, owo-colors@3.5.0, p384@0.13.0, packed_simd@0.3.9, pad@0.1.6, papergrid@0.11.0, parking_lot@0.12.1, parking_lot_core@0.9.9, partial_ref@0.3.3, partial_ref_derive@0.3.3, pasetors@0.6.8, pathdiff@0.2.1, pem-rfc7468@0.7.0, percent-encoding@2.3.1, perf-event-open-sys@1.0.1, perf-event-open-sys@3.0.0, perf-event@0.4.7, pest@2.7.9, pest_derive@2.7.9, pest_generator@2.7.9, pest_meta@2.7.9, phf@0.10.1, phf_codegen@0.10.0, phf_generator@0.10.0, phf_shared@0.10.0, pin-project-lite@0.2.14, pin-utils@0.1.0, pkcs8@0.10.2, pkg-config@0.3.30, plotters-backend@0.3.5, plotters-svg@0.3.5, plotters@0.3.5, polonius-engine@0.13.0, portable-atomic@1.6.0, powerfmt@0.2.0, ppv-lite86@0.2.17, precomputed-hash@0.1.1, pretty_assertions@1.4.0, prettydiff@0.6.4, primeorder@0.13.6, proc-macro-hack@0.5.20+deprecated, proc-macro2@1.0.81, prodash@28.0.0, proptest@1.4.0, psm@0.1.21, pulldown-cmark-escape@0.10.0, pulldown-cmark@0.10.2, pulldown-cmark@0.9.6, punycode@0.4.1, quick-error@1.2.3, quine-mc_cluskey@0.2.4, quote@1.0.36, r-efi-alloc@1.0.0, r-efi@4.4.0, ra-ap-rustc_lexer@0.44.0, rand@0.8.5, rand_chacha@0.3.1, rand_core@0.6.4, rand_xorshift@0.3.0, rand_xoshiro@0.6.0, rayon-core@1.12.1, rayon@1.10.0, redox_syscall@0.4.1, redox_users@0.4.5, regex-automata@0.1.10, regex-automata@0.2.0, regex-automata@0.3.9, regex-automata@0.4.6, regex-lite@0.1.5, regex-syntax@0.6.29, regex-syntax@0.7.5, regex-syntax@0.8.3, regex@1.10.4, regex@1.8.4, reqwest@0.11.27, rfc6979@0.4.0, rowan@0.15.15, rusqlite@0.31.0, rustc-demangle@0.1.23, rustc-hash@1.1.0, rustc-rayon-core@0.5.0, rustc-rayon@0.5.0, rustc-semver@1.1.0, rustc_apfloat@0.2.0+llvm-462a31f5a5ab, rustc_tools_util@0.3.0, rustc_version@0.4.0, rustfix@0.6.1, rustfix@0.8.1, rustix@0.38.32, rustls-pemfile@1.0.4, rustversion@1.0.15, rusty-fork@0.3.0, ruzstd@0.5.0, ruzstd@0.6.0, ryu@1.0.17, same-file@1.0.6, scoped-tls@1.0.1, scopeguard@1.2.0, sec1@0.7.3, security-framework-sys@2.10.0, security-framework@2.10.0, self_cell@0.10.3, self_cell@1.0.3, semver@1.0.22, serde-untagged@0.1.5, serde-value@0.7.0, serde@1.0.197, serde_derive@1.0.197, serde_ignored@0.1.10, serde_json@1.0.115, serde_repr@0.1.18, serde_spanned@0.6.5, serde_urlencoded@0.7.1, sha1@0.10.6, sha1_smol@1.0.0, sha2@0.10.8, sharded-slab@0.1.7, shell-escape@0.1.5, shell-words@1.1.0, shlex@1.3.0, signature@2.2.0, similar@2.5.0, siphasher@0.3.11, sized-chunks@0.6.5, slab@0.4.9, smallvec@1.13.2, smol_str@0.2.1, snap@1.1.1, snapbox-macros@0.3.8, snapbox@0.5.9, socket2@0.5.6, spanned@0.1.6, spdx-expression@0.5.2, spdx-rs@0.5.5, spki@0.7.3, stable_deref_trait@1.2.0, stacker@0.1.15, static_assertions@1.1.0, string_cache@0.8.7, string_cache_codegen@0.5.2, strsim@0.10.0, strsim@0.11.1, strum@0.24.1, strum_macros@0.24.3, subtle@2.5.0, supports-hyperlinks@3.0.0, supports-unicode@3.0.0, syn@1.0.109, syn@2.0.60, sync_wrapper@0.1.2, synstructure@0.12.6, synstructure@0.13.1, sysinfo@0.30.8, tabled@0.15.0, tar@0.4.40, tempfile@3.10.1, tendril@0.4.3, term@0.7.0, termcolor@1.4.1, terminal_size@0.3.0, termize@0.1.1, text-size@1.1.1, thin-vec@0.2.13, thiserror-impl@1.0.58, thiserror@1.0.58, thorin-dwp@0.7.0, thread_local@1.1.8, threadpool@1.8.1, time-core@0.1.2, time-macros@0.2.18, time@0.3.36, tinystr@0.7.5, tinytemplate@1.2.1, tinyvec@1.6.0, tinyvec_macros@0.1.1, tokio-native-tls@0.3.1, tokio-util@0.7.10, tokio@1.37.0, toml@0.5.11, toml@0.7.8, toml@0.8.12, toml_datetime@0.6.5, toml_edit@0.19.15, toml_edit@0.22.11, topological-sort@0.2.2, tower-service@0.3.2, tracing-attributes@0.1.27, tracing-chrome@0.7.2, tracing-core@0.1.30, tracing-core@0.1.32, tracing-error@0.2.0, tracing-log@0.2.0, tracing-subscriber@0.3.18, tracing-tree@0.3.0, tracing@0.1.37, tracing@0.1.40, triomphe@0.1.11, try-lock@0.2.5, twox-hash@1.6.3, type-map@0.4.0, typenum@1.17.0, ucd-parse@0.1.13, ucd-trie@0.1.6, ui_test@0.22.3, unarray@0.1.4, ungrammar@1.16.1, unic-langid-impl@0.9.4, unic-langid-macros-impl@0.9.4, unic-langid-macros@0.9.4, unic-langid@0.9.4, unicase@2.7.0, unicode-bidi@0.3.15, unicode-bom@2.0.3, unicode-ident@1.0.12, unicode-normalization@0.1.23, unicode-properties@0.1.1, unicode-script@0.5.6, unicode-security@0.1.1, unicode-segmentation@1.11.0, unicode-width@0.1.11, unicode-xid@0.2.4, unified-diff@0.2.1, unwinding@0.2.1, url@2.5.0, utf-8@0.7.6, utf8-width@0.1.7, utf8parse@0.2.1, uuid@1.8.0, valuable@0.1.0, varisat-checker@0.2.2, varisat-dimacs@0.2.2, varisat-formula@0.2.2, varisat-internal-macros@0.2.2, varisat-internal-proof@0.2.2, varisat@0.2.2, vcpkg@0.2.15, vec_mut_scan@0.3.0, version_check@0.9.4, wait-timeout@0.2.0, walkdir@2.5.0, want@0.3.1, wasi@0.11.0+wasi-snapshot-preview1, wasm-bindgen-backend@0.2.92, wasm-bindgen-futures@0.4.42, wasm-bindgen-macro-support@0.2.92, wasm-bindgen-macro@0.2.92, wasm-bindgen-shared@0.2.92, wasm-bindgen@0.2.92, wasm-encoder@0.200.0, wasmparser@0.118.2, web-sys@0.3.69, winnow@0.5.40, winnow@0.6.5, write-json@0.1.4, writeable@0.5.4, xattr@1.3.1, xflags-macros@0.3.2, xflags@0.3.2, xshell-macros@0.2.5, xshell@0.2.5, xz2@0.1.7, xz@0.1.0, yansi-term@0.1.2, yansi@0.5.1, yoke-derive@0.7.3, yoke@0.7.3, zerocopy-derive@0.7.32, zerocopy@0.7.32, zerofrom-derive@0.1.3, zerofrom@0.1.3, zeroize@1.7.0, zerovec-derive@0.10.1, zerovec@0.10.1, zip@0.6.6
+XS-Vendored-Sources-Rust: addr2line@0.21.0, addr2line@0.22.0, adler@1.0.2, ahash@0.8.11, aho-corasick@1.1.3, allocator-api2@0.2.18, always-assert@0.2.0, ammonia@4.0.0, android-tzdata@0.1.1, android_system_properties@0.1.5, anes@0.1.6, annotate-snippets@0.10.2, annotate-snippets@0.11.2, annotate-snippets@0.9.2, ansi_term@0.12.1, anstream@0.6.14, anstyle-lossy@1.1.1, anstyle-parse@0.2.4, anstyle-query@1.0.3, anstyle-svg@0.1.4, anstyle@1.0.7, anyhow@1.0.86, ar_archive_writer@0.2.0, arbitrary@1.3.2, arc-swap@1.7.1, arrayvec@0.7.4, askama@0.12.1, askama_derive@0.12.5, askama_escape@0.10.3, askama_parser@0.2.1, assert_cmd@2.0.14, autocfg@1.3.0, backtrace@0.3.71, base16ct@0.2.0, base64@0.21.7, base64@0.22.1, base64ct@1.6.0, basic-toml@0.1.9, bincode@1.3.3, bit-set@0.5.3, bit-vec@0.6.3, bitflags@1.3.2, bitflags@2.5.0, bitmaps@2.1.0, block-buffer@0.10.4, bstr@1.6.0, bstr@1.9.1, bumpalo@3.16.0, bytecount@0.6.8, byteorder@1.5.0, bytes@1.6.0, bytesize@1.3.0, camino@1.1.7, cargo-platform@0.1.8, cargo_metadata@0.15.4, cargo_metadata@0.18.1, cast@0.3.0, cc@1.0.97, cfg-if@1.0.0, cfg_aliases@0.1.1, chrono@0.4.38, ciborium-io@0.2.2, ciborium-ll@0.2.2, ciborium@0.2.2, clap-cargo@0.12.0, clap@4.5.4, clap_builder@4.5.2, clap_complete@4.5.2, clap_derive@4.5.4, clap_lex@0.7.0, clru@0.6.1, cmake@0.1.48, color-eyre@0.6.3, color-print-proc-macro@0.3.6, color-print@0.3.6, color-spantrace@0.2.1, colorchoice@1.0.1, colored@2.1.0, comma@1.0.0, compiler_builtins@0.1.109, console@0.15.8, const-oid@0.9.6, content_inspector@0.2.4, core-foundation-sys@0.8.6, countme@3.0.1, cov-mark@2.0.0-pre.1, cpufeatures@0.2.12, crc32fast@1.4.0, criterion-plot@0.5.0, criterion@0.5.1, crossbeam-channel@0.5.12, crossbeam-deque@0.8.5, crossbeam-epoch@0.9.18, crossbeam-utils@0.8.19, crunchy@0.2.2, crypto-bigint@0.5.5, crypto-common@0.1.6, ct-codecs@1.1.1, ctrlc@3.4.4, curl-sys@0.4.72+curl-8.6.0, curl@0.4.46, darling@0.20.9, darling_core@0.20.9, darling_macro@0.20.9, dashmap@5.5.3, datafrog@2.0.1, dbus@0.9.7, der@0.7.9, deranged@0.3.11, derivative@2.2.0, derive_arbitrary@1.3.2, derive_builder@0.20.0, derive_builder_core@0.20.0, derive_builder_macro@0.20.0, derive_more@0.99.17, derive_setters@0.1.6, diff@0.1.13, difflib@0.4.0, digest@0.10.7, directories@5.0.1, dirs-next@2.0.0, dirs-sys-next@0.1.2, dirs-sys@0.3.7, dirs-sys@0.4.1, dirs@4.0.0, displaydoc@0.2.4, dissimilar@1.0.9, dlmalloc@0.2.6, doc-comment@0.3.3, drop_bomb@0.1.5, dunce@1.0.4, ecdsa@0.16.9, ed25519-compact@2.1.1, either@1.12.0, elasticlunr-rs@3.0.2, elliptic-curve@0.13.8, elsa@1.7.1, ena@0.14.3, encoding_rs@0.8.33, env_filter@0.1.0, env_logger@0.11.3, equivalent@1.0.1, erased-serde@0.4.4, errno@0.3.9, escargot@0.5.10, expect-test@1.5.0, eyre@0.6.12, fallible-iterator@0.3.0, fallible-streaming-iterator@0.1.9, faster-hex@0.9.0, fastrand@2.1.0, fd-lock@4.0.2, ff@0.13.0, fiat-crypto@0.2.7, field-offset@0.3.6, filetime@0.2.23, flate2@1.0.30, fluent-bundle@0.15.3, fluent-langneg@0.13.0, fluent-syntax@0.11.1, fnv@1.0.7, foreign-types-shared@0.1.1, foreign-types@0.3.2, form_urlencoded@1.2.1, fortanix-sgx-abi@0.5.0, fs-err@2.11.0, fs_extra@1.3.0, fst@0.4.7, futf@0.1.5, futures-channel@0.3.30, futures-core@0.3.30, futures-executor@0.3.30, futures-io@0.3.30, futures-macro@0.3.30, futures-sink@0.3.30, futures-task@0.3.30, futures-util@0.3.30, futures@0.3.30, generic-array@0.14.7, getopts@0.2.21, getrandom@0.2.15, gimli@0.28.1, gimli@0.29.0, git2-curl@0.19.0, git2@0.18.3, gix-actor@0.31.2, gix-attributes@0.22.2, gix-bitmap@0.2.11, gix-chunk@0.4.8, gix-command@0.3.7, gix-commitgraph@0.24.2, gix-config-value@0.14.6, gix-config@0.37.0, gix-credentials@0.24.2, gix-date@0.8.6, gix-diff@0.44.0, gix-dir@0.5.0, gix-discover@0.32.0, gix-features@0.38.2, gix-filter@0.11.2, gix-fs@0.11.0, gix-glob@0.16.2, gix-hash@0.14.2, gix-hashtable@0.5.2, gix-ignore@0.11.2, gix-index@0.33.0, gix-lock@14.0.0, gix-macros@0.1.5, gix-negotiate@0.13.1, gix-object@0.42.2, gix-odb@0.61.0, gix-pack@0.51.0, gix-packetline-blocking@0.17.4, gix-packetline@0.17.5, gix-path@0.10.7, gix-pathspec@0.7.5, gix-prompt@0.8.5, gix-protocol@0.45.1, gix-quote@0.4.12, gix-ref@0.44.0, gix-refspec@0.23.0, gix-revision@0.27.1, gix-revwalk@0.13.1, gix-sec@0.10.6, gix-submodule@0.11.0, gix-tempfile@14.0.0, gix-trace@0.1.9, gix-transport@0.42.1, gix-traverse@0.39.1, gix-url@0.27.3, gix-utils@0.1.12, gix-validate@0.8.5, gix-worktree@0.34.0, gix@0.63.0, glob@0.3.1, globset@0.4.13, globset@0.4.14, group@0.13.0, gsgdt@0.1.2, half@2.4.0, handlebars@5.1.2, hashbrown@0.14.5, hashlink@0.9.0, heck@0.4.1, heck@0.5.0, hermit-abi@0.3.9, hex@0.4.3, hkdf@0.12.4, hmac@0.12.1, home@0.5.9, html-escape@0.2.13, html5ever@0.26.0, html5ever@0.27.0, http-auth@0.1.9, humansize@2.1.3, humantime@2.1.0, iana-time-zone-haiku@0.1.2, iana-time-zone@0.1.60, icu_list@1.4.0, icu_list_data@1.4.0, icu_locid@1.4.0, icu_locid_transform@1.4.0, icu_locid_transform_data@1.4.0, icu_provider@1.4.0, icu_provider_adapters@1.4.0, icu_provider_macros@1.4.0, ident_case@1.0.1, idna@0.5.0, if_chain@1.0.2, ignore@0.4.20, ignore@0.4.22, im-rc@15.1.0, indenter@0.3.3, indexmap@2.2.6, indicatif@0.17.8, indoc@1.0.9, instant@0.1.13, intl-memoizer@0.5.2, intl_pluralrules@7.0.2, is-terminal@0.4.12, is_terminal_polyfill@1.70.0, itertools@0.10.5, itertools@0.11.0, itertools@0.12.1, itoa@0.4.8, itoa@1.0.11, jobserver@0.1.31, jod-thread@0.1.2, js-sys@0.3.69, jsonpath_lib@0.3.0, kstring@2.0.0, la-arena@0.3.1, lazy_static@1.4.0, lazycell@1.3.0, leb128@0.2.5, levenshtein@1.0.5, libc@0.2.155, libdbus-sys@0.2.5, libgit2-sys@0.16.2+1.7.2, libloading@0.8.3, libm@0.2.8, libredox@0.1.3, libsqlite3-sys@0.28.0, libssh2-sys@0.3.0, libz-sys@1.1.16, line-index@0.1.1, line-wrap@0.2.0, linereader@0.4.0, linked-hash-map@0.5.6, linux-raw-sys@0.4.14, litemap@0.7.2, lock_api@0.4.12, log@0.4.21, lsp-server@0.7.6, lsp-types@0.95.0, lz4_flex@0.11.3, lzma-sys@0.1.20, mac@0.1.1, maplit@1.0.2, markup5ever@0.11.0, markup5ever@0.12.1, matchers@0.1.0, maybe-async@0.2.10, md-5@0.10.6, mdbook-i18n-helpers@0.3.3, mdbook@0.4.40, measureme@11.0.1, memchr@2.5.0, memchr@2.7.2, memmap2@0.2.3, memmap2@0.5.10, memmap2@0.9.4, memoffset@0.9.1, mime@0.3.17, mime_guess@2.0.4, minifier@0.3.0, minimal-lexical@0.2.1, miniz_oxide@0.7.3, new_debug_unreachable@1.0.6, nix@0.28.0, nohash-hasher@0.2.0, nom@7.1.3, normalize-line-endings@0.3.0, nu-ansi-term@0.46.0, nu-ansi-term@0.49.0, num-conv@0.1.0, num-traits@0.2.19, num_cpus@1.16.0, num_threads@0.1.7, number_prefix@0.4.0, object@0.32.2, object@0.33.0, object@0.34.0, object@0.36.0, odht@0.3.1, once_cell@1.19.0, onig@6.4.0, onig_sys@69.8.1, oorandom@11.1.3, opener@0.5.2, opener@0.6.1, opener@0.7.1, openssl-macros@0.1.1, openssl-probe@0.1.5, openssl-sys@0.9.102, openssl@0.10.57, option-ext@0.2.0, ordered-float@2.10.1, orion@0.17.6, os_info@3.8.2, overload@0.1.1, owo-colors@3.5.0, p384@0.13.0, pad@0.1.6, papergrid@0.11.0, parking_lot@0.12.2, parking_lot_core@0.9.10, partial_ref@0.3.3, partial_ref_derive@0.3.3, pasetors@0.6.8, pathdiff@0.2.1, pem-rfc7468@0.7.0, percent-encoding@2.3.1, perf-event-open-sys@1.0.1, perf-event-open-sys@3.0.0, perf-event@0.4.7, pest@2.7.10, pest_derive@2.7.10, pest_generator@2.7.10, pest_meta@2.7.10, phf@0.10.1, phf@0.11.2, phf_codegen@0.10.0, phf_codegen@0.11.2, phf_generator@0.10.0, phf_generator@0.11.2, phf_shared@0.10.0, phf_shared@0.11.2, pin-project-lite@0.2.14, pin-utils@0.1.0, pkcs8@0.10.2, pkg-config@0.3.30, plist@1.6.1, plotters-backend@0.3.5, plotters-svg@0.3.5, plotters@0.3.5, polib@0.2.0, polonius-engine@0.13.0, portable-atomic@1.6.0, powerfmt@0.2.0, ppv-lite86@0.2.17, precomputed-hash@0.1.1, predicates-core@1.0.6, predicates-tree@1.0.9, predicates@3.1.0, pretty_assertions@1.4.0, prettydiff@0.6.4, primeorder@0.13.6, proc-macro-hack@0.5.20+deprecated, proc-macro2@1.0.82, prodash@28.0.0, proptest@1.4.0, psm@0.1.21, pulldown-cmark-escape@0.10.1, pulldown-cmark-to-cmark@13.0.0, pulldown-cmark@0.10.3, pulldown-cmark@0.9.6, punycode@0.4.1, quick-error@1.2.3, quick-xml@0.31.0, quine-mc_cluskey@0.2.4, quote@1.0.36, r-efi-alloc@1.0.0, r-efi@4.4.0, ra-ap-rustc_lexer@0.53.0, rand@0.8.5, rand_chacha@0.3.1, rand_core@0.6.4, rand_xorshift@0.3.0, rand_xoshiro@0.6.0, rayon-core@1.12.1, rayon@1.10.0, redox_syscall@0.4.1, redox_syscall@0.5.1, redox_users@0.4.5, regex-automata@0.1.10, regex-automata@0.2.0, regex-automata@0.3.7, regex-automata@0.4.6, regex-lite@0.1.5, regex-syntax@0.6.29, regex-syntax@0.7.5, regex-syntax@0.8.3, regex@1.10.4, regex@1.9.4, rfc6979@0.4.0, rowan@0.15.15, rusqlite@0.31.0, rustc-demangle@0.1.24, rustc-hash@1.1.0, rustc-rayon-core@0.5.0, rustc-rayon@0.5.0, rustc-semver@1.1.0, rustc_apfloat@0.2.0+llvm-462a31f5a5ab, rustc_tools_util@0.3.0, rustc_version@0.4.0, rustfix@0.8.1, rustix@0.38.34, rustversion@1.0.17, rusty-fork@0.3.0, ruzstd@0.5.0, ruzstd@0.6.0, ryu@1.0.18, same-file@1.0.6, scoped-tls@1.0.1, scopeguard@1.2.0, sec1@0.7.3, self_cell@0.10.3, self_cell@1.0.4, semver@1.0.23, serde-untagged@0.1.5, serde-value@0.7.0, serde@1.0.202, serde_derive@1.0.202, serde_ignored@0.1.10, serde_json@1.0.117, serde_repr@0.1.19, serde_spanned@0.6.6, sha1@0.10.6, sha1_smol@1.0.0, sha2@0.10.8, sharded-slab@0.1.7, shell-escape@0.1.5, shell-words@1.1.0, shlex@1.3.0, signature@2.2.0, similar@2.5.0, siphasher@0.3.11, sized-chunks@0.6.5, slab@0.4.9, smallvec@1.13.2, smol_str@0.2.1, snap@1.1.1, snapbox-macros@0.3.9, snapbox@0.6.7, socket2@0.5.7, spanned@0.2.0, spdx-expression@0.5.2, spdx-rs@0.5.5, spki@0.7.3, stable_deref_trait@1.2.0, stacker@0.1.15, static_assertions@1.1.0, string_cache@0.8.7, string_cache_codegen@0.5.2, strsim@0.11.1, strum@0.24.1, strum_macros@0.24.3, subtle@2.5.0, supports-hyperlinks@3.0.0, supports-unicode@3.0.0, syn@1.0.109, syn@2.0.64, synstructure@0.12.6, synstructure@0.13.1, syntect@5.2.0, sysinfo@0.30.12, tabled@0.15.0, tar@0.4.40, tempfile@3.10.1, tendril@0.4.3, term@0.7.0, termcolor@1.4.1, terminal_size@0.3.0, termize@0.1.1, termtree@0.4.1, text-size@1.1.1, textwrap@0.16.1, thin-vec@0.2.13, thiserror-impl@1.0.61, thiserror@1.0.61, thorin-dwp@0.7.0, thread_local@1.1.8, threadpool@1.8.1, time-core@0.1.2, time-macros@0.2.18, time@0.3.36, tinystr@0.7.5, tinytemplate@1.2.1, tinyvec@1.6.0, tinyvec_macros@0.1.1, tokio@1.37.0, toml@0.5.11, toml@0.7.8, toml@0.8.14, toml_datetime@0.6.6, toml_edit@0.19.15, toml_edit@0.22.14, topological-sort@0.2.2, tracing-attributes@0.1.27, tracing-chrome@0.7.2, tracing-core@0.1.30, tracing-core@0.1.32, tracing-error@0.2.0, tracing-log@0.2.0, tracing-subscriber@0.3.18, tracing-tree@0.3.0, tracing@0.1.37, tracing@0.1.40, triomphe@0.1.11, twox-hash@1.6.3, type-map@0.5.0, typenum@1.17.0, ucd-parse@0.1.13, ucd-trie@0.1.6, ui_test@0.23.0, unarray@0.1.4, ungrammar@1.16.1, unic-langid-impl@0.9.5, unic-langid-macros-impl@0.9.5, unic-langid-macros@0.9.5, unic-langid@0.9.5, unicase@2.7.0, unicode-bidi@0.3.15, unicode-bom@2.0.3, unicode-ident@1.0.12, unicode-normalization@0.1.23, unicode-properties@0.1.1, unicode-script@0.5.6, unicode-security@0.1.1, unicode-segmentation@1.11.0, unicode-width@0.1.12, unicode-xid@0.2.4, unified-diff@0.2.1, unwinding@0.2.1, url@2.5.0, utf-8@0.7.6, utf8-width@0.1.7, utf8parse@0.2.1, uuid@1.8.0, valuable@0.1.0, varisat-checker@0.2.2, varisat-dimacs@0.2.2, varisat-formula@0.2.2, varisat-internal-macros@0.2.2, varisat-internal-proof@0.2.2, varisat@0.2.2, vcpkg@0.2.15, vec_mut_scan@0.3.0, version_check@0.9.4, wait-timeout@0.2.0, walkdir@2.5.0, wasi@0.11.0+wasi-snapshot-preview1, wasm-bindgen-backend@0.2.92, wasm-bindgen-macro-support@0.2.92, wasm-bindgen-macro@0.2.92, wasm-bindgen-shared@0.2.92, wasm-bindgen@0.2.92, wasm-encoder@0.200.0, wasmparser@0.118.2, web-sys@0.3.69, winnow@0.5.40, winnow@0.6.8, write-json@0.1.4, writeable@0.5.4, xattr@1.3.1, xflags-macros@0.3.2, xflags@0.3.2, xmlparser@0.13.6, xshell-macros@0.2.6, xshell@0.2.6, xz2@0.1.7, yaml-rust@0.4.5, yansi-term@0.1.2, yansi@0.5.1, yoke-derive@0.7.3, yoke@0.7.3, zerocopy-derive@0.7.34, zerocopy@0.7.34, zerofrom-derive@0.1.3, zerofrom@0.1.3, zeroize@1.7.0, zerovec-derive@0.10.1, zerovec@0.10.1, zip@0.6.6
 
-Package: rustc-1.79
+Package: rustc-1.80
 Architecture: any
 Multi-Arch: allowed
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${shlibs:Depends}, ${misc:Depends},
- libstd-rust-1.79-dev (= ${binary:Version}),
+ libstd-rust-1.80-dev (= ${binary:Version}),
  gcc, libc-dev, binutils (>= 2.26)
 Suggests:
 # lld and clang are needed for wasm compilation
 # llvm is needed for llvm-dwp for -C split-debuginfo=packed
- cargo-1.79 (= ${binary:Version}),
+ cargo-1.80 (= ${binary:Version}),
  llvm-18, lld-18, clang-18,
 Description: Rust systems programming language
  Rust is a curly-brace, block-structured expression language.  It
@@ -88,7 +88,7 @@ Description: Rust systems programming language
  generic programming and meta-programming, in both static and dynamic
  styles.
 
-Package: libstd-rust-1.79
+Package: libstd-rust-1.80
 Section: libs
 Architecture: any
 Multi-Arch: same
@@ -110,12 +110,12 @@ Description: Rust standard libraries
  This package contains the standard Rust libraries, built as dylibs,
  needed to run dynamically-linked Rust programs (-C prefer-dynamic).
 
-Package: libstd-rust-1.79-dev
+Package: libstd-rust-1.80-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends},
- libstd-rust-1.79 (= ${binary:Version}),
+ libstd-rust-1.80 (= ${binary:Version}),
 Description: Rust standard libraries - development files
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -133,7 +133,7 @@ Description: Rust standard libraries - development files
  needed to compile Rust programs. It may also be installed on a system
  of another host architecture, for cross-compiling to this architecture.
 
-Package: rust-1.79-gdb
+Package: rust-1.80-gdb
 Architecture: all
 Depends: gdb, ${misc:Depends}
 Suggests: gdb-doc
@@ -154,7 +154,7 @@ Description: Rust debugger (gdb)
  This package contains pretty printers and a wrapper script for
  invoking gdb on rust binaries.
 
-Package: rust-1.79-lldb
+Package: rust-1.80-lldb
 Architecture: all
 # When updating, also update rust-lldb.links
 Depends: lldb-18, ${misc:Depends}, python3-lldb-18
@@ -175,14 +175,14 @@ Description: Rust debugger (lldb)
  This package contains pretty printers and a wrapper script for
  invoking lldb on rust binaries.
 
-Package: rust-1.79-doc
+Package: rust-1.80-doc
 Section: doc
 Architecture: all
 Build-Profiles: <!nodoc>
 Depends: ${misc:Depends},
  libjs-jquery, libjs-highlight.js, libjs-mathjax,
  fonts-open-sans, fonts-font-awesome
-Recommends: cargo-1.79-doc
+Recommends: cargo-1.80-doc
 Description: Rust systems programming language - Documentation
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -199,7 +199,7 @@ Description: Rust systems programming language - Documentation
  This package contains the Rust tutorial, language reference and
  standard library documentation.
 
-Package: rust-1.79-src
+Package: rust-1.80-src
 Architecture: all
 Depends: ${misc:Depends}
 Description: Rust systems programming language - source code
@@ -218,12 +218,12 @@ Description: Rust systems programming language - source code
  This package contains sources of the Rust compiler and standard
  libraries, useful for IDEs and code analysis tools such as Racer.
 
-Package: rust-1.79-clippy
+Package: rust-1.80-clippy
 Architecture: any
 Multi-Arch: allowed
 Depends: ${misc:Depends}, ${shlibs:Depends},
- libstd-rust-1.79 (= ${binary:Version})
-Recommends: cargo-1.79
+ libstd-rust-1.80 (= ${binary:Version})
+Recommends: cargo-1.80
 Description: Rust linter
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -246,11 +246,11 @@ Description: Rust linter
  .
  Clippy is integrated into the 'cargo' build tool, available via 'cargo clippy'.
 
-Package: rustfmt-1.79
+Package: rustfmt-1.80
 Architecture: any
 Multi-Arch: allowed
-Depends: ${misc:Depends}, ${shlibs:Depends}, libstd-rust-1.79 (= ${binary:Version}),
-Recommends: cargo-1.79
+Depends: ${misc:Depends}, ${shlibs:Depends}, libstd-rust-1.80 (= ${binary:Version}),
+Recommends: cargo-1.80
 Description: Rust formatting helper
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -268,20 +268,20 @@ Description: Rust formatting helper
  style guidelines, as well as 'cargo-fmt', a helper enabling running rustfmt
  directly with 'cargo fmt'.
 
-Package: rust-1.79-all
+Package: rust-1.80-all
 Architecture: all
 Depends: ${misc:Depends}, ${shlibs:Depends},
  llvm-18,
- rustc-1.79 (>= ${binary:Version}),
- rustfmt-1.79 (>= ${binary:Version}),
- rust-1.79-clippy (>= ${binary:Version}),
- rust-1.79-gdb (>= ${binary:Version}) | rust-1.79-lldb (>= ${binary:Version}),
- cargo-1.79,
+ rustc-1.80 (>= ${binary:Version}),
+ rustfmt-1.80 (>= ${binary:Version}),
+ rust-1.80-clippy (>= ${binary:Version}),
+ rust-1.80-gdb (>= ${binary:Version}) | rust-1.80-lldb (>= ${binary:Version}),
+ cargo-1.80,
 Recommends:
- cargo-1.79 (= ${binary:Version})
+ cargo-1.80 (= ${binary:Version})
 Suggests:
- rust-1.79-doc (>= ${binary:Version}),
- rust-1.79-src (>= ${binary:Version})
+ rust-1.80-doc (>= ${binary:Version}),
+ rust-1.80-src (>= ${binary:Version})
 Description: Rust systems programming language - all developer tools
  Rust is a curly-brace, block-structured expression language.  It
  visually resembles the C language family, but differs significantly
@@ -299,15 +299,15 @@ Description: Rust systems programming language - all developer tools
  in the standard rustc distribution that have been packaged for Debian.
 
 # Cargo binaries
-Package: cargo-1.79
+Package: cargo-1.80
 Architecture: any
 Multi-Arch: allowed
 Depends: ${shlibs:Depends}, ${misc:Depends},
-         rustc-1.79 (= ${binary:Version})
+         rustc-1.80 (= ${binary:Version})
           | rustc (= ${binary:Version}),
          binutils,
          gcc | clang | c-compiler
-Suggests: cargo-1.79-doc, python3
+Suggests: cargo-1.80-doc, python3
 Description: Rust package manager
  Cargo is a tool that allows Rust projects to declare their various
  dependencies, and ensure that you'll always get a repeatable build.
@@ -322,11 +322,11 @@ Description: Rust package manager
  Cargo downloads your Rust project’s dependencies and compiles your
  project.
 
-Package: cargo-1.79-doc
+Package: cargo-1.80-doc
 Section: doc
 Architecture: all
 Build-Profiles: <!nodoc>
-Recommends: rust-1.79-doc
+Recommends: rust-1.80-doc
 Depends: ${misc:Depends}
 Description: Rust package manager, documentation
  Cargo is a tool that allows Rust projects to declare their various
