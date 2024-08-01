@@ -1,0 +1,389 @@
+Description: Add builtins for `f16`/`f128` float conversions
+Author: beetrees <b@beetr.ee>
+Origin: upstream, https://github.com/rust-lang/compiler-builtins/commit/ae712d4b4f0dd3103686f39e998f9e3b7c6efe10
+Applied-Upstream: ae712d4b4f0dd3103686f39e998f9e3b7c6efe10
+Last-Update: 2024-08-01
+---
+Index: rustc/vendor/compiler_builtins-0.1.109/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/Cargo.toml
++++ rustc/vendor/compiler_builtins-0.1.109/Cargo.toml
+@@ -72,3 +72,6 @@ rustc-dep-of-std = [
+     "core",
+ ]
+ weak-intrinsics = []
++# Workaround for codegen backends which haven't yet implemented `f16` and
++# `f128` support. Disabled any intrinsics which use those types.
++no-f16-f128 = []
+Index: rustc/vendor/compiler_builtins-0.1.109/README.md
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/README.md
++++ rustc/vendor/compiler_builtins-0.1.109/README.md
+@@ -142,7 +142,6 @@ features = ["c"]
+ - [x] divmodsi4.c
+ - [x] divsf3.c
+ - [x] divsi3.c
+-- [ ] extendhfsf2.c
+ - [x] extendsfdf2.c
+ - [x] fixdfdi.c
+ - [x] fixdfsi.c
+@@ -181,9 +180,7 @@ features = ["c"]
+ - [x] powisf2.c
+ - [x] subdf3.c
+ - [x] subsf3.c
+-- [ ] truncdfhf2.c
+ - [x] truncdfsf2.c
+-- [ ] truncsfhf2.c
+ - [x] udivdi3.c
+ - [x] udivmoddi4.c
+ - [x] udivmodsi4.c
+@@ -213,60 +210,68 @@ These builtins are needed to support 128
+ - [x] udivti3.c
+ - [x] umodti3.c
+ 
++These builtins are needed to support `f16` and `f128`, which are in the process of being added to Rust.
++
++- [ ] addtf3.c
++- [ ] comparetf2.c
++- [ ] divtf3.c
++- [x] extenddftf2.c
++- [x] extendhfsf2.c
++- [x] extendhftf2.c
++- [x] extendsftf2.c
++- [ ] fixtfdi.c
++- [ ] fixtfsi.c
++- [ ] fixtfti.c
++- [ ] fixunstfdi.c
++- [ ] fixunstfsi.c
++- [ ] fixunstfti.c
++- [ ] floatditf.c
++- [ ] floatsitf.c
++- [ ] floatunditf.c
++- [ ] floatunsitf.c
++- [ ] multf3.c
++- [ ] powitf2.c
++- [ ] ppc/fixtfdi.c
++- [ ] ppc/fixunstfdi.c
++- [ ] ppc/floatditf.c
++- [ ] ppc/floatunditf.c
++- [ ] subtf3.c
++- [x] truncdfhf2.c
++- [x] truncsfhf2.c
++- [x] trunctfdf2.c
++- [x] trunctfhf2.c
++- [x] trunctfsf2.c
++
+ ## Unimplemented functions
+ 
+-These builtins involve floating-point types ("`f128`", "`f80`" and complex numbers) that are not supported by Rust.
++These builtins involve floating-point types ("`f80`" and complex numbers) that are not supported by Rust.
+ 
+-- ~~addtf3.c~~
+-- ~~comparetf2.c~~
+ - ~~divdc3.c~~
+ - ~~divsc3.c~~
+ - ~~divtc3.c~~
+-- ~~divtf3.c~~
+ - ~~divxc3.c~~
+-- ~~extenddftf2.c~~
+-- ~~extendsftf2.c~~
+-- ~~fixtfdi.c~~
+-- ~~fixtfsi.c~~
+-- ~~fixtfti.c~~
+-- ~~fixunstfdi.c~~
+-- ~~fixunstfsi.c~~
+-- ~~fixunstfti.c~~
+ - ~~fixunsxfdi.c~~
+ - ~~fixunsxfsi.c~~
+ - ~~fixunsxfti.c~~
+ - ~~fixxfdi.c~~
+ - ~~fixxfti.c~~
+-- ~~floatditf.c~~
+ - ~~floatdixf.c~~
+-- ~~floatsitf.c~~
+ - ~~floattixf.c~~
+-- ~~floatunditf.c~~
+ - ~~floatundixf.c~~
+-- ~~floatunsitf.c~~
+ - ~~floatuntixf.c~~
+ - ~~i386/floatdixf.S~~
+ - ~~i386/floatundixf.S~~
+ - ~~muldc3.c~~
+ - ~~mulsc3.c~~
+ - ~~multc3.c~~
+-- ~~multf3.c~~
+ - ~~mulxc3.c~~
+-- ~~powitf2.c~~
+ - ~~powixf2.c~~
+ - ~~ppc/divtc3.c~~
+-- ~~ppc/fixtfdi.c~~
+-- ~~ppc/fixunstfdi.c~~
+-- ~~ppc/floatditf.c~~
+-- ~~ppc/floatunditf.c~~
+ - ~~ppc/gcc_qadd.c~~
+ - ~~ppc/gcc_qdiv.c~~
+ - ~~ppc/gcc_qmul.c~~
+ - ~~ppc/gcc_qsub.c~~
+ - ~~ppc/multc3.c~~
+-- ~~subtf3.c~~
+-- ~~trunctfdf2.c~~
+-- ~~trunctfsf2.c~~
+ - ~~x86_64/floatdixf.c~~
+ - ~~x86_64/floatundixf.S~~
+ 
+Index: rustc/vendor/compiler_builtins-0.1.109/build.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/build.rs
++++ rustc/vendor/compiler_builtins-0.1.109/build.rs
+@@ -217,6 +217,14 @@ mod c {
+             }
+         }
+ 
++        // `compiler-rt` requires `COMPILER_RT_HAS_FLOAT16` to be defined to make it use the
++        // `_Float16` type for `f16` intrinsics. This shouldn't matter as all existing `f16`
++        // intrinsics have been ported to Rust in `compiler-builtins` as C compilers don't
++        // support `_Float16` on all targets (whereas Rust does). However, define the macro
++        // anyway to prevent issues like rust#118813 and rust#123885 silently reoccuring if more
++        // `f16` intrinsics get accidentally added here in the future.
++        cfg.define("COMPILER_RT_HAS_FLOAT16", None);
++
+         cfg.warnings(false);
+ 
+         if target_env == "msvc" {
+@@ -288,13 +296,10 @@ mod c {
+             sources.extend(&[
+                 ("__divdc3", "divdc3.c"),
+                 ("__divsc3", "divsc3.c"),
+-                ("__extendhfsf2", "extendhfsf2.c"),
+                 ("__muldc3", "muldc3.c"),
+                 ("__mulsc3", "mulsc3.c"),
+                 ("__negdf2", "negdf2.c"),
+                 ("__negsf2", "negsf2.c"),
+-                ("__truncdfhf2", "truncdfhf2.c"),
+-                ("__truncsfhf2", "truncsfhf2.c"),
+             ]);
+         }
+ 
+@@ -464,8 +469,6 @@ mod c {
+         if (target_arch == "aarch64" || target_arch == "arm64ec") && consider_float_intrinsics {
+             sources.extend(&[
+                 ("__comparetf2", "comparetf2.c"),
+-                ("__extenddftf2", "extenddftf2.c"),
+-                ("__extendsftf2", "extendsftf2.c"),
+                 ("__fixtfdi", "fixtfdi.c"),
+                 ("__fixtfsi", "fixtfsi.c"),
+                 ("__fixtfti", "fixtfti.c"),
+@@ -476,8 +479,6 @@ mod c {
+                 ("__floatsitf", "floatsitf.c"),
+                 ("__floatunditf", "floatunditf.c"),
+                 ("__floatunsitf", "floatunsitf.c"),
+-                ("__trunctfdf2", "trunctfdf2.c"),
+-                ("__trunctfsf2", "trunctfsf2.c"),
+                 ("__addtf3", "addtf3.c"),
+                 ("__multf3", "multf3.c"),
+                 ("__subtf3", "subtf3.c"),
+@@ -498,7 +499,6 @@ mod c {
+ 
+         if target_arch == "mips64" {
+             sources.extend(&[
+-                ("__extenddftf2", "extenddftf2.c"),
+                 ("__netf2", "comparetf2.c"),
+                 ("__addtf3", "addtf3.c"),
+                 ("__multf3", "multf3.c"),
+@@ -509,14 +509,11 @@ mod c {
+                 ("__floatunsitf", "floatunsitf.c"),
+                 ("__fe_getround", "fp_mode.c"),
+                 ("__divtf3", "divtf3.c"),
+-                ("__trunctfdf2", "trunctfdf2.c"),
+-                ("__trunctfsf2", "trunctfsf2.c"),
+             ]);
+         }
+ 
+         if target_arch == "loongarch64" {
+             sources.extend(&[
+-                ("__extenddftf2", "extenddftf2.c"),
+                 ("__netf2", "comparetf2.c"),
+                 ("__addtf3", "addtf3.c"),
+                 ("__multf3", "multf3.c"),
+@@ -527,8 +524,6 @@ mod c {
+                 ("__floatunsitf", "floatunsitf.c"),
+                 ("__fe_getround", "fp_mode.c"),
+                 ("__divtf3", "divtf3.c"),
+-                ("__trunctfdf2", "trunctfdf2.c"),
+-                ("__trunctfsf2", "trunctfsf2.c"),
+             ]);
+         }
+ 
+Index: rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/extend.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
+@@ -82,3 +82,37 @@ intrinsics! {
+         a as f64 // LLVM generate 'fcvtds'
+     }
+ }
++
++#[cfg(not(feature = "no-f16-f128"))]
++intrinsics! {
++    #[avr_skip]
++    #[aapcs_on_arm]
++    #[arm_aeabi_alias = __aeabi_h2f]
++    pub extern "C" fn __extendhfsf2(a: f16) -> f32 {
++        extend(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __gnu_h2f_ieee(a: f16) -> f32 {
++        extend(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __extendhftf2(a: f16) -> f128 {
++        extend(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __extendsftf2(a: f32) -> f128 {
++        extend(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __extenddftf2(a: f64) -> f128 {
++        extend(a)
++    }
++}
+Index: rustc/vendor/compiler_builtins-0.1.109/src/float/mod.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/mod.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/float/mod.rs
+@@ -127,7 +127,20 @@ macro_rules! float_impl {
+                 self.to_bits() as Self::SignedInt
+             }
+             fn eq_repr(self, rhs: Self) -> bool {
+-                if self.is_nan() && rhs.is_nan() {
++                #[cfg(feature = "mangled-names")]
++                fn is_nan(x: $ty) -> bool {
++                    // When using mangled-names, the "real" compiler-builtins might not have the
++                    // necessary builtin (__unordtf2) to test whether `f128` is NaN.
++                    // FIXME(f16_f128): Remove once the nightly toolchain has the __unordtf2 builtin
++                    // x is NaN if all the bits of the exponent are set and the significand is non-0
++                    x.repr() & $ty::EXPONENT_MASK == $ty::EXPONENT_MASK
++                        && x.repr() & $ty::SIGNIFICAND_MASK != 0
++                }
++                #[cfg(not(feature = "mangled-names"))]
++                fn is_nan(x: $ty) -> bool {
++                    x.is_nan()
++                }
++                if is_nan(self) && is_nan(rhs) {
+                     true
+                 } else {
+                     self.repr() == rhs.repr()
+@@ -171,5 +184,9 @@ macro_rules! float_impl {
+     };
+ }
+ 
++#[cfg(not(feature = "no-f16-f128"))]
++float_impl!(f16, u16, i16, i8, 16, 10);
+ float_impl!(f32, u32, i32, i16, 32, 23);
+ float_impl!(f64, u64, i64, i16, 64, 52);
++#[cfg(not(feature = "no-f16-f128"))]
++float_impl!(f128, u128, i128, i16, 128, 112);
+Index: rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
+@@ -52,8 +52,10 @@ where
+         // destination format.  We can convert by simply right-shifting with
+         // rounding and adjusting the exponent.
+         abs_result = (a_abs >> sign_bits_delta).cast();
+-        let tmp = src_exp_bias.wrapping_sub(dst_exp_bias) << R::SIGNIFICAND_BITS;
+-        abs_result = abs_result.wrapping_sub(tmp.cast());
++        // Cast before shifting to prevent overflow.
++        let bias_diff: R::Int = src_exp_bias.wrapping_sub(dst_exp_bias).cast();
++        let tmp = bias_diff << R::SIGNIFICAND_BITS;
++        abs_result = abs_result.wrapping_sub(tmp);
+ 
+         let round_bits = a_abs & round_mask;
+         if round_bits > halfway {
+@@ -67,13 +69,17 @@ where
+         // a is NaN.
+         // Conjure the result by beginning with infinity, setting the qNaN
+         // bit and inserting the (truncated) trailing NaN field.
+-        abs_result = (dst_inf_exp << R::SIGNIFICAND_BITS).cast();
++        // Cast before shifting to prevent overflow.
++        let dst_inf_exp: R::Int = dst_inf_exp.cast();
++        abs_result = dst_inf_exp << R::SIGNIFICAND_BITS;
+         abs_result |= dst_qnan;
+         abs_result |= dst_nan_code
+             & ((a_abs & src_nan_code) >> (F::SIGNIFICAND_BITS - R::SIGNIFICAND_BITS)).cast();
+     } else if a_abs >= overflow {
+         // a overflows to infinity.
+-        abs_result = (dst_inf_exp << R::SIGNIFICAND_BITS).cast();
++        // Cast before shifting to prevent overflow.
++        let dst_inf_exp: R::Int = dst_inf_exp.cast();
++        abs_result = dst_inf_exp << R::SIGNIFICAND_BITS;
+     } else {
+         // a underflows on conversion to the destination type or is an exact
+         // zero.  The result may be a denormal or zero.  Extract the exponent
+@@ -124,3 +130,44 @@ intrinsics! {
+         a as f32
+     }
+ }
++
++#[cfg(not(feature = "no-f16-f128"))]
++intrinsics! {
++    #[avr_skip]
++    #[aapcs_on_arm]
++    #[arm_aeabi_alias = __aeabi_f2h]
++    pub extern "C" fn __truncsfhf2(a: f32) -> f16 {
++        trunc(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __gnu_f2h_ieee(a: f32) -> f16 {
++        trunc(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    #[arm_aeabi_alias = __aeabi_d2h]
++    pub extern "C" fn __truncdfhf2(a: f64) -> f16 {
++        trunc(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __trunctfhf2(a: f128) -> f16 {
++        trunc(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __trunctfsf2(a: f128) -> f32 {
++        trunc(a)
++    }
++
++    #[avr_skip]
++    #[aapcs_on_arm]
++    pub extern "C" fn __trunctfdf2(a: f128) -> f64 {
++        trunc(a)
++    }
++}
+Index: rustc/vendor/compiler_builtins-0.1.109/src/lib.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/lib.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/lib.rs
+@@ -13,6 +13,8 @@
+ #![feature(naked_functions)]
+ #![feature(repr_simd)]
+ #![feature(c_unwind)]
++#![cfg_attr(not(feature = "no-f16-f128"), feature(f16))]
++#![cfg_attr(not(feature = "no-f16-f128"), feature(f128))]
+ #![no_builtins]
+ #![no_std]
+ #![allow(unused_features)]
