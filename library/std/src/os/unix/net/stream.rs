@@ -3,12 +3,10 @@
     target_os = "linux",
     target_os = "dragonfly",
     target_os = "freebsd",
-    target_os = "ios",
-    target_os = "tvos",
-    target_os = "macos",
-    target_os = "watchos",
     target_os = "netbsd",
-    target_os = "openbsd"
+    target_os = "openbsd",
+    target_os = "nto",
+    target_vendor = "apple",
 ))]
 use super::{peer_cred, UCred};
 #[cfg(any(doc, target_os = "android", target_os = "linux"))]
@@ -229,12 +227,10 @@ impl UnixStream {
         target_os = "linux",
         target_os = "dragonfly",
         target_os = "freebsd",
-        target_os = "ios",
-        target_os = "tvos",
-        target_os = "macos",
-        target_os = "watchos",
         target_os = "netbsd",
-        target_os = "openbsd"
+        target_os = "openbsd",
+        target_os = "nto",
+        target_vendor = "apple",
     ))]
     pub fn peer_cred(&self) -> io::Result<UCred> {
         peer_cred(self)
@@ -578,6 +574,10 @@ impl io::Read for UnixStream {
         io::Read::read(&mut &*self, buf)
     }
 
+    fn read_buf(&mut self, buf: io::BorrowedCursor<'_>) -> io::Result<()> {
+        io::Read::read_buf(&mut &*self, buf)
+    }
+
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         io::Read::read_vectored(&mut &*self, bufs)
     }
@@ -592,6 +592,10 @@ impl io::Read for UnixStream {
 impl<'a> io::Read for &'a UnixStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.read(buf)
+    }
+
+    fn read_buf(&mut self, buf: io::BorrowedCursor<'_>) -> io::Result<()> {
+        self.0.read_buf(buf)
     }
 
     fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {

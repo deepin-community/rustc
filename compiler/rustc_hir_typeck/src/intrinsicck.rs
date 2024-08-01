@@ -2,6 +2,7 @@ use hir::HirId;
 use rustc_errors::{codes::*, struct_span_code_err};
 use rustc_hir as hir;
 use rustc_index::Idx;
+use rustc_middle::bug;
 use rustc_middle::ty::layout::{LayoutError, SizeSkeleton};
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt};
 use rustc_target::abi::{Pointer, VariantIdx};
@@ -17,7 +18,7 @@ fn unpack_option_like<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
         let data_idx;
 
         let one = VariantIdx::new(1);
-        let zero = VariantIdx::new(0);
+        let zero = VariantIdx::ZERO;
 
         if def.variant(zero).fields.is_empty() {
             data_idx = one;

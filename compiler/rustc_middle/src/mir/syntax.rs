@@ -17,6 +17,7 @@ use rustc_data_structures::packed::Pu128;
 use rustc_hir::def_id::DefId;
 use rustc_hir::CoroutineKind;
 use rustc_index::IndexVec;
+use rustc_macros::{HashStable, TyDecodable, TyEncodable, TypeFoldable, TypeVisitable};
 use rustc_span::source_map::Spanned;
 use rustc_target::abi::{FieldIdx, VariantIdx};
 
@@ -124,6 +125,7 @@ pub enum AnalysisPhase {
     /// * [`TerminatorKind::FalseEdge`]
     /// * [`StatementKind::FakeRead`]
     /// * [`StatementKind::AscribeUserType`]
+    /// * [`StatementKind::Coverage`] with [`CoverageKind::BlockMarker`] or [`CoverageKind::SpanMarker`]
     /// * [`Rvalue::Ref`] with `BorrowKind::Fake`
     ///
     /// Furthermore, `Deref` projections must be the first projection within any place (if they
@@ -164,13 +166,16 @@ pub enum BorrowKind {
     /// Data must be immutable and is aliasable.
     Shared,
 
-    /// The immediately borrowed place must be immutable, but projections from
-    /// it don't need to be. For example, a shallow borrow of `a.b` doesn't
-    /// conflict with a mutable borrow of `a.b.c`.
+    /// An immutable, aliasable borrow that is discarded after borrow-checking. Can behave either
+    /// like a normal shared borrow or like a special shallow borrow (see [`FakeBorrowKind`]).
     ///
-    /// This is used when lowering matches: when matching on a place we want to
-    /// ensure that place have the same value from the start of the match until
-    /// an arm is selected. This prevents this code from compiling:
+    /// This is used when lowering index expressions and matches. This is used to prevent code like
+    /// the following from compiling:
+    /// ```compile_fail,E0510
+    /// let mut x: &[_] = &[[0, 1]];
+    /// let y: &[_] = &[];
+    /// let _ = x[0][{x = y; 1}];
+    /// ```
     /// ```compile_fail,E0510
     /// let mut x = &Some(0);
     /// match *x {
@@ -179,11 +184,8 @@ pub enum BorrowKind {
     ///     Some(_) => (),
     /// }
     /// ```
-    /// This can't be a shared borrow because mutably borrowing (*x as Some).0
-    /// should not prevent `if let None = x { ... }`, for example, because the
-    /// mutating `(*x as Some).0` can't affect the discriminant of `x`.
     /// We can also report errors with this kind of borrow differently.
-    Fake,
+    Fake(FakeBorrowKind),
 
     /// Data is mutable and not aliasable.
     Mut { kind: MutBorrowKind },
@@ -237,6 +239,57 @@ pub enum MutBorrowKind {
     /// This solves the problem. For simplicity, we don't give users the way to express this
     /// borrow, it's just used when translating closures.
     ClosureCapture,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TyEncodable, TyDecodable)]
+#[derive(Hash, HashStable)]
+pub enum FakeBorrowKind {
+    /// A shared shallow borrow. The immediately borrowed place must be immutable, but projections
+    /// from it don't need to be. For example, a shallow borrow of `a.b` doesn't conflict with a
+    /// mutable borrow of `a.b.c`.
+    ///
+    /// This is used when lowering matches: when matching on a place we want to ensure that place
+    /// have the same value from the start of the match until an arm is selected. This prevents this
+    /// code from compiling:
+    /// ```compile_fail,E0510
+    /// let mut x = &Some(0);
+    /// match *x {
+    ///     None => (),
+    ///     Some(_) if { x = &None; false } => (),
+    ///     Some(_) => (),
+    /// }
+    /// ```
+    /// This can't be a shared borrow because mutably borrowing `(*x as Some).0` should not checking
+    /// the discriminant or accessing other variants, because the mutating `(*x as Some).0` can't
+    /// affect the discriminant of `x`. E.g. the following is allowed:
+    /// ```rust
+    /// let mut x = Some(0);
+    /// match x {
+    ///     Some(_)
+    ///         if {
+    ///             if let Some(ref mut y) = x {
+    ///                 *y += 1;
+    ///             };
+    ///             true
+    ///         } => {}
+    ///     _ => {}
+    /// }
+    /// ```
+    Shallow,
+    /// A shared (deep) borrow. Data must be immutable and is aliasable.
+    ///
+    /// This is used when lowering deref patterns, where shallow borrows wouldn't prevent something
+    /// like:
+    // ```compile_fail
+    // let mut b = Box::new(false);
+    // match b {
+    //     deref!(true) => {} // not reached because `*b == false`
+    //     _ if { *b = true; false } => {} // not reached because the guard is `false`
+    //     deref!(false) => {} // not reached because the guard changed it
+    //     // UB because we reached the unreachable.
+    // }
+    // ```
+    Deep,
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -372,7 +425,7 @@ pub enum StatementKind<'tcx> {
     ///
     /// Interpreters and codegen backends that don't support coverage instrumentation
     /// can usually treat this as a no-op.
-    Coverage(Box<Coverage>),
+    Coverage(CoverageKind),
 
     /// Denotes a call to an intrinsic that does not require an unwind path and always returns.
     /// This avoids adding a new block and a terminator for simple intrinsics.
@@ -514,12 +567,6 @@ pub enum FakeReadCause {
     /// index expression. Thus we create a fake borrow of `x` across the second
     /// indexer, which will cause a borrow check error.
     ForIndex,
-}
-
-#[derive(Clone, Debug, PartialEq, TyEncodable, TyDecodable, Hash, HashStable)]
-#[derive(TypeFoldable, TypeVisitable)]
-pub struct Coverage {
-    pub kind: CoverageKind,
 }
 
 #[derive(Clone, Debug, PartialEq, TyEncodable, TyDecodable, Hash, HashStable)]
@@ -961,8 +1008,8 @@ pub type AssertMessage<'tcx> = AssertKind<Operand<'tcx>>;
 /// element:
 ///
 ///  - [`Downcast`](ProjectionElem::Downcast): This projection sets the place's variant index to the
-///    given one, and makes no other changes. A `Downcast` projection on a place with its variant
-///    index already set is not well-formed.
+///    given one, and makes no other changes. A `Downcast` projection must always be followed
+///    immediately by a `Field` projection.
 ///  - [`Field`](ProjectionElem::Field): `Field` projections take their parent place and create a
 ///    place referring to one of the fields of the type. The resulting address is the parent
 ///    address, plus the offset of the field. The type becomes the type of the field. If the parent
@@ -1248,17 +1295,11 @@ pub enum Rvalue<'tcx> {
     ///   truncated as needed.
     /// * The `Bit*` operations accept signed integers, unsigned integers, or bools with matching
     ///   types and return a value of that type.
+    /// * The `FooWithOverflow` are like the `Foo`, but returning `(T, bool)` instead of just `T`,
+    ///   where the `bool` is true if the result is not equal to the infinite-precision result.
     /// * The remaining operations accept signed integers, unsigned integers, or floats with
     ///   matching types and return a value of that type.
     BinaryOp(BinOp, Box<(Operand<'tcx>, Operand<'tcx>)>),
-
-    /// Same as `BinaryOp`, but yields `(T, bool)` with a `bool` indicating an error condition.
-    ///
-    /// For addition, subtraction, and multiplication on integers the error condition is set when
-    /// the infinite precision result would not be equal to the actual result.
-    ///
-    /// Other combinations of types and operators are unsupported.
-    CheckedBinaryOp(BinOp, Box<(Operand<'tcx>, Operand<'tcx>)>),
 
     /// Computes a value as described by the operation.
     NullaryOp(NullOp<'tcx>, Ty<'tcx>),
@@ -1314,11 +1355,11 @@ pub enum Rvalue<'tcx> {
 pub enum CastKind {
     /// An exposing pointer to address cast. A cast between a pointer and an integer type, or
     /// between a function pointer and an integer type.
-    /// See the docs on `expose_addr` for more details.
-    PointerExposeAddress,
+    /// See the docs on `expose_provenance` for more details.
+    PointerExposeProvenance,
     /// An address-to-pointer cast that picks up an exposed provenance.
-    /// See the docs on `from_exposed_addr` for more details.
-    PointerFromExposedAddress,
+    /// See the docs on `with_exposed_provenance` for more details.
+    PointerWithExposedProvenance,
     /// Pointer related casts that are done by coercions. Note that reference-to-raw-ptr casts are
     /// translated into `&raw mut/const *r`, i.e., they are not actually casts.
     PointerCoercion(PointerCoercion),
@@ -1356,6 +1397,21 @@ pub enum AggregateKind<'tcx> {
     Closure(DefId, GenericArgsRef<'tcx>),
     Coroutine(DefId, GenericArgsRef<'tcx>),
     CoroutineClosure(DefId, GenericArgsRef<'tcx>),
+
+    /// Construct a raw pointer from the data pointer and metadata.
+    ///
+    /// The `Ty` here is the type of the *pointee*, not the pointer itself.
+    /// The `Mutability` indicates whether this produces a `*const` or `*mut`.
+    ///
+    /// The [`Rvalue::Aggregate`] operands for thus must be
+    ///
+    /// 0. A raw pointer of matching mutability with any [`core::ptr::Thin`] pointee
+    /// 1. A value of the appropriate [`core::ptr::Pointee::Metadata`] type
+    ///
+    /// *Both* operands must always be included, even the unit value if this is
+    /// creating a thin pointer. If you're just converting between thin pointers,
+    /// you may want an [`Rvalue::Cast`] with [`CastKind::PtrToPtr`] instead.
+    RawPtr(Ty<'tcx>, Mutability),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, TyEncodable, TyDecodable, Hash, HashStable)]
@@ -1366,16 +1422,9 @@ pub enum NullOp<'tcx> {
     AlignOf,
     /// Returns the offset of a field
     OffsetOf(&'tcx List<(VariantIdx, FieldIdx)>),
-    /// Returns whether we want to check for library UB or language UB at monomorphization time.
-    /// Both kinds of UB evaluate to `true` in codegen, and only library UB evalutes to `true` in
-    /// const-eval/Miri, because the interpreter has its own better checks for language UB.
-    UbCheck(UbKind),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, TyEncodable, TyDecodable, Hash, HashStable)]
-pub enum UbKind {
-    LanguageUb,
-    LibraryUb,
+    /// Returns whether we should perform some UB-checking at runtime.
+    /// See the `ub_checks` intrinsic docs for details.
+    UbChecks,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1385,6 +1434,13 @@ pub enum UnOp {
     Not,
     /// The `-` operator for negation
     Neg,
+    /// Get the metadata `M` from a `*const/mut impl Pointee<Metadata = M>`.
+    ///
+    /// For example, this will give a `()` from `*const i32`, a `usize` from
+    /// `*mut [u8]`, or a pointer to a vtable from a `*const dyn Foo`.
+    ///
+    /// Allowed only in [`MirPhase::Runtime`]; earlier it's an intrinsic.
+    PtrMetadata,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -1394,14 +1450,23 @@ pub enum BinOp {
     Add,
     /// Like `Add`, but with UB on overflow.  (Integers only.)
     AddUnchecked,
+    /// Like `Add`, but returns `(T, bool)` of both the wrapped result
+    /// and a bool indicating whether it overflowed.
+    AddWithOverflow,
     /// The `-` operator (subtraction)
     Sub,
     /// Like `Sub`, but with UB on overflow.  (Integers only.)
     SubUnchecked,
+    /// Like `Sub`, but returns `(T, bool)` of both the wrapped result
+    /// and a bool indicating whether it overflowed.
+    SubWithOverflow,
     /// The `*` operator (multiplication)
     Mul,
     /// Like `Mul`, but with UB on overflow.  (Integers only.)
     MulUnchecked,
+    /// Like `Mul`, but returns `(T, bool)` of both the wrapped result
+    /// and a bool indicating whether it overflowed.
+    MulWithOverflow,
     /// The `/` operator (division)
     ///
     /// For integer types, division by zero is UB, as is `MIN / -1` for signed.
@@ -1425,13 +1490,17 @@ pub enum BinOp {
     BitOr,
     /// The `<<` operator (shift left)
     ///
-    /// The offset is truncated to the size of the first operand and made unsigned before shifting.
+    /// The offset is (uniquely) determined as follows:
+    /// - it is "equal modulo LHS::BITS" to the RHS
+    /// - it is in the range `0..LHS::BITS`
     Shl,
     /// Like `Shl`, but is UB if the RHS >= LHS::BITS or RHS < 0
     ShlUnchecked,
     /// The `>>` operator (shift right)
     ///
-    /// The offset is truncated to the size of the first operand and made unsigned before shifting.
+    /// The offset is (uniquely) determined as follows:
+    /// - it is "equal modulo LHS::BITS" to the RHS
+    /// - it is in the range `0..LHS::BITS`
     ///
     /// This is an arithmetic shift if the LHS is signed
     /// and a logical shift if the LHS is unsigned.
@@ -1450,19 +1519,32 @@ pub enum BinOp {
     Ge,
     /// The `>` operator (greater than)
     Gt,
+    /// The `<=>` operator (three-way comparison, like `Ord::cmp`)
+    ///
+    /// This is supported only on the integer types and `char`, always returning
+    /// [`rustc_hir::LangItem::OrderingEnum`] (aka [`std::cmp::Ordering`]).
+    ///
+    /// [`Rvalue::BinaryOp`]`(BinOp::Cmp, A, B)` returns
+    /// - `Ordering::Less` (`-1_i8`, as a Scalar) if `A < B`
+    /// - `Ordering::Equal` (`0_i8`, as a Scalar) if `A == B`
+    /// - `Ordering::Greater` (`+1_i8`, as a Scalar) if `A > B`
+    Cmp,
     /// The `ptr.offset` operator
     Offset,
 }
 
 // Some nodes are used a lot. Make sure they don't unintentionally get bigger.
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[cfg(target_pointer_width = "64")]
 mod size_asserts {
     use super::*;
+    use rustc_data_structures::static_assert_size;
     // tidy-alphabetical-start
     static_assert_size!(AggregateKind<'_>, 32);
     static_assert_size!(Operand<'_>, 24);
     static_assert_size!(Place<'_>, 16);
     static_assert_size!(PlaceElem<'_>, 24);
     static_assert_size!(Rvalue<'_>, 40);
+    static_assert_size!(StatementKind<'_>, 16);
+    static_assert_size!(TerminatorKind<'_>, 96);
     // tidy-alphabetical-end
 }

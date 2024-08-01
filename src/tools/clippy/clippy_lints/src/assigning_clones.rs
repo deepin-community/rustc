@@ -1,15 +1,16 @@
+use clippy_config::msrvs::{self, Msrv};
 use clippy_utils::diagnostics::span_lint_and_then;
 use clippy_utils::macros::HirNode;
 use clippy_utils::sugg::Sugg;
-use clippy_utils::{is_trait_method, path_to_local};
+use clippy_utils::{is_trait_method, local_is_initialized, path_to_local};
 use rustc_errors::Applicability;
-use rustc_hir::{self as hir, Expr, ExprKind, Node};
+use rustc_hir::{self as hir, Expr, ExprKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, Instance, Mutability};
-use rustc_session::declare_lint_pass;
+use rustc_session::impl_lint_pass;
 use rustc_span::def_id::DefId;
 use rustc_span::symbol::sym;
-use rustc_span::ExpnKind;
+use rustc_span::{ExpnKind, SyntaxContext};
 
 declare_clippy_lint! {
     /// ### What it does
@@ -35,6 +36,7 @@ declare_clippy_lint! {
     /// Use instead:
     /// ```rust
     /// struct Thing;
+    ///
     /// impl Clone for Thing {
     ///     fn clone(&self) -> Self { todo!() }
     ///     fn clone_from(&mut self, other: &Self) { todo!() }
@@ -44,17 +46,30 @@ declare_clippy_lint! {
     ///     a.clone_from(&b);
     /// }
     /// ```
-    #[clippy::version = "1.77.0"]
+    #[clippy::version = "1.78.0"]
     pub ASSIGNING_CLONES,
-    perf,
+    pedantic,
     "assigning the result of cloning may be inefficient"
 }
-declare_lint_pass!(AssigningClones => [ASSIGNING_CLONES]);
+
+pub struct AssigningClones {
+    msrv: Msrv,
+}
+
+impl AssigningClones {
+    #[must_use]
+    pub fn new(msrv: Msrv) -> Self {
+        Self { msrv }
+    }
+}
+
+impl_lint_pass!(AssigningClones => [ASSIGNING_CLONES]);
 
 impl<'tcx> LateLintPass<'tcx> for AssigningClones {
-    fn check_expr(&mut self, cx: &LateContext<'tcx>, assign_expr: &'tcx hir::Expr<'_>) {
+    fn check_expr(&mut self, cx: &LateContext<'tcx>, assign_expr: &'tcx Expr<'_>) {
         // Do not fire the lint in macros
-        let expn_data = assign_expr.span().ctxt().outer_expn_data();
+        let ctxt = assign_expr.span().ctxt();
+        let expn_data = ctxt.outer_expn_data();
         match expn_data.kind {
             ExpnKind::AstPass(_) | ExpnKind::Desugaring(_) | ExpnKind::Macro(..) => return,
             ExpnKind::Root => {},
@@ -68,10 +83,12 @@ impl<'tcx> LateLintPass<'tcx> for AssigningClones {
             return;
         };
 
-        if is_ok_to_suggest(cx, lhs, &call) {
-            suggest(cx, assign_expr, lhs, &call);
+        if is_ok_to_suggest(cx, lhs, &call, &self.msrv) {
+            suggest(cx, ctxt, assign_expr, lhs, &call);
         }
     }
+
+    extract_msrv_attr!(LateContext);
 }
 
 // Try to resolve the call to `Clone::clone` or `ToOwned::to_owned`.
@@ -135,16 +152,20 @@ fn extract_call<'tcx>(cx: &LateContext<'tcx>, expr: &'tcx Expr<'tcx>) -> Option<
 
 // Return true if we find that the called method has a custom implementation and isn't derived or
 // provided by default by the corresponding trait.
-fn is_ok_to_suggest<'tcx>(cx: &LateContext<'tcx>, lhs: &Expr<'tcx>, call: &CallCandidate<'tcx>) -> bool {
+fn is_ok_to_suggest<'tcx>(cx: &LateContext<'tcx>, lhs: &Expr<'tcx>, call: &CallCandidate<'tcx>, msrv: &Msrv) -> bool {
+    // For calls to .to_owned we suggest using .clone_into(), which was only stablilized in 1.63.
+    // If the current MSRV is below that, don't suggest the lint.
+    if !msrv.meets(msrvs::CLONE_INTO) && matches!(call.target, TargetTrait::ToOwned) {
+        return false;
+    }
+
     // If the left-hand side is a local variable, it might be uninitialized at this point.
     // In that case we do not want to suggest the lint.
     if let Some(local) = path_to_local(lhs) {
         // TODO: This check currently bails if the local variable has no initializer.
         // That is overly conservative - the lint should fire even if there was no initializer,
         // but the variable has been initialized before `lhs` was evaluated.
-        if let Some(Node::Local(local)) = cx.tcx.hir().parent_id_iter(local).next().map(|p| cx.tcx.hir_node(p))
-            && local.init.is_none()
-        {
+        if !local_is_initialized(cx, local) {
             return false;
         }
     }
@@ -158,6 +179,23 @@ fn is_ok_to_suggest<'tcx>(cx: &LateContext<'tcx>, lhs: &Expr<'tcx>, call: &CallC
     // See e.g. https://github.com/rust-lang/rust/pull/98445#issuecomment-1190681305 for more details.
     if cx.tcx.is_builtin_derived(impl_block) {
         return false;
+    }
+
+    // If the call expression is inside an impl block that contains the method invoked by the
+    // call expression, we bail out to avoid suggesting something that could result in endless
+    // recursion.
+    if let Some(local_block_id) = impl_block.as_local()
+        && let Some(block) = cx.tcx.hir_node_by_def_id(local_block_id).as_owner()
+    {
+        let impl_block_owner = block.def_id();
+        if cx
+            .tcx
+            .hir()
+            .parent_id_iter(lhs.hir_id)
+            .any(|parent| parent.owner == impl_block_owner)
+        {
+            return false;
+        }
     }
 
     // Find the function for which we want to check that it is implemented.
@@ -186,17 +224,18 @@ fn is_ok_to_suggest<'tcx>(cx: &LateContext<'tcx>, lhs: &Expr<'tcx>, call: &CallC
 
 fn suggest<'tcx>(
     cx: &LateContext<'tcx>,
-    assign_expr: &hir::Expr<'tcx>,
-    lhs: &hir::Expr<'tcx>,
+    ctxt: SyntaxContext,
+    assign_expr: &Expr<'tcx>,
+    lhs: &Expr<'tcx>,
     call: &CallCandidate<'tcx>,
 ) {
     span_lint_and_then(cx, ASSIGNING_CLONES, assign_expr.span, call.message(), |diag| {
-        let mut applicability = Applicability::MachineApplicable;
+        let mut applicability = Applicability::Unspecified;
 
         diag.span_suggestion(
             assign_expr.span,
             call.suggestion_msg(),
-            call.suggested_replacement(cx, lhs, &mut applicability),
+            call.suggested_replacement(cx, ctxt, lhs, &mut applicability),
             applicability,
         );
     });
@@ -242,7 +281,8 @@ impl<'tcx> CallCandidate<'tcx> {
     fn suggested_replacement(
         &self,
         cx: &LateContext<'tcx>,
-        lhs: &hir::Expr<'tcx>,
+        ctxt: SyntaxContext,
+        lhs: &Expr<'tcx>,
         applicability: &mut Applicability,
     ) -> String {
         match self.target {
@@ -261,7 +301,7 @@ impl<'tcx> CallCandidate<'tcx> {
                         // Determine whether we need to reference the argument to clone_from().
                         let clone_receiver_type = cx.typeck_results().expr_ty(receiver);
                         let clone_receiver_adj_type = cx.typeck_results().expr_ty_adjusted(receiver);
-                        let mut arg_sugg = Sugg::hir_with_applicability(cx, receiver, "_", applicability);
+                        let mut arg_sugg = Sugg::hir_with_context(cx, receiver, ctxt, "_", applicability);
                         if clone_receiver_type != clone_receiver_adj_type {
                             // The receiver may have been a value type, so we need to add an `&` to
                             // be sure the argument to clone_from will be a reference.
@@ -279,7 +319,7 @@ impl<'tcx> CallCandidate<'tcx> {
                             Sugg::hir_with_applicability(cx, lhs, "_", applicability).mut_addr()
                         };
                         // The RHS had to be exactly correct before the call, there is no auto-deref for function calls.
-                        let rhs_sugg = Sugg::hir_with_applicability(cx, self_arg, "_", applicability);
+                        let rhs_sugg = Sugg::hir_with_context(cx, self_arg, ctxt, "_", applicability);
 
                         format!("Clone::clone_from({self_sugg}, {rhs_sugg})")
                     },
@@ -308,11 +348,11 @@ impl<'tcx> CallCandidate<'tcx> {
 
                 match self.kind {
                     CallKind::MethodCall { receiver } => {
-                        let receiver_sugg = Sugg::hir_with_applicability(cx, receiver, "_", applicability);
+                        let receiver_sugg = Sugg::hir_with_context(cx, receiver, ctxt, "_", applicability);
                         format!("{receiver_sugg}.clone_into({rhs_sugg})")
                     },
                     CallKind::FunctionCall { self_arg, .. } => {
-                        let self_sugg = Sugg::hir_with_applicability(cx, self_arg, "_", applicability);
+                        let self_sugg = Sugg::hir_with_context(cx, self_arg, ctxt, "_", applicability);
                         format!("ToOwned::clone_into({self_sugg}, {rhs_sugg})")
                     },
                 }

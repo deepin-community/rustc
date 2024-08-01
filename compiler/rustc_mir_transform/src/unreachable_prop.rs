@@ -3,6 +3,7 @@
 //! post-order traversal of the blocks.
 
 use rustc_data_structures::fx::FxHashSet;
+use rustc_middle::bug;
 use rustc_middle::mir::interpret::Scalar;
 use rustc_middle::mir::patch::MirPatch;
 use rustc_middle::mir::*;
@@ -14,11 +15,7 @@ pub struct UnreachablePropagation;
 impl MirPass<'_> for UnreachablePropagation {
     fn is_enabled(&self, sess: &rustc_session::Session) -> bool {
         // Enable only under -Zmir-opt-level=2 as this can make programs less debuggable.
-
-        // FIXME(#116171) Coverage gets confused by MIR passes that can remove all
-        // coverage statements from an instrumented function. This pass can be
-        // re-enabled when coverage codegen is robust against that happening.
-        sess.mir_opt_level() >= 2 && !sess.instrument_coverage()
+        sess.mir_opt_level() >= 2
     }
 
     fn run_pass<'tcx>(&self, tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {

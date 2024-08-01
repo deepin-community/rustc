@@ -20,6 +20,7 @@ use rustc_middle::ty::codec::TyEncoder;
 use rustc_middle::ty::fast_reject::{self, TreatParams};
 use rustc_middle::ty::{AssocItemContainer, SymbolName};
 use rustc_middle::util::common::to_readable_str;
+use rustc_middle::{bug, span_bug};
 use rustc_serialize::{opaque, Decodable, Decoder, Encodable, Encoder};
 use rustc_session::config::{CrateType, OptLevel};
 use rustc_span::hygiene::HygieneEncodeContext;
@@ -32,6 +33,7 @@ use std::collections::hash_map::Entry;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
+use tracing::{debug, instrument, trace};
 
 pub(super) struct EncodeContext<'a, 'tcx> {
     opaque: opaque::FileEncoder,
@@ -549,17 +551,11 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
 
             match source_file.name {
                 FileName::Real(ref original_file_name) => {
-                    let adapted_file_name = if self.tcx.sess.should_prefer_remapped_for_codegen() {
-                        source_map.path_mapping().to_embeddable_absolute_path(
-                            original_file_name.clone(),
-                            working_directory,
-                        )
-                    } else {
-                        source_map.path_mapping().to_local_embeddable_absolute_path(
-                            original_file_name.clone(),
-                            working_directory,
-                        )
-                    };
+                    // FIXME: This should probably to conditionally remapped under
+                    // a RemapPathScopeComponents but which one?
+                    let adapted_file_name = source_map
+                        .path_mapping()
+                        .to_embeddable_absolute_path(original_file_name.clone(), working_directory);
 
                     adapted_source_file.name = FileName::Real(adapted_file_name);
                 }
@@ -745,6 +741,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 expn_data,
                 expn_hashes,
                 def_path_hash_map,
+                specialization_enabled_in: tcx.specialization_enabled_in(LOCAL_CRATE),
             })
         });
 
@@ -817,8 +814,8 @@ struct AnalyzeAttrState {
 #[inline]
 fn analyze_attr(attr: &Attribute, state: &mut AnalyzeAttrState) -> bool {
     let mut should_encode = false;
-    if rustc_feature::is_builtin_only_local(attr.name_or_empty()) {
-        // Attributes marked local-only don't need to be encoded for downstream crates.
+    if !rustc_feature::encode_cross_crate(attr.name_or_empty()) {
+        // Attributes not marked encode-cross-crate don't need to be encoded for downstream crates.
     } else if attr.doc_str().is_some() {
         // We keep all doc comments reachable to rustdoc because they might be "imported" into
         // downstream crates if they use `#[doc(inline)]` to copy an item's documentation into
@@ -1067,14 +1064,11 @@ fn should_encode_mir(
         // Full-fledged functions + closures
         DefKind::AssocFn | DefKind::Fn | DefKind::Closure => {
             let generics = tcx.generics_of(def_id);
-            let mut opt = tcx.sess.opts.unstable_opts.always_encode_mir
+            let opt = tcx.sess.opts.unstable_opts.always_encode_mir
                 || (tcx.sess.opts.output_types.should_codegen()
                     && reachable_set.contains(&def_id)
                     && (generics.requires_monomorphization(tcx)
                         || tcx.cross_crate_inlinable(def_id)));
-            if let Some(intrinsic) = tcx.intrinsic(def_id) {
-                opt &= !intrinsic.must_be_overridden;
-            }
             // The function has a `const` modifier or is in a `#[const_trait]`.
             let is_const_fn = tcx.is_const_fn_raw(def_id.to_def_id())
                 || tcx.is_const_default_method(def_id.to_def_id());
@@ -1411,7 +1405,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 let inferred_outlives = self.tcx.inferred_outlives_of(def_id);
                 record_defaulted_array!(self.tables.inferred_outlives_of[def_id] <- inferred_outlives);
 
-                for param in &g.params {
+                for param in &g.own_params {
                     if let ty::GenericParamDefKind::Const { has_default: true, .. } = param.kind {
                         let default = self.tcx.const_param_default(param.def_id);
                         record!(self.tables.const_param_default[param.def_id] <- default);
@@ -1438,6 +1432,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             if let DefKind::Trait = def_kind {
                 record!(self.tables.trait_def[def_id] <- self.tcx.trait_def(def_id));
                 record!(self.tables.super_predicates_of[def_id] <- self.tcx.super_predicates_of(def_id));
+                record!(self.tables.implied_predicates_of[def_id] <- self.tcx.implied_predicates_of(def_id));
 
                 let module_children = self.tcx.module_children_local(local_id);
                 record_array!(self.tables.module_children_non_reexports[def_id] <-
@@ -1494,6 +1489,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             }
             if let DefKind::OpaqueTy = def_kind {
                 self.encode_explicit_item_bounds(def_id);
+                self.encode_explicit_item_super_predicates(def_id);
                 self.tables
                     .is_type_alias_impl_trait
                     .set(def_id.index, self.tcx.is_type_alias_impl_trait(def_id));
@@ -1602,6 +1598,12 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
         record_defaulted_array!(self.tables.explicit_item_bounds[def_id] <- bounds);
     }
 
+    fn encode_explicit_item_super_predicates(&mut self, def_id: DefId) {
+        debug!("EncodeContext::encode_explicit_item_super_predicates({:?})", def_id);
+        let bounds = self.tcx.explicit_item_super_predicates(def_id).skip_binder();
+        record_defaulted_array!(self.tables.explicit_item_super_predicates[def_id] <- bounds);
+    }
+
     #[instrument(level = "debug", skip(self))]
     fn encode_info_for_assoc_item(&mut self, def_id: DefId) {
         let tcx = self.tcx;
@@ -1614,6 +1616,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
             AssocItemContainer::TraitContainer => {
                 if let ty::AssocKind::Type = item.kind {
                     self.encode_explicit_item_bounds(def_id);
+                    self.encode_explicit_item_super_predicates(def_id);
                 }
             }
             AssocItemContainer::ImplContainer => {
@@ -1675,9 +1678,9 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                 if should_encode_const(tcx.def_kind(def_id)) {
                     let qualifs = tcx.mir_const_qualif(def_id);
                     record!(self.tables.mir_const_qualif[def_id.to_def_id()] <- qualifs);
-                    let body_id = tcx.hir().maybe_body_owned_by(def_id);
-                    if let Some(body_id) = body_id {
-                        let const_data = rendered_const(self.tcx, body_id);
+                    let body = tcx.hir().maybe_body_owned_by(def_id);
+                    if let Some(body) = body {
+                        let const_data = rendered_const(self.tcx, &body, def_id);
                         record!(self.tables.rendered_const[def_id.to_def_id()] <- const_data);
                     }
                 }
@@ -2009,7 +2012,7 @@ impl<'a, 'tcx> EncodeContext<'a, 'tcx> {
                     .push((id.owner_id.def_id.local_def_index, simplified_self_ty));
 
                 let trait_def = tcx.trait_def(trait_ref.def_id);
-                if let Some(mut an) = trait_def.ancestors(tcx, def_id).ok() {
+                if let Ok(mut an) = trait_def.ancestors(tcx, def_id) {
                     if let Some(specialization_graph::Node::Impl(parent)) = an.nth(1) {
                         self.tables.impl_parent.set_some(def_id.index, parent.into());
                     }
@@ -2201,7 +2204,7 @@ impl<D: Decoder> Decodable<D> for EncodedMetadata {
         let mmap = if len > 0 {
             let mut mmap = MmapMut::map_anon(len).unwrap();
             for _ in 0..len {
-                (&mut mmap[..]).write(&[d.read_u8()]).unwrap();
+                (&mut mmap[..]).write_all(&[d.read_u8()]).unwrap();
             }
             mmap.flush().unwrap();
             Some(mmap.make_read_only().unwrap())
@@ -2366,9 +2369,9 @@ pub fn provide(providers: &mut Providers) {
 /// Whenever possible, prefer to evaluate the constant first and try to
 /// use a different method for pretty-printing. Ideally this function
 /// should only ever be used as a fallback.
-pub fn rendered_const<'tcx>(tcx: TyCtxt<'tcx>, body: hir::BodyId) -> String {
+pub fn rendered_const<'tcx>(tcx: TyCtxt<'tcx>, body: &hir::Body<'_>, def_id: LocalDefId) -> String {
     let hir = tcx.hir();
-    let value = &hir.body(body).value;
+    let value = body.value;
 
     #[derive(PartialEq, Eq)]
     enum Classification {
@@ -2424,13 +2427,13 @@ pub fn rendered_const<'tcx>(tcx: TyCtxt<'tcx>, body: hir::BodyId) -> String {
 
         // Otherwise we prefer pretty-printing to get rid of extraneous whitespace, comments and
         // other formatting artifacts.
-        Literal | Simple => id_to_string(&hir, body.hir_id),
+        Literal | Simple => id_to_string(&hir, body.id().hir_id),
 
         // FIXME: Omit the curly braces if the enclosing expression is an array literal
         //        with a repeated element (an `ExprKind::Repeat`) as in such case it
         //        would not actually need any disambiguation.
         Complex => {
-            if tcx.def_kind(hir.body_owner_def_id(body).to_def_id()) == DefKind::AnonConst {
+            if tcx.def_kind(def_id) == DefKind::AnonConst {
                 "{ _ }".to_owned()
             } else {
                 "_".to_owned()

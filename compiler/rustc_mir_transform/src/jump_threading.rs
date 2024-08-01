@@ -36,10 +36,12 @@
 //! cost by `MAX_COST`.
 
 use rustc_arena::DroplessArena;
+use rustc_const_eval::const_eval::DummyMachine;
 use rustc_const_eval::interpret::{ImmTy, Immediate, InterpCx, OpTy, Projectable};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_index::bit_set::BitSet;
 use rustc_index::IndexVec;
+use rustc_middle::bug;
 use rustc_middle::mir::interpret::Scalar;
 use rustc_middle::mir::visit::Visitor;
 use rustc_middle::mir::*;
@@ -50,7 +52,6 @@ use rustc_span::DUMMY_SP;
 use rustc_target::abi::{TagEncoding, Variants};
 
 use crate::cost_checker::CostChecker;
-use crate::dataflow_const_prop::DummyMachine;
 
 pub struct JumpThreading;
 
@@ -154,7 +155,7 @@ struct ThreadingOpportunity {
 struct TOFinder<'tcx, 'a> {
     tcx: TyCtxt<'tcx>,
     param_env: ty::ParamEnv<'tcx>,
-    ecx: InterpCx<'tcx, 'tcx, DummyMachine>,
+    ecx: InterpCx<'tcx, DummyMachine>,
     body: &'a Body<'tcx>,
     map: &'a Map,
     loop_headers: &'a BitSet<BasicBlock>,
@@ -417,7 +418,7 @@ impl<'tcx, 'a> TOFinder<'tcx, 'a> {
             // If we expect `lhs ?= A`, we have an opportunity if we assume `constant == A`.
             Operand::Constant(constant) => {
                 let constant =
-                    self.ecx.eval_mir_constant(&constant.const_, Some(constant.span), None).ok()?;
+                    self.ecx.eval_mir_constant(&constant.const_, constant.span, None).ok()?;
                 self.process_constant(bb, lhs, constant, state);
             }
             // Transfer the conditions on the copied rhs.

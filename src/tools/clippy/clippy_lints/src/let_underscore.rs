@@ -1,7 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::ty::{implements_trait, is_must_use_ty, match_type};
 use clippy_utils::{is_from_proc_macro, is_must_use_func_call, paths};
-use rustc_hir::{Local, LocalSource, PatKind};
+use rustc_hir::{LetStmt, LocalSource, PatKind};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty::{GenericArgKind, IsSuggestable};
@@ -12,9 +12,8 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for `let _ = <expr>` where expr is `#[must_use]`
     ///
-    /// ### Why is this bad?
-    /// It's better to explicitly handle the value of a `#[must_use]`
-    /// expr
+    /// ### Why restrict this?
+    /// To ensure that all `#[must_use]` types are used rather than ignored.
     ///
     /// ### Example
     /// ```no_run
@@ -96,8 +95,8 @@ declare_clippy_lint! {
     /// Checks for `let _ = <expr>` without a type annotation, and suggests to either provide one,
     /// or remove the `let` keyword altogether.
     ///
-    /// ### Why is this bad?
-    /// The `let _ = <expr>` expression ignores the value of `<expr>` but will remain doing so even
+    /// ### Why restrict this?
+    /// The `let _ = <expr>` expression ignores the value of `<expr>`, but will continue to do so even
     /// if the type were to change, thus potentially introducing subtle bugs. By supplying a type
     /// annotation, one will be forced to re-visit the decision to ignore the value in such cases.
     ///
@@ -138,7 +137,7 @@ const SYNC_GUARD_PATHS: [&[&str]; 3] = [
 ];
 
 impl<'tcx> LateLintPass<'tcx> for LetUnderscore {
-    fn check_local(&mut self, cx: &LateContext<'tcx>, local: &Local<'tcx>) {
+    fn check_local(&mut self, cx: &LateContext<'tcx>, local: &LetStmt<'tcx>) {
         if matches!(local.source, LocalSource::Normal)
             && !in_external_macro(cx.tcx.sess, local.span)
             && let PatKind::Wild = local.pat.kind

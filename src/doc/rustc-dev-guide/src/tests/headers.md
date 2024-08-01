@@ -5,7 +5,7 @@
 Header commands are special comments that tell compiletest how to build and
 interpret a test.
 They must appear before the Rust source in the test.
-They may also appear in legacy Makefiles for
+They may also appear in `rmake.rs` or legacy Makefiles for
 [run-make tests](compiletest.md#run-make-tests).
 
 They are normally put after the short comment that explains the point of this test.
@@ -26,6 +26,10 @@ fn main() {
 
 Header commands can be standalone (like `//@ run-pass`) or take a value (like
 `//@ compile-flags: -C overflow-checks=off`).
+
+Header commands are written with one header per line: you cannot write multiple
+headers on the same line. For example, if you write `//@ only-x86 only-windows`
+then `only-windows` is interpreted as a comment, not a separate directive.
 
 ## Header commands
 
@@ -69,7 +73,7 @@ found in [`header.rs`] from the compiletest source.
     * `only-X`
     * `needs-X`
     * `no-system-llvm`
-    * `min-llvm-versionX`
+    * `min-llvm-version`
     * `min-system-llvm-version`
     * `ignore-llvm-version`
 * [Environment variable headers](#environment-variable-headers)
@@ -87,6 +91,7 @@ found in [`header.rs`] from the compiletest source.
     * [`error-pattern`](ui.md#error-pattern) — errors not on a line
     * `incremental` — incremental tests not in the incremental test-suite
     * `no-prefer-dynamic` — don't use `-C prefer-dynamic`, don't build as a dylib
+    * `no-auto-check-cfg` — disable auto check-cfg (only for `--check-cfg` tests)
     * `force-host` — build only for the host target
     * [`revisions`](compiletest.md#revisions) — compile multiple times
     * [`forbid-output`](compiletest.md#incremental-tests) — incremental cfail rejects output pattern
@@ -154,6 +159,7 @@ The following header commands will check rustc build settings and target setting
 * `needs-unwind` — ignores if the target does not support unwinding
 * `needs-rust-lld` — ignores if the rust lld support is not enabled
   (`rust.lld = true` in `config.toml`)
+* `needs-threads` — ignores if the target does not have threading support
 
 The following header commands will check LLVM support:
 
@@ -167,14 +173,16 @@ The following header commands will check LLVM support:
   Note: The test will fail on CI if the component does not exist.
 * `needs-matching-clang` — ignores if the version of clang does not match the
   LLVM version of rustc.
-  These tests are always ignored unless a special environment variable is set
-  (which is only done in one CI job).
+  These tests are always ignored unless a special environment variable,
+  `RUSTBUILD_FORCE_CLANG_BASED_TESTS`, is set
+  (which is only done in one CI job [`x86_64-gnu-debug`]).
 
 See also [Debuginfo tests](compiletest.md#debuginfo-tests) for headers for
 ignoring debuggers.
 
 [remote testing]: running.md#running-tests-on-a-remote-machine
 [compare modes]: ui.md#compare-modes
+[`x86_64-gnu-debug`]: https://github.com/rust-lang/rust/blob/ab3dba92db355b8d97db915a2dca161a117e959c/src/ci/docker/host-x86_64/x86_64-gnu-debug/Dockerfile#L32
 
 ### Environment variable headers
 

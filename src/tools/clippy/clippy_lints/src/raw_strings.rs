@@ -15,8 +15,10 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for raw string literals where a string literal can be used instead.
     ///
-    /// ### Why is this bad?
-    /// It's just unnecessary, but there are many cases where using a raw string literal is more
+    /// ### Why restrict this?
+    /// For consistent style by using simpler string literals whenever possible.
+    ///
+    /// However, there are many cases where using a raw string literal is more
     /// idiomatic than a string literal, so it's opt-in.
     ///
     /// ### Example
@@ -108,7 +110,7 @@ impl EarlyLintPass for RawStrings {
                 }
             }
 
-            let req = {
+            let mut req = {
                 let mut following_quote = false;
                 let mut req = 0;
                 // `once` so a raw string ending in hashes is still checked
@@ -136,7 +138,9 @@ impl EarlyLintPass for RawStrings {
                     ControlFlow::Continue(num) | ControlFlow::Break(num) => num,
                 }
             };
-
+            if self.allow_one_hash_in_raw_strings {
+                req = req.max(1);
+            }
             if req < max {
                 span_lint_and_then(
                     cx,

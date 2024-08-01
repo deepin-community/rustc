@@ -17,7 +17,7 @@
 //!     rustc_log::init_logger(rustc_log::LoggerConfig::from_env("LOG")).unwrap();
 //!
 //!     let edition = rustc_span::edition::Edition::Edition2021;
-//!     rustc_span::create_session_globals_then(edition, || {
+//!     rustc_span::create_session_globals_then(edition, None, || {
 //!         /* ... */
 //!     });
 //! }
@@ -103,7 +103,6 @@ pub fn init_logger(cfg: LoggerConfig) -> Result<(), Error> {
 
     let mut layer = tracing_tree::HierarchicalLayer::default()
         .with_writer(io::stderr)
-        .with_indent_lines(true)
         .with_ansi(color_logs)
         .with_targets(true)
         .with_verbose_exit(verbose_entry_exit)
@@ -159,7 +158,9 @@ where
         if !target.contains(&self.backtrace_target) {
             return Ok(());
         }
-        let backtrace = std::backtrace::Backtrace::capture();
+        // Use Backtrace::force_capture because we don't want to depend on the
+        // RUST_BACKTRACE environment variable being set.
+        let backtrace = std::backtrace::Backtrace::force_capture();
         writeln!(writer, "stack backtrace: \n{backtrace:?}")
     }
 }

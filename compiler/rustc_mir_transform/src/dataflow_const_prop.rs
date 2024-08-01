@@ -2,51 +2,22 @@
 //!
 //! Currently, this pass only propagates scalar values.
 
-use rustc_const_eval::interpret::{
-    HasStaticRootDefId, ImmTy, Immediate, InterpCx, OpTy, PlaceTy, PointerArithmetic, Projectable,
-};
+use rustc_const_eval::const_eval::{throw_machine_stop_str, DummyMachine};
+use rustc_const_eval::interpret::{ImmTy, Immediate, InterpCx, OpTy, PlaceTy, Projectable};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::DefKind;
-use rustc_middle::mir::interpret::{AllocId, ConstAllocation, InterpResult, Scalar};
+use rustc_middle::bug;
+use rustc_middle::mir::interpret::{InterpResult, Scalar};
 use rustc_middle::mir::visit::{MutVisitor, PlaceContext, Visitor};
 use rustc_middle::mir::*;
-use rustc_middle::query::TyCtxtAt;
-use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
+use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_mir_dataflow::value_analysis::{
     Map, PlaceIndex, State, TrackElem, ValueAnalysis, ValueAnalysisWrapper, ValueOrPlace,
 };
 use rustc_mir_dataflow::{lattice::FlatSet, Analysis, Results, ResultsVisitor};
-use rustc_span::def_id::DefId;
 use rustc_span::DUMMY_SP;
 use rustc_target::abi::{Abi, FieldIdx, Size, VariantIdx, FIRST_VARIANT};
-
-/// Macro for machine-specific `InterpError` without allocation.
-/// (These will never be shown to the user, but they help diagnose ICEs.)
-pub(crate) macro throw_machine_stop_str($($tt:tt)*) {{
-    // We make a new local type for it. The type itself does not carry any information,
-    // but its vtable (for the `MachineStopType` trait) does.
-    #[derive(Debug)]
-    struct Zst;
-    // Printing this type shows the desired string.
-    impl std::fmt::Display for Zst {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, $($tt)*)
-        }
-    }
-
-    impl rustc_middle::mir::interpret::MachineStopType for Zst {
-        fn diagnostic_message(&self) -> rustc_errors::DiagMessage {
-            self.to_string().into()
-        }
-
-        fn add_args(
-            self: Box<Self>,
-            _: &mut dyn FnMut(rustc_errors::DiagArgName, rustc_errors::DiagArgValue),
-        ) {}
-    }
-    throw_machine_stop!(Zst)
-}}
 
 // These constants are somewhat random guesses and have not been optimized.
 // If `tcx.sess.mir_opt_level() >= 4`, we ignore the limits (this can become very expensive).
@@ -98,7 +69,7 @@ struct ConstAnalysis<'a, 'tcx> {
     map: Map,
     tcx: TyCtxt<'tcx>,
     local_decls: &'a LocalDecls<'tcx>,
-    ecx: InterpCx<'tcx, 'tcx, DummyMachine>,
+    ecx: InterpCx<'tcx, DummyMachine>,
     param_env: ty::ParamEnv<'tcx>,
 }
 
@@ -171,11 +142,10 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
                     _ => return,
                 };
                 if let Some(variant_target_idx) = variant_target {
-                    for (field_index, operand) in operands.iter().enumerate() {
-                        if let Some(field) = self.map().apply(
-                            variant_target_idx,
-                            TrackElem::Field(FieldIdx::from_usize(field_index)),
-                        ) {
+                    for (field_index, operand) in operands.iter_enumerated() {
+                        if let Some(field) =
+                            self.map().apply(variant_target_idx, TrackElem::Field(field_index))
+                        {
                             self.assign_operand(state, field, operand);
                         }
                     }
@@ -194,7 +164,7 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
                     }
                 }
             }
-            Rvalue::CheckedBinaryOp(op, box (left, right)) => {
+            Rvalue::BinaryOp(op, box (left, right)) if op.is_overflowing() => {
                 // Flood everything now, so we can use `insert_value_idx` directly later.
                 state.flood(target.as_ref(), self.map());
 
@@ -213,7 +183,7 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
                     if let Some(overflow_target) = overflow_target {
                         let overflow = match overflow {
                             FlatSet::Top => FlatSet::Top,
-                            FlatSet::Elem(overflow) => FlatSet::Elem(Scalar::from_bool(overflow)),
+                            FlatSet::Elem(overflow) => FlatSet::Elem(overflow),
                             FlatSet::Bottom => FlatSet::Bottom,
                         };
                         // We have flooded `target` earlier.
@@ -232,8 +202,9 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
                 if let Some(target_len) = self.map().find_len(target.as_ref())
                     && let operand_ty = operand.ty(self.local_decls, self.tcx)
                     && let Some(operand_ty) = operand_ty.builtin_deref(true)
-                    && let ty::Array(_, len) = operand_ty.ty.kind()
-                    && let Some(len) = Const::Ty(*len).try_eval_scalar_int(self.tcx, self.param_env)
+                    && let ty::Array(_, len) = operand_ty.kind()
+                    && let Some(len) = Const::Ty(self.tcx.types.usize, *len)
+                        .try_eval_scalar_int(self.tcx, self.param_env)
                 {
                     state.insert_value_idx(target_len, FlatSet::Elem(len.into()), self.map());
                 }
@@ -251,7 +222,7 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
             Rvalue::Len(place) => {
                 let place_ty = place.ty(self.local_decls, self.tcx);
                 if let ty::Array(_, len) = place_ty.ty.kind() {
-                    Const::Ty(*len)
+                    Const::Ty(self.tcx.types.usize, *len)
                         .try_eval_scalar(self.tcx, self.param_env)
                         .map_or(FlatSet::Top, FlatSet::Elem)
                 } else if let [ProjectionElem::Deref] = place.projection[..] {
@@ -293,15 +264,16 @@ impl<'tcx> ValueAnalysis<'tcx> for ConstAnalysis<'_, 'tcx> {
                     FlatSet::Top => FlatSet::Top,
                 }
             }
-            Rvalue::BinaryOp(op, box (left, right)) => {
+            Rvalue::BinaryOp(op, box (left, right)) if !op.is_overflowing() => {
                 // Overflows must be ignored here.
+                // The overflowing operators are handled in `handle_assign`.
                 let (val, _overflow) = self.binary_op(state, *op, left, right);
                 val
             }
             Rvalue::UnaryOp(op, operand) => match self.eval_operand(operand, state) {
                 FlatSet::Elem(value) => self
                     .ecx
-                    .wrapping_unary_op(*op, &value)
+                    .unary_op(*op, &value)
                     .map_or(FlatSet::Top, |val| self.wrap_immediate(*val)),
                 FlatSet::Bottom => FlatSet::Bottom,
                 FlatSet::Top => FlatSet::Top,
@@ -394,7 +366,7 @@ impl<'a, 'tcx> ConstAnalysis<'a, 'tcx> {
             }
             Operand::Constant(box constant) => {
                 if let Ok(constant) =
-                    self.ecx.eval_mir_constant(&constant.const_, Some(constant.span), None)
+                    self.ecx.eval_mir_constant(&constant.const_, constant.span, None)
                 {
                     self.assign_constant(state, place, constant, &[]);
                 }
@@ -466,7 +438,7 @@ impl<'a, 'tcx> ConstAnalysis<'a, 'tcx> {
         op: BinOp,
         left: &Operand<'tcx>,
         right: &Operand<'tcx>,
-    ) -> (FlatSet<Scalar>, FlatSet<bool>) {
+    ) -> (FlatSet<Scalar>, FlatSet<Scalar>) {
         let left = self.eval_operand(left, state);
         let right = self.eval_operand(right, state);
 
@@ -474,9 +446,17 @@ impl<'a, 'tcx> ConstAnalysis<'a, 'tcx> {
             (FlatSet::Bottom, _) | (_, FlatSet::Bottom) => (FlatSet::Bottom, FlatSet::Bottom),
             // Both sides are known, do the actual computation.
             (FlatSet::Elem(left), FlatSet::Elem(right)) => {
-                match self.ecx.overflowing_binary_op(op, &left, &right) {
-                    Ok((val, overflow)) => {
-                        (FlatSet::Elem(val.to_scalar()), FlatSet::Elem(overflow))
+                match self.ecx.binary_op(op, &left, &right) {
+                    // Ideally this would return an Immediate, since it's sometimes
+                    // a pair and sometimes not. But as a hack we always return a pair
+                    // and just make the 2nd component `Bottom` when it does not exist.
+                    Ok(val) => {
+                        if matches!(val.layout.abi, Abi::ScalarPair(..)) {
+                            let (val, overflow) = val.to_scalar_pair();
+                            (FlatSet::Elem(val), FlatSet::Elem(overflow))
+                        } else {
+                            (FlatSet::Elem(val.to_scalar()), FlatSet::Bottom)
+                        }
                     }
                     _ => (FlatSet::Top, FlatSet::Top),
                 }
@@ -502,7 +482,7 @@ impl<'a, 'tcx> ConstAnalysis<'a, 'tcx> {
                         (FlatSet::Elem(arg_scalar), FlatSet::Bottom)
                     }
                     BinOp::Mul if layout.ty.is_integral() && arg_value == 0 => {
-                        (FlatSet::Elem(arg_scalar), FlatSet::Elem(false))
+                        (FlatSet::Elem(arg_scalar), FlatSet::Elem(Scalar::from_bool(false)))
                     }
                     _ => (FlatSet::Top, FlatSet::Top),
                 }
@@ -585,7 +565,7 @@ impl<'tcx, 'locals> Collector<'tcx, 'locals> {
 
     fn try_make_constant(
         &self,
-        ecx: &mut InterpCx<'tcx, 'tcx, DummyMachine>,
+        ecx: &mut InterpCx<'tcx, DummyMachine>,
         place: Place<'tcx>,
         state: &State<FlatSet<Scalar>>,
         map: &Map,
@@ -638,7 +618,7 @@ fn propagatable_scalar(
 
 #[instrument(level = "trace", skip(ecx, state, map))]
 fn try_write_constant<'tcx>(
-    ecx: &mut InterpCx<'_, 'tcx, DummyMachine>,
+    ecx: &mut InterpCx<'tcx, DummyMachine>,
     dest: &PlaceTy<'tcx>,
     place: PlaceIndex,
     ty: Ty<'tcx>,
@@ -714,6 +694,7 @@ fn try_write_constant<'tcx>(
 
         // Unsupported for now.
         ty::Array(_, _)
+        | ty::Pat(_, _)
 
         // Do not attempt to support indirection in constants.
         | ty::Ref(..) | ty::RawPtr(..) | ty::FnPtr(..) | ty::Str | ty::Slice(_)
@@ -855,7 +836,7 @@ impl<'tcx> MutVisitor<'tcx> for Patch<'tcx> {
 struct OperandCollector<'tcx, 'map, 'locals, 'a> {
     state: &'a State<FlatSet<Scalar>>,
     visitor: &'a mut Collector<'tcx, 'locals>,
-    ecx: &'map mut InterpCx<'tcx, 'tcx, DummyMachine>,
+    ecx: &'map mut InterpCx<'tcx, DummyMachine>,
     map: &'map Map,
 }
 
@@ -886,167 +867,5 @@ impl<'tcx> Visitor<'tcx> for OperandCollector<'tcx, '_, '_, '_> {
                 self.super_operand(operand, location)
             }
         }
-    }
-}
-
-pub(crate) struct DummyMachine;
-
-impl HasStaticRootDefId for DummyMachine {
-    fn static_def_id(&self) -> Option<rustc_hir::def_id::LocalDefId> {
-        None
-    }
-}
-
-impl<'mir, 'tcx: 'mir> rustc_const_eval::interpret::Machine<'mir, 'tcx> for DummyMachine {
-    rustc_const_eval::interpret::compile_time_machine!(<'mir, 'tcx>);
-    type MemoryKind = !;
-    const PANIC_ON_ALLOC_FAIL: bool = true;
-
-    #[inline(always)]
-    fn enforce_alignment(_ecx: &InterpCx<'mir, 'tcx, Self>) -> bool {
-        false // no reason to enforce alignment
-    }
-
-    fn enforce_validity(_ecx: &InterpCx<'mir, 'tcx, Self>, _layout: TyAndLayout<'tcx>) -> bool {
-        false
-    }
-
-    fn before_access_global(
-        _tcx: TyCtxtAt<'tcx>,
-        _machine: &Self,
-        _alloc_id: AllocId,
-        alloc: ConstAllocation<'tcx>,
-        _static_def_id: Option<DefId>,
-        is_write: bool,
-    ) -> InterpResult<'tcx> {
-        if is_write {
-            throw_machine_stop_str!("can't write to global");
-        }
-
-        // If the static allocation is mutable, then we can't const prop it as its content
-        // might be different at runtime.
-        if alloc.inner().mutability.is_mut() {
-            throw_machine_stop_str!("can't access mutable globals in ConstProp");
-        }
-
-        Ok(())
-    }
-
-    fn find_mir_or_eval_fn(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _instance: ty::Instance<'tcx>,
-        _abi: rustc_target::spec::abi::Abi,
-        _args: &[rustc_const_eval::interpret::FnArg<'tcx, Self::Provenance>],
-        _destination: &rustc_const_eval::interpret::MPlaceTy<'tcx, Self::Provenance>,
-        _target: Option<BasicBlock>,
-        _unwind: UnwindAction,
-    ) -> interpret::InterpResult<'tcx, Option<(&'mir Body<'tcx>, ty::Instance<'tcx>)>> {
-        unimplemented!()
-    }
-
-    fn panic_nounwind(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _msg: &str,
-    ) -> interpret::InterpResult<'tcx> {
-        unimplemented!()
-    }
-
-    fn call_intrinsic(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _instance: ty::Instance<'tcx>,
-        _args: &[rustc_const_eval::interpret::OpTy<'tcx, Self::Provenance>],
-        _destination: &rustc_const_eval::interpret::MPlaceTy<'tcx, Self::Provenance>,
-        _target: Option<BasicBlock>,
-        _unwind: UnwindAction,
-    ) -> interpret::InterpResult<'tcx> {
-        unimplemented!()
-    }
-
-    fn assert_panic(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _msg: &rustc_middle::mir::AssertMessage<'tcx>,
-        _unwind: UnwindAction,
-    ) -> interpret::InterpResult<'tcx> {
-        unimplemented!()
-    }
-
-    fn binary_ptr_op(
-        ecx: &InterpCx<'mir, 'tcx, Self>,
-        bin_op: BinOp,
-        left: &rustc_const_eval::interpret::ImmTy<'tcx, Self::Provenance>,
-        right: &rustc_const_eval::interpret::ImmTy<'tcx, Self::Provenance>,
-    ) -> interpret::InterpResult<'tcx, (ImmTy<'tcx, Self::Provenance>, bool)> {
-        use rustc_middle::mir::BinOp::*;
-        Ok(match bin_op {
-            Eq | Ne | Lt | Le | Gt | Ge => {
-                // Types can differ, e.g. fn ptrs with different `for`.
-                assert_eq!(left.layout.abi, right.layout.abi);
-                let size = ecx.pointer_size();
-                // Just compare the bits. ScalarPairs are compared lexicographically.
-                // We thus always compare pairs and simply fill scalars up with 0.
-                // If the pointer has provenance, `to_bits` will return `Err` and we bail out.
-                let left = match **left {
-                    Immediate::Scalar(l) => (l.to_bits(size)?, 0),
-                    Immediate::ScalarPair(l1, l2) => (l1.to_bits(size)?, l2.to_bits(size)?),
-                    Immediate::Uninit => panic!("we should never see uninit data here"),
-                };
-                let right = match **right {
-                    Immediate::Scalar(r) => (r.to_bits(size)?, 0),
-                    Immediate::ScalarPair(r1, r2) => (r1.to_bits(size)?, r2.to_bits(size)?),
-                    Immediate::Uninit => panic!("we should never see uninit data here"),
-                };
-                let res = match bin_op {
-                    Eq => left == right,
-                    Ne => left != right,
-                    Lt => left < right,
-                    Le => left <= right,
-                    Gt => left > right,
-                    Ge => left >= right,
-                    _ => bug!(),
-                };
-                (ImmTy::from_bool(res, *ecx.tcx), false)
-            }
-
-            // Some more operations are possible with atomics.
-            // The return value always has the provenance of the *left* operand.
-            Add | Sub | BitOr | BitAnd | BitXor => {
-                throw_machine_stop_str!("pointer arithmetic is not handled")
-            }
-
-            _ => span_bug!(ecx.cur_span(), "Invalid operator on pointers: {:?}", bin_op),
-        })
-    }
-
-    fn expose_ptr(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _ptr: interpret::Pointer<Self::Provenance>,
-    ) -> interpret::InterpResult<'tcx> {
-        unimplemented!()
-    }
-
-    fn init_frame_extra(
-        _ecx: &mut InterpCx<'mir, 'tcx, Self>,
-        _frame: rustc_const_eval::interpret::Frame<'mir, 'tcx, Self::Provenance>,
-    ) -> interpret::InterpResult<
-        'tcx,
-        rustc_const_eval::interpret::Frame<'mir, 'tcx, Self::Provenance, Self::FrameExtra>,
-    > {
-        unimplemented!()
-    }
-
-    fn stack<'a>(
-        _ecx: &'a InterpCx<'mir, 'tcx, Self>,
-    ) -> &'a [rustc_const_eval::interpret::Frame<'mir, 'tcx, Self::Provenance, Self::FrameExtra>]
-    {
-        // Return an empty stack instead of panicking, as `cur_span` uses it to evaluate constants.
-        &[]
-    }
-
-    fn stack_mut<'a>(
-        _ecx: &'a mut InterpCx<'mir, 'tcx, Self>,
-    ) -> &'a mut Vec<
-        rustc_const_eval::interpret::Frame<'mir, 'tcx, Self::Provenance, Self::FrameExtra>,
-    > {
-        unimplemented!()
     }
 }

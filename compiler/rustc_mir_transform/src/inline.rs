@@ -1,17 +1,17 @@
 //! Inlining pass for MIR functions
 use crate::deref_separator::deref_finder;
 use rustc_attr::InlineAttr;
-use rustc_const_eval::transform::validate::validate_types;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_index::bit_set::BitSet;
 use rustc_index::Idx;
+use rustc_middle::bug;
 use rustc_middle::middle::codegen_fn_attrs::{CodegenFnAttrFlags, CodegenFnAttrs};
 use rustc_middle::mir::visit::*;
 use rustc_middle::mir::*;
 use rustc_middle::ty::TypeVisitableExt;
-use rustc_middle::ty::{self, Instance, InstanceDef, ParamEnv, Ty, TyCtxt};
-use rustc_session::config::OptLevel;
+use rustc_middle::ty::{self, Instance, InstanceDef, ParamEnv, Ty, TyCtxt, TypeFlags};
+use rustc_session::config::{DebugInfo, OptLevel};
 use rustc_span::source_map::Spanned;
 use rustc_span::sym;
 use rustc_target::abi::FieldIdx;
@@ -20,6 +20,7 @@ use rustc_target::spec::abi::Abi;
 use crate::cost_checker::CostChecker;
 use crate::simplify::simplify_cfg;
 use crate::util;
+use crate::validate::validate_types;
 use std::iter;
 use std::ops::{Range, RangeFrom};
 
@@ -165,7 +166,7 @@ impl<'tcx> Inliner<'tcx> {
         caller_body: &mut Body<'tcx>,
         callsite: &CallSite<'tcx>,
     ) -> Result<std::ops::Range<BasicBlock>, &'static str> {
-        self.check_mir_is_available(caller_body, &callsite.callee)?;
+        self.check_mir_is_available(caller_body, callsite.callee)?;
 
         let callee_attrs = self.tcx.codegen_fn_attrs(callsite.callee.def_id());
         let cross_crate_inlinable = self.tcx.cross_crate_inlinable(callsite.callee.def_id());
@@ -213,6 +214,7 @@ impl<'tcx> Inliner<'tcx> {
             MirPhase::Runtime(RuntimePhase::Optimized),
             self.param_env,
             &callee_body,
+            &caller_body,
         )
         .is_empty()
         {
@@ -297,7 +299,7 @@ impl<'tcx> Inliner<'tcx> {
     fn check_mir_is_available(
         &self,
         caller_body: &Body<'tcx>,
-        callee: &Instance<'tcx>,
+        callee: Instance<'tcx>,
     ) -> Result<(), &'static str> {
         let caller_def_id = caller_body.source.def_id();
         let callee_def_id = callee.def_id();
@@ -318,12 +320,22 @@ impl<'tcx> Inliner<'tcx> {
             InstanceDef::Intrinsic(_) | InstanceDef::Virtual(..) => {
                 return Err("instance without MIR (intrinsic / virtual)");
             }
+
+            // FIXME(#127030): `ConstParamHasTy` has bad interactions with
+            // the drop shim builder, which does not evaluate predicates in
+            // the correct param-env for types being dropped. Stall resolving
+            // the MIR for this instance until all of its const params are
+            // substituted.
+            InstanceDef::DropGlue(_, Some(ty)) if ty.has_type_flags(TypeFlags::HAS_CT_PARAM) => {
+                return Err("still needs substitution");
+            }
+
             // This cannot result in an immediate cycle since the callee MIR is a shim, which does
             // not get any optimizations run on it. Any subsequent inlining may cause cycles, but we
             // do not need to catch this here, we can wait until the inliner decides to continue
             // inlining a second time.
             InstanceDef::VTableShim(_)
-            | InstanceDef::ReifyShim(_)
+            | InstanceDef::ReifyShim(..)
             | InstanceDef::FnPtrShim(..)
             | InstanceDef::ClosureOnceShim { .. }
             | InstanceDef::ConstructCoroutineInClosureShim { .. }
@@ -331,7 +343,8 @@ impl<'tcx> Inliner<'tcx> {
             | InstanceDef::DropGlue(..)
             | InstanceDef::CloneShim(..)
             | InstanceDef::ThreadLocalShim(..)
-            | InstanceDef::FnPtrAddrShim(..) => return Ok(()),
+            | InstanceDef::FnPtrAddrShim(..)
+            | InstanceDef::AsyncDropGlueCtorShim(..) => return Ok(()),
         }
 
         if self.tcx.is_constructor(callee_def_id) {
@@ -353,7 +366,7 @@ impl<'tcx> Inliner<'tcx> {
 
             // If we know for sure that the function we're calling will itself try to
             // call us, then we avoid inlining that function.
-            if self.tcx.mir_callgraph_reachable((*callee, caller_def_id.expect_local())) {
+            if self.tcx.mir_callgraph_reachable((callee, caller_def_id.expect_local())) {
                 return Err("caller might be reachable from callee (query cycle avoidance)");
             }
 
@@ -565,7 +578,8 @@ impl<'tcx> Inliner<'tcx> {
         mut callee_body: Body<'tcx>,
     ) {
         let terminator = caller_body[callsite.block].terminator.take().unwrap();
-        let TerminatorKind::Call { args, destination, unwind, target, .. } = terminator.kind else {
+        let TerminatorKind::Call { func, args, destination, unwind, target, .. } = terminator.kind
+        else {
             bug!("unexpected terminator kind {:?}", terminator.kind);
         };
 
@@ -697,7 +711,19 @@ impl<'tcx> Inliner<'tcx> {
         // Insert all of the (mapped) parts of the callee body into the caller.
         caller_body.local_decls.extend(callee_body.drain_vars_and_temps());
         caller_body.source_scopes.extend(&mut callee_body.source_scopes.drain(..));
-        caller_body.var_debug_info.append(&mut callee_body.var_debug_info);
+        if self
+            .tcx
+            .sess
+            .opts
+            .unstable_opts
+            .inline_mir_preserve_debug
+            .unwrap_or(self.tcx.sess.opts.debuginfo != DebugInfo::None)
+        {
+            // Note that we need to preserve these in the standard library so that
+            // people working on rust can build with or without debuginfo while
+            // still getting consistent results from the mir-opt tests.
+            caller_body.var_debug_info.append(&mut callee_body.var_debug_info);
+        }
         caller_body.basic_blocks_mut().extend(callee_body.basic_blocks_mut().drain(..));
 
         caller_body[callsite.block].terminator = Some(Terminator {
@@ -705,18 +731,31 @@ impl<'tcx> Inliner<'tcx> {
             kind: TerminatorKind::Goto { target: integrator.map_block(START_BLOCK) },
         });
 
-        // Copy only unevaluated constants from the callee_body into the caller_body.
-        // Although we are only pushing `ConstKind::Unevaluated` consts to
-        // `required_consts`, here we may not only have `ConstKind::Unevaluated`
-        // because we are calling `instantiate_and_normalize_erasing_regions`.
-        caller_body.required_consts.extend(callee_body.required_consts.iter().copied().filter(
-            |&ct| match ct.const_ {
-                Const::Ty(_) => {
-                    bug!("should never encounter ty::UnevaluatedConst in `required_consts`")
-                }
-                Const::Val(..) | Const::Unevaluated(..) => true,
-            },
-        ));
+        // Copy required constants from the callee_body into the caller_body. Although we are only
+        // pushing unevaluated consts to `required_consts`, here they may have been evaluated
+        // because we are calling `instantiate_and_normalize_erasing_regions` -- so we filter again.
+        caller_body.required_consts.extend(
+            callee_body.required_consts.into_iter().filter(|ct| ct.const_.is_required_const()),
+        );
+        // Now that we incorporated the callee's `required_consts`, we can remove the callee from
+        // `mentioned_items` -- but we have to take their `mentioned_items` in return. This does
+        // some extra work here to save the monomorphization collector work later. It helps a lot,
+        // since monomorphization can avoid a lot of work when the "mentioned items" are similar to
+        // the actually used items. By doing this we can entirely avoid visiting the callee!
+        // We need to reconstruct the `required_item` for the callee so that we can find and
+        // remove it.
+        let callee_item = MentionedItem::Fn(func.ty(caller_body, self.tcx));
+        if let Some(idx) =
+            caller_body.mentioned_items.iter().position(|item| item.node == callee_item)
+        {
+            // We found the callee, so remove it and add its items instead.
+            caller_body.mentioned_items.remove(idx);
+            caller_body.mentioned_items.extend(callee_body.mentioned_items);
+        } else {
+            // If we can't find the callee, there's no point in adding its items. Probably it
+            // already got removed by being inlined elsewhere in the same function, so we already
+            // took its items.
+        }
     }
 
     fn make_call_args(
@@ -1051,13 +1090,14 @@ fn try_instance_mir<'tcx>(
     tcx: TyCtxt<'tcx>,
     instance: InstanceDef<'tcx>,
 ) -> Result<&'tcx Body<'tcx>, &'static str> {
-    if let ty::InstanceDef::DropGlue(_, Some(ty)) = instance
+    if let ty::InstanceDef::DropGlue(_, Some(ty))
+    | ty::InstanceDef::AsyncDropGlueCtorShim(_, Some(ty)) = instance
         && let ty::Adt(def, args) = ty.kind()
     {
         let fields = def.all_fields();
         for field in fields {
             let field_ty = field.ty(tcx, args);
-            if field_ty.has_param() && field_ty.has_projections() {
+            if field_ty.has_param() && field_ty.has_aliases() {
                 return Err("cannot build drop shim for polymorphic type");
             }
         }

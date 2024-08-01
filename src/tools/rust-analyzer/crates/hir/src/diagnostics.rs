@@ -9,9 +9,11 @@ use hir_ty::{db::HirDatabase, diagnostics::BodyValidationDiagnostic, InferenceDi
 use base_db::CrateId;
 use cfg::{CfgExpr, CfgOptions};
 use either::Either;
+pub use hir_def::VariantId;
 use hir_def::{body::SyntheticSyntax, hir::ExprOrPatId, path::ModPath, AssocItemId, DefWithBodyId};
 use hir_expand::{name::Name, HirFileId, InFile};
 use syntax::{ast, AstPtr, SyntaxError, SyntaxNodePtr, TextRange};
+use triomphe::Arc;
 
 use crate::{AssocItem, Field, Local, MacroKind, Trait, Type};
 
@@ -171,7 +173,7 @@ pub struct MacroError {
 pub struct MacroExpansionParseError {
     pub node: InFile<SyntaxNodePtr>,
     pub precise_location: Option<TextRange>,
-    pub errors: Box<[SyntaxError]>,
+    pub errors: Arc<[SyntaxError]>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -200,11 +202,12 @@ pub struct MalformedDerive {
 pub struct NoSuchField {
     pub field: InFile<AstPtr<Either<ast::RecordExprField, ast::RecordPatField>>>,
     pub private: bool,
+    pub variant: VariantId,
 }
 
 #[derive(Debug)]
 pub struct PrivateAssocItem {
-    pub expr_or_pat: InFile<AstPtr<Either<ast::Expr, Either<ast::Pat, ast::SelfParam>>>>,
+    pub expr_or_pat: InFile<AstPtr<Either<ast::Expr, ast::Pat>>>,
     pub item: AssocItem,
 }
 
@@ -240,7 +243,7 @@ pub struct UnresolvedMethodCall {
 
 #[derive(Debug)]
 pub struct UnresolvedAssocItem {
-    pub expr_or_pat: InFile<AstPtr<Either<ast::Expr, Either<ast::Pat, ast::SelfParam>>>>,
+    pub expr_or_pat: InFile<AstPtr<Either<ast::Expr, ast::Pat>>>,
 }
 
 #[derive(Debug)]
@@ -525,7 +528,7 @@ impl AnyDiagnostic {
             source_map.pat_syntax(pat).inspect_err(|_| tracing::error!("synthetic syntax")).ok()
         };
         Some(match d {
-            &InferenceDiagnostic::NoSuchField { field: expr, private } => {
+            &InferenceDiagnostic::NoSuchField { field: expr, private, variant } => {
                 let expr_or_pat = match expr {
                     ExprOrPatId::ExprId(expr) => {
                         source_map.field_syntax(expr).map(AstPtr::wrap_left)
@@ -534,7 +537,7 @@ impl AnyDiagnostic {
                         source_map.pat_field_syntax(pat).map(AstPtr::wrap_right)
                     }
                 };
-                NoSuchField { field: expr_or_pat, private }.into()
+                NoSuchField { field: expr_or_pat, private, variant }.into()
             }
             &InferenceDiagnostic::MismatchedArgCount { call_expr, expected, found } => {
                 MismatchedArgCount { call_expr: expr_syntax(call_expr)?, expected, found }.into()

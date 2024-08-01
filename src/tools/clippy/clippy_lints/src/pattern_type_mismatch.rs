@@ -1,5 +1,7 @@
 use clippy_utils::diagnostics::span_lint_and_help;
-use rustc_hir::{intravisit, Body, Expr, ExprKind, FnDecl, Let, LocalSource, Mutability, Pat, PatKind, Stmt, StmtKind};
+use rustc_hir::{
+    intravisit, Body, Expr, ExprKind, FnDecl, LetExpr, LocalSource, Mutability, Pat, PatKind, Stmt, StmtKind,
+};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::lint::in_external_macro;
 use rustc_middle::ty;
@@ -28,9 +30,8 @@ declare_clippy_lint! {
     /// this lint can still be used to highlight areas of interest and ensure a good understanding
     /// of ownership semantics.
     ///
-    /// ### Why is this bad?
-    /// It isn't bad in general. But in some contexts it can be desirable
-    /// because it increases ownership hints in the code, and will guard against some changes
+    /// ### Why restrict this?
+    /// It increases ownership hints in the code, and will guard against some changes
     /// in ownership.
     ///
     /// ### Example
@@ -103,7 +104,7 @@ impl<'tcx> LateLintPass<'tcx> for PatternTypeMismatch {
                 }
             }
         }
-        if let ExprKind::Let(Let { pat, .. }) = expr.kind {
+        if let ExprKind::Let(LetExpr { pat, .. }) = expr.kind {
             apply_lint(cx, pat, DerefPossible::Possible);
         }
     }
@@ -138,7 +139,7 @@ fn apply_lint(cx: &LateContext<'_>, pat: &Pat<'_>, deref_possible: DerefPossible
             span,
             "type of pattern does not match the expression type",
             None,
-            &format!(
+            format!(
                 "{}explicitly match against a `{}` pattern and adjust the enclosed variable bindings",
                 match (deref_possible, level) {
                     (DerefPossible::Possible, Level::Top) => "use `*` to dereference the match expression or ",

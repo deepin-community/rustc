@@ -8,7 +8,6 @@
 #![feature(if_let_guard)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
-#![feature(lazy_cell)]
 #![feature(let_chains)]
 #![feature(never_type)]
 #![feature(round_char_boundary)]
@@ -201,7 +200,6 @@ fn init_logging(early_dcx: &EarlyDiagCtxt) {
     let filter = tracing_subscriber::EnvFilter::from_env("RUSTDOC_LOG");
     let layer = tracing_tree::HierarchicalLayer::default()
         .with_writer(io::stderr)
-        .with_indent_lines(true)
         .with_ansi(color_logs)
         .with_targets(true)
         .with_wraparound(10)
@@ -242,7 +240,7 @@ fn opts() -> Vec<RustcOptGroup> {
             o.optmulti("L", "library-path", "directory to add to crate search path", "DIR")
         }),
         stable("cfg", |o| o.optmulti("", "cfg", "pass a --cfg to rustc", "")),
-        unstable("check-cfg", |o| o.optmulti("", "check-cfg", "pass a --check-cfg to rustc", "")),
+        stable("check-cfg", |o| o.optmulti("", "check-cfg", "pass a --check-cfg to rustc", "")),
         stable("extern", |o| o.optmulti("", "extern", "pass an --extern to rustc", "NAME[=PATH]")),
         unstable("extern-html-root-url", |o| {
             o.optmulti(
@@ -664,7 +662,7 @@ fn usage(argv0: &str) {
 /// A result type used by several functions under `main()`.
 type MainResult = Result<(), ErrorGuaranteed>;
 
-fn wrap_return(dcx: &rustc_errors::DiagCtxt, res: Result<(), String>) -> MainResult {
+pub(crate) fn wrap_return(dcx: &rustc_errors::DiagCtxt, res: Result<(), String>) -> MainResult {
     match res {
         Ok(()) => dcx.has_errors().map_or(Ok(()), Err),
         Err(err) => Err(dcx.err(err)),
@@ -730,10 +728,10 @@ fn main_args(
         core::new_dcx(options.error_format, None, options.diagnostic_width, &options.unstable_opts);
 
     match (options.should_test, options.markdown_input()) {
-        (true, true) => return wrap_return(&diag, markdown::test(options)),
-        (true, false) => return doctest::run(options),
-        (false, true) => {
-            let input = options.input.clone();
+        (true, Some(_)) => return wrap_return(&diag, doctest::test_markdown(options)),
+        (true, None) => return doctest::run(&diag, options),
+        (false, Some(input)) => {
+            let input = input.to_owned();
             let edition = options.edition;
             let config = core::create_config(options, &render_options, using_internal_features);
 
@@ -747,7 +745,7 @@ fn main_args(
                 }),
             );
         }
-        (false, false) => {}
+        (false, None) => {}
     }
 
     // need to move these items separately because we lose them by the time the closure is called,

@@ -1,4 +1,6 @@
-use super::{ErrorHandled, EvalToConstValueResult, EvalToValTreeResult, GlobalId};
+use super::{
+    ErrorHandled, EvalToAllocationRawResult, EvalToConstValueResult, EvalToValTreeResult, GlobalId,
+};
 
 use crate::mir;
 use crate::query::TyCtxtEnsure;
@@ -9,10 +11,11 @@ use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_session::lint;
 use rustc_span::{Span, DUMMY_SP};
+use tracing::{debug, instrument};
 
 impl<'tcx> TyCtxt<'tcx> {
     /// Evaluates a constant without providing any generic parameters. This is useful to evaluate consts
-    /// that can't take any generic arguments like statics, const items or enum discriminants. If a
+    /// that can't take any generic arguments like const items or enum discriminants. If a
     /// generic parameter is used within the constant `ErrorHandled::ToGeneric` will be returned.
     #[instrument(skip(self), level = "debug")]
     pub fn const_eval_poly(self, def_id: DefId) -> EvalToConstValueResult<'tcx> {
@@ -24,8 +27,26 @@ impl<'tcx> TyCtxt<'tcx> {
         let instance = ty::Instance::new(def_id, args);
         let cid = GlobalId { instance, promoted: None };
         let param_env = self.param_env(def_id).with_reveal_all_normalized(self);
-        self.const_eval_global_id(param_env, cid, None)
+        self.const_eval_global_id(param_env, cid, DUMMY_SP)
     }
+
+    /// Evaluates a constant without providing any generic parameters. This is useful to evaluate consts
+    /// that can't take any generic arguments like const items or enum discriminants. If a
+    /// generic parameter is used within the constant `ErrorHandled::ToGeneric` will be returned.
+    #[instrument(skip(self), level = "debug")]
+    pub fn const_eval_poly_to_alloc(self, def_id: DefId) -> EvalToAllocationRawResult<'tcx> {
+        // In some situations def_id will have generic parameters within scope, but they aren't allowed
+        // to be used. So we can't use `Instance::mono`, instead we feed unresolved generic parameters
+        // into `const_eval` which will return `ErrorHandled::ToGeneric` if any of them are
+        // encountered.
+        let args = GenericArgs::identity_for_item(self, def_id);
+        let instance = ty::Instance::new(def_id, args);
+        let cid = GlobalId { instance, promoted: None };
+        let param_env = self.param_env(def_id).with_reveal_all_normalized(self);
+        let inputs = self.erase_regions(param_env.and(cid));
+        self.eval_to_allocation_raw(inputs)
+    }
+
     /// Resolves and evaluates a constant.
     ///
     /// The constant can be located on a trait like `<A as B>::C`, in which case the given
@@ -40,7 +61,7 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         param_env: ty::ParamEnv<'tcx>,
         ct: mir::UnevaluatedConst<'tcx>,
-        span: Option<Span>,
+        span: Span,
     ) -> EvalToConstValueResult<'tcx> {
         // Cannot resolve `Unevaluated` constants that contain inference
         // variables. We reject those here since `resolve`
@@ -73,7 +94,7 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         param_env: ty::ParamEnv<'tcx>,
         ct: ty::UnevaluatedConst<'tcx>,
-        span: Option<Span>,
+        span: Span,
     ) -> EvalToValTreeResult<'tcx> {
         // Cannot resolve `Unevaluated` constants that contain inference
         // variables. We reject those here since `resolve`
@@ -112,8 +133,7 @@ impl<'tcx> TyCtxt<'tcx> {
                                 lint::builtin::CONST_EVALUATABLE_UNCHECKED,
                                 self.local_def_id_to_hir_id(local_def_id),
                                 self.def_span(ct.def),
-                                "cannot use constants which depend on generic parameters in types",
-                                |_| {},
+                                |lint| { lint.primary_message("cannot use constants which depend on generic parameters in types"); },
                             )
                         }
                     }
@@ -130,7 +150,7 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         param_env: ty::ParamEnv<'tcx>,
         instance: ty::Instance<'tcx>,
-        span: Option<Span>,
+        span: Span,
     ) -> EvalToConstValueResult<'tcx> {
         self.const_eval_global_id(param_env, GlobalId { instance, promoted: None }, span)
     }
@@ -141,12 +161,12 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         param_env: ty::ParamEnv<'tcx>,
         cid: GlobalId<'tcx>,
-        span: Option<Span>,
+        span: Span,
     ) -> EvalToConstValueResult<'tcx> {
         // Const-eval shouldn't depend on lifetimes at all, so we can erase them, which should
         // improve caching of queries.
         let inputs = self.erase_regions(param_env.with_reveal_all_normalized(self).and(cid));
-        if let Some(span) = span {
+        if !span.is_dummy() {
             // The query doesn't know where it is being invoked, so we need to fix the span.
             self.at(span).eval_to_const_value_raw(inputs).map_err(|e| e.with_span(span))
         } else {
@@ -160,13 +180,13 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         param_env: ty::ParamEnv<'tcx>,
         cid: GlobalId<'tcx>,
-        span: Option<Span>,
+        span: Span,
     ) -> EvalToValTreeResult<'tcx> {
         // Const-eval shouldn't depend on lifetimes at all, so we can erase them, which should
         // improve caching of queries.
         let inputs = self.erase_regions(param_env.with_reveal_all_normalized(self).and(cid));
         debug!(?inputs);
-        if let Some(span) = span {
+        if !span.is_dummy() {
             // The query doesn't know where it is being invoked, so we need to fix the span.
             self.at(span).eval_to_valtree(inputs).map_err(|e| e.with_span(span))
         } else {
@@ -177,7 +197,7 @@ impl<'tcx> TyCtxt<'tcx> {
 
 impl<'tcx> TyCtxtEnsure<'tcx> {
     /// Evaluates a constant without providing any generic parameters. This is useful to evaluate consts
-    /// that can't take any generic arguments like statics, const items or enum discriminants. If a
+    /// that can't take any generic arguments like const items or enum discriminants. If a
     /// generic parameter is used within the constant `ErrorHandled::ToGeneric` will be returned.
     #[instrument(skip(self), level = "debug")]
     pub fn const_eval_poly(self, def_id: DefId) {

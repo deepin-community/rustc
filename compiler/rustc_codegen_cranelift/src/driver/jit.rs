@@ -6,12 +6,14 @@ use std::ffi::CString;
 use std::os::raw::{c_char, c_int};
 use std::sync::{mpsc, Mutex, OnceLock};
 
+use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext};
 use cranelift_jit::{JITBuilder, JITModule};
 use rustc_codegen_ssa::CrateInfo;
 use rustc_middle::mir::mono::MonoItem;
 use rustc_session::Session;
 use rustc_span::Symbol;
 
+use crate::debuginfo::TypeDebugContext;
 use crate::{prelude::*, BackendConfig};
 use crate::{CodegenCx, CodegenMode};
 
@@ -81,13 +83,6 @@ fn create_jit_module(
     );
 
     crate::allocator::codegen(tcx, &mut jit_module, &mut cx.unwind_context);
-    crate::main_shim::maybe_create_entry_wrapper(
-        tcx,
-        &mut jit_module,
-        &mut cx.unwind_context,
-        true,
-        true,
-    );
 
     (jit_module, cx)
 }
@@ -150,6 +145,14 @@ pub(crate) fn run_jit(tcx: TyCtxt<'_>, backend_config: BackendConfig) -> ! {
     if !cx.global_asm.is_empty() {
         tcx.dcx().fatal("Inline asm is not supported in JIT mode");
     }
+
+    crate::main_shim::maybe_create_entry_wrapper(
+        tcx,
+        &mut jit_module,
+        &mut cx.unwind_context,
+        true,
+        true,
+    );
 
     tcx.dcx().abort_if_errors();
 
@@ -229,9 +232,16 @@ pub(crate) fn codegen_and_compile_fn<'tcx>(
             crate::PrintOnPanic(|| format!("{:?} {}", instance, tcx.symbol_name(instance).name));
 
         let cached_func = std::mem::replace(&mut cached_context.func, Function::new());
-        let codegened_func = crate::base::codegen_fn(tcx, cx, cached_func, module, instance);
-
-        crate::base::compile_fn(cx, cached_context, module, codegened_func);
+        if let Some(codegened_func) = crate::base::codegen_fn(
+            tcx,
+            cx,
+            &mut TypeDebugContext::default(),
+            cached_func,
+            module,
+            instance,
+        ) {
+            crate::base::compile_fn(cx, cached_context, module, codegened_func);
+        }
     });
 }
 

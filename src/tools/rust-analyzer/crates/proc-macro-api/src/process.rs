@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use paths::{AbsPath, AbsPathBuf};
+use paths::AbsPath;
 use rustc_hash::FxHashMap;
 use stdx::JodChild;
 
@@ -28,11 +28,11 @@ pub(crate) struct ProcMacroProcessSrv {
 
 impl ProcMacroProcessSrv {
     pub(crate) fn run(
-        process_path: AbsPathBuf,
+        process_path: &AbsPath,
         env: &FxHashMap<String, String>,
     ) -> io::Result<ProcMacroProcessSrv> {
         let create_srv = |null_stderr| {
-            let mut process = Process::run(process_path.clone(), env, null_stderr)?;
+            let mut process = Process::run(process_path, env, null_stderr)?;
             let (stdin, stdout) = process.stdio().expect("couldn't access child stdio");
 
             io::Result::Ok(ProcMacroProcessSrv {
@@ -153,11 +153,11 @@ struct Process {
 
 impl Process {
     fn run(
-        path: AbsPathBuf,
+        path: &AbsPath,
         env: &FxHashMap<String, String>,
         null_stderr: bool,
     ) -> io::Result<Process> {
-        let child = JodChild(mk_child(&path, env, null_stderr)?);
+        let child = JodChild(mk_child(path, env, null_stderr)?);
         Ok(Process { child })
     }
 
@@ -175,7 +175,7 @@ fn mk_child(
     env: &FxHashMap<String, String>,
     null_stderr: bool,
 ) -> io::Result<Child> {
-    let mut cmd = Command::new(path.as_os_str());
+    let mut cmd = Command::new(path);
     cmd.envs(env)
         .env("RUST_ANALYZER_INTERNALS_DO_NOT_USE", "this is unstable")
         .stdin(Stdio::piped())
@@ -183,7 +183,7 @@ fn mk_child(
         .stderr(if null_stderr { Stdio::null() } else { Stdio::inherit() });
     if cfg!(windows) {
         let mut path_var = std::ffi::OsString::new();
-        path_var.push(path.parent().unwrap().parent().unwrap().as_os_str());
+        path_var.push(path.parent().unwrap().parent().unwrap());
         path_var.push("\\bin;");
         path_var.push(std::env::var_os("PATH").unwrap_or_default());
         cmd.env("PATH", path_var);

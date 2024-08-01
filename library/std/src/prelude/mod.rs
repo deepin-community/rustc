@@ -36,6 +36,10 @@
 //!   operations for both destructors and overloading `()`.
 //! * <code>[std::mem]::[drop]</code>, a convenience function for explicitly
 //!   dropping a value.
+//! * <code>[std::mem]::{[size_of], [size_of_val]}</code>, to get the size of
+//!   a type or value.
+//! * <code>[std::mem]::{[align_of], [align_of_val]}</code>, to get the
+//!   alignment of a type or value.
 //! * <code>[std::boxed]::[Box]</code>, a way to allocate values on the heap.
 //! * <code>[std::borrow]::[ToOwned]</code>, the conversion trait that defines
 //!   [`to_owned`], the generic method for creating an owned type from a
@@ -93,7 +97,26 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-pub mod v1;
+mod common;
+
+/// The first version of the prelude of The Rust Standard Library.
+///
+/// See the [module-level documentation](self) for more.
+#[stable(feature = "rust1", since = "1.0.0")]
+pub mod v1 {
+    #[stable(feature = "rust1", since = "1.0.0")]
+    pub use super::common::*;
+
+    // Do not `doc(inline)` these `doc(hidden)` items.
+    #[unstable(
+        feature = "rustc_encodable_decodable",
+        issue = "none",
+        soft,
+        reason = "derive macro for `rustc-serialize`; should not be used in new code"
+    )]
+    #[allow(deprecated)]
+    pub use core::prelude::v1::{RustcDecodable, RustcEncodable};
+}
 
 /// The 2015 version of the prelude of The Rust Standard Library.
 ///
@@ -134,9 +157,8 @@ pub mod rust_2021 {
 /// See the [module-level documentation](self) for more.
 #[unstable(feature = "prelude_2024", issue = "121042")]
 pub mod rust_2024 {
-    #[unstable(feature = "prelude_2024", issue = "121042")]
-    #[doc(no_inline)]
-    pub use super::v1::*;
+    #[stable(feature = "rust1", since = "1.0.0")]
+    pub use super::common::*;
 
     #[unstable(feature = "prelude_2024", issue = "121042")]
     #[doc(no_inline)]

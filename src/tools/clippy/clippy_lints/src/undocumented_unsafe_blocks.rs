@@ -38,10 +38,9 @@ declare_clippy_lint! {
     /// );
     /// ```
     ///
-    /// ### Why is this bad?
-    /// Undocumented unsafe blocks and impls can make it difficult to
-    /// read and maintain code, as well as uncover unsoundness
-    /// and bugs.
+    /// ### Why restrict this?
+    /// Undocumented unsafe blocks and impls can make it difficult to read and maintain code.
+    /// Writing out the safety justification may help in discovering unsoundness or bugs.
     ///
     /// ### Example
     /// ```no_run
@@ -67,7 +66,7 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for `// SAFETY: ` comments on safe code.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// Safe code has no safety requirements, so there is no need to
     /// describe safety invariants.
     ///
@@ -158,7 +157,7 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
     }
 
     fn check_stmt(&mut self, cx: &LateContext<'tcx>, stmt: &hir::Stmt<'tcx>) {
-        let (hir::StmtKind::Let(&hir::Local { init: Some(expr), .. })
+        let (hir::StmtKind::Let(&hir::LetStmt { init: Some(expr), .. })
         | hir::StmtKind::Expr(expr)
         | hir::StmtKind::Semi(expr)) = stmt.kind
         else {
@@ -200,7 +199,7 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
         let item_has_safety_comment = item_has_safety_comment(cx, item);
         match (&item.kind, item_has_safety_comment) {
             // lint unsafe impl without safety comment
-            (hir::ItemKind::Impl(impl_), HasSafetyComment::No) if impl_.unsafety == hir::Unsafety::Unsafe => {
+            (ItemKind::Impl(impl_), HasSafetyComment::No) if impl_.safety == hir::Safety::Unsafe => {
                 if !is_lint_allowed(cx, UNDOCUMENTED_UNSAFE_BLOCKS, item.hir_id())
                     && !is_unsafe_from_proc_macro(cx, item.span)
                 {
@@ -222,7 +221,7 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
                 }
             },
             // lint safe impl with unnecessary safety comment
-            (hir::ItemKind::Impl(impl_), HasSafetyComment::Yes(pos)) if impl_.unsafety == hir::Unsafety::Normal => {
+            (ItemKind::Impl(impl_), HasSafetyComment::Yes(pos)) if impl_.safety == hir::Safety::Safe => {
                 if !is_lint_allowed(cx, UNNECESSARY_SAFETY_COMMENT, item.hir_id()) {
                     let (span, help_span) = mk_spans(pos);
 
@@ -236,9 +235,9 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
                     );
                 }
             },
-            (hir::ItemKind::Impl(_), _) => {},
+            (ItemKind::Impl(_), _) => {},
             // const and static items only need a safety comment if their body is an unsafe block, lint otherwise
-            (&hir::ItemKind::Const(.., body) | &hir::ItemKind::Static(.., body), HasSafetyComment::Yes(pos)) => {
+            (&ItemKind::Const(.., body) | &ItemKind::Static(.., body), HasSafetyComment::Yes(pos)) => {
                 if !is_lint_allowed(cx, UNNECESSARY_SAFETY_COMMENT, body.hir_id) {
                     let body = cx.tcx.hir().body(body);
                     if !matches!(
@@ -251,7 +250,7 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
                             cx,
                             UNNECESSARY_SAFETY_COMMENT,
                             span,
-                            &format!("{} has unnecessary safety comment", item.kind.descr()),
+                            format!("{} has unnecessary safety comment", item.kind.descr()),
                             Some(help_span),
                             "consider removing the safety comment",
                         );
@@ -268,7 +267,7 @@ impl<'tcx> LateLintPass<'tcx> for UndocumentedUnsafeBlocks {
                         cx,
                         UNNECESSARY_SAFETY_COMMENT,
                         span,
-                        &format!("{} has unnecessary safety comment", item.kind.descr()),
+                        format!("{} has unnecessary safety comment", item.kind.descr()),
                         Some(help_span),
                         "consider removing the safety comment",
                     );
@@ -338,13 +337,13 @@ fn block_parents_have_safety_comment(
     accept_comment_above_statement: bool,
     accept_comment_above_attributes: bool,
     cx: &LateContext<'_>,
-    id: hir::HirId,
+    id: HirId,
 ) -> bool {
     let (span, hir_id) = match cx.tcx.parent_hir_node(id) {
         Node::Expr(expr) => match cx.tcx.parent_hir_node(expr.hir_id) {
-            Node::Local(hir::Local { span, hir_id, .. }) => (*span, *hir_id),
+            Node::LetStmt(hir::LetStmt { span, hir_id, .. }) => (*span, *hir_id),
             Node::Item(hir::Item {
-                kind: hir::ItemKind::Const(..) | ItemKind::Static(..),
+                kind: ItemKind::Const(..) | ItemKind::Static(..),
                 span,
                 owner_id,
                 ..
@@ -358,14 +357,14 @@ fn block_parents_have_safety_comment(
         },
         Node::Stmt(hir::Stmt {
             kind:
-                hir::StmtKind::Let(hir::Local { span, hir_id, .. })
+                hir::StmtKind::Let(hir::LetStmt { span, hir_id, .. })
                 | hir::StmtKind::Expr(hir::Expr { span, hir_id, .. })
                 | hir::StmtKind::Semi(hir::Expr { span, hir_id, .. }),
             ..
         })
-        | Node::Local(hir::Local { span, hir_id, .. }) => (*span, *hir_id),
+        | Node::LetStmt(hir::LetStmt { span, hir_id, .. }) => (*span, *hir_id),
         Node::Item(hir::Item {
-            kind: hir::ItemKind::Const(..) | ItemKind::Static(..),
+            kind: ItemKind::Const(..) | ItemKind::Static(..),
             span,
             owner_id,
             ..
@@ -603,13 +602,13 @@ fn get_body_search_span(cx: &LateContext<'_>) -> Option<Span> {
     for (_, node) in map.parent_iter(body.hir_id) {
         match node {
             Node::Expr(e) => span = e.span,
-            Node::Block(_) | Node::Arm(_) | Node::Stmt(_) | Node::Local(_) => (),
+            Node::Block(_) | Node::Arm(_) | Node::Stmt(_) | Node::LetStmt(_) => (),
             Node::Item(hir::Item {
-                kind: hir::ItemKind::Const(..) | ItemKind::Static(..),
+                kind: ItemKind::Const(..) | ItemKind::Static(..),
                 ..
             }) => maybe_global_var = true,
             Node::Item(hir::Item {
-                kind: hir::ItemKind::Mod(_),
+                kind: ItemKind::Mod(_),
                 span: item_span,
                 ..
             }) => {

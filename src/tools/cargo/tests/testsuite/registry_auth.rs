@@ -1,7 +1,8 @@
 //! Tests for registry authentication.
 
-use cargo_test_support::compare::match_contains;
+use cargo_test_support::compare::assert_e2e;
 use cargo_test_support::registry::{Package, RegistryBuilder, Token};
+use cargo_test_support::str;
 use cargo_test_support::{project, Execs, Project};
 
 fn cargo(p: &Project, s: &str) -> Execs {
@@ -39,6 +40,7 @@ fn make_project() -> Project {
 
 static SUCCESS_OUTPUT: &'static str = "\
 [UPDATING] `alternative` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.0.1 (registry `alternative`)
 [COMPILING] bar v0.0.1 (registry `alternative`)
@@ -59,6 +61,7 @@ fn requires_credential_provider() {
         .with_status(101)
         .with_stderr(
             r#"[UPDATING] `alternative` index
+[LOCKING] 2 packages to latest compatible versions
 error: failed to download `bar v0.0.1 (registry `alternative`)`
 
 Caused by:
@@ -270,6 +273,7 @@ fn missing_token_git() {
         .with_stderr(
             "\
 [UPDATING] `alternative` index
+[LOCKING] 2 packages to latest compatible versions
 [ERROR] failed to download `bar v0.0.1 (registry `alternative`)`
 
 Caused by:
@@ -328,6 +332,7 @@ fn incorrect_token_git() {
         .with_stderr(
             "\
 [UPDATING] `alternative` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [ERROR] failed to download from `http://[..]/dl/bar/0.0.1/download`
 
@@ -420,6 +425,7 @@ fn duplicate_index() {
         .with_stderr(
             "\
 [UPDATING] `alternative` index
+[LOCKING] 2 packages to latest compatible versions
 [ERROR] failed to download `bar v0.0.1 (registry `alternative`)`
 
 Caused by:
@@ -468,23 +474,14 @@ fn token_not_logged() {
         .exec_with_output()
         .unwrap();
     let log = String::from_utf8(output.stderr).unwrap();
-    let lines = "\
-[UPDATING] crates.io index
-[PACKAGING] foo v0.1.0 [..]
-[VERIFYING] foo v0.1.0 [..]
-[DOWNLOADING] crates ...
-[DOWNLOADED] bar v1.0.0
-[COMPILING] bar v1.0.0
-[COMPILING] foo v0.1.0 [..]
-[FINISHED] [..]
-[PACKAGED] 3 files[..]
-[UPLOADING] foo v0.1.0[..]
-[UPLOADED] foo v0.1.0 to registry `crates-io`
-[NOTE] waiting [..]
-";
-    for line in lines.lines() {
-        match_contains(line, &log, None).unwrap();
-    }
+    assert_e2e().eq(
+        &log,
+        str![[r#"
+...
+[PUBLISHED] foo v0.1.0 at registry `crates-io`
+
+"#]],
+    );
     let authorizations: Vec<_> = log
         .lines()
         .filter(|line| {

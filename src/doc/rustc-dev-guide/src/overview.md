@@ -79,11 +79,11 @@ Macro-expansion, `AST`-validation, name-resolution, and early linting also take
 place during the lexing and parsing stage.
 
 The [`rustc_ast::ast`]::{[`Crate`], [`Expr`], [`Pat`], ...} `AST` nodes are
-returned from the parser while the standard [`DiagnosticBuilder`] API is used
+returned from the parser while the standard [`Diag`] API is used
 for error handling. Generally Rust's compiler will try to recover from errors
 by parsing a superset of Rust's grammar, while also emitting an error type.
 
-### `HIR` lowering
+### `AST` lowering
 
 Next the `AST` is converted into [High-Level Intermediate Representation
 (`HIR`)][hir], a more compiler-friendly representation of the `AST`. This process
@@ -137,7 +137,7 @@ the final binary.
 [`bump`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.bump
 [`check`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.check
 [`Crate`]: https://doc.rust-lang.org/beta/nightly-rustc/rustc_ast/ast/struct.Crate.html
-[`DiagnosticBuilder`]: https://doc.rust-lang.org/beta/nightly-rustc/rustc_errors/struct.DiagnosticBuilder.html
+[`diag`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_errors/struct.Diag.html
 [`eat`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.eat
 [`expect`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_parse/parser/struct.Parser.html#method.expect
 [`Expr`]: https://doc.rust-lang.org/beta/nightly-rustc/rustc_ast/ast/struct.Expr.html
@@ -284,7 +284,7 @@ queries are cached on disk so that the compiler can tell which queries' results
 changed from the last compilation and only redo those. This is how incremental
 compilation works.
 
-In principle, for the query-fied steps, we do each of the above for each item
+In principle, for the query-field steps, we do each of the above for each item
 individually. For example, we will take the `HIR` for a function and use queries
 to ask for the `LLVM-IR` for that HIR. This drives the generation of optimized
 `MIR`, which drives the borrow checker, which drives the generation of `MIR`, and
@@ -303,11 +303,11 @@ to remain to ensure that unreachable functions still have their errors emitted.
 [passes]: https://github.com/rust-lang/rust/blob/e69c7306e2be08939d95f14229e3f96566fb206c/compiler/rustc_interface/src/passes.rs#L791
 
 Moreover, the compiler wasn't originally built to use a query system; the query
-system has been retrofitted into the compiler, so parts of it are not query-fied
+system has been retrofitted into the compiler, so parts of it are not query-field
 yet. Also, LLVM isn't our code, so that isn't querified either. The plan is to
 eventually query-fy all of the steps listed in the previous section,
 but as of <!-- date-check --> November 2022, only the steps between `HIR` and
-`LLVM-IR` are query-fied. That is, lexing, parsing, name resolution, and macro
+`LLVM-IR` are query-field. That is, lexing, parsing, name resolution, and macro
 expansion are done all at once for the whole program.
 
 One other thing to mention here is the all-important "typing context",
@@ -370,7 +370,7 @@ For more details on bootstrapping, see
 [the bootstrapping section of the guide][rustc-bootstrap].
 
 [_bootstrapping_]: https://en.wikipedia.org/wiki/Bootstrapping_(compilers)
-[rustc-bootstrap]: building/bootstrapping.md
+[rustc-bootstrap]: building/bootstrapping/intro.md
 
 <!--
 # Unresolved Questions
@@ -410,7 +410,7 @@ For more details on bootstrapping, see
   - Guide: [The HIR](hir.md)
   - Guide: [Identifiers in the HIR](hir.md#identifiers-in-the-hir)
   - Guide: [The `HIR` Map](hir.md#the-hir-map)
-  - Guide: [Lowering `AST` to HIR](lowering.md)
+  - Guide: [Lowering `AST` to `HIR`](ast-lowering.md)
   - How to view `HIR` representation for your code `cargo rustc -- -Z unpretty=hir-tree`
   - Rustc `HIR` definition: [`rustc_hir`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_hir/index.html)
   - Main entry point: **TODO**

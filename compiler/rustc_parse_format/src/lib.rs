@@ -286,13 +286,11 @@ impl<'a> Iterator for Parser<'a> {
                                     lbrace_byte_pos.to(InnerOffset(rbrace_byte_pos.0 + width)),
                                 );
                             }
-                        } else {
-                            if let Some(&(_, maybe)) = self.cur.peek() {
-                                match maybe {
-                                    '?' => self.suggest_format_debug(),
-                                    '<' | '^' | '>' => self.suggest_format_align(maybe),
-                                    _ => self.suggest_positional_arg_instead_of_captured_arg(arg),
-                                }
+                        } else if let Some(&(_, maybe)) = self.cur.peek() {
+                            match maybe {
+                                '?' => self.suggest_format_debug(),
+                                '<' | '^' | '>' => self.suggest_format_align(maybe),
+                                _ => self.suggest_positional_arg_instead_of_captured_arg(arg),
                             }
                         }
                         Some(NextArgument(Box::new(arg)))
@@ -907,25 +905,47 @@ impl<'a> Parser<'a> {
             let byte_pos = self.to_span_index(end);
             let start = InnerOffset(byte_pos.0 + 1);
             let field = self.argument(start);
-            // We can only parse `foo.bar` field access, any deeper nesting,
-            // or another type of expression, like method calls, are not supported
+            // We can only parse simple `foo.bar` field access or `foo.0` tuple index access, any
+            // deeper nesting, or another type of expression, like method calls, are not supported
             if !self.consume('}') {
                 return;
             }
             if let ArgumentNamed(_) = arg.position {
-                if let ArgumentNamed(_) = field.position {
-                    self.errors.insert(
-                        0,
-                        ParseError {
-                            description: "field access isn't supported".to_string(),
-                            note: None,
-                            label: "not supported".to_string(),
-                            span: InnerSpan::new(arg.position_span.start, field.position_span.end),
-                            secondary_label: None,
-                            suggestion: Suggestion::UsePositional,
-                        },
-                    );
-                }
+                match field.position {
+                    ArgumentNamed(_) => {
+                        self.errors.insert(
+                            0,
+                            ParseError {
+                                description: "field access isn't supported".to_string(),
+                                note: None,
+                                label: "not supported".to_string(),
+                                span: InnerSpan::new(
+                                    arg.position_span.start,
+                                    field.position_span.end,
+                                ),
+                                secondary_label: None,
+                                suggestion: Suggestion::UsePositional,
+                            },
+                        );
+                    }
+                    ArgumentIs(_) => {
+                        self.errors.insert(
+                            0,
+                            ParseError {
+                                description: "tuple index access isn't supported".to_string(),
+                                note: None,
+                                label: "not supported".to_string(),
+                                span: InnerSpan::new(
+                                    arg.position_span.start,
+                                    field.position_span.end,
+                                ),
+                                secondary_label: None,
+                                suggestion: Suggestion::UsePositional,
+                            },
+                        );
+                    }
+                    _ => {}
+                };
             }
         }
     }
@@ -1006,7 +1026,7 @@ fn find_width_map_from_snippet(
                     if next_c == '{' {
                         // consume up to 6 hexanumeric chars
                         let digits_len =
-                            s.clone().take(6).take_while(|(_, c)| c.is_digit(16)).count();
+                            s.clone().take(6).take_while(|(_, c)| c.is_ascii_hexdigit()).count();
 
                         let len_utf8 = s
                             .as_str()
@@ -1025,14 +1045,14 @@ fn find_width_map_from_snippet(
                         width += required_skips + 2;
 
                         s.nth(digits_len);
-                    } else if next_c.is_digit(16) {
+                    } else if next_c.is_ascii_hexdigit() {
                         width += 1;
 
                         // We suggest adding `{` and `}` when appropriate, accept it here as if
                         // it were correct
                         let mut i = 0; // consume up to 6 hexanumeric chars
                         while let (Some((_, c)), _) = (s.next(), i < 6) {
-                            if c.is_digit(16) {
+                            if c.is_ascii_hexdigit() {
                                 width += 1;
                             } else {
                                 break;
@@ -1065,7 +1085,7 @@ fn unescape_string(string: &str) -> Option<string::String> {
 }
 
 // Assert a reasonable size for `Piece`
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[cfg(target_pointer_width = "64")]
 rustc_index::static_assert_size!(Piece<'_>, 16);
 
 #[cfg(test)]

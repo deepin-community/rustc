@@ -53,9 +53,9 @@ fn check_asm_syntax(
                 cx,
                 lint,
                 span,
-                &format!("{style} x86 assembly syntax used"),
+                format!("{style} x86 assembly syntax used"),
                 None,
-                &format!("use {} x86 assembly syntax", !style),
+                format!("use {} x86 assembly syntax", !style),
             );
         }
     }
@@ -65,9 +65,8 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of Intel x86 assembly syntax.
     ///
-    /// ### Why is this bad?
-    /// The lint has been enabled to indicate a preference
-    /// for AT&T x86 assembly syntax.
+    /// ### Why restrict this?
+    /// To enforce consistent use of AT&T x86 assembly syntax.
     ///
     /// ### Example
     ///
@@ -114,9 +113,8 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for usage of AT&T x86 assembly syntax.
     ///
-    /// ### Why is this bad?
-    /// The lint has been enabled to indicate a preference
-    /// for Intel x86 assembly syntax.
+    /// ### Why restrict this?
+    /// To enforce consistent use of Intel x86 assembly syntax.
     ///
     /// ### Example
     ///

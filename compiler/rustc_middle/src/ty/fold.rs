@@ -1,10 +1,11 @@
 use crate::ty::{self, Binder, BoundTy, Ty, TyCtxt, TypeVisitableExt};
 use rustc_data_structures::fx::FxIndexMap;
 use rustc_hir::def_id::DefId;
+use tracing::{debug, instrument};
 
-use std::collections::BTreeMap;
-
-pub use rustc_type_ir::fold::{FallibleTypeFolder, TypeFoldable, TypeFolder, TypeSuperFoldable};
+pub use rustc_type_ir::fold::{
+    shift_region, shift_vars, FallibleTypeFolder, TypeFoldable, TypeFolder, TypeSuperFoldable,
+};
 
 ///////////////////////////////////////////////////////////////////////////
 // Some sample folders
@@ -133,13 +134,13 @@ impl<'a, 'tcx> TypeFolder<TyCtxt<'tcx>> for RegionFolder<'a, 'tcx> {
 pub trait BoundVarReplacerDelegate<'tcx> {
     fn replace_region(&mut self, br: ty::BoundRegion) -> ty::Region<'tcx>;
     fn replace_ty(&mut self, bt: ty::BoundTy) -> Ty<'tcx>;
-    fn replace_const(&mut self, bv: ty::BoundVar, ty: Ty<'tcx>) -> ty::Const<'tcx>;
+    fn replace_const(&mut self, bv: ty::BoundVar) -> ty::Const<'tcx>;
 }
 
 pub struct FnMutDelegate<'a, 'tcx> {
     pub regions: &'a mut (dyn FnMut(ty::BoundRegion) -> ty::Region<'tcx> + 'a),
     pub types: &'a mut (dyn FnMut(ty::BoundTy) -> Ty<'tcx> + 'a),
-    pub consts: &'a mut (dyn FnMut(ty::BoundVar, Ty<'tcx>) -> ty::Const<'tcx> + 'a),
+    pub consts: &'a mut (dyn FnMut(ty::BoundVar) -> ty::Const<'tcx> + 'a),
 }
 
 impl<'a, 'tcx> BoundVarReplacerDelegate<'tcx> for FnMutDelegate<'a, 'tcx> {
@@ -149,8 +150,8 @@ impl<'a, 'tcx> BoundVarReplacerDelegate<'tcx> for FnMutDelegate<'a, 'tcx> {
     fn replace_ty(&mut self, bt: ty::BoundTy) -> Ty<'tcx> {
         (self.types)(bt)
     }
-    fn replace_const(&mut self, bv: ty::BoundVar, ty: Ty<'tcx>) -> ty::Const<'tcx> {
-        (self.consts)(bv, ty)
+    fn replace_const(&mut self, bv: ty::BoundVar) -> ty::Const<'tcx> {
+        (self.consts)(bv)
     }
 }
 
@@ -223,7 +224,7 @@ where
     fn fold_const(&mut self, ct: ty::Const<'tcx>) -> ty::Const<'tcx> {
         match ct.kind() {
             ty::ConstKind::Bound(debruijn, bound_const) if debruijn == self.current_index => {
-                let ct = self.delegate.replace_const(bound_const, ct.ty());
+                let ct = self.delegate.replace_const(bound_const);
                 debug_assert!(!ct.has_vars_bound_above(ty::INNERMOST));
                 ty::fold::shift_vars(self.tcx, ct, self.current_index.as_u32())
             }
@@ -254,12 +255,12 @@ impl<'tcx> TyCtxt<'tcx> {
         self,
         value: Binder<'tcx, T>,
         mut fld_r: F,
-    ) -> (T, BTreeMap<ty::BoundRegion, ty::Region<'tcx>>)
+    ) -> (T, FxIndexMap<ty::BoundRegion, ty::Region<'tcx>>)
     where
         F: FnMut(ty::BoundRegion) -> ty::Region<'tcx>,
         T: TypeFoldable<TyCtxt<'tcx>>,
     {
-        let mut region_map = BTreeMap::new();
+        let mut region_map = FxIndexMap::default();
         let real_fld_r = |br: ty::BoundRegion| *region_map.entry(br).or_insert_with(|| fld_r(br));
         let value = self.instantiate_bound_regions_uncached(value, real_fld_r);
         (value, region_map)
@@ -281,7 +282,7 @@ impl<'tcx> TyCtxt<'tcx> {
             let delegate = FnMutDelegate {
                 regions: &mut replace_regions,
                 types: &mut |b| bug!("unexpected bound ty in binder: {b:?}"),
-                consts: &mut |b, ty| bug!("unexpected bound ct in binder: {b:?} {ty}"),
+                consts: &mut |b| bug!("unexpected bound ct in binder: {b:?}"),
             };
             let mut replacer = BoundVarReplacer::new(self, delegate);
             value.fold_with(&mut replacer)
@@ -352,9 +353,7 @@ impl<'tcx> TyCtxt<'tcx> {
                         ty::BoundTy { var: shift_bv(t.var), kind: t.kind },
                     )
                 },
-                consts: &mut |c, ty: Ty<'tcx>| {
-                    ty::Const::new_bound(self, ty::INNERMOST, shift_bv(c), ty)
-                },
+                consts: &mut |c| ty::Const::new_bound(self, ty::INNERMOST, shift_bv(c)),
             },
         )
     }
@@ -397,12 +396,12 @@ impl<'tcx> TyCtxt<'tcx> {
                     .expect_ty();
                 Ty::new_bound(self.tcx, ty::INNERMOST, BoundTy { var, kind })
             }
-            fn replace_const(&mut self, bv: ty::BoundVar, ty: Ty<'tcx>) -> ty::Const<'tcx> {
+            fn replace_const(&mut self, bv: ty::BoundVar) -> ty::Const<'tcx> {
                 let entry = self.map.entry(bv);
                 let index = entry.index();
                 let var = ty::BoundVar::from_usize(index);
                 let () = entry.or_insert_with(|| ty::BoundVariableKind::Const).expect_const();
-                ty::Const::new_bound(self.tcx, ty::INNERMOST, var, ty)
+                ty::Const::new_bound(self.tcx, ty::INNERMOST, var)
             }
         }
 
@@ -412,104 +411,4 @@ impl<'tcx> TyCtxt<'tcx> {
         let bound_vars = self.mk_bound_variable_kinds_from_iter(map.into_values());
         Binder::bind_with_vars(inner, bound_vars)
     }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Shifter
-//
-// Shifts the De Bruijn indices on all escaping bound vars by a
-// fixed amount. Useful in instantiation or when otherwise introducing
-// a binding level that is not intended to capture the existing bound
-// vars. See comment on `shift_vars_through_binders` method in
-// `rustc_middle/src/ty/generic_args.rs` for more details.
-
-struct Shifter<'tcx> {
-    tcx: TyCtxt<'tcx>,
-    current_index: ty::DebruijnIndex,
-    amount: u32,
-}
-
-impl<'tcx> Shifter<'tcx> {
-    pub fn new(tcx: TyCtxt<'tcx>, amount: u32) -> Self {
-        Shifter { tcx, current_index: ty::INNERMOST, amount }
-    }
-}
-
-impl<'tcx> TypeFolder<TyCtxt<'tcx>> for Shifter<'tcx> {
-    fn interner(&self) -> TyCtxt<'tcx> {
-        self.tcx
-    }
-
-    fn fold_binder<T: TypeFoldable<TyCtxt<'tcx>>>(
-        &mut self,
-        t: ty::Binder<'tcx, T>,
-    ) -> ty::Binder<'tcx, T> {
-        self.current_index.shift_in(1);
-        let t = t.super_fold_with(self);
-        self.current_index.shift_out(1);
-        t
-    }
-
-    fn fold_region(&mut self, r: ty::Region<'tcx>) -> ty::Region<'tcx> {
-        match *r {
-            ty::ReBound(debruijn, br) if debruijn >= self.current_index => {
-                let debruijn = debruijn.shifted_in(self.amount);
-                ty::Region::new_bound(self.tcx, debruijn, br)
-            }
-            _ => r,
-        }
-    }
-
-    fn fold_ty(&mut self, ty: Ty<'tcx>) -> Ty<'tcx> {
-        match *ty.kind() {
-            ty::Bound(debruijn, bound_ty) if debruijn >= self.current_index => {
-                let debruijn = debruijn.shifted_in(self.amount);
-                Ty::new_bound(self.tcx, debruijn, bound_ty)
-            }
-
-            _ if ty.has_vars_bound_at_or_above(self.current_index) => ty.super_fold_with(self),
-            _ => ty,
-        }
-    }
-
-    fn fold_const(&mut self, ct: ty::Const<'tcx>) -> ty::Const<'tcx> {
-        if let ty::ConstKind::Bound(debruijn, bound_ct) = ct.kind()
-            && debruijn >= self.current_index
-        {
-            let debruijn = debruijn.shifted_in(self.amount);
-            ty::Const::new_bound(self.tcx, debruijn, bound_ct, ct.ty())
-        } else {
-            ct.super_fold_with(self)
-        }
-    }
-
-    fn fold_predicate(&mut self, p: ty::Predicate<'tcx>) -> ty::Predicate<'tcx> {
-        if p.has_vars_bound_at_or_above(self.current_index) { p.super_fold_with(self) } else { p }
-    }
-}
-
-pub fn shift_region<'tcx>(
-    tcx: TyCtxt<'tcx>,
-    region: ty::Region<'tcx>,
-    amount: u32,
-) -> ty::Region<'tcx> {
-    match *region {
-        ty::ReBound(debruijn, br) if amount > 0 => {
-            ty::Region::new_bound(tcx, debruijn.shifted_in(amount), br)
-        }
-        _ => region,
-    }
-}
-
-pub fn shift_vars<'tcx, T>(tcx: TyCtxt<'tcx>, value: T, amount: u32) -> T
-where
-    T: TypeFoldable<TyCtxt<'tcx>>,
-{
-    debug!("shift_vars(value={:?}, amount={})", value, amount);
-
-    if amount == 0 || !value.has_escaping_bound_vars() {
-        return value;
-    }
-
-    value.fold_with(&mut Shifter::new(tcx, amount))
 }

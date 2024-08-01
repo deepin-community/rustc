@@ -1,9 +1,10 @@
 //! Tests for build.rs scripts.
 
-use cargo_test_support::compare::assert_match_exact;
+use cargo_test_support::compare::assert_e2e;
 use cargo_test_support::install::cargo_home;
 use cargo_test_support::paths::CargoPathExt;
 use cargo_test_support::registry::Package;
+use cargo_test_support::str;
 use cargo_test_support::tools;
 use cargo_test_support::{
     basic_manifest, cargo_exe, cross_compile, is_coarse_mtime, project, project_in,
@@ -625,7 +626,7 @@ fn custom_build_invalid_host_config_feature_flag() {
         .with_status(101)
         .with_stderr_contains(
             "\
-error: the -Zhost-config flag requires the -Ztarget-applies-to-host flag to be set
+[ERROR] the -Zhost-config flag requires the -Ztarget-applies-to-host flag to be set
 ",
         )
         .run();
@@ -889,6 +890,7 @@ fn custom_build_script_rustc_flags() {
     p.cargo("build --verbose")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] foo [..]
 [RUNNING] `rustc --crate-name build_script_build --edition=2015 foo/build.rs [..]
 [RUNNING] `[..]build-script-build`
@@ -950,6 +952,7 @@ fn custom_build_script_rustc_flags_no_space() {
     p.cargo("build --verbose")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] foo [..]
 [RUNNING] `rustc --crate-name build_script_build --edition=2015 foo/build.rs [..]
 [RUNNING] `[..]build-script-build`
@@ -991,8 +994,7 @@ fn links_no_build_cmd() {
 [ERROR] failed to parse manifest at `[..]/foo/Cargo.toml`
 
 Caused by:
-  package `foo v0.5.0 ([CWD])` specifies that it links to `a` but does \
-not have a custom build script
+  package specifies that it links to `a` but does not have a custom build script
 ",
         )
         .run();
@@ -1037,7 +1039,7 @@ fn links_duplicates() {
 
     p.cargo("build").with_status(101)
                        .with_stderr("\
-error: failed to select a version for `a-sys`.
+[ERROR] failed to select a version for `a-sys`.
     ... required by package `foo v0.5.0 ([..])`
 versions that meet the requirements `*` are: 0.5.0
 
@@ -1090,6 +1092,7 @@ fn links_duplicates_old_registry() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 ([..])
 [ERROR] multiple packages link to native library `a`, \
@@ -1161,7 +1164,7 @@ fn links_duplicates_deep_dependency() {
 
     p.cargo("build").with_status(101)
                        .with_stderr("\
-error: failed to select a version for `a-sys`.
+[ERROR] failed to select a version for `a-sys`.
     ... required by package `a v0.5.0 ([..])`
     ... which satisfies path dependency `a` of package `foo v0.5.0 ([..])`
 versions that meet the requirements `*` are: 0.5.0
@@ -1237,6 +1240,7 @@ fn overrides_and_links() {
     p.cargo("build -v")
         .with_stderr(
             "\
+[..]
 [..]
 [..]
 [..]
@@ -1702,6 +1706,7 @@ fn build_deps_simple() {
     p.cargo("build -v")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] a v0.5.0 ([CWD]/a)
 [RUNNING] `rustc --crate-name a [..]`
 [COMPILING] foo v0.5.0 ([CWD])
@@ -1814,6 +1819,7 @@ fn build_cmd_with_a_build_cmd() {
     p.cargo("build -v")
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [COMPILING] b v0.5.0 ([CWD]/b)
 [RUNNING] `rustc --crate-name b [..]`
 [COMPILING] a v0.5.0 ([CWD]/a)
@@ -2604,7 +2610,10 @@ fn cfg_test() {
         )
         .file(
             "build.rs",
-            r#"fn main() { println!("cargo::rustc-cfg=foo"); }"#,
+            r#"fn main() {
+                println!("cargo::rustc-cfg=foo");
+                println!("cargo::rustc-check-cfg=cfg(foo)");
+            }"#,
         )
         .file(
             "src/lib.rs",
@@ -2709,6 +2718,9 @@ fn cfg_override_test() {
                 authors = []
                 build = "build.rs"
                 links = "a"
+
+                [lints.rust]
+                unexpected_cfgs = "allow" # bc of override, stable/nightly, tests
             "#,
         )
         .file("build.rs", "")
@@ -2989,6 +3001,7 @@ fn flags_go_into_tests() {
     p.cargo("test -v --test=foo")
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [COMPILING] a v0.5.0 ([..]
 [RUNNING] `rustc [..] a/build.rs [..]`
 [RUNNING] `[..]/build-script-build`
@@ -3088,6 +3101,7 @@ fn diamond_passes_args_only_once() {
     p.cargo("build -v")
         .with_stderr(
             "\
+[LOCKING] 4 packages to latest compatible versions
 [COMPILING] c v0.5.0 ([..]
 [RUNNING] `rustc [..]`
 [RUNNING] `[..]`
@@ -3385,9 +3399,12 @@ fn generate_good_d_files() {
 
     println!("*.d file content*: {}", &dot_d);
 
-    assert_match_exact(
-        "[..]/target/debug/meow[EXE]: [..]/awoo/barkbarkbark [..]/awoo/build.rs[..]",
+    assert_e2e().eq(
         &dot_d,
+        str![[r#"
+[ROOT]/foo/target/debug/meow[EXE]: [ROOT]/foo/awoo/barkbarkbark [ROOT]/foo/awoo/build.rs [ROOT]/foo/awoo/src/lib.rs [ROOT]/foo/src/main.rs
+
+"#]],
     );
 
     // paths relative to dependency roots should not be allowed
@@ -3408,9 +3425,12 @@ fn generate_good_d_files() {
 
     println!("*.d file content with dep-info-basedir*: {}", &dot_d);
 
-    assert_match_exact(
-        "target/debug/meow[EXE]: awoo/barkbarkbark awoo/build.rs[..]",
+    assert_e2e().eq(
         &dot_d,
+        str![[r#"
+target/debug/meow[EXE]: awoo/barkbarkbark awoo/build.rs awoo/src/lib.rs src/main.rs
+
+"#]],
     );
 
     // paths relative to dependency roots should not be allowed
@@ -3472,16 +3492,10 @@ fn generate_good_d_files_for_external_tools() {
 
     println!("*.d file content with dep-info-basedir*: {}", &dot_d);
 
-    assert_match_exact(
-        concat!(
-            "rust_things/foo/target/debug/meow[EXE]:",
-            " rust_things/foo/awoo/barkbarkbark",
-            " rust_things/foo/awoo/build.rs",
-            " rust_things/foo/awoo/src/lib.rs",
-            " rust_things/foo/src/main.rs",
-        ),
-        &dot_d,
-    );
+    assert_e2e().eq(&dot_d, str![[r#"
+rust_things/foo/target/debug/meow[EXE]: rust_things/foo/awoo/barkbarkbark rust_things/foo/awoo/build.rs rust_things/foo/awoo/src/lib.rs rust_things/foo/src/main.rs
+
+"#]]);
 }
 
 #[cargo_test]
@@ -3967,6 +3981,7 @@ fn warnings_hidden_for_upstream() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 ([..])
 [COMPILING] bar v0.1.0
@@ -4028,6 +4043,7 @@ fn warnings_printed_on_vv() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 ([..])
 [COMPILING] bar v0.1.0
@@ -4493,7 +4509,7 @@ fn links_duplicates_with_cycle() {
 
     p.cargo("build").with_status(101)
                        .with_stderr("\
-error: failed to select a version for `a`.
+[ERROR] failed to select a version for `a`.
     ... required by package `foo v0.5.0 ([..])`
 versions that meet the requirements `*` are: 0.5.0
 
@@ -4766,6 +4782,7 @@ fn optional_build_dep_and_required_normal_dep() {
         .with_stdout("0")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.5.0 ([..])
 [COMPILING] foo v0.1.0 ([..])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -5299,7 +5316,7 @@ fn wrong_output() {
         .with_stderr(
             "\
 [COMPILING] foo [..]
-error: invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::example`
+[ERROR] invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::example`
 Expected a line with `cargo::KEY=VALUE` with an `=` character, but none was found.
 See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
 for more information about build script outputs.
@@ -5389,7 +5406,7 @@ fn test_invalid_old_syntax() {
         .with_stderr(
             "\
 [COMPILING] foo [..]
-error: invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo:foo`
+[ERROR] invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo:foo`
 Expected a line with `cargo:KEY=VALUE` with an `=` character, but none was found.
 See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
 for more information about build script outputs.
@@ -5418,7 +5435,7 @@ fn test_invalid_new_syntax() {
         .with_stderr(
             "\
 [COMPILING] foo [..]
-error: invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::metadata=foo`
+[ERROR] invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::metadata=foo`
 Expected a line with `cargo::metadata=KEY=VALUE` with an `=` character, but none was found.
 See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
 for more information about build script outputs.
@@ -5443,7 +5460,7 @@ for more information about build script outputs.
         .with_stderr(
             "\
 [COMPILING] foo [..]
-error: invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::foo=bar`
+[ERROR] invalid output in build script of `foo v0.0.1 ([ROOT]/foo)`: `cargo::foo=bar`
 Unknown key: `foo`.
 See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
 for more information about build script outputs.
@@ -5483,10 +5500,125 @@ fn test_new_syntax_with_old_msrv() {
         .with_stderr_contains(
             "\
 [COMPILING] foo [..]
-error: the `cargo::` syntax for build script output instructions was added in Rust 1.77.0, \
+[ERROR] the `cargo::` syntax for build script output instructions was added in Rust 1.77.0, \
+but the minimum supported Rust version of `foo v0.5.0 ([ROOT]/foo)` is 1.60.0.
+Switch to the old `cargo:foo=bar` syntax instead of `cargo::metadata=foo=bar` (note the single colon).
+See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
+for more information about build script outputs.
+",
+        )
+        .run();
+}
+
+#[cargo_test]
+fn test_new_syntax_with_old_msrv_and_reserved_prefix() {
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                version = "0.5.0"
+                edition = "2015"
+                authors = []
+                build = "build.rs"
+                rust-version = "1.60.0"
+            "#,
+        )
+        .file("src/lib.rs", "")
+        .file(
+            "build.rs",
+            r#"
+                fn main() {
+                    println!("cargo::rustc-check-cfg=cfg(foo)");
+                }
+            "#,
+        )
+        .build();
+
+    p.cargo("build")
+        .with_status(101)
+        .with_stderr_contains(
+            "\
+[COMPILING] foo [..]
+[ERROR] the `cargo::` syntax for build script output instructions was added in Rust 1.77.0, \
+but the minimum supported Rust version of `foo v0.5.0 ([ROOT]/foo)` is 1.60.0.
+Switch to the old `cargo:rustc-check-cfg=cfg(foo)` syntax (note the single colon).
+See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
+for more information about build script outputs.
+",
+        )
+        .run();
+}
+
+#[cargo_test]
+fn test_new_syntax_with_old_msrv_and_unknown_prefix() {
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                version = "0.5.0"
+                edition = "2015"
+                authors = []
+                build = "build.rs"
+                rust-version = "1.60.0"
+            "#,
+        )
+        .file("src/lib.rs", "")
+        .file(
+            "build.rs",
+            r#"
+                fn main() {
+                    println!("cargo::foo=bar");
+                }
+            "#,
+        )
+        .build();
+
+    p.cargo("build")
+        .with_status(101)
+        .with_stderr_contains(
+            "\
+[COMPILING] foo [..]
+[ERROR] the `cargo::` syntax for build script output instructions was added in Rust 1.77.0, \
 but the minimum supported Rust version of `foo v0.5.0 ([ROOT]/foo)` is 1.60.0.
 See https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script \
 for more information about build script outputs.
+",
+        )
+        .run();
+}
+
+#[cargo_test]
+fn test_new_syntax_with_compatible_partial_msrv() {
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                edition = "2015"
+                build = "build.rs"
+                rust-version = "1.77"
+            "#,
+        )
+        .file("src/lib.rs", "")
+        .file(
+            "build.rs",
+            r#"
+                fn main() {
+                    println!("cargo::metadata=foo=bar");
+                }
+            "#,
+        )
+        .build();
+
+    p.cargo("check")
+        .with_stderr_contains(
+            "\
+[COMPILING] foo [..]
 ",
         )
         .run();
@@ -5526,4 +5658,62 @@ fn test_old_syntax_with_old_msrv() {
         .build();
     p.cargo("build -v").run();
     p.cargo("run -v").with_stdout("foo\n").run();
+}
+
+#[cargo_test]
+fn build_script_rerun_when_target_rustflags_change() {
+    let target = rustc_host();
+    let p = project()
+        .file(
+            "src/main.rs",
+            r#"
+            fn main() {
+                #[cfg(enable)]
+                println!("hello");
+            }
+            "#,
+        )
+        .file(
+            "build.rs",
+            r#"
+            use std::env;
+
+            fn main() {
+                println!("cargo::rustc-check-cfg=cfg(enable)");
+                if let Ok(rustflags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
+                    if !rustflags.is_empty() {
+                        println!("cargo::rustc-cfg=enable");
+                    }
+                }
+            }
+            "#,
+        )
+        .build();
+
+    p.cargo("run --target")
+        .arg(&target)
+        .with_stderr(
+            "\
+[COMPILING] foo v0.0.1 ([..])
+[FINISHED] [..]
+[RUNNING] [..]
+",
+        )
+        .run();
+
+    p.cargo("run --target")
+        .arg(&target)
+        .env("RUSTFLAGS", "-C opt-level=3")
+        .with_stderr(
+            "\
+[COMPILING] foo v0.0.1 ([..])
+[FINISHED] [..]
+[RUNNING] [..]
+",
+        )
+        .with_stdout(
+            "\
+hello",
+        )
+        .run();
 }

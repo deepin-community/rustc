@@ -20,7 +20,6 @@ use ide_db::{
 };
 use project_model::CargoConfig;
 use test_utils::project_root;
-use triomphe::Arc;
 use vfs::{AbsPathBuf, VfsPath};
 
 use load_cargo::{load_workspace_at, LoadCargoConfig, ProcMacroServerChoice};
@@ -41,7 +40,7 @@ fn integrated_highlighting_benchmark() {
     };
     let load_cargo_config = LoadCargoConfig {
         load_out_dirs_from_check: true,
-        with_proc_macro_server: ProcMacroServerChoice::None,
+        with_proc_macro_server: ProcMacroServerChoice::Sysroot,
         prefill_caches: false,
     };
 
@@ -53,11 +52,9 @@ fn integrated_highlighting_benchmark() {
 
     let file_id = {
         let file = workspace_to_load.join(file);
-        let path = VfsPath::from(AbsPathBuf::assert(file));
+        let path = VfsPath::from(AbsPathBuf::assert_utf8(file));
         vfs.file_id(&path).unwrap_or_else(|| panic!("can't find virtual file for {path}"))
     };
-
-    let _g = crate::tracing::hprof::init("*>150");
 
     {
         let _it = stdx::timeit("initial");
@@ -68,13 +65,16 @@ fn integrated_highlighting_benchmark() {
     {
         let _it = stdx::timeit("change");
         let mut text = host.analysis().file_text(file_id).unwrap().to_string();
-        text.push_str("\npub fn _dummy() {}\n");
+        text = text.replace(
+            "self.data.cargo_buildScripts_rebuildOnSave",
+            "self. data. cargo_buildScripts_rebuildOnSave",
+        );
         let mut change = ChangeWithProcMacros::new();
-        change.change_file(file_id, Some(Arc::from(text)));
+        change.change_file(file_id, Some(text));
         host.apply_change(change);
     }
 
-    let _g = crate::tracing::hprof::init("*>50");
+    let _g = crate::tracing::hprof::init("*>20");
 
     {
         let _it = stdx::timeit("after change");
@@ -100,7 +100,7 @@ fn integrated_completion_benchmark() {
     };
     let load_cargo_config = LoadCargoConfig {
         load_out_dirs_from_check: true,
-        with_proc_macro_server: ProcMacroServerChoice::None,
+        with_proc_macro_server: ProcMacroServerChoice::Sysroot,
         prefill_caches: true,
     };
 
@@ -112,7 +112,7 @@ fn integrated_completion_benchmark() {
 
     let file_id = {
         let file = workspace_to_load.join(file);
-        let path = VfsPath::from(AbsPathBuf::assert(file));
+        let path = VfsPath::from(AbsPathBuf::assert_utf8(file));
         vfs.file_id(&path).unwrap_or_else(|| panic!("can't find virtual file for {path}"))
     };
 
@@ -125,7 +125,7 @@ fn integrated_completion_benchmark() {
             patch(&mut text, "db.struct_data(self.id)", "sel;\ndb.struct_data(self.id)")
                 + "sel".len();
         let mut change = ChangeWithProcMacros::new();
-        change.change_file(file_id, Some(Arc::from(text)));
+        change.change_file(file_id, Some(text));
         host.apply_change(change);
         completion_offset
     };
@@ -139,6 +139,7 @@ fn integrated_completion_benchmark() {
             enable_self_on_the_fly: true,
             enable_private_editable: true,
             enable_term_search: true,
+            term_search_fuel: 200,
             full_function_signatures: false,
             callable: Some(CallableSnippets::FillArguments),
             snippet_cap: SnippetCap::new(true),
@@ -149,9 +150,9 @@ fn integrated_completion_benchmark() {
                 group: true,
                 skip_glob_imports: true,
             },
-            snippets: Vec::new(),
             prefer_no_std: false,
             prefer_prelude: true,
+            snippets: Vec::new(),
             limit: None,
         };
         let position =
@@ -168,7 +169,7 @@ fn integrated_completion_benchmark() {
             patch(&mut text, "sel;\ndb.struct_data(self.id)", ";sel;\ndb.struct_data(self.id)")
                 + ";sel".len();
         let mut change = ChangeWithProcMacros::new();
-        change.change_file(file_id, Some(Arc::from(text)));
+        change.change_file(file_id, Some(text));
         host.apply_change(change);
         completion_offset
     };
@@ -183,6 +184,7 @@ fn integrated_completion_benchmark() {
             enable_self_on_the_fly: true,
             enable_private_editable: true,
             enable_term_search: true,
+            term_search_fuel: 200,
             full_function_signatures: false,
             callable: Some(CallableSnippets::FillArguments),
             snippet_cap: SnippetCap::new(true),
@@ -193,9 +195,9 @@ fn integrated_completion_benchmark() {
                 group: true,
                 skip_glob_imports: true,
             },
-            snippets: Vec::new(),
             prefer_no_std: false,
             prefer_prelude: true,
+            snippets: Vec::new(),
             limit: None,
         };
         let position =
@@ -210,7 +212,7 @@ fn integrated_completion_benchmark() {
             patch(&mut text, "sel;\ndb.struct_data(self.id)", "self.;\ndb.struct_data(self.id)")
                 + "self.".len();
         let mut change = ChangeWithProcMacros::new();
-        change.change_file(file_id, Some(Arc::from(text)));
+        change.change_file(file_id, Some(text));
         host.apply_change(change);
         completion_offset
     };
@@ -225,6 +227,7 @@ fn integrated_completion_benchmark() {
             enable_self_on_the_fly: true,
             enable_private_editable: true,
             enable_term_search: true,
+            term_search_fuel: 200,
             full_function_signatures: false,
             callable: Some(CallableSnippets::FillArguments),
             snippet_cap: SnippetCap::new(true),
@@ -235,9 +238,9 @@ fn integrated_completion_benchmark() {
                 group: true,
                 skip_glob_imports: true,
             },
-            snippets: Vec::new(),
             prefer_no_std: false,
             prefer_prelude: true,
+            snippets: Vec::new(),
             limit: None,
         };
         let position =
@@ -262,7 +265,7 @@ fn integrated_diagnostics_benchmark() {
     };
     let load_cargo_config = LoadCargoConfig {
         load_out_dirs_from_check: true,
-        with_proc_macro_server: ProcMacroServerChoice::None,
+        with_proc_macro_server: ProcMacroServerChoice::Sysroot,
         prefill_caches: true,
     };
 
@@ -274,7 +277,7 @@ fn integrated_diagnostics_benchmark() {
 
     let file_id = {
         let file = workspace_to_load.join(file);
-        let path = VfsPath::from(AbsPathBuf::assert(file));
+        let path = VfsPath::from(AbsPathBuf::assert_utf8(file));
         vfs.file_id(&path).unwrap_or_else(|| panic!("can't find virtual file for {path}"))
     };
 
@@ -295,19 +298,20 @@ fn integrated_diagnostics_benchmark() {
         },
         prefer_no_std: false,
         prefer_prelude: false,
+        term_search_fuel: 400,
     };
     host.analysis()
         .diagnostics(&diagnostics_config, ide::AssistResolveStrategy::None, file_id)
         .unwrap();
 
-    let _g = crate::tracing::hprof::init("*>1");
+    let _g = crate::tracing::hprof::init("*");
 
     {
         let _it = stdx::timeit("change");
         let mut text = host.analysis().file_text(file_id).unwrap().to_string();
         patch(&mut text, "db.struct_data(self.id)", "();\ndb.struct_data(self.id)");
         let mut change = ChangeWithProcMacros::new();
-        change.change_file(file_id, Some(Arc::from(text)));
+        change.change_file(file_id, Some(text));
         host.apply_change(change);
     };
 

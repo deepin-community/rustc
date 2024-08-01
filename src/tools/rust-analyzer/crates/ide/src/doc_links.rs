@@ -5,8 +5,6 @@ mod tests;
 
 mod intra_doc_links;
 
-use std::ffi::OsStr;
-
 use pulldown_cmark::{BrokenLink, CowStr, Event, InlineStr, LinkType, Options, Parser, Tag};
 use pulldown_cmark_to_cmark::{cmark_resume_with_options, Options as CMarkOptions};
 use stdx::format_to;
@@ -134,8 +132,8 @@ pub(crate) fn remove_links(markdown: &str) -> String {
 pub(crate) fn external_docs(
     db: &RootDatabase,
     FilePosition { file_id, offset }: FilePosition,
-    target_dir: Option<&OsStr>,
-    sysroot: Option<&OsStr>,
+    target_dir: Option<&str>,
+    sysroot: Option<&str>,
 ) -> Option<DocumentationLinks> {
     let sema = &Semantics::new(db);
     let file = sema.parse(file_id).syntax().clone();
@@ -216,8 +214,9 @@ pub(crate) fn resolve_doc_path_for_def(
         Definition::SelfType(it) => it.resolve_doc_path(db, link, ns),
         Definition::ExternCrateDecl(it) => it.resolve_doc_path(db, link, ns),
         Definition::BuiltinAttr(_)
-        | Definition::ToolModule(_)
         | Definition::BuiltinType(_)
+        | Definition::BuiltinLifetime(_)
+        | Definition::ToolModule(_)
         | Definition::TupleField(_)
         | Definition::Local(_)
         | Definition::GenericParam(_)
@@ -331,8 +330,8 @@ fn broken_link_clone_cb(link: BrokenLink<'_>) -> Option<(CowStr<'_>, CowStr<'_>)
 fn get_doc_links(
     db: &RootDatabase,
     def: Definition,
-    target_dir: Option<&OsStr>,
-    sysroot: Option<&OsStr>,
+    target_dir: Option<&str>,
+    sysroot: Option<&str>,
 ) -> DocumentationLinks {
     let join_url = |base_url: Option<Url>, path: &str| -> Option<Url> {
         base_url.and_then(|url| url.join(path).ok())
@@ -479,30 +478,32 @@ fn map_links<'e>(
 fn get_doc_base_urls(
     db: &RootDatabase,
     def: Definition,
-    target_dir: Option<&OsStr>,
-    sysroot: Option<&OsStr>,
+    target_dir: Option<&str>,
+    sysroot: Option<&str>,
 ) -> (Option<Url>, Option<Url>) {
     let local_doc = target_dir
-        .and_then(|path| path.to_str())
         .and_then(|path| Url::parse(&format!("file:///{path}/")).ok())
         .and_then(|it| it.join("doc/").ok());
     let system_doc = sysroot
-        .and_then(|it| it.to_str())
         .map(|sysroot| format!("file:///{sysroot}/share/doc/rust/html/"))
         .and_then(|it| Url::parse(&it).ok());
+    let krate = def.krate(db);
+    let channel = krate
+        .and_then(|krate| db.toolchain_channel(krate.into()))
+        .unwrap_or(ReleaseChannel::Nightly)
+        .as_str();
 
     // special case base url of `BuiltinType` to core
     // https://github.com/rust-lang/rust-analyzer/issues/12250
     if let Definition::BuiltinType(..) = def {
-        let web_link = Url::parse("https://doc.rust-lang.org/nightly/core/").ok();
+        let web_link = Url::parse(&format!("https://doc.rust-lang.org/{channel}/core/")).ok();
         let system_link = system_doc.and_then(|it| it.join("core/").ok());
         return (web_link, system_link);
     };
 
-    let Some(krate) = def.krate(db) else { return Default::default() };
+    let Some(krate) = krate else { return Default::default() };
     let Some(display_name) = krate.display_name(db) else { return Default::default() };
     let crate_data = &db.crate_graph()[krate.into()];
-    let channel = db.toolchain_channel(krate.into()).unwrap_or(ReleaseChannel::Nightly).as_str();
 
     let (web_base, local_base) = match &crate_data.origin {
         // std and co do not specify `html_root_url` any longer so we gotta handwrite this ourself.
@@ -652,6 +653,7 @@ fn filename_and_frag_for_def(
         | Definition::TupleField(_)
         | Definition::Label(_)
         | Definition::BuiltinAttr(_)
+        | Definition::BuiltinLifetime(_)
         | Definition::ToolModule(_)
         | Definition::DeriveHelper(_) => return None,
     };

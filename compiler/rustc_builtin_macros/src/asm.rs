@@ -1,4 +1,7 @@
+use crate::errors;
+use crate::util::expr_to_spanned_string;
 use ast::token::IdentIsRaw;
+use lint::BuiltinLintDiag;
 use rustc_ast as ast;
 use rustc_ast::ptr::P;
 use rustc_ast::token::{self, Delimiter};
@@ -16,8 +19,6 @@ use rustc_span::{ErrorGuaranteed, InnerSpan, Span};
 use rustc_target::asm::InlineAsmArch;
 use smallvec::smallvec;
 
-use crate::errors;
-
 pub struct AsmArgs {
     pub templates: Vec<P<ast::Expr>>,
     pub operands: Vec<(ast::InlineAsmOperand, Span)>,
@@ -29,7 +30,7 @@ pub struct AsmArgs {
 }
 
 fn parse_args<'a>(
-    ecx: &mut ExtCtxt<'a>,
+    ecx: &ExtCtxt<'a>,
     sp: Span,
     tts: TokenStream,
     is_global_asm: bool,
@@ -189,7 +190,7 @@ pub fn parse_asm_args<'a>(
             args.templates.push(template);
             continue;
         } else {
-            return p.unexpected();
+            p.unexpected_any()?
         };
 
         allow_templates = false;
@@ -303,7 +304,7 @@ pub fn parse_asm_args<'a>(
 ///
 /// This function must be called immediately after the option token is parsed.
 /// Otherwise, the suggestion will be incorrect.
-fn err_duplicate_option(p: &mut Parser<'_>, symbol: Symbol, span: Span) {
+fn err_duplicate_option(p: &Parser<'_>, symbol: Symbol, span: Span) {
     // Tool-only output
     let full_span = if p.token.kind == token::Comma { span.to(p.token.span) } else { span };
     p.psess.dcx.emit_err(errors::AsmOptAlreadyprovided { span, symbol, full_span });
@@ -315,7 +316,7 @@ fn err_duplicate_option(p: &mut Parser<'_>, symbol: Symbol, span: Span) {
 /// This function must be called immediately after the option token is parsed.
 /// Otherwise, the error will not point to the correct spot.
 fn try_set_option<'a>(
-    p: &mut Parser<'a>,
+    p: &Parser<'a>,
     args: &mut AsmArgs,
     symbol: Symbol,
     option: ast::InlineAsmOptions,
@@ -513,7 +514,7 @@ fn expand_preparsed_asm(
                     lint::builtin::BAD_ASM_STYLE,
                     find_span(".intel_syntax"),
                     ecx.current_expansion.lint_node_id,
-                    "avoid using `.intel_syntax`, Intel syntax is the default",
+                    BuiltinLintDiag::AvoidUsingIntelSyntax,
                 );
             }
             if template_str.contains(".att_syntax") {
@@ -521,7 +522,7 @@ fn expand_preparsed_asm(
                     lint::builtin::BAD_ASM_STYLE,
                     find_span(".att_syntax"),
                     ecx.current_expansion.lint_node_id,
-                    "avoid using `.att_syntax`, prefer using `options(att_syntax)` instead",
+                    BuiltinLintDiag::AvoidUsingAttSyntax,
                 );
             }
         }

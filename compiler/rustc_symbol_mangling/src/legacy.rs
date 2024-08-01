@@ -1,12 +1,13 @@
 use rustc_data_structures::stable_hasher::{Hash64, HashStable, StableHasher};
 use rustc_hir::def_id::CrateNum;
 use rustc_hir::definitions::{DefPathData, DisambiguatedDefPathData};
+use rustc_middle::bug;
 use rustc_middle::ty::print::{PrettyPrinter, Print, PrintError, Printer};
-use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
+use rustc_middle::ty::{self, Instance, ReifyReason, Ty, TyCtxt, TypeVisitableExt};
 use rustc_middle::ty::{GenericArg, GenericArgKind};
-
 use std::fmt::{self, Write};
 use std::mem::{self, discriminant};
+use tracing::debug;
 
 pub(super) fn mangle<'tcx>(
     tcx: TyCtxt<'tcx>,
@@ -55,7 +56,9 @@ pub(super) fn mangle<'tcx>(
     printer
         .print_def_path(
             def_id,
-            if let ty::InstanceDef::DropGlue(_, _) = instance.def {
+            if let ty::InstanceDef::DropGlue(_, _) | ty::InstanceDef::AsyncDropGlueCtorShim(_, _) =
+                instance.def
+            {
                 // Add the name of the dropped type to the symbol name
                 &*instance.args
             } else {
@@ -71,21 +74,21 @@ pub(super) fn mangle<'tcx>(
         ty::InstanceDef::VTableShim(..) => {
             printer.write_str("{{vtable-shim}}").unwrap();
         }
-        ty::InstanceDef::ReifyShim(..) => {
-            printer.write_str("{{reify-shim}}").unwrap();
+        ty::InstanceDef::ReifyShim(_, reason) => {
+            printer.write_str("{{reify-shim").unwrap();
+            match reason {
+                Some(ReifyReason::FnPtr) => printer.write_str("-fnptr").unwrap(),
+                Some(ReifyReason::Vtable) => printer.write_str("-vtable").unwrap(),
+                None => (),
+            }
+            printer.write_str("}}").unwrap();
         }
         // FIXME(async_closures): This shouldn't be needed when we fix
         // `Instance::ty`/`Instance::def_id`.
-        ty::InstanceDef::ConstructCoroutineInClosureShim { target_kind, .. }
-        | ty::InstanceDef::CoroutineKindShim { target_kind, .. } => match target_kind {
-            ty::ClosureKind::Fn => unreachable!(),
-            ty::ClosureKind::FnMut => {
-                printer.write_str("{{fn-mut-shim}}").unwrap();
-            }
-            ty::ClosureKind::FnOnce => {
-                printer.write_str("{{fn-once-shim}}").unwrap();
-            }
-        },
+        ty::InstanceDef::ConstructCoroutineInClosureShim { .. }
+        | ty::InstanceDef::CoroutineKindShim { .. } => {
+            printer.write_str("{{fn-once-shim}}").unwrap();
+        }
         _ => {}
     }
 
@@ -267,15 +270,15 @@ impl<'tcx> Printer<'tcx> for SymbolPrinter<'tcx> {
 
     fn print_const(&mut self, ct: ty::Const<'tcx>) -> Result<(), PrintError> {
         // only print integers
-        match (ct.kind(), ct.ty().kind()) {
-            (ty::ConstKind::Value(ty::ValTree::Leaf(scalar)), ty::Int(_) | ty::Uint(_)) => {
+        match ct.kind() {
+            ty::ConstKind::Value(ty, ty::ValTree::Leaf(scalar)) if ty.is_integral() => {
                 // The `pretty_print_const` formatting depends on -Zverbose-internals
                 // flag, so we cannot reuse it here.
-                let signed = matches!(ct.ty().kind(), ty::Int(_));
+                let signed = matches!(ty.kind(), ty::Int(_));
                 write!(
                     self,
                     "{:#?}",
-                    ty::ConstInt::new(scalar, signed, ct.ty().is_ptr_sized_integral())
+                    ty::ConstInt::new(scalar, signed, ty.is_ptr_sized_integral())
                 )?;
             }
             _ => self.write_str("_")?,

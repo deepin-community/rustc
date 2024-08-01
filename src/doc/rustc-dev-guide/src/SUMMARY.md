@@ -8,6 +8,7 @@
 # Building and debugging `rustc`
 
 - [How to build and run the compiler](./building/how-to-build-and-run.md)
+    - [Quickstart](./building/quickstart.md)
     - [Prerequisites](./building/prerequisites.md)
     - [Suggested Workflows](./building/suggested.md)
     - [Distribution artifacts](./building/build-install-distribution-artifacts.md)
@@ -33,7 +34,6 @@
     - [with Windows Performance Analyzer](./profiling/wpa_profiling.md)
 - [crates.io Dependencies](./crates-io.md)
 
-
 # Contributing to Rust
 
 - [Contribution Procedures](./contributing.md)
@@ -50,20 +50,27 @@
 - [Using external repositories](./external-repos.md)
 - [Fuzzing](./fuzzing.md)
 - [Notification groups](notification-groups/about.md)
+    - [Apple](notification-groups/apple.md)
     - [ARM](notification-groups/arm.md)
     - [Cleanup Crew](notification-groups/cleanup-crew.md)
     - [LLVM](notification-groups/llvm.md)
     - [RISC-V](notification-groups/risc-v.md)
     - [Windows](notification-groups/windows.md)
+    - [Rust for Linux](notification-groups/rust-for-linux.md)
 - [Licenses](./licenses.md)
 - [Editions](guides/editions.md)
+
+# Bootstrapping
+
+- [Prologue](./building/bootstrapping/intro.md)
+- [What Bootstrapping does](./building/bootstrapping/what-bootstrapping-does.md)
+- [How Bootstrap does it](./building/bootstrapping/how-bootstrap-does-it.md)
 
 # High-level Compiler Architecture
 
 - [Prologue](./part-2-intro.md)
 - [Overview of the compiler](./overview.md)
 - [The compiler source code](./compiler-src.md)
-- [Bootstrapping](./building/bootstrapping.md)
 - [Queries: demand-driven compilation](./query.md)
     - [The Query Evaluation Model in Detail](./queries/query-evaluation-model-in-detail.md)
     - [Incremental compilation](./queries/incremental-compilation.md)
@@ -93,7 +100,7 @@
     - [Feature Gate Checking](./feature-gate-ck.md)
     - [Lang Items](./lang-items.md)
 - [The HIR (High-level IR)](./hir.md)
-    - [Lowering AST to HIR](./lowering.md)
+    - [Lowering AST to HIR](./ast-lowering.md)
     - [Debugging](./hir-debugging.md)
 - [The THIR (Typed High-level IR)](./thir.md)
 - [The MIR (Mid-level IR)](./mir/index.md)
@@ -107,17 +114,25 @@
 # Analysis
 
 - [Prologue](./part-4-intro.md)
+- [Generic parameter definitions](./generic_parameters_summary.md)
+    - [What is `ty::Generics`](./what_is_ty_generics.md)
+    - [Early vs Late bound parameters](./early-late-bound-params/early-late-bound-summary.md)
+        - [Implementation nuances of early/late bound parameters](./early-late-bound-params/early-late-bound-implementation-nuances.md)
+        - [Interactions with turbofishing](./early-late-bound-params/turbofishing-and-early-late-bound.md)
 - [The `ty` module: representing types](./ty.md)
-    - [Generics and substitutions](./generics.md)
-    - [`TypeFolder` and `TypeFoldable`](./ty-fold.md)
-    - [Generic arguments](./generic_arguments.md)
+    - [ADTs and Generic Arguments](./ty_module/generic_arguments.md)
+    - [Parameter types/consts/regions](./ty_module/param_ty_const_regions.md)
+    - [`EarlyBinder` and instantiating parameters](./ty_module/early_binder.md)
+    - [`Binder` and Higher ranked regions](./ty_module/binders.md)
+    - [Instantiating binders](./ty_module/instantiating_binders.md)
     - [Constants in the type system](./constants.md)
-    - [Bound vars and Parameters](./bound-vars-and-params.md)
+- [`TypeFolder` and `TypeFoldable`](./ty-fold.md)
+- [Parameter Environments](./param_env/param_env_summary.md)
+    - [What is it?](./param_env/param_env_what_is_it.md)
+    - [How are `ParamEnv`'s constructed internally](./param_env/param_env_construction_internals.md)
+    - [Which `ParamEnv` do I use?](./param_env/param_env_acquisition.md)
 - [Type inference](./type-inference.md)
 - [Trait solving](./traits/resolution.md)
-    - [Early and Late Bound Parameter Definitions](./early-late-bound-summary.md)
-        - [What are early and late bound parameters](./what-does-early-late-bound-mean.md)
-        - [Interactions with turbofishing](./turbofishing-and-early-late-bound.md)
     - [Higher-ranked trait bounds](./traits/hrtb.md)
     - [Caching subtleties](./traits/caching.md)
     - [Implied bounds](./traits/implied-bounds.md)
@@ -136,6 +151,7 @@
         - [Proof trees](./solve/proof-trees.md)
         - [Normalization](./solve/normalization.md)
         - [Opaque types](./solve/opaque-types.md)
+        - [Significant changes and quirks](./solve/significant-changes.md)
     - [`Unsize` and `CoerceUnsized` traits](./traits/unsize.md)
 - [Type checking](./type-checking.md)
     - [Method Lookup](./method-lookup.md)
@@ -143,6 +159,7 @@
     - [Opaque Types](./opaque-types-type-alias-impl-trait.md)
         - [Inference details](./opaque-types-impl-trait-inference.md)
         - [Return Position Impl Trait In Trait](./return-position-impl-trait-in-trait.md)
+        - [Region inference restrictions][opaque-infer]
 - [Effect checking](./effects.md)
 - [Pattern and Exhaustiveness Checking](./pat-exhaustive-checking.md)
 - [Unsafety Checking](./unsafety-checking.md)
@@ -161,7 +178,6 @@
         - [Closure constraints](./borrow_check/region_inference/closure_constraints.md)
         - [Error reporting](./borrow_check/region_inference/error_reporting.md)
     - [Two-phase-borrows](./borrow_check/two_phase_borrows.md)
-- [Parameter Environments](./param_env.md)
 - [Errors and Lints](diagnostics.md)
     - [Diagnostic and subdiagnostic structs](./diagnostics/diagnostic-structs.md)
     - [Translation](./diagnostics/translation.md)
@@ -203,3 +219,4 @@
 ---
 
 [pau]: ./borrow_check/region_inference/placeholders_and_universes.md
+[opaque-infer]: ./borrow_check/opaque-types-region-inference-restrictions.md

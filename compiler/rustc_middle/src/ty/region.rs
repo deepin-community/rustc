@@ -1,24 +1,25 @@
-use polonius_engine::Atom;
 use rustc_data_structures::intern::Interned;
 use rustc_errors::MultiSpan;
 use rustc_hir::def_id::DefId;
-use rustc_index::Idx;
+use rustc_macros::{HashStable, TyDecodable, TyEncodable};
 use rustc_span::symbol::sym;
 use rustc_span::symbol::{kw, Symbol};
 use rustc_span::{ErrorGuaranteed, DUMMY_SP};
 use rustc_type_ir::RegionKind as IrRegionKind;
+pub use rustc_type_ir::RegionVid;
 use std::ops::Deref;
+use tracing::debug;
 
 use crate::ty::{self, BoundVar, TyCtxt, TypeFlags};
 
 pub type RegionKind<'tcx> = IrRegionKind<TyCtxt<'tcx>>;
 
 /// Use this rather than `RegionKind`, whenever possible.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, HashStable)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, HashStable)]
 #[rustc_pass_by_value]
 pub struct Region<'tcx>(pub Interned<'tcx, RegionKind<'tcx>>);
 
-impl<'tcx> rustc_type_ir::IntoKind for Region<'tcx> {
+impl<'tcx> rustc_type_ir::inherent::IntoKind for Region<'tcx> {
     type Kind = RegionKind<'tcx>;
 
     fn kind(self) -> RegionKind<'tcx> {
@@ -136,9 +137,21 @@ impl<'tcx> Region<'tcx> {
     }
 }
 
-impl<'tcx> rustc_type_ir::new::Region<TyCtxt<'tcx>> for Region<'tcx> {
+impl<'tcx> rustc_type_ir::inherent::Region<TyCtxt<'tcx>> for Region<'tcx> {
+    fn new_bound(
+        interner: TyCtxt<'tcx>,
+        debruijn: ty::DebruijnIndex,
+        var: ty::BoundRegion,
+    ) -> Self {
+        Region::new_bound(interner, debruijn, var)
+    }
+
     fn new_anon_bound(tcx: TyCtxt<'tcx>, debruijn: ty::DebruijnIndex, var: ty::BoundVar) -> Self {
         Region::new_bound(tcx, debruijn, ty::BoundRegion { var, kind: ty::BoundRegionKind::BrAnon })
+    }
+
+    fn new_static(tcx: TyCtxt<'tcx>) -> Self {
+        tcx.lifetimes.re_static
     }
 }
 
@@ -251,39 +264,13 @@ impl<'tcx> Region<'tcx> {
             }
             ty::ReError(_) => {
                 flags = flags | TypeFlags::HAS_FREE_REGIONS;
+                flags = flags | TypeFlags::HAS_ERROR;
             }
         }
 
         debug!("type_flags({:?}) = {:?}", self, flags);
 
         flags
-    }
-
-    /// Given an early-bound or free region, returns the `DefId` where it was bound.
-    /// For example, consider the regions in this snippet of code:
-    ///
-    /// ```ignore (illustrative)
-    /// impl<'a> Foo {
-    /// //   ^^ -- early bound, declared on an impl
-    ///
-    ///     fn bar<'b, 'c>(x: &self, y: &'b u32, z: &'c u64) where 'static: 'c
-    /// //         ^^  ^^     ^ anonymous, late-bound
-    /// //         |   early-bound, appears in where-clauses
-    /// //         late-bound, appears only in fn args
-    ///     {..}
-    /// }
-    /// ```
-    ///
-    /// Here, `free_region_binding_scope('a)` would return the `DefId`
-    /// of the impl, and for all the other highlighted regions, it
-    /// would return the `DefId` of the function. In other cases (not shown), this
-    /// function might return the `DefId` of a closure.
-    pub fn free_region_binding_scope(self, tcx: TyCtxt<'_>) -> DefId {
-        match *self {
-            ty::ReEarlyParam(br) => tcx.parent(br.def_id),
-            ty::ReLateParam(fr) => fr.scope,
-            _ => bug!("free_region_binding_scope invoked on inappropriate region: {:?}", self),
-        }
     }
 
     /// True for free regions other than `'static`.
@@ -315,6 +302,21 @@ impl<'tcx> Region<'tcx> {
             _ => bug!("expected region {:?} to be of kind ReVar", self),
         }
     }
+
+    /// Given some item `binding_item`, check if this region is a generic parameter introduced by it
+    /// or one of the parent generics. Returns the `DefId` of the parameter definition if so.
+    pub fn opt_param_def_id(self, tcx: TyCtxt<'tcx>, binding_item: DefId) -> Option<DefId> {
+        match self.kind() {
+            ty::ReEarlyParam(ebr) => {
+                Some(tcx.generics_of(binding_item).region_param(ebr, tcx).def_id)
+            }
+            ty::ReLateParam(ty::LateParamRegion {
+                bound_region: ty::BoundRegionKind::BrNamed(def_id, _),
+                ..
+            }) => Some(def_id),
+            _ => None,
+        }
+    }
 }
 
 impl<'tcx> Deref for Region<'tcx> {
@@ -326,45 +328,41 @@ impl<'tcx> Deref for Region<'tcx> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable)]
 #[derive(HashStable)]
 pub struct EarlyParamRegion {
-    pub def_id: DefId,
     pub index: u32,
     pub name: Symbol,
 }
 
+impl rustc_type_ir::inherent::ParamLike for EarlyParamRegion {
+    fn index(self) -> u32 {
+        self.index
+    }
+}
+
 impl std::fmt::Debug for EarlyParamRegion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}, {}, {}", self.def_id, self.index, self.name)
+        write!(f, "{}/#{}", self.name, self.index)
     }
 }
 
-rustc_index::newtype_index! {
-    /// A **region** (lifetime) **v**ariable **ID**.
-    #[derive(HashStable)]
-    #[encodable]
-    #[orderable]
-    #[debug_format = "'?{}"]
-    pub struct RegionVid {}
-}
-
-impl Atom for RegionVid {
-    fn index(self) -> usize {
-        Idx::index(self)
-    }
-}
-
-#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Hash, TyEncodable, TyDecodable, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable, Copy)]
 #[derive(HashStable)]
 /// The parameter representation of late-bound function parameters, "some region
 /// at least as big as the scope `fr.scope`".
+///
+/// Similar to a placeholder region as we create `LateParam` regions when entering a binder
+/// except they are always in the root universe and instead of using a boundvar to distinguish
+/// between others we use the `DefId` of the parameter. For this reason the `bound_region` field
+/// should basically always be `BoundRegionKind::BrNamed` as otherwise there is no way of telling
+/// different parameters apart.
 pub struct LateParamRegion {
     pub scope: DefId,
     pub bound_region: BoundRegionKind,
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Hash, TyEncodable, TyDecodable, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable, Copy)]
 #[derive(HashStable)]
 pub enum BoundRegionKind {
     /// An anonymous region parameter for a given fn (&T)
@@ -381,11 +379,33 @@ pub enum BoundRegionKind {
     BrEnv,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable, Debug, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, TyEncodable, TyDecodable)]
 #[derive(HashStable)]
 pub struct BoundRegion {
     pub var: BoundVar,
     pub kind: BoundRegionKind,
+}
+
+impl<'tcx> rustc_type_ir::inherent::BoundVarLike<TyCtxt<'tcx>> for BoundRegion {
+    fn var(self) -> BoundVar {
+        self.var
+    }
+
+    fn assert_eq(self, var: ty::BoundVariableKind) {
+        assert_eq!(self.kind, var.expect_region())
+    }
+}
+
+impl core::fmt::Debug for BoundRegion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            BoundRegionKind::BrAnon => write!(f, "{:?}", self.var),
+            BoundRegionKind::BrEnv => write!(f, "{:?}.Env", self.var),
+            BoundRegionKind::BrNamed(def, symbol) => {
+                write!(f, "{:?}.Named({:?}, {:?})", self.var, def, symbol)
+            }
+        }
+    }
 }
 
 impl BoundRegionKind {

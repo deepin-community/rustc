@@ -1,11 +1,12 @@
 //! Conversion of internal Rust compiler `mir` items to stable ones.
 
+use rustc_middle::bug;
 use rustc_middle::mir;
 use rustc_middle::mir::interpret::alloc_range;
 use rustc_middle::mir::mono::MonoItem;
 use stable_mir::mir::alloc::GlobalAlloc;
 use stable_mir::mir::{ConstOperand, Statement, UserTypeProjection, VarDebugInfoFragment};
-use stable_mir::ty::{Allocation, Const, ConstantKind};
+use stable_mir::ty::{Allocation, ConstantKind, MirConst};
 use stable_mir::{opaque, Error};
 
 use crate::rustc_smir::{alloc, Stable, Tables};
@@ -183,16 +184,21 @@ impl<'tcx> Stable<'tcx> for mir::Rvalue<'tcx> {
                 op.stable(tables),
                 ty.stable(tables),
             ),
-            BinaryOp(bin_op, ops) => stable_mir::mir::Rvalue::BinaryOp(
-                bin_op.stable(tables),
-                ops.0.stable(tables),
-                ops.1.stable(tables),
-            ),
-            CheckedBinaryOp(bin_op, ops) => stable_mir::mir::Rvalue::CheckedBinaryOp(
-                bin_op.stable(tables),
-                ops.0.stable(tables),
-                ops.1.stable(tables),
-            ),
+            BinaryOp(bin_op, ops) => {
+                if let Some(bin_op) = bin_op.overflowing_to_wrapping() {
+                    stable_mir::mir::Rvalue::CheckedBinaryOp(
+                        bin_op.stable(tables),
+                        ops.0.stable(tables),
+                        ops.1.stable(tables),
+                    )
+                } else {
+                    stable_mir::mir::Rvalue::BinaryOp(
+                        bin_op.stable(tables),
+                        ops.0.stable(tables),
+                        ops.1.stable(tables),
+                    )
+                }
+            }
             NullaryOp(null_op, ty) => {
                 stable_mir::mir::Rvalue::NullaryOp(null_op.stable(tables), ty.stable(tables))
             }
@@ -229,7 +235,7 @@ impl<'tcx> Stable<'tcx> for mir::BorrowKind {
         use rustc_middle::mir::BorrowKind::*;
         match *self {
             Shared => stable_mir::mir::BorrowKind::Shared,
-            Fake => stable_mir::mir::BorrowKind::Fake,
+            Fake(kind) => stable_mir::mir::BorrowKind::Fake(kind.stable(tables)),
             Mut { kind } => stable_mir::mir::BorrowKind::Mut { kind: kind.stable(tables) },
         }
     }
@@ -247,23 +253,28 @@ impl<'tcx> Stable<'tcx> for mir::MutBorrowKind {
     }
 }
 
+impl<'tcx> Stable<'tcx> for mir::FakeBorrowKind {
+    type T = stable_mir::mir::FakeBorrowKind;
+    fn stable(&self, _: &mut Tables<'_>) -> Self::T {
+        use rustc_middle::mir::FakeBorrowKind::*;
+        match *self {
+            Deep => stable_mir::mir::FakeBorrowKind::Deep,
+            Shallow => stable_mir::mir::FakeBorrowKind::Shallow,
+        }
+    }
+}
+
 impl<'tcx> Stable<'tcx> for mir::NullOp<'tcx> {
     type T = stable_mir::mir::NullOp;
     fn stable(&self, tables: &mut Tables<'_>) -> Self::T {
         use rustc_middle::mir::NullOp::*;
-        use rustc_middle::mir::UbKind;
         match self {
             SizeOf => stable_mir::mir::NullOp::SizeOf,
             AlignOf => stable_mir::mir::NullOp::AlignOf,
             OffsetOf(indices) => stable_mir::mir::NullOp::OffsetOf(
                 indices.iter().map(|idx| idx.stable(tables)).collect(),
             ),
-            UbCheck(UbKind::LanguageUb) => {
-                stable_mir::mir::NullOp::UbCheck(stable_mir::mir::UbKind::LanguageUb)
-            }
-            UbCheck(UbKind::LibraryUb) => {
-                stable_mir::mir::NullOp::UbCheck(stable_mir::mir::UbKind::LibraryUb)
-            }
+            UbChecks => stable_mir::mir::NullOp::UbChecks,
         }
     }
 }
@@ -273,8 +284,8 @@ impl<'tcx> Stable<'tcx> for mir::CastKind {
     fn stable(&self, tables: &mut Tables<'_>) -> Self::T {
         use rustc_middle::mir::CastKind::*;
         match self {
-            PointerExposeAddress => stable_mir::mir::CastKind::PointerExposeAddress,
-            PointerFromExposedAddress => stable_mir::mir::CastKind::PointerFromExposedAddress,
+            PointerExposeProvenance => stable_mir::mir::CastKind::PointerExposeAddress,
+            PointerWithExposedProvenance => stable_mir::mir::CastKind::PointerWithExposedProvenance,
             PointerCoercion(c) => stable_mir::mir::CastKind::PointerCoercion(c.stable(tables)),
             DynStar => stable_mir::mir::CastKind::DynStar,
             IntToInt => stable_mir::mir::CastKind::IntToInt,
@@ -480,10 +491,13 @@ impl<'tcx> Stable<'tcx> for mir::BinOp {
         match self {
             BinOp::Add => stable_mir::mir::BinOp::Add,
             BinOp::AddUnchecked => stable_mir::mir::BinOp::AddUnchecked,
+            BinOp::AddWithOverflow => bug!("AddWithOverflow should have been translated already"),
             BinOp::Sub => stable_mir::mir::BinOp::Sub,
             BinOp::SubUnchecked => stable_mir::mir::BinOp::SubUnchecked,
+            BinOp::SubWithOverflow => bug!("AddWithOverflow should have been translated already"),
             BinOp::Mul => stable_mir::mir::BinOp::Mul,
             BinOp::MulUnchecked => stable_mir::mir::BinOp::MulUnchecked,
+            BinOp::MulWithOverflow => bug!("AddWithOverflow should have been translated already"),
             BinOp::Div => stable_mir::mir::BinOp::Div,
             BinOp::Rem => stable_mir::mir::BinOp::Rem,
             BinOp::BitXor => stable_mir::mir::BinOp::BitXor,
@@ -499,6 +513,7 @@ impl<'tcx> Stable<'tcx> for mir::BinOp {
             BinOp::Ne => stable_mir::mir::BinOp::Ne,
             BinOp::Ge => stable_mir::mir::BinOp::Ge,
             BinOp::Gt => stable_mir::mir::BinOp::Gt,
+            BinOp::Cmp => stable_mir::mir::BinOp::Cmp,
             BinOp::Offset => stable_mir::mir::BinOp::Offset,
         }
     }
@@ -511,6 +526,7 @@ impl<'tcx> Stable<'tcx> for mir::UnOp {
         match self {
             UnOp::Not => stable_mir::mir::UnOp::Not,
             UnOp::Neg => stable_mir::mir::UnOp::Neg,
+            UnOp::PtrMetadata => stable_mir::mir::UnOp::PtrMetadata,
         }
     }
 }
@@ -547,6 +563,9 @@ impl<'tcx> Stable<'tcx> for mir::AggregateKind<'tcx> {
             }
             mir::AggregateKind::CoroutineClosure(..) => {
                 todo!("FIXME(async_closures): Lower these to SMIR")
+            }
+            mir::AggregateKind::RawPtr(ty, mutability) => {
+                stable_mir::mir::AggregateKind::RawPtr(ty.stable(tables), mutability.stable(tables))
             }
         }
     }
@@ -705,11 +724,16 @@ impl<'tcx> Stable<'tcx> for mir::interpret::GlobalAlloc<'tcx> {
 }
 
 impl<'tcx> Stable<'tcx> for rustc_middle::mir::Const<'tcx> {
-    type T = stable_mir::ty::Const;
+    type T = stable_mir::ty::MirConst;
 
     fn stable(&self, tables: &mut Tables<'_>) -> Self::T {
+        let id = tables.intern_mir_const(tables.tcx.lift(*self).unwrap());
         match *self {
-            mir::Const::Ty(c) => c.stable(tables),
+            mir::Const::Ty(ty, c) => MirConst::new(
+                stable_mir::ty::ConstantKind::Ty(c.stable(tables)),
+                ty.stable(tables),
+                id,
+            ),
             mir::Const::Unevaluated(unev_const, ty) => {
                 let kind =
                     stable_mir::ty::ConstantKind::Unevaluated(stable_mir::ty::UnevaluatedConst {
@@ -718,21 +742,18 @@ impl<'tcx> Stable<'tcx> for rustc_middle::mir::Const<'tcx> {
                         promoted: unev_const.promoted.map(|u| u.as_u32()),
                     });
                 let ty = ty.stable(tables);
-                let id = tables.intern_const(tables.tcx.lift(*self).unwrap());
-                Const::new(kind, ty, id)
+                MirConst::new(kind, ty, id)
             }
             mir::Const::Val(mir::ConstValue::ZeroSized, ty) => {
                 let ty = ty.stable(tables);
-                let id = tables.intern_const(tables.tcx.lift(*self).unwrap());
-                Const::new(ConstantKind::ZeroSized, ty, id)
+                MirConst::new(ConstantKind::ZeroSized, ty, id)
             }
             mir::Const::Val(val, ty) => {
                 let ty = tables.tcx.lift(ty).unwrap();
                 let val = tables.tcx.lift(val).unwrap();
                 let kind = ConstantKind::Allocated(alloc::new_allocation(ty, val, tables));
                 let ty = ty.stable(tables);
-                let id = tables.intern_const(tables.tcx.lift(*self).unwrap());
-                Const::new(kind, ty, id)
+                MirConst::new(kind, ty, id)
             }
         }
     }

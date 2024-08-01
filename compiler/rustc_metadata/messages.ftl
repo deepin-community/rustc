@@ -38,6 +38,9 @@ metadata_crate_dep_multiple =
     cannot satisfy dependencies so `{$crate_name}` only shows up once
     .help = having upstream crates all available in one format will likely make this go away
 
+metadata_crate_dep_not_static =
+    `{$crate_name}` was unavailable as a static crate, preventing fully static linking
+
 metadata_crate_location_unknown_type =
     extern location for {$crate_name} is of an unknown type: {$path}
 
@@ -87,9 +90,6 @@ metadata_found_crate_versions =
 metadata_found_staticlib =
     found staticlib `{$crate_name}` instead of rlib or dylib{$add_info}
     .help = please recompile that crate using --crate-type lib
-
-metadata_framework_only_windows =
-    link kind `raw-dylib` is only supported on Windows targets
 
 metadata_global_alloc_required =
     no global memory allocator found but one is required; link to std or add `#[global_allocator]` to a static item that implements the GlobalAlloc trait
@@ -229,6 +229,9 @@ metadata_profiler_builtins_needs_core =
 
 metadata_raw_dylib_no_nul =
     link name must not contain NUL characters if link kind is `raw-dylib`
+
+metadata_raw_dylib_only_windows =
+    link kind `raw-dylib` is only supported on Windows targets
 
 metadata_renaming_no_link =
     renaming of the library `{$lib_name}` was specified, however this crate contains no `#[link(...)]` attributes referencing this library

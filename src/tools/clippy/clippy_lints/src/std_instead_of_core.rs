@@ -12,11 +12,9 @@ use rustc_span::{sym, Span};
 
 declare_clippy_lint! {
     /// ### What it does
-    ///
     /// Finds items imported through `std` when available through `core`.
     ///
-    /// ### Why is this bad?
-    ///
+    /// ### Why restrict this?
     /// Crates which have `no_std` compatibility may wish to ensure types are imported from core to ensure
     /// disabling `std` does not cause the crate to fail to compile. This lint is also useful for crates
     /// migrating to become `no_std` compatible.
@@ -37,11 +35,9 @@ declare_clippy_lint! {
 
 declare_clippy_lint! {
     /// ### What it does
-    ///
     /// Finds items imported through `std` when available through `alloc`.
     ///
-    /// ### Why is this bad?
-    ///
+    /// ### Why restrict this?
     /// Crates which have `no_std` compatibility and require alloc may wish to ensure types are imported from
     /// alloc to ensure disabling `std` does not cause the crate to fail to compile. This lint is also useful
     /// for crates migrating to become `no_std` compatible.
@@ -63,11 +59,9 @@ declare_clippy_lint! {
 
 declare_clippy_lint! {
     /// ### What it does
-    ///
     /// Finds items imported through `alloc` when available through `core`.
     ///
-    /// ### Why is this bad?
-    ///
+    /// ### Why restrict this?
     /// Crates which have `no_std` compatibility and may optionally require alloc may wish to ensure types are
     /// imported from core to ensure disabling `alloc` does not cause the crate to fail to compile. This lint
     /// is also useful for crates migrating to become `no_std` compatible.
@@ -109,6 +103,7 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
                     sym::core => (STD_INSTEAD_OF_CORE, "std", "core"),
                     sym::alloc => (STD_INSTEAD_OF_ALLOC, "std", "alloc"),
                     _ => {
+                        self.prev_span = first_segment.ident.span;
                         return;
                     },
                 },
@@ -116,6 +111,7 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
                     if cx.tcx.crate_name(def_id.krate) == sym::core {
                         (ALLOC_INSTEAD_OF_CORE, "alloc", "core")
                     } else {
+                        self.prev_span = first_segment.ident.span;
                         return;
                     }
                 },
@@ -126,8 +122,8 @@ impl<'tcx> LateLintPass<'tcx> for StdReexports {
                     cx,
                     lint,
                     first_segment.ident.span,
-                    &format!("used import from `{used_mod}` instead of `{replace_with}`"),
-                    &format!("consider importing the item from `{replace_with}`"),
+                    format!("used import from `{used_mod}` instead of `{replace_with}`"),
+                    format!("consider importing the item from `{replace_with}`"),
                     replace_with.to_string(),
                     Applicability::MachineApplicable,
                 );

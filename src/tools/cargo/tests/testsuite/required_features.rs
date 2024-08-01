@@ -1049,7 +1049,11 @@ fn dep_feature_in_cmd_line() {
 
     // This is a no-op
     p.cargo("build")
-        .with_stderr("[FINISHED] `dev` profile [..]")
+        .with_stderr(
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[FINISHED] `dev` profile [..]",
+        )
         .run();
     assert!(!p.bin("foo").is_file());
 
@@ -1125,6 +1129,7 @@ Consider enabling them by passing, e.g., `--features=\"bar/a\"`
         .with_stderr(
             "\
 [INSTALLING] foo v0.0.1 ([..])
+[LOCKING] 2 packages to latest compatible versions
 [FINISHED] `release` profile [optimized] target(s) in [..]
 [WARNING] none of the package's binaries are available for install using the selected features
   bin \"foo\" requires the features: `bar/a`
@@ -1372,6 +1377,7 @@ fn renamed_required_features() {
         .with_status(101)
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [ERROR] target `x` in package `foo` requires the features: `a1/f1`
 Consider enabling them by passing, e.g., `--features=\"a1/f1\"`
 ",
@@ -1468,12 +1474,12 @@ fn truncated_install_warning_message() {
 [FINISHED] `release` profile [optimized] target(s) in [..]
 [WARNING] none of the package's binaries are available for install using the selected features
   bin \"foo1\" requires the features: `feature1`, `feature2`, `feature3`
+  bin \"foo10\" requires the features: `feature1`, `feature2`, `feature3`, `feature4`, `feature5`
   bin \"foo2\" requires the features: `feature2`
   bin \"foo3\" requires the features: `feature3`
   bin \"foo4\" requires the features: `feature4`, `feature1`
   bin \"foo5\" requires the features: `feature1`, `feature2`, `feature3`, `feature4`, `feature5`
   bin \"foo6\" requires the features: `feature1`, `feature2`, `feature3`, `feature4`, `feature5`
-  bin \"foo7\" requires the features: `feature1`, `feature2`, `feature3`, `feature4`, `feature5`
 4 more targets also requires features not enabled. See them in the Cargo.toml file.
 Consider enabling some of the needed features by passing, e.g., `--features=\"feature1 feature2 feature3\"`").run();
 }

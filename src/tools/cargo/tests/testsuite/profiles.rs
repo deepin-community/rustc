@@ -1,7 +1,7 @@
 //! Tests for profiles.
 
-use cargo_test_support::project;
 use cargo_test_support::registry::Package;
+use cargo_test_support::{project, rustc_host};
 use std::env;
 
 #[cargo_test]
@@ -32,7 +32,7 @@ fn profile_overrides() {
 [RUNNING] `rustc --crate-name test --edition=2015 src/lib.rs [..]--crate-type lib \
         --emit=[..]link[..]\
         -C opt-level=1[..]\
-        -C debug-assertions=on \
+        -C debug-assertions=on[..] \
         -C metadata=[..] \
         -C rpath \
         --out-dir [..] \
@@ -141,7 +141,7 @@ fn check_opt_level_override(profile_level: &str, rustc_level: &str) {
         --emit=[..]link \
         -C opt-level={level}[..]\
         -C debuginfo=2 [..]\
-        -C debug-assertions=on \
+        -C debug-assertions=on[..] \
         -C metadata=[..] \
         --out-dir [..] \
         -L dependency=[CWD]/target/debug/deps`
@@ -203,7 +203,7 @@ fn top_level_overrides_deps() {
 
                 [lib]
                 name = "foo"
-                crate_type = ["dylib", "rlib"]
+                crate-type = ["dylib", "rlib"]
             "#,
         )
         .file("foo/src/lib.rs", "")
@@ -211,6 +211,7 @@ fn top_level_overrides_deps() {
     p.cargo("build -v --release")
         .with_stderr(&format!(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] foo v0.0.0 ([CWD]/foo)
 [RUNNING] `rustc --crate-name foo --edition=2015 foo/src/lib.rs [..]\
         --crate-type dylib --crate-type rlib \
@@ -284,6 +285,7 @@ fn profile_in_non_root_manifest_triggers_a_warning() {
 [WARNING] profiles for the non root package will be ignored, specify profiles at the workspace root:
 package:   [..]
 workspace: [..]
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.1.0 ([..])
 [RUNNING] `rustc [..]`
 [FINISHED] `dev` profile [unoptimized] target(s) in [..]",
@@ -648,6 +650,10 @@ fn strip_debuginfo_in_release() {
         .build();
 
     p.cargo("build --release -v")
+        .with_stderr_contains("[RUNNING] `rustc [..] -C strip=debuginfo[..]`")
+        .run();
+    p.cargo("build --release -v --target")
+        .arg(rustc_host())
         .with_stderr_contains("[RUNNING] `rustc [..] -C strip=debuginfo[..]`")
         .run();
 }

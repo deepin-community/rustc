@@ -5,7 +5,7 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::Res;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::hir_id::ItemLocalId;
-use rustc_hir::{Block, Body, BodyOwnerKind, Expr, ExprKind, HirId, Let, Node, Pat, PatKind, QPath, UnOp};
+use rustc_hir::{Block, Body, BodyOwnerKind, Expr, ExprKind, HirId, LetExpr, Node, Pat, PatKind, QPath, UnOp};
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
 use rustc_span::{Span, Symbol};
@@ -15,10 +15,10 @@ declare_clippy_lint! {
     /// Checks for bindings that shadow other bindings already in
     /// scope, while just changing reference level or mutability.
     ///
-    /// ### Why is this bad?
-    /// Not much, in fact it's a very common pattern in Rust
-    /// code. Still, some may opt to avoid it in their code base, they can set this
-    /// lint to `Warn`.
+    /// ### Why restrict this?
+    /// To require that what are formally distinct variables be given distinct names.
+    ///
+    /// See also `shadow_reuse` and `shadow_unrelated` for other restrictions on shadowing.
     ///
     /// ### Example
     /// ```no_run
@@ -42,11 +42,12 @@ declare_clippy_lint! {
     /// Checks for bindings that shadow other bindings already in
     /// scope, while reusing the original value.
     ///
-    /// ### Why is this bad?
-    /// Not too much, in fact it's a common pattern in Rust
-    /// code. Still, some argue that name shadowing like this hurts readability,
+    /// ### Why restrict this?
+    /// Some argue that name shadowing like this hurts readability,
     /// because a value may be bound to different things depending on position in
     /// the code.
+    ///
+    /// See also `shadow_same` and `shadow_unrelated` for other restrictions on shadowing.
     ///
     /// ### Example
     /// ```no_run
@@ -70,11 +71,14 @@ declare_clippy_lint! {
     /// scope, either without an initialization or with one that does not even use
     /// the original value.
     ///
-    /// ### Why is this bad?
-    /// Name shadowing can hurt readability, especially in
+    /// ### Why restrict this?
+    /// Shadowing a binding with a closely related one is part of idiomatic Rust,
+    /// but shadowing a binding by accident with an unrelated one may indicate a mistake.
+    ///
+    /// Additionally, name shadowing in general can hurt readability, especially in
     /// large code bases, because it is easy to lose track of the active binding at
-    /// any place in the code. This can be alleviated by either giving more specific
-    /// names to bindings or introducing more scopes to contain the bindings.
+    /// any place in the code. If linting against all shadowing is desired, you may wish
+    /// to use the `shadow_same` and `shadow_reuse` lints as well.
     ///
     /// ### Example
     /// ```no_run
@@ -194,7 +198,7 @@ fn lint_shadow(cx: &LateContext<'_>, pat: &Pat<'_>, shadowed: HirId, span: Span)
         cx,
         lint,
         span,
-        &msg,
+        msg,
         Some(cx.tcx.hir().span(shadowed)),
         "previous binding is here",
     );
@@ -238,10 +242,10 @@ fn find_init<'tcx>(cx: &LateContext<'tcx>, hir_id: HirId) -> Option<&'tcx Expr<'
         let init = match node {
             Node::Arm(_) | Node::Pat(_) => continue,
             Node::Expr(expr) => match expr.kind {
-                ExprKind::Match(e, _, _) | ExprKind::Let(&Let { init: e, .. }) => Some(e),
+                ExprKind::Match(e, _, _) | ExprKind::Let(&LetExpr { init: e, .. }) => Some(e),
                 _ => None,
             },
-            Node::Local(local) => local.init,
+            Node::LetStmt(local) => local.init,
             _ => None,
         };
         return init;

@@ -1,8 +1,9 @@
 //! Tests specific to artifact dependencies, designated using
 //! the new `dep = { artifact = "bin", … }` syntax in manifests.
 
-use cargo_test_support::compare::match_exact;
+use cargo_test_support::compare::assert_e2e;
 use cargo_test_support::registry::{Package, RegistryBuilder};
+use cargo_test_support::str;
 use cargo_test_support::{
     basic_bin_manifest, basic_manifest, cross_compile, project, publish, registry, rustc_host,
     Project,
@@ -213,6 +214,7 @@ fn disallow_artifact_and_no_artifact_dep_to_same_package_within_the_same_dep_cat
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_status(101)
         .with_stderr("\
+[LOCKING] 2 packages to latest compatible versions
 [WARNING] foo v0.0.0 ([CWD]) ignoring invalid dependency `bar_stable` which is missing a lib target
 [ERROR] the crate `foo v0.0.0 ([CWD])` depends on crate `bar v0.5.0 ([CWD]/bar)` multiple times with different names",
         )
@@ -322,6 +324,7 @@ fn features_are_unified_among_lib_and_bin_dep_of_same_target() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [COMPILING] d2 v0.0.1 ([CWD]/d2)
 [COMPILING] d1 v0.0.1 ([CWD]/d1)
 [COMPILING] foo v0.0.1 ([CWD])
@@ -591,35 +594,33 @@ fn build_script_with_bin_artifacts() {
         .run();
 
     let build_script_output = build_script_output_string(&p, "foo");
-    let msg = "we need the binary directory for this artifact along with all binary paths";
+    // we need the binary directory for this artifact along with all binary paths
     if cfg!(target_env = "msvc") {
-        match_exact(
-            "[..]/artifact/bar-[..]/bin/baz.exe\n\
-             [..]/artifact/bar-[..]/staticlib/bar-[..].lib\n\
-             [..]/artifact/bar-[..]/cdylib/bar.dll\n\
-             [..]/artifact/bar-[..]/bin\n\
-             [..]/artifact/bar-[..]/bin/bar.exe\n\
-             [..]/artifact/bar-[..]/bin/bar.exe",
+        assert_e2e().eq(
             &build_script_output,
-            msg,
-            "",
-            None,
-        )
-        .unwrap();
+            str![[r#"
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/baz[EXE]
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/staticlib/bar-[..].lib
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/cdylib/bar.dll
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/bar[EXE]
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/bar[EXE]
+
+"#]],
+        );
     } else {
-        match_exact(
-            "[..]/artifact/bar-[..]/bin/baz-[..]\n\
-             [..]/artifact/bar-[..]/staticlib/libbar-[..].a\n\
-             [..]/artifact/bar-[..]/cdylib/[..]bar.[..]\n\
-             [..]/artifact/bar-[..]/bin\n\
-             [..]/artifact/bar-[..]/bin/bar-[..]\n\
-             [..]/artifact/bar-[..]/bin/bar-[..]",
+        assert_e2e().eq(
             &build_script_output,
-            msg,
-            "",
-            None,
-        )
-        .unwrap();
+            str![[r#"
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/baz-[..]
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/staticlib/libbar-[..].a
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/cdylib/[..]bar.[..]
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/bar-[..]
+[ROOT]/foo/target/debug/deps/artifact/bar-[..]/bin/bar-[..]
+
+"#]],
+        );
     }
 
     assert!(
@@ -773,6 +774,7 @@ fn build_script_with_selected_dashed_bin_artifact_and_lib_true() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar-baz v0.5.0 ([CWD]/bar)
 [COMPILING] foo [..]
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]",
@@ -780,31 +782,25 @@ fn build_script_with_selected_dashed_bin_artifact_and_lib_true() {
         .run();
 
     let build_script_output = build_script_output_string(&p, "foo");
-    let msg = "we need the binary directory for this artifact and the binary itself";
-
+    // we need the binary directory for this artifact and the binary itself
     if cfg!(target_env = "msvc") {
-        cargo_test_support::compare::match_exact(
-            &format!(
-                "[..]/artifact/bar-baz-[..]/bin\n\
-                 [..]/artifact/bar-baz-[..]/bin/baz_suffix{}",
-                std::env::consts::EXE_SUFFIX,
-            ),
+        assert_e2e().eq(
             &build_script_output,
-            msg,
-            "",
-            None,
-        )
-        .unwrap();
+            str![[r#"
+[ROOT]/foo/target/debug/deps/artifact/bar-baz-[..]/bin
+[ROOT]/foo/target/debug/deps/artifact/bar-baz-[..]/bin/baz_suffix[EXE]
+
+"#]],
+        );
     } else {
-        cargo_test_support::compare::match_exact(
-            "[..]/artifact/bar-baz-[..]/bin\n\
-        [..]/artifact/bar-baz-[..]/bin/baz_suffix-[..]",
+        assert_e2e().eq(
             &build_script_output,
-            msg,
-            "",
-            None,
-        )
-        .unwrap();
+            str![[r#"
+[ROOT]/foo/target/debug/deps/artifact/bar-baz-[..]/bin
+[ROOT]/foo/target/debug/deps/artifact/bar-baz-[..]/bin/baz_suffix-[..]
+
+"#]],
+        );
     }
 
     assert!(
@@ -841,8 +837,10 @@ fn lib_with_selected_dashed_bin_artifact_and_lib_true() {
                 let _b = include_bytes!(env!("CARGO_BIN_FILE_BAR_BAZ_baz-suffix"));
                 let _b = include_bytes!(env!("CARGO_STATICLIB_FILE_BAR_BAZ"));
                 let _b = include_bytes!(env!("CARGO_STATICLIB_FILE_BAR_BAZ_bar-baz"));
+                let _b = include_bytes!(env!("CARGO_STATICLIB_FILE_BAR_BAZ_bar_baz"));
                 let _b = include_bytes!(env!("CARGO_CDYLIB_FILE_BAR_BAZ"));
                 let _b = include_bytes!(env!("CARGO_CDYLIB_FILE_BAR_BAZ_bar-baz"));
+                let _b = include_bytes!(env!("CARGO_CDYLIB_FILE_BAR_BAZ_bar_baz"));
             }
         "#,
         )
@@ -872,6 +870,7 @@ fn lib_with_selected_dashed_bin_artifact_and_lib_true() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar-baz v0.5.0 ([CWD]/bar)
 [COMPILING] foo [..]
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]",
@@ -990,7 +989,11 @@ fn disallow_using_example_binaries_as_artifacts() {
     p.cargo("build -Z bindeps")
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_status(101)
-        .with_stderr(r#"[ERROR] dependency `bar` in package `foo` requires a `bin:one-example` artifact to be present."#)
+        .with_stderr(
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[ERROR] dependency `bar` in package `foo` requires a `bin:one-example` artifact to be present.",
+        )
         .run();
 }
 
@@ -1158,7 +1161,9 @@ fn build_script_deps_adopt_do_not_allow_multiple_targets_under_different_name_an
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_status(101)
         .with_stderr(format!(
-            "error: the crate `foo v0.0.0 ([CWD])` depends on crate `bar v0.5.0 ([CWD]/bar)` multiple times with different names",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+error: the crate `foo v0.0.0 ([CWD])` depends on crate `bar v0.5.0 ([CWD]/bar)` multiple times with different names",
         ))
         .run();
 }
@@ -1262,6 +1267,7 @@ fn no_cross_doctests_works_with_artifacts() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(&format!(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.5.0 ([CWD]/bar)
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] `test` profile [unoptimized + debuginfo] target(s) in [..]
@@ -1484,6 +1490,55 @@ foo v0.0.0 ([CWD])
         )
         .run();
 }
+
+#[cargo_test]
+fn artifact_dep_target_specified() {
+    if cross_compile::disabled() {
+        return;
+    }
+    let target = cross_compile::alternate();
+
+    let p = project()
+        .file(
+            "Cargo.toml",
+            &r#"
+                [package]
+                name = "foo"
+                version = "0.0.0"
+                authors = []
+                resolver = "2"
+
+                [dependencies]
+                bindep = { path = "bindep", artifact = "bin", target = "$TARGET" }
+            "#
+            .replace("$TARGET", target),
+        )
+        .file("src/lib.rs", "")
+        .file("bindep/Cargo.toml", &basic_manifest("bindep", "0.0.0"))
+        .file("bindep/src/main.rs", "fn main() {}")
+        .build();
+
+    p.cargo("check -Z bindeps")
+        .masquerade_as_nightly_cargo(&["bindeps"])
+        .with_stderr_contains(
+            r#"[COMPILING] bindep v0.0.0 ([CWD]/bindep)
+[CHECKING] foo v0.0.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]"#,
+        )
+        .with_status(0)
+        .run();
+
+    // TODO: This command currently fails due to a bug in cargo but it should be fixed so that it succeeds in the future.
+    p.cargo("tree -Z bindeps")
+        .masquerade_as_nightly_cargo(&["bindeps"])
+        .with_stdout("")
+        .with_stderr_contains(
+            r#"activated_features for invalid package: features did not find PackageId { name: "bindep", version: "0.0.0", source: "[..]" } NormalOrDev"#
+        )
+        .with_status(101)
+        .run();
+}
+
 #[cargo_test]
 fn targets_are_picked_up_from_non_workspace_artifact_deps() {
     if cross_compile::disabled() {
@@ -1577,6 +1632,7 @@ fn index_version_filtering() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [ADDING] artifact v1.0.0
 [UPDATING] bar v1.0.0 -> v1.0.1",
         )
@@ -1694,14 +1750,14 @@ fn allow_dep_renames_with_multiple_versions() {
         .with_stderr_contains("[COMPILING] foo [..]")
         .run();
     let build_script_output = build_script_output_string(&p, "foo");
-    match_exact(
-        "0.5.0\n1.0.0",
+    assert_e2e().eq(
         &build_script_output,
-        "build script output",
-        "",
-        None,
-    )
-    .unwrap();
+        str![[r#"
+0.5.0
+1.0.0
+
+"#]],
+    );
 }
 
 #[cargo_test]
@@ -1744,6 +1800,7 @@ fn allow_artifact_and_non_artifact_dependency_to_same_crate_if_these_are_not_the
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar [..]
 [COMPILING] foo [..]
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -1780,6 +1837,7 @@ fn prevent_no_lib_warning_with_artifact_dependencies() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+            [LOCKING] 2 packages to latest compatible versions\n\
             [COMPILING] bar v0.5.0 ([CWD]/bar)\n\
             [CHECKING] foo v0.0.0 ([CWD])\n\
             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]",
@@ -1879,7 +1937,9 @@ fn check_missing_crate_type_in_package_fails() {
             .masquerade_as_nightly_cargo(&["bindeps"])
             .with_status(101)
             .with_stderr(
-                "[ERROR] dependency `bar` in package `foo` requires a `[..]` artifact to be present.",
+                "\
+[LOCKING] 2 packages to latest compatible versions
+[ERROR] dependency `bar` in package `foo` requires a `[..]` artifact to be present.",
             )
             .run();
     }
@@ -2025,6 +2085,7 @@ fn env_vars_and_build_products_for_various_build_targets() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar [..]
 [COMPILING] foo [..]
 [FINISHED] `test` profile [unoptimized + debuginfo] target(s) in [..]
@@ -2146,12 +2207,22 @@ edition = "2015"
 name = "foo"
 version = "0.1.0"
 authors = []
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "foo"
 homepage = "foo"
 documentation = "foo"
+readme = false
 license = "MIT"
 repository = "foo"
 resolver = "2"
+
+[lib]
+name = "foo"
+path = "src/lib.rs"
 
 [dependencies.bar]
 version = "1.0"
@@ -2166,7 +2237,7 @@ artifact = [
     "staticlib",
 ]
 target = "target""#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -2201,6 +2272,7 @@ fn doc_lib_true() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.0.1 ([CWD]/bar)
 [DOCUMENTING] bar v0.0.1 ([CWD]/bar)
 [DOCUMENTING] foo v0.0.1 ([CWD])
@@ -2283,6 +2355,7 @@ fn rustdoc_works_on_libs_with_artifacts_and_lib_false() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.5.0 ([CWD]/bar)
 [DOCUMENTING] foo v0.0.1 ([CWD])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -2490,6 +2563,7 @@ fn calc_bin_artifact_fingerprint() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.5.0 ([CWD]/bar)
 [CHECKING] foo v0.1.0 ([CWD])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -2571,6 +2645,7 @@ fn with_target_and_optional() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] d1 v0.0.1 [..]
 [RUNNING] `rustc --crate-name d1 [..]--crate-type bin[..]
 [CHECKING] foo v0.0.1 [..]
@@ -2620,6 +2695,7 @@ fn with_assumed_host_target_and_optional_build_dep() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr_unordered(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] foo v0.0.1 ([CWD])
 [COMPILING] d1 v0.0.1 ([CWD]/d1)
 [RUNNING] `rustc --crate-name build_script_build --edition=2021 [..]--crate-type bin[..]
@@ -2747,6 +2823,7 @@ fn decouple_same_target_transitive_dep_from_artifact_dep() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 5 packages to latest compatible versions
 [COMPILING] c v0.1.0 ([CWD]/c)
 [COMPILING] b v0.1.0 ([CWD]/b)
 [COMPILING] a v0.1.0 ([CWD]/a)
@@ -2850,6 +2927,7 @@ fn decouple_same_target_transitive_dep_from_artifact_dep_lib() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 4 packages to latest compatible versions
 [COMPILING] b v0.1.0 ([CWD]/b)
 [COMPILING] a v0.1.0 ([CWD]/a)
 [COMPILING] bar v0.1.0 ([CWD]/bar)
@@ -2976,6 +3054,7 @@ fn decouple_same_target_transitive_dep_from_artifact_dep_and_proc_macro() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr_unordered(
             "\
+[LOCKING] 6 packages to latest compatible versions
 [COMPILING] d v0.1.0 ([CWD]/d)
 [COMPILING] a v0.1.0 ([CWD]/a)
 [COMPILING] b v0.1.0 ([CWD]/b)
@@ -3041,6 +3120,7 @@ fn same_target_artifact_dep_sharing() {
         .masquerade_as_nightly_cargo(&["bindeps"])
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [COMPILING] a v0.1.0 ([CWD]/a)
 [COMPILING] bar v0.1.0 ([CWD]/bar)
 [COMPILING] foo v0.1.0 ([CWD])
@@ -3101,4 +3181,78 @@ fn check_transitive_artifact_dependency_with_different_target() {
         )
         .with_status(101)
         .run();
+}
+
+#[cargo_test]
+fn build_only_specified_artifact_library() {
+    // Create a project with:
+    // - A crate `bar` with both `staticlib` and `cdylib` as crate-types.
+    // - A crate `foo` which depends on either the `staticlib` or `cdylib` artifact of bar,
+    //   whose build-script simply checks which library artifacts are present.
+    let create_project = |artifact_lib| {
+        project()
+            .file(
+                "bar/Cargo.toml",
+                r#"
+                [package]
+                name = "bar"
+                version = "1.0.0"
+
+                [lib]
+                crate-type = ["staticlib", "cdylib"]
+                "#,
+            )
+            .file("bar/src/lib.rs", "")
+            .file(
+                "Cargo.toml",
+                &format!(
+                r#"
+                [package]
+                name = "foo"
+                version = "1.0.0"
+
+                [build-dependencies]
+                bar = {{ path = "bar", artifact = "{artifact_lib}" }}
+            "#),
+            )
+            .file("src/lib.rs", "")
+            .file(
+                "build.rs",
+                r#"
+                fn main() {
+                    println!("cdylib present: {}", std::env::var_os("CARGO_CDYLIB_FILE_BAR").is_some());
+                    println!("staticlib present: {}", std::env::var_os("CARGO_STATICLIB_FILE_BAR").is_some());
+                }
+            "#,
+            )
+            .build()
+    };
+
+    let cdylib = create_project("cdylib");
+    cdylib
+        .cargo("build -Z bindeps")
+        .masquerade_as_nightly_cargo(&["bindeps"])
+        .run();
+    assert_e2e().eq(
+        &build_script_output_string(&cdylib, "foo"),
+        str![[r#"
+cdylib present: true
+staticlib present: false
+
+"#]],
+    );
+
+    let staticlib = create_project("staticlib");
+    staticlib
+        .cargo("build -Z bindeps")
+        .masquerade_as_nightly_cargo(&["bindeps"])
+        .run();
+    assert_e2e().eq(
+        &build_script_output_string(&staticlib, "foo"),
+        str![[r#"
+cdylib present: false
+staticlib present: true
+
+"#]],
+    );
 }

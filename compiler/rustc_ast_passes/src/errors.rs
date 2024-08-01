@@ -31,6 +31,12 @@ pub struct VisibilityNotPermitted {
     pub span: Span,
     #[subdiagnostic]
     pub note: VisibilityNotPermittedNote,
+    #[suggestion(
+        ast_passes_remove_qualifier_sugg,
+        code = "",
+        applicability = "machine-applicable"
+    )]
+    pub remove_qualifier_sugg: Span,
 }
 
 #[derive(Subdiagnostic)]
@@ -84,13 +90,6 @@ pub struct FnParamTooMany {
     #[primary_span]
     pub span: Span,
     pub max_num_args: usize,
-}
-
-#[derive(Diagnostic)]
-#[diag(ast_passes_fn_param_c_var_args_only)]
-pub struct FnParamCVarArgsOnly {
-    #[primary_span]
-    pub span: Span,
 }
 
 #[derive(Diagnostic)]
@@ -218,6 +217,22 @@ pub enum ExternBlockSuggestion {
 }
 
 #[derive(Diagnostic)]
+#[diag(ast_passes_extern_invalid_safety)]
+pub struct InvalidSafetyOnExtern {
+    #[primary_span]
+    pub item_span: Span,
+    #[suggestion(code = "", applicability = "maybe-incorrect")]
+    pub block: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(ast_passes_unsafe_static)]
+pub struct UnsafeStatic {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
 #[diag(ast_passes_bound_in_context)]
 pub struct BoundInContext<'a> {
     #[primary_span]
@@ -270,11 +285,10 @@ pub struct FnBodyInExtern {
 #[diag(ast_passes_extern_fn_qualifiers)]
 pub struct FnQualifierInExtern {
     #[primary_span]
+    #[suggestion(code = "", applicability = "maybe-incorrect")]
     pub span: Span,
     #[label]
     pub block: Span,
-    #[suggestion(code = "fn ", applicability = "maybe-incorrect", style = "verbose")]
-    pub sugg_span: Span,
 }
 
 #[derive(Diagnostic)]
@@ -377,7 +391,7 @@ impl Subdiagnostic for EmptyLabelManySpans {
     fn add_to_diag_with<G: EmissionGuarantee, F: SubdiagMessageOp<G>>(
         self,
         diag: &mut Diag<'_, G>,
-        _: F,
+        _: &F,
     ) {
         diag.span_labels(self.0, "");
     }
@@ -485,6 +499,13 @@ pub struct UnsafeItem {
     #[primary_span]
     pub span: Span,
     pub kind: &'static str,
+}
+
+#[derive(Diagnostic)]
+#[diag(ast_passes_missing_unsafe_on_extern)]
+pub struct MissingUnsafeOnExtern {
+    #[primary_span]
+    pub span: Span,
 }
 
 #[derive(Diagnostic)]
@@ -664,6 +685,7 @@ pub struct ConstAndCVariadic {
 
 #[derive(Diagnostic)]
 #[diag(ast_passes_pattern_in_foreign, code = E0130)]
+// FIXME: deduplicate with rustc_lint (`BuiltinLintDiag::PatternsInFnsWithoutBody`)
 pub struct PatternInForeign {
     #[primary_span]
     #[label]
@@ -672,6 +694,7 @@ pub struct PatternInForeign {
 
 #[derive(Diagnostic)]
 #[diag(ast_passes_pattern_in_bodiless, code = E0642)]
+// FIXME: deduplicate with rustc_lint (`BuiltinLintDiag::PatternsInFnsWithoutBody`)
 pub struct PatternInBodiless {
     #[primary_span]
     #[label]
@@ -746,7 +769,7 @@ impl Subdiagnostic for StableFeature {
     fn add_to_diag_with<G: EmissionGuarantee, F: SubdiagMessageOp<G>>(
         self,
         diag: &mut Diag<'_, G>,
-        _: F,
+        _: &F,
     ) {
         diag.arg("name", self.name);
         diag.arg("since", self.since);

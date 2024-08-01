@@ -302,16 +302,16 @@ pub fn getenv(k: &OsStr) -> Option<OsString> {
     .ok()
 }
 
-pub fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
+pub unsafe fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
     let k = to_u16s(k)?;
     let v = to_u16s(v)?;
 
-    cvt(unsafe { c::SetEnvironmentVariableW(k.as_ptr(), v.as_ptr()) }).map(drop)
+    cvt(c::SetEnvironmentVariableW(k.as_ptr(), v.as_ptr())).map(drop)
 }
 
-pub fn unsetenv(n: &OsStr) -> io::Result<()> {
+pub unsafe fn unsetenv(n: &OsStr) -> io::Result<()> {
     let v = to_u16s(n)?;
-    cvt(unsafe { c::SetEnvironmentVariableW(v.as_ptr(), ptr::null()) }).map(drop)
+    cvt(c::SetEnvironmentVariableW(v.as_ptr(), ptr::null())).map(drop)
 }
 
 pub fn temp_dir() -> PathBuf {
@@ -326,6 +326,8 @@ fn home_dir_crt() -> Option<PathBuf> {
 
         super::fill_utf16_buf(
             |buf, mut sz| {
+                // GetUserProfileDirectoryW does not quite use the usual protocol for
+                // negotiating the buffer size, so we have to translate.
                 match c::GetUserProfileDirectoryW(
                     ptr::without_provenance_mut(CURRENT_PROCESS_TOKEN),
                     buf,

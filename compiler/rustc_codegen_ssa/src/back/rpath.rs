@@ -3,6 +3,7 @@ use rustc_data_structures::fx::FxHashSet;
 use rustc_fs_util::try_canonicalize;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 pub struct RPathConfig<'a> {
     pub libs: &'a [&'a Path],
@@ -12,7 +13,7 @@ pub struct RPathConfig<'a> {
     pub linker_is_gnu: bool,
 }
 
-pub fn get_rpath_flags(config: &mut RPathConfig<'_>) -> Vec<OsString> {
+pub fn get_rpath_flags(config: &RPathConfig<'_>) -> Vec<OsString> {
     // No rpath on windows
     if !config.has_rpath {
         return Vec::new();
@@ -52,7 +53,7 @@ fn rpaths_to_flags(rpaths: Vec<OsString>) -> Vec<OsString> {
     ret
 }
 
-fn get_rpaths(config: &mut RPathConfig<'_>) -> Vec<OsString> {
+fn get_rpaths(config: &RPathConfig<'_>) -> Vec<OsString> {
     debug!("output: {:?}", config.out_filename.display());
     debug!("libs:");
     for libpath in config.libs {
@@ -73,17 +74,22 @@ fn get_rpaths(config: &mut RPathConfig<'_>) -> Vec<OsString> {
     minimize_rpaths(&rpaths)
 }
 
-fn get_rpaths_relative_to_output(config: &mut RPathConfig<'_>) -> Vec<OsString> {
+fn get_rpaths_relative_to_output(config: &RPathConfig<'_>) -> Vec<OsString> {
     config.libs.iter().map(|a| get_rpath_relative_to_output(config, a)).collect()
 }
 
-fn get_rpath_relative_to_output(config: &mut RPathConfig<'_>, lib: &Path) -> OsString {
+fn get_rpath_relative_to_output(config: &RPathConfig<'_>, lib: &Path) -> OsString {
     // Mac doesn't appear to support $ORIGIN
     let prefix = if config.is_like_osx { "@loader_path" } else { "$ORIGIN" };
 
     // Strip filenames
     let lib = lib.parent().unwrap();
     let output = config.out_filename.parent().unwrap();
+
+    // If output or lib is empty, just assume it locates in current path
+    let lib = if lib == Path::new("") { Path::new(".") } else { lib };
+    let output = if output == Path::new("") { Path::new(".") } else { output };
+
     let lib = try_canonicalize(lib).unwrap();
     let output = try_canonicalize(output).unwrap();
     let relative = path_relative_from(&lib, &output)

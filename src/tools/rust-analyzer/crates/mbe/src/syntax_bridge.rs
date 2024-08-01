@@ -1,7 +1,9 @@
 //! Conversions between [`SyntaxNode`] and [`tt::TokenTree`].
 
+use std::fmt;
+
 use rustc_hash::{FxHashMap, FxHashSet};
-use span::{SpanAnchor, SpanData, SpanMap};
+use span::{Edition, SpanAnchor, SpanData, SpanMap};
 use stdx::{never, non_empty_vec::NonEmptyVec};
 use syntax::{
     ast::{self, make::tokens::doc_comment},
@@ -9,27 +11,27 @@ use syntax::{
     SyntaxKind::*,
     SyntaxNode, SyntaxToken, SyntaxTreeBuilder, TextRange, TextSize, WalkEvent, T,
 };
-use tt::{
-    buffer::{Cursor, TokenBuffer},
-    Span,
-};
+use tt::buffer::{Cursor, TokenBuffer};
 
 use crate::{to_parser_input::to_parser_input, tt_iter::TtIter};
 
 #[cfg(test)]
 mod tests;
 
-pub trait SpanMapper<S: Span> {
+pub trait SpanMapper<S> {
     fn span_for(&self, range: TextRange) -> S;
 }
 
-impl<S: Span> SpanMapper<S> for SpanMap<S> {
-    fn span_for(&self, range: TextRange) -> S {
+impl<S> SpanMapper<SpanData<S>> for SpanMap<S>
+where
+    SpanData<S>: Copy,
+{
+    fn span_for(&self, range: TextRange) -> SpanData<S> {
         self.span_at(range.start())
     }
 }
 
-impl<S: Span, SM: SpanMapper<S>> SpanMapper<S> for &SM {
+impl<S: Copy, SM: SpanMapper<S>> SpanMapper<S> for &SM {
     fn span_for(&self, range: TextRange) -> S {
         SM::span_for(self, range)
     }
@@ -38,35 +40,42 @@ impl<S: Span, SM: SpanMapper<S>> SpanMapper<S> for &SM {
 /// Dummy things for testing where spans don't matter.
 pub(crate) mod dummy_test_span_utils {
 
+    use span::{Span, SyntaxContextId};
+
     use super::*;
 
-    pub type DummyTestSpanData = span::SpanData<DummyTestSyntaxContext>;
-    pub const DUMMY: DummyTestSpanData = span::SpanData {
+    pub const DUMMY: Span = Span {
         range: TextRange::empty(TextSize::new(0)),
         anchor: span::SpanAnchor {
             file_id: span::FileId::BOGUS,
             ast_id: span::ROOT_ERASED_FILE_AST_ID,
         },
-        ctx: DummyTestSyntaxContext,
+        ctx: SyntaxContextId::ROOT,
     };
-
-    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-    pub struct DummyTestSyntaxContext;
 
     pub struct DummyTestSpanMap;
 
-    impl SpanMapper<span::SpanData<DummyTestSyntaxContext>> for DummyTestSpanMap {
-        fn span_for(&self, range: syntax::TextRange) -> span::SpanData<DummyTestSyntaxContext> {
-            span::SpanData {
+    impl SpanMapper<Span> for DummyTestSpanMap {
+        fn span_for(&self, range: syntax::TextRange) -> Span {
+            Span {
                 range,
                 anchor: span::SpanAnchor {
                     file_id: span::FileId::BOGUS,
                     ast_id: span::ROOT_ERASED_FILE_AST_ID,
                 },
-                ctx: DummyTestSyntaxContext,
+                ctx: SyntaxContextId::ROOT,
             }
         }
     }
+}
+
+/// Doc comment desugaring differs between mbe and proc-macros.
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum DocCommentDesugarMode {
+    /// Desugars doc comments as quoted raw strings
+    Mbe,
+    /// Desugars doc comments as quoted strings
+    ProcMacro,
 }
 
 /// Converts a syntax tree to a [`tt::Subtree`] using the provided span map to populate the
@@ -75,13 +84,13 @@ pub fn syntax_node_to_token_tree<Ctx, SpanMap>(
     node: &SyntaxNode,
     map: SpanMap,
     span: SpanData<Ctx>,
+    mode: DocCommentDesugarMode,
 ) -> tt::Subtree<SpanData<Ctx>>
 where
-    SpanData<Ctx>: Span,
-    Ctx: Copy,
+    SpanData<Ctx>: Copy + fmt::Debug,
     SpanMap: SpanMapper<SpanData<Ctx>>,
 {
-    let mut c = Converter::new(node, map, Default::default(), Default::default(), span);
+    let mut c = Converter::new(node, map, Default::default(), Default::default(), span, mode);
     convert_tokens(&mut c)
 }
 
@@ -92,15 +101,15 @@ pub fn syntax_node_to_token_tree_modified<Ctx, SpanMap>(
     node: &SyntaxNode,
     map: SpanMap,
     append: FxHashMap<SyntaxElement, Vec<tt::Leaf<SpanData<Ctx>>>>,
-    remove: FxHashSet<SyntaxNode>,
+    remove: FxHashSet<SyntaxElement>,
     call_site: SpanData<Ctx>,
+    mode: DocCommentDesugarMode,
 ) -> tt::Subtree<SpanData<Ctx>>
 where
     SpanMap: SpanMapper<SpanData<Ctx>>,
-    SpanData<Ctx>: Span,
-    Ctx: Copy,
+    SpanData<Ctx>: Copy + fmt::Debug,
 {
-    let mut c = Converter::new(node, map, append, remove, call_site);
+    let mut c = Converter::new(node, map, append, remove, call_site, mode);
     convert_tokens(&mut c)
 }
 
@@ -121,10 +130,10 @@ where
 pub fn token_tree_to_syntax_node<Ctx>(
     tt: &tt::Subtree<SpanData<Ctx>>,
     entry_point: parser::TopEntryPoint,
-) -> (Parse<SyntaxNode>, SpanMap<SpanData<Ctx>>)
+    edition: parser::Edition,
+) -> (Parse<SyntaxNode>, SpanMap<Ctx>)
 where
-    SpanData<Ctx>: Span,
-    Ctx: Copy,
+    SpanData<Ctx>: Copy + fmt::Debug,
 {
     let buffer = match tt {
         tt::Subtree {
@@ -134,7 +143,7 @@ where
         _ => TokenBuffer::from_subtree(tt),
     };
     let parser_input = to_parser_input(&buffer);
-    let parser_output = entry_point.parse(&parser_input);
+    let parser_output = entry_point.parse(&parser_input, edition);
     let mut tree_sink = TtTreeSink::new(buffer.begin());
     for event in parser_output.iter() {
         match event {
@@ -160,36 +169,42 @@ pub fn parse_to_token_tree<Ctx>(
     text: &str,
 ) -> Option<tt::Subtree<SpanData<Ctx>>>
 where
-    SpanData<Ctx>: Span,
+    SpanData<Ctx>: Copy + fmt::Debug,
     Ctx: Copy,
 {
     let lexed = parser::LexedStr::new(text);
     if lexed.errors().next().is_some() {
         return None;
     }
-    let mut conv = RawConverter { lexed, anchor, pos: 0, ctx };
+    let mut conv =
+        RawConverter { lexed, anchor, pos: 0, ctx, mode: DocCommentDesugarMode::ProcMacro };
     Some(convert_tokens(&mut conv))
 }
 
 /// Convert a string to a `TokenTree`. The passed span will be used for all spans of the produced subtree.
 pub fn parse_to_token_tree_static_span<S>(span: S, text: &str) -> Option<tt::Subtree<S>>
 where
-    S: Span,
+    S: Copy + fmt::Debug,
 {
     let lexed = parser::LexedStr::new(text);
     if lexed.errors().next().is_some() {
         return None;
     }
-    let mut conv = StaticRawConverter { lexed, pos: 0, span };
+    let mut conv =
+        StaticRawConverter { lexed, pos: 0, span, mode: DocCommentDesugarMode::ProcMacro };
     Some(convert_tokens(&mut conv))
 }
 
 /// Split token tree with separate expr: $($e:expr)SEP*
-pub fn parse_exprs_with_sep<S: Span>(
+pub fn parse_exprs_with_sep<S>(
     tt: &tt::Subtree<S>,
     sep: char,
     span: S,
-) -> Vec<tt::Subtree<S>> {
+    edition: Edition,
+) -> Vec<tt::Subtree<S>>
+where
+    S: Copy + fmt::Debug,
+{
     if tt.token_trees.is_empty() {
         return Vec::new();
     }
@@ -198,7 +213,7 @@ pub fn parse_exprs_with_sep<S: Span>(
     let mut res = Vec::new();
 
     while iter.peek_n(0).is_some() {
-        let expanded = iter.expect_fragment(parser::PrefixEntryPoint::Expr);
+        let expanded = iter.expect_fragment(parser::PrefixEntryPoint::Expr, edition);
 
         res.push(match expanded.value {
             None => break,
@@ -225,7 +240,8 @@ pub fn parse_exprs_with_sep<S: Span>(
 fn convert_tokens<S, C>(conv: &mut C) -> tt::Subtree<S>
 where
     C: TokenConverter<S>,
-    S: Span,
+    S: Copy + fmt::Debug,
+    C::Token: fmt::Debug,
 {
     let entry = tt::SubtreeBuilder {
         delimiter: tt::Delimiter::invisible_spanned(conv.call_site()),
@@ -402,7 +418,7 @@ fn is_single_token_op(kind: SyntaxKind) -> bool {
 /// That is, strips leading `///` (or `/**`, etc)
 /// and strips the ending `*/`
 /// And then quote the string, which is needed to convert to `tt::Literal`
-fn doc_comment_text(comment: &ast::Comment) -> SmolStr {
+fn doc_comment_text(comment: &ast::Comment, mode: DocCommentDesugarMode) -> SmolStr {
     let prefix_len = comment.prefix().len();
     let mut text = &comment.text()[prefix_len..];
 
@@ -411,26 +427,34 @@ fn doc_comment_text(comment: &ast::Comment) -> SmolStr {
         text = &text[0..text.len() - 2];
     }
 
-    let mut num_of_hashes = 0;
-    let mut count = 0;
-    for ch in text.chars() {
-        count = match ch {
-            '"' => 1,
-            '#' if count > 0 => count + 1,
-            _ => 0,
-        };
-        num_of_hashes = num_of_hashes.max(count);
-    }
+    let text = match mode {
+        DocCommentDesugarMode::Mbe => {
+            let mut num_of_hashes = 0;
+            let mut count = 0;
+            for ch in text.chars() {
+                count = match ch {
+                    '"' => 1,
+                    '#' if count > 0 => count + 1,
+                    _ => 0,
+                };
+                num_of_hashes = num_of_hashes.max(count);
+            }
 
-    // Quote raw string with delimiters
-    // Note that `tt::Literal` expect an escaped string
-    let text = format!("r{delim}\"{text}\"{delim}", delim = "#".repeat(num_of_hashes));
+            // Quote raw string with delimiters
+            // Note that `tt::Literal` expect an escaped string
+            format!(r#"r{delim}"{text}"{delim}"#, delim = "#".repeat(num_of_hashes))
+        }
+        // Quote string with delimiters
+        // Note that `tt::Literal` expect an escaped string
+        DocCommentDesugarMode::ProcMacro => format!(r#""{}""#, text.escape_debug()),
+    };
     text.into()
 }
 
 fn convert_doc_comment<S: Copy>(
     token: &syntax::SyntaxToken,
     span: S,
+    mode: DocCommentDesugarMode,
 ) -> Option<Vec<tt::TokenTree<S>>> {
     cov_mark::hit!(test_meta_doc_comments);
     let comment = ast::Comment::cast(token.clone())?;
@@ -448,7 +472,7 @@ fn convert_doc_comment<S: Copy>(
     };
 
     let mk_doc_literal = |comment: &ast::Comment| {
-        let lit = tt::Literal { text: doc_comment_text(comment), span };
+        let lit = tt::Literal { text: doc_comment_text(comment, mode), span };
 
         tt::TokenTree::from(tt::Leaf::from(lit))
     };
@@ -476,15 +500,17 @@ struct RawConverter<'a, Ctx> {
     pos: usize,
     anchor: SpanAnchor,
     ctx: Ctx,
+    mode: DocCommentDesugarMode,
 }
 /// A raw token (straight from lexer) converter that gives every token the same span.
 struct StaticRawConverter<'a, S> {
     lexed: parser::LexedStr<'a>,
     pos: usize,
     span: S,
+    mode: DocCommentDesugarMode,
 }
 
-trait SrcToken<Ctx, S>: std::fmt::Debug {
+trait SrcToken<Ctx, S> {
     fn kind(&self, ctx: &Ctx) -> SyntaxKind;
 
     fn to_char(&self, ctx: &Ctx) -> Option<char>;
@@ -524,7 +550,7 @@ impl<S, Ctx> SrcToken<RawConverter<'_, Ctx>, S> for usize {
     }
 }
 
-impl<S: Span> SrcToken<StaticRawConverter<'_, S>, S> for usize {
+impl<S: Copy> SrcToken<StaticRawConverter<'_, S>, S> for usize {
     fn kind(&self, ctx: &StaticRawConverter<'_, S>) -> SyntaxKind {
         ctx.lexed.kind(*self)
     }
@@ -540,7 +566,7 @@ impl<S: Span> SrcToken<StaticRawConverter<'_, S>, S> for usize {
 
 impl<Ctx: Copy> TokenConverter<SpanData<Ctx>> for RawConverter<'_, Ctx>
 where
-    SpanData<Ctx>: Span,
+    SpanData<Ctx>: Copy,
 {
     type Token = usize;
 
@@ -550,7 +576,7 @@ where
         span: SpanData<Ctx>,
     ) -> Option<Vec<tt::TokenTree<SpanData<Ctx>>>> {
         let text = self.lexed.text(token);
-        convert_doc_comment(&doc_comment(text), span)
+        convert_doc_comment(&doc_comment(text), span, self.mode)
     }
 
     fn bump(&mut self) -> Option<(Self::Token, TextRange)> {
@@ -583,13 +609,13 @@ where
 
 impl<S> TokenConverter<S> for StaticRawConverter<'_, S>
 where
-    S: Span,
+    S: Copy,
 {
     type Token = usize;
 
     fn convert_doc_comment(&self, &token: &usize, span: S) -> Option<Vec<tt::TokenTree<S>>> {
         let text = self.lexed.text(token);
-        convert_doc_comment(&doc_comment(text), span)
+        convert_doc_comment(&doc_comment(text), span, self.mode)
     }
 
     fn bump(&mut self) -> Option<(Self::Token, TextRange)> {
@@ -629,8 +655,9 @@ struct Converter<SpanMap, S> {
     /// Used to make the emitted text ranges in the spans relative to the span anchor.
     map: SpanMap,
     append: FxHashMap<SyntaxElement, Vec<tt::Leaf<S>>>,
-    remove: FxHashSet<SyntaxNode>,
+    remove: FxHashSet<SyntaxElement>,
     call_site: S,
+    mode: DocCommentDesugarMode,
 }
 
 impl<SpanMap, S> Converter<SpanMap, S> {
@@ -638,8 +665,9 @@ impl<SpanMap, S> Converter<SpanMap, S> {
         node: &SyntaxNode,
         map: SpanMap,
         append: FxHashMap<SyntaxElement, Vec<tt::Leaf<S>>>,
-        remove: FxHashSet<SyntaxNode>,
+        remove: FxHashSet<SyntaxElement>,
         call_site: S,
+        mode: DocCommentDesugarMode,
     ) -> Self {
         let mut this = Converter {
             current: None,
@@ -651,6 +679,7 @@ impl<SpanMap, S> Converter<SpanMap, S> {
             remove,
             call_site,
             current_leaves: vec![],
+            mode,
         };
         let first = this.next_token();
         this.current = first;
@@ -660,16 +689,25 @@ impl<SpanMap, S> Converter<SpanMap, S> {
     fn next_token(&mut self) -> Option<SyntaxToken> {
         while let Some(ev) = self.preorder.next() {
             match ev {
-                WalkEvent::Enter(SyntaxElement::Token(t)) => return Some(t),
-                WalkEvent::Enter(SyntaxElement::Node(n)) if self.remove.contains(&n) => {
-                    self.preorder.skip_subtree();
-                    if let Some(mut v) = self.append.remove(&n.into()) {
-                        v.reverse();
-                        self.current_leaves.extend(v);
-                        return None;
+                WalkEvent::Enter(token) => {
+                    if self.remove.contains(&token) {
+                        match token {
+                            syntax::NodeOrToken::Token(_) => {
+                                continue;
+                            }
+                            node => {
+                                self.preorder.skip_subtree();
+                                if let Some(mut v) = self.append.remove(&node) {
+                                    v.reverse();
+                                    self.current_leaves.extend(v);
+                                    return None;
+                                }
+                            }
+                        }
+                    } else if let syntax::NodeOrToken::Token(token) = token {
+                        return Some(token);
                     }
                 }
-                WalkEvent::Enter(SyntaxElement::Node(_)) => (),
                 WalkEvent::Leave(ele) => {
                     if let Some(mut v) = self.append.remove(&ele) {
                         v.reverse();
@@ -699,7 +737,7 @@ impl<S> SynToken<S> {
     }
 }
 
-impl<SpanMap, S: std::fmt::Debug> SrcToken<Converter<SpanMap, S>, S> for SynToken<S> {
+impl<SpanMap, S> SrcToken<Converter<SpanMap, S>, S> for SynToken<S> {
     fn kind(&self, _ctx: &Converter<SpanMap, S>) -> SyntaxKind {
         match self {
             SynToken::Ordinary(token) => token.kind(),
@@ -738,12 +776,12 @@ impl<SpanMap, S: std::fmt::Debug> SrcToken<Converter<SpanMap, S>, S> for SynToke
 
 impl<S, SpanMap> TokenConverter<S> for Converter<SpanMap, S>
 where
-    S: Span,
+    S: Copy,
     SpanMap: SpanMapper<S>,
 {
     type Token = SynToken<S>;
     fn convert_doc_comment(&self, token: &Self::Token, span: S) -> Option<Vec<tt::TokenTree<S>>> {
-        convert_doc_comment(token.token(), span)
+        convert_doc_comment(token.token(), span, self.mode)
     }
 
     fn bump(&mut self) -> Option<(Self::Token, TextRange)> {
@@ -818,18 +856,18 @@ where
 
 struct TtTreeSink<'a, Ctx>
 where
-    SpanData<Ctx>: Span,
+    SpanData<Ctx>: Copy,
 {
     buf: String,
     cursor: Cursor<'a, SpanData<Ctx>>,
     text_pos: TextSize,
     inner: SyntaxTreeBuilder,
-    token_map: SpanMap<SpanData<Ctx>>,
+    token_map: SpanMap<Ctx>,
 }
 
 impl<'a, Ctx> TtTreeSink<'a, Ctx>
 where
-    SpanData<Ctx>: Span,
+    SpanData<Ctx>: Copy,
 {
     fn new(cursor: Cursor<'a, SpanData<Ctx>>) -> Self {
         TtTreeSink {
@@ -841,7 +879,7 @@ where
         }
     }
 
-    fn finish(mut self) -> (Parse<SyntaxNode>, SpanMap<SpanData<Ctx>>) {
+    fn finish(mut self) -> (Parse<SyntaxNode>, SpanMap<Ctx>) {
         self.token_map.finish();
         (self.inner.finish(), self.token_map)
     }
@@ -861,7 +899,7 @@ fn delim_to_str(d: tt::DelimiterKind, closing: bool) -> Option<&'static str> {
 
 impl<Ctx> TtTreeSink<'_, Ctx>
 where
-    SpanData<Ctx>: Span,
+    SpanData<Ctx>: Copy,
 {
     /// Parses a float literal as if it was a one to two name ref nodes with a dot inbetween.
     /// This occurs when a float literal is used as a field access.

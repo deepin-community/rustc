@@ -83,7 +83,7 @@ pub(crate) struct IncorrectSemicolon<'a> {
     #[suggestion(style = "short", code = "", applicability = "machine-applicable")]
     pub span: Span,
     #[help]
-    pub opt_help: Option<()>,
+    pub show_help: bool,
     pub name: &'a str,
 }
 
@@ -851,13 +851,6 @@ pub(crate) struct StructLiteralNotAllowedHereSugg {
 }
 
 #[derive(Diagnostic)]
-#[diag(parse_invalid_interpolated_expression)]
-pub(crate) struct InvalidInterpolatedExpression {
-    #[primary_span]
-    pub span: Span,
-}
-
-#[derive(Diagnostic)]
 #[diag(parse_invalid_literal_suffix_on_tuple_index)]
 pub(crate) struct InvalidLiteralSuffixOnTupleIndex {
     #[primary_span]
@@ -976,21 +969,13 @@ pub(crate) struct InvalidMetaItem {
     #[primary_span]
     pub span: Span,
     pub token: Token,
-}
-
-#[derive(Diagnostic)]
-#[diag(parse_invalid_meta_item_unquoted_ident)]
-pub(crate) struct InvalidMetaItemUnquotedIdent {
-    #[primary_span]
-    pub span: Span,
-    pub token: Token,
     #[subdiagnostic]
-    pub sugg: InvalidMetaItemSuggQuoteIdent,
+    pub quote_ident_sugg: Option<InvalidMetaItemQuoteIdentSugg>,
 }
 
 #[derive(Subdiagnostic)]
-#[multipart_suggestion(parse_suggestion, applicability = "machine-applicable")]
-pub(crate) struct InvalidMetaItemSuggQuoteIdent {
+#[multipart_suggestion(parse_quote_ident_sugg, applicability = "machine-applicable")]
+pub(crate) struct InvalidMetaItemQuoteIdentSugg {
     #[suggestion_part(code = "\"")]
     pub before: Span,
     #[suggestion_part(code = "\"")]
@@ -1470,7 +1455,7 @@ impl Subdiagnostic for FnTraitMissingParen {
     fn add_to_diag_with<G: EmissionGuarantee, F: SubdiagMessageOp<G>>(
         self,
         diag: &mut Diag<'_, G>,
-        _: F,
+        _: &F,
     ) {
         diag.span_label(self.span, crate::fluent_generated::parse_fn_trait_missing_paren);
         let applicability = if self.machine_applicable {
@@ -1994,6 +1979,17 @@ pub enum UnknownPrefixSugg {
         style = "verbose"
     )]
     Whitespace(#[primary_span] Span),
+    #[multipart_suggestion(
+        parse_suggestion_str,
+        applicability = "maybe-incorrect",
+        style = "verbose"
+    )]
+    MeantStr {
+        #[suggestion_part(code = "\"")]
+        start: Span,
+        #[suggestion_part(code = "\"")]
+        end: Span,
+    },
 }
 
 #[derive(Diagnostic)]
@@ -2205,11 +2201,20 @@ pub enum MoreThanOneCharSugg {
         ch: String,
     },
     #[suggestion(parse_use_double_quotes, code = "{sugg}", applicability = "machine-applicable")]
-    Quotes {
+    QuotesFull {
         #[primary_span]
         span: Span,
         is_byte: bool,
         sugg: String,
+    },
+    #[multipart_suggestion(parse_use_double_quotes, applicability = "machine-applicable")]
+    Quotes {
+        #[suggestion_part(code = "{prefix}\"")]
+        start: Span,
+        #[suggestion_part(code = "\"")]
+        end: Span,
+        is_byte: bool,
+        prefix: &'static str,
     },
 }
 
@@ -2349,14 +2354,6 @@ pub(crate) struct UnexpectedLifetimeInPattern {
     #[suggestion(code = "", applicability = "machine-applicable")]
     pub span: Span,
     pub symbol: Symbol,
-}
-
-#[derive(Diagnostic)]
-#[diag(parse_ref_mut_order_incorrect)]
-pub(crate) struct RefMutOrderIncorrect {
-    #[primary_span]
-    #[suggestion(code = "ref mut", applicability = "machine-applicable")]
-    pub span: Span,
 }
 
 #[derive(Diagnostic)]
@@ -2618,13 +2615,22 @@ pub(crate) struct GenericsInPath {
 }
 
 #[derive(Diagnostic)]
-#[diag(parse_assoc_lifetime)]
+#[diag(parse_lifetime_in_eq_constraint)]
 #[help]
-pub(crate) struct AssocLifetime {
+pub(crate) struct LifetimeInEqConstraint {
     #[primary_span]
-    pub span: Span,
     #[label]
-    pub lifetime: Span,
+    pub span: Span,
+    pub lifetime: Ident,
+    #[label(parse_context_label)]
+    pub binding_label: Span,
+    #[suggestion(
+        parse_colon_sugg,
+        style = "verbose",
+        applicability = "maybe-incorrect",
+        code = ": "
+    )]
+    pub colon_sugg: Span,
 }
 
 #[derive(Diagnostic)]
@@ -2972,5 +2978,14 @@ pub(crate) struct InvalidOffsetOf(#[primary_span] pub Span);
 #[diag(parse_async_impl)]
 pub(crate) struct AsyncImpl {
     #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(parse_expr_rarrow_call)]
+#[help]
+pub(crate) struct ExprRArrowCall {
+    #[primary_span]
+    #[suggestion(style = "short", applicability = "machine-applicable", code = ".")]
     pub span: Span,
 }

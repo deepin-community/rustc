@@ -5,6 +5,7 @@ use rustc_middle::mir;
 use rustc_middle::mir::interpret::ErrorHandled;
 use rustc_middle::ty::layout::HasTyCtxt;
 use rustc_middle::ty::{self, Ty};
+use rustc_middle::{bug, span_bug};
 use rustc_target::abi::Abi;
 
 use super::FunctionCx;
@@ -24,7 +25,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         // `MirUsedCollector` visited all required_consts before codegen began, so if we got here
         // there can be no more constants that fail to evaluate.
         self.monomorphize(constant.const_)
-            .eval(self.cx.tcx(), ty::ParamEnv::reveal_all(), Some(constant.span))
+            .eval(self.cx.tcx(), ty::ParamEnv::reveal_all(), constant.span)
             .expect("erroneous constant missed by mono item collection")
     }
 
@@ -39,10 +40,10 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
     ) -> Result<Option<ty::ValTree<'tcx>>, ErrorHandled> {
         let uv = match self.monomorphize(constant.const_) {
             mir::Const::Unevaluated(uv, _) => uv.shrink(),
-            mir::Const::Ty(c) => match c.kind() {
+            mir::Const::Ty(_, c) => match c.kind() {
                 // A constant that came from a const generic but was then used as an argument to old-style
                 // simd_shuffle (passing as argument instead of as a generic param).
-                rustc_type_ir::ConstKind::Value(valtree) => return Ok(Some(valtree)),
+                rustc_type_ir::ConstKind::Value(_, valtree) => return Ok(Some(valtree)),
                 other => span_bug!(constant.span, "{other:#?}"),
             },
             // We should never encounter `Const::Val` unless MIR opts (like const prop) evaluate
@@ -56,11 +57,7 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             other => span_bug!(constant.span, "{other:#?}"),
         };
         let uv = self.monomorphize(uv);
-        self.cx.tcx().const_eval_resolve_for_typeck(
-            ty::ParamEnv::reveal_all(),
-            uv,
-            Some(constant.span),
-        )
+        self.cx.tcx().const_eval_resolve_for_typeck(ty::ParamEnv::reveal_all(), uv, constant.span)
     }
 
     /// process constant containing SIMD shuffle indices

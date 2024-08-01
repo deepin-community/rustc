@@ -23,7 +23,7 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for structure field patterns bound to wildcards.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// Using `..` instead is shorter and leaves the focus on
     /// the fields that are actually bound.
     ///
@@ -138,7 +138,7 @@ declare_clippy_lint! {
     /// To enforce unseparated literal suffix style,
     /// see the `separated_literal_suffix` lint.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// Suffix style should be consistent.
     ///
     /// ### Example
@@ -166,7 +166,7 @@ declare_clippy_lint! {
     /// To enforce separated literal suffix style,
     /// see the `unseparated_literal_suffix` lint.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// Suffix style should be consistent.
     ///
     /// ### Example
@@ -394,7 +394,7 @@ impl EarlyLintPass for MiscEarlyLints {
                             cx,
                             DUPLICATE_UNDERSCORE_ARGUMENT,
                             *correspondence,
-                            &format!(
+                            format!(
                                 "`{arg_name}` already exists, having another argument having almost the same \
                                  name makes code comprehension and documentation more difficult"
                             ),

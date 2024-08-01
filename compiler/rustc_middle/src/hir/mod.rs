@@ -15,6 +15,7 @@ use rustc_data_structures::sync::{try_par_for_each_in, DynSend, DynSync};
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId, LocalModDefId};
 use rustc_hir::*;
+use rustc_macros::{Decodable, Encodable, HashStable};
 use rustc_span::{ErrorGuaranteed, ExpnId};
 
 /// Gather the LocalDefId for each item-like within a module, including items contained within
@@ -22,7 +23,7 @@ use rustc_span::{ErrorGuaranteed, ExpnId};
 #[derive(Debug, HashStable, Encodable, Decodable)]
 pub struct ModuleItems {
     submodules: Box<[OwnerId]>,
-    items: Box<[ItemId]>,
+    free_items: Box<[ItemId]>,
     trait_items: Box<[TraitItemId]>,
     impl_items: Box<[ImplItemId]>,
     foreign_items: Box<[ForeignItemId]>,
@@ -30,14 +31,22 @@ pub struct ModuleItems {
 }
 
 impl ModuleItems {
-    pub fn items(&self) -> impl Iterator<Item = ItemId> + '_ {
-        self.items.iter().copied()
+    /// Returns all non-associated locally defined items in all modules.
+    ///
+    /// Note that this does *not* include associated items of `impl` blocks! It also does not
+    /// include foreign items. If you want to e.g. get all functions, use `definitions()` below.
+    ///
+    /// However, this does include the `impl` blocks themselves.
+    pub fn free_items(&self) -> impl Iterator<Item = ItemId> + '_ {
+        self.free_items.iter().copied()
     }
 
     pub fn trait_items(&self) -> impl Iterator<Item = TraitItemId> + '_ {
         self.trait_items.iter().copied()
     }
 
+    /// Returns all items that are associated with some `impl` block (both inherent and trait impl
+    /// blocks).
     pub fn impl_items(&self) -> impl Iterator<Item = ImplItemId> + '_ {
         self.impl_items.iter().copied()
     }
@@ -47,7 +56,7 @@ impl ModuleItems {
     }
 
     pub fn owners(&self) -> impl Iterator<Item = OwnerId> + '_ {
-        self.items
+        self.free_items
             .iter()
             .map(|id| id.owner_id)
             .chain(self.trait_items.iter().map(|id| id.owner_id))
@@ -63,7 +72,7 @@ impl ModuleItems {
         &self,
         f: impl Fn(ItemId) -> Result<(), ErrorGuaranteed> + DynSend + DynSync,
     ) -> Result<(), ErrorGuaranteed> {
-        try_par_for_each_in(&self.items[..], |&id| f(id))
+        try_par_for_each_in(&self.free_items[..], |&id| f(id))
     }
 
     pub fn par_trait_items(
@@ -112,7 +121,7 @@ impl<'tcx> TyCtxt<'tcx> {
         LocalModDefId::new_unchecked(id)
     }
 
-    pub fn impl_subject(self, def_id: DefId) -> EarlyBinder<ImplSubject<'tcx>> {
+    pub fn impl_subject(self, def_id: DefId) -> EarlyBinder<'tcx, ImplSubject<'tcx>> {
         match self.impl_trait_ref(def_id) {
             Some(t) => t.map_bound(ImplSubject::Trait),
             None => self.type_of(def_id).map_bound(ImplSubject::Inherent),
@@ -166,8 +175,12 @@ pub fn provide(providers: &mut Providers) {
             let parent_owner_id = tcx.local_def_id_to_hir_id(parent_def_id).owner;
             HirId {
                 owner: parent_owner_id,
-                local_id: tcx.hir_crate(()).owners[parent_owner_id.def_id].unwrap().parenting
-                    [&owner_id.def_id],
+                local_id: tcx.hir_crate(()).owners[parent_owner_id.def_id]
+                    .unwrap()
+                    .parenting
+                    .get(&owner_id.def_id)
+                    .copied()
+                    .unwrap_or(ItemLocalId::ZERO),
             }
         })
     };
@@ -181,21 +194,24 @@ pub fn provide(providers: &mut Providers) {
     };
     providers.fn_arg_names = |tcx, def_id| {
         let hir = tcx.hir();
-        let hir_id = tcx.local_def_id_to_hir_id(def_id);
-        if let Some(body_id) = hir.maybe_body_owned_by(def_id) {
+        if let Some(body_id) = tcx.hir_node_by_def_id(def_id).body_id() {
             tcx.arena.alloc_from_iter(hir.body_param_names(body_id))
         } else if let Node::TraitItem(&TraitItem {
             kind: TraitItemKind::Fn(_, TraitFn::Required(idents)),
             ..
         })
         | Node::ForeignItem(&ForeignItem {
-            kind: ForeignItemKind::Fn(_, idents, _),
+            kind: ForeignItemKind::Fn(_, idents, _, _),
             ..
-        }) = tcx.hir_node(hir_id)
+        }) = tcx.hir_node(tcx.local_def_id_to_hir_id(def_id))
         {
             idents
         } else {
-            span_bug!(hir.span(hir_id), "fn_arg_names: unexpected item {:?}", def_id);
+            span_bug!(
+                hir.span(tcx.local_def_id_to_hir_id(def_id)),
+                "fn_arg_names: unexpected item {:?}",
+                def_id
+            );
         }
     };
     providers.all_local_trait_impls = |tcx, ()| &tcx.resolutions(()).trait_impls;

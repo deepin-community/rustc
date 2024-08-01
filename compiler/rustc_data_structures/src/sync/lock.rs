@@ -69,7 +69,7 @@ mod maybe_sync {
             match self.mode {
                 Mode::NoSync => {
                     let cell = unsafe { &self.lock.mode_union.no_sync };
-                    debug_assert_eq!(cell.get(), true);
+                    debug_assert!(cell.get());
                     cell.set(false);
                 }
                 // SAFETY (unlock): We know that the lock is locked as this type is a proof of that.
@@ -189,6 +189,7 @@ mod no_sync {
     use super::Mode;
     use std::cell::RefCell;
 
+    #[doc(no_inline)]
     pub use std::cell::RefMut as LockGuard;
 
     pub struct Lock<T>(RefCell<T>);

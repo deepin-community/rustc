@@ -13,8 +13,10 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for functions of type `Result` that contain `expect()` or `unwrap()`
     ///
-    /// ### Why is this bad?
-    /// These functions promote recoverable errors to non-recoverable errors which may be undesirable in code bases which wish to avoid panics.
+    /// ### Why restrict this?
+    /// These functions promote recoverable errors to non-recoverable errors,
+    /// which may be undesirable in code bases which wish to avoid panics,
+    /// or be a bug in the specific function.
     ///
     /// ### Known problems
     /// This can cause false positives in functions that handle both recoverable and non recoverable errors.
@@ -59,7 +61,7 @@ declare_lint_pass!(UnwrapInResult=> [UNWRAP_IN_RESULT]);
 
 impl<'tcx> LateLintPass<'tcx> for UnwrapInResult {
     fn check_impl_item(&mut self, cx: &LateContext<'tcx>, impl_item: &'tcx hir::ImplItem<'_>) {
-        if let hir::ImplItemKind::Fn(ref _signature, _) = impl_item.kind
+        if let ImplItemKind::Fn(ref _signature, _) = impl_item.kind
             // first check if it's a method or function
             // checking if its return type is `result` or `option`
             && (is_type_diagnostic_item(cx, return_ty(cx, impl_item.owner_id), sym::Result)

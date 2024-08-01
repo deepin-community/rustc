@@ -5,7 +5,7 @@ use rustc_errors::Diag;
 use rustc_hir as hir;
 use rustc_hir::intravisit::{walk_body, walk_expr, walk_inf, walk_ty, Visitor};
 use rustc_hir::{Body, Expr, ExprKind, GenericArg, Item, ItemKind, QPath, TyKind};
-use rustc_hir_analysis::hir_ty_to_ty;
+use rustc_hir_analysis::lower_ty;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{Ty, TypeckResults};
@@ -141,7 +141,7 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitHasher {
                         cx,
                         IMPLICIT_HASHER,
                         target.span(),
-                        &format!(
+                        format!(
                             "impl for `{}` should be generalized over different hashers",
                             target.type_name()
                         ),
@@ -187,7 +187,7 @@ impl<'tcx> LateLintPass<'tcx> for ImplicitHasher {
                             cx,
                             IMPLICIT_HASHER,
                             target.span(),
-                            &format!(
+                            format!(
                                 "parameter of type `{}` should be generalized over different hashers",
                                 target.type_name()
                             ),
@@ -227,7 +227,7 @@ impl<'tcx> ImplicitHasherType<'tcx> {
                 .collect();
             let params_len = params.len();
 
-            let ty = hir_ty_to_ty(cx.tcx, hir_ty);
+            let ty = lower_ty(cx.tcx, hir_ty);
 
             if is_type_diagnostic_item(cx, ty, sym::HashMap) && params_len == 2 {
                 Some(ImplicitHasherType::HashMap(
@@ -328,7 +328,7 @@ impl<'a, 'b, 'tcx> ImplicitHasherConstructorVisitor<'a, 'b, 'tcx> {
 impl<'a, 'b, 'tcx> Visitor<'tcx> for ImplicitHasherConstructorVisitor<'a, 'b, 'tcx> {
     type NestedFilter = nested_filter::OnlyBodies;
 
-    fn visit_body(&mut self, body: &'tcx Body<'_>) {
+    fn visit_body(&mut self, body: &Body<'tcx>) {
         let old_maybe_typeck_results = self.maybe_typeck_results.replace(self.cx.tcx.typeck_body(body.id()));
         walk_body(self, body);
         self.maybe_typeck_results = old_maybe_typeck_results;

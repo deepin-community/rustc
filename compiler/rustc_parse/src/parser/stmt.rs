@@ -11,14 +11,13 @@ use crate::errors;
 use crate::maybe_whole;
 
 use crate::errors::MalformedLoopLabel;
-use crate::parser::Recovered;
 use ast::Label;
 use rustc_ast as ast;
 use rustc_ast::ptr::P;
 use rustc_ast::token::{self, Delimiter, TokenKind};
-use rustc_ast::util::classify;
+use rustc_ast::util::classify::{self, TrailingBrace};
 use rustc_ast::{AttrStyle, AttrVec, LocalKind, MacCall, MacCallStmt, MacStmtStyle};
-use rustc_ast::{Block, BlockCheckMode, Expr, ExprKind, HasAttrs, Local, Stmt};
+use rustc_ast::{Block, BlockCheckMode, Expr, ExprKind, HasAttrs, Local, Recovered, Stmt};
 use rustc_ast::{StmtKind, DUMMY_NODE_ID};
 use rustc_errors::{Applicability, Diag, PResult};
 use rustc_span::symbol::{kw, sym, Ident};
@@ -32,7 +31,7 @@ impl<'a> Parser<'a> {
     /// Parses a statement. This stops just before trailing semicolons on everything but items.
     /// e.g., a `StmtKind::Semi` parses to a `StmtKind::Expr`, leaving the trailing `;` unconsumed.
     // Public for rustfmt usage.
-    pub fn parse_stmt(&mut self, force_collect: ForceCollect) -> PResult<'a, Option<Stmt>> {
+    pub(super) fn parse_stmt(&mut self, force_collect: ForceCollect) -> PResult<'a, Option<Stmt>> {
         Ok(self.parse_stmt_without_recovery(false, force_collect).unwrap_or_else(|e| {
             e.emit();
             self.recover_stmt_(SemiColonMode::Break, BlockMode::Ignore);
@@ -40,8 +39,8 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    /// If `force_collect` is [`ForceCollect::Yes`], forces collection of tokens regardless of whether
-    /// or not we have attributes
+    /// If `force_collect` is [`ForceCollect::Yes`], forces collection of tokens regardless of
+    /// whether or not we have attributes.
     // Public for `cfg_eval` macro expansion.
     pub fn parse_stmt_without_recovery(
         &mut self,
@@ -51,18 +50,12 @@ impl<'a> Parser<'a> {
         let attrs = self.parse_outer_attributes()?;
         let lo = self.token.span;
 
-        // Don't use `maybe_whole` so that we have precise control
-        // over when we bump the parser
-        if let token::Interpolated(nt) = &self.token.kind
-            && let token::NtStmt(stmt) = &nt.0
-        {
-            let mut stmt = stmt.clone();
-            self.bump();
+        maybe_whole!(self, NtStmt, |stmt| {
             stmt.visit_attrs(|stmt_attrs| {
                 attrs.prepend_to_nt_inner(stmt_attrs);
             });
-            return Ok(Some(stmt.into_inner()));
-        }
+            Some(stmt.into_inner())
+        });
 
         if self.token.is_keyword(kw::Mut) && self.is_keyword_ahead(1, &[kw::Let]) {
             self.bump();
@@ -414,18 +407,24 @@ impl<'a> Parser<'a> {
 
     fn check_let_else_init_trailing_brace(&self, init: &ast::Expr) {
         if let Some(trailing) = classify::expr_trailing_brace(init) {
-            let sugg = match &trailing.kind {
-                ExprKind::MacCall(mac) => errors::WrapInParentheses::MacroArgs {
-                    left: mac.args.dspan.open,
-                    right: mac.args.dspan.close,
-                },
-                _ => errors::WrapInParentheses::Expression {
-                    left: trailing.span.shrink_to_lo(),
-                    right: trailing.span.shrink_to_hi(),
-                },
+            let (span, sugg) = match trailing {
+                TrailingBrace::MacCall(mac) => (
+                    mac.span(),
+                    errors::WrapInParentheses::MacroArgs {
+                        left: mac.args.dspan.open,
+                        right: mac.args.dspan.close,
+                    },
+                ),
+                TrailingBrace::Expr(expr) => (
+                    expr.span,
+                    errors::WrapInParentheses::Expression {
+                        left: expr.span.shrink_to_lo(),
+                        right: expr.span.shrink_to_hi(),
+                    },
+                ),
             };
             self.dcx().emit_err(errors::InvalidCurlyInLetElse {
-                span: trailing.span.with_lo(trailing.span.hi() - BytePos(1)),
+                span: span.with_lo(span.hi() - BytePos(1)),
                 sugg,
             });
         }
@@ -539,7 +538,7 @@ impl<'a> Parser<'a> {
         blk_mode: BlockCheckMode,
         can_be_struct_literal: bool,
     ) -> PResult<'a, (AttrVec, P<Block>)> {
-        maybe_whole!(self, NtBlock, |x| (AttrVec::new(), x));
+        maybe_whole!(self, NtBlock, |block| (AttrVec::new(), block));
 
         let maybe_ident = self.prev_token.clone();
         self.maybe_recover_unexpected_block_label();
@@ -574,7 +573,7 @@ impl<'a> Parser<'a> {
             if self.token == token::Eof {
                 break;
             }
-            if self.is_diff_marker(&TokenKind::BinOp(token::Shl), &TokenKind::Lt) {
+            if self.is_vcs_conflict_marker(&TokenKind::BinOp(token::Shl), &TokenKind::Lt) {
                 // Account for `<<<<<<<` diff markers. We can't proactively error here because
                 // that can be a valid path start, so we snapshot and reparse only we've
                 // encountered another parse error.
@@ -583,7 +582,7 @@ impl<'a> Parser<'a> {
             let stmt = match self.parse_full_stmt(recover) {
                 Err(mut err) if recover.yes() => {
                     if let Some(ref mut snapshot) = snapshot {
-                        snapshot.recover_diff_marker();
+                        snapshot.recover_vcs_conflict_marker();
                     }
                     if self.token == token::Colon {
                         // if a previous and next token of the current one is
@@ -643,7 +642,7 @@ impl<'a> Parser<'a> {
         recover: AttemptLocalParseRecovery,
     ) -> PResult<'a, Option<Stmt>> {
         // Skip looking for a trailing semicolon when we have an interpolated statement.
-        maybe_whole!(self, NtStmt, |x| Some(x.into_inner()));
+        maybe_whole!(self, NtStmt, |stmt| Some(stmt.into_inner()));
 
         let Some(mut stmt) = self.parse_stmt_without_recovery(true, ForceCollect::No)? else {
             return Ok(None);
@@ -681,11 +680,8 @@ impl<'a> Parser<'a> {
                 let replace_with_err = 'break_recover: {
                     match expect_result {
                         Ok(Recovered::No) => None,
-                        Ok(Recovered::Yes) => {
+                        Ok(Recovered::Yes(guar)) => {
                             // Skip type error to avoid extra errors.
-                            let guar = self
-                                .dcx()
-                                .span_delayed_bug(self.prev_token.span, "expected `;` or `}`");
                             Some(guar)
                         }
                         Err(e) => {

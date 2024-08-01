@@ -52,9 +52,10 @@ declare_clippy_lint! {
     /// Checks for usage of `std::mem::forget(t)` where `t` is
     /// `Drop` or has a field that implements `Drop`.
     ///
-    /// ### Why is this bad?
-    /// `std::mem::forget(t)` prevents `t` from running its
-    /// destructor, possibly causing leaks.
+    /// ### Why restrict this?
+    /// `std::mem::forget(t)` prevents `t` from running its destructor, possibly causing leaks.
+    /// It is not possible to detect all means of creating leaks, but it may be desirable to
+    /// prohibit the simple ones.
     ///
     /// ### Example
     /// ```no_run
@@ -129,9 +130,9 @@ impl<'tcx> LateLintPass<'tcx> for DropForgetRef {
                 cx,
                 lint,
                 expr.span,
-                &msg,
+                msg,
                 note_span,
-                &format!("argument has type `{arg_ty}`"),
+                format!("argument has type `{arg_ty}`"),
             );
         }
     }

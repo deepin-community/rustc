@@ -47,9 +47,11 @@
 
 use rustc_index::{Idx, IndexVec};
 use std::mem;
+use tracing::debug;
 
-use crate::Lrc;
-use crate::{visit::TypeVisitable, Interner};
+use crate::inherent::*;
+use crate::visit::{TypeVisitable, TypeVisitableExt as _};
+use crate::{self as ty, Interner, Lrc};
 
 #[cfg(feature = "nightly")]
 type Never = !;
@@ -128,39 +130,28 @@ pub trait TypeSuperFoldable<I: Interner>: TypeFoldable<I> {
 pub trait TypeFolder<I: Interner>: FallibleTypeFolder<I, Error = Never> {
     fn interner(&self) -> I;
 
-    fn fold_binder<T>(&mut self, t: I::Binder<T>) -> I::Binder<T>
+    fn fold_binder<T>(&mut self, t: ty::Binder<I, T>) -> ty::Binder<I, T>
     where
         T: TypeFoldable<I>,
-        I::Binder<T>: TypeSuperFoldable<I>,
     {
         t.super_fold_with(self)
     }
 
-    fn fold_ty(&mut self, t: I::Ty) -> I::Ty
-    where
-        I::Ty: TypeSuperFoldable<I>,
-    {
+    fn fold_ty(&mut self, t: I::Ty) -> I::Ty {
         t.super_fold_with(self)
     }
 
     // The default region folder is a no-op because `Region` is non-recursive
-    // and has no `super_fold_with` method to call. That also explains the
-    // lack of `I::Region: TypeSuperFoldable<I>` bound on this method.
+    // and has no `super_fold_with` method to call.
     fn fold_region(&mut self, r: I::Region) -> I::Region {
         r
     }
 
-    fn fold_const(&mut self, c: I::Const) -> I::Const
-    where
-        I::Const: TypeSuperFoldable<I>,
-    {
+    fn fold_const(&mut self, c: I::Const) -> I::Const {
         c.super_fold_with(self)
     }
 
-    fn fold_predicate(&mut self, p: I::Predicate) -> I::Predicate
-    where
-        I::Predicate: TypeSuperFoldable<I>,
-    {
+    fn fold_predicate(&mut self, p: I::Predicate) -> I::Predicate {
         p.super_fold_with(self)
     }
 }
@@ -177,39 +168,28 @@ pub trait FallibleTypeFolder<I: Interner>: Sized {
 
     fn interner(&self) -> I;
 
-    fn try_fold_binder<T>(&mut self, t: I::Binder<T>) -> Result<I::Binder<T>, Self::Error>
+    fn try_fold_binder<T>(&mut self, t: ty::Binder<I, T>) -> Result<ty::Binder<I, T>, Self::Error>
     where
         T: TypeFoldable<I>,
-        I::Binder<T>: TypeSuperFoldable<I>,
     {
         t.try_super_fold_with(self)
     }
 
-    fn try_fold_ty(&mut self, t: I::Ty) -> Result<I::Ty, Self::Error>
-    where
-        I::Ty: TypeSuperFoldable<I>,
-    {
+    fn try_fold_ty(&mut self, t: I::Ty) -> Result<I::Ty, Self::Error> {
         t.try_super_fold_with(self)
     }
 
     // The default region folder is a no-op because `Region` is non-recursive
-    // and has no `super_fold_with` method to call. That also explains the
-    // lack of `I::Region: TypeSuperFoldable<I>` bound on this method.
+    // and has no `super_fold_with` method to call.
     fn try_fold_region(&mut self, r: I::Region) -> Result<I::Region, Self::Error> {
         Ok(r)
     }
 
-    fn try_fold_const(&mut self, c: I::Const) -> Result<I::Const, Self::Error>
-    where
-        I::Const: TypeSuperFoldable<I>,
-    {
+    fn try_fold_const(&mut self, c: I::Const) -> Result<I::Const, Self::Error> {
         c.try_super_fold_with(self)
     }
 
-    fn try_fold_predicate(&mut self, p: I::Predicate) -> Result<I::Predicate, Self::Error>
-    where
-        I::Predicate: TypeSuperFoldable<I>,
-    {
+    fn try_fold_predicate(&mut self, p: I::Predicate) -> Result<I::Predicate, Self::Error> {
         p.try_super_fold_with(self)
     }
 }
@@ -226,18 +206,14 @@ where
         TypeFolder::interner(self)
     }
 
-    fn try_fold_binder<T>(&mut self, t: I::Binder<T>) -> Result<I::Binder<T>, Never>
+    fn try_fold_binder<T>(&mut self, t: ty::Binder<I, T>) -> Result<ty::Binder<I, T>, Never>
     where
         T: TypeFoldable<I>,
-        I::Binder<T>: TypeSuperFoldable<I>,
     {
         Ok(self.fold_binder(t))
     }
 
-    fn try_fold_ty(&mut self, t: I::Ty) -> Result<I::Ty, Never>
-    where
-        I::Ty: TypeSuperFoldable<I>,
-    {
+    fn try_fold_ty(&mut self, t: I::Ty) -> Result<I::Ty, Never> {
         Ok(self.fold_ty(t))
     }
 
@@ -245,17 +221,11 @@ where
         Ok(self.fold_region(r))
     }
 
-    fn try_fold_const(&mut self, c: I::Const) -> Result<I::Const, Never>
-    where
-        I::Const: TypeSuperFoldable<I>,
-    {
+    fn try_fold_const(&mut self, c: I::Const) -> Result<I::Const, Never> {
         Ok(self.fold_const(c))
     }
 
-    fn try_fold_predicate(&mut self, p: I::Predicate) -> Result<I::Predicate, Never>
-    where
-        I::Predicate: TypeSuperFoldable<I>,
-    {
+    fn try_fold_predicate(&mut self, p: I::Predicate) -> Result<I::Predicate, Never> {
         Ok(self.fold_predicate(p))
     }
 }
@@ -356,4 +326,96 @@ impl<I: Interner, T: TypeFoldable<I>, Ix: Idx> TypeFoldable<I> for IndexVec<Ix, 
     fn try_fold_with<F: FallibleTypeFolder<I>>(self, folder: &mut F) -> Result<Self, F::Error> {
         self.raw.try_fold_with(folder).map(IndexVec::from_raw)
     }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Shifter
+//
+// Shifts the De Bruijn indices on all escaping bound vars by a
+// fixed amount. Useful in instantiation or when otherwise introducing
+// a binding level that is not intended to capture the existing bound
+// vars. See comment on `shift_vars_through_binders` method in
+// `rustc_middle/src/ty/generic_args.rs` for more details.
+
+struct Shifter<I: Interner> {
+    tcx: I,
+    current_index: ty::DebruijnIndex,
+    amount: u32,
+}
+
+impl<I: Interner> Shifter<I> {
+    pub fn new(tcx: I, amount: u32) -> Self {
+        Shifter { tcx, current_index: ty::INNERMOST, amount }
+    }
+}
+
+impl<I: Interner> TypeFolder<I> for Shifter<I> {
+    fn interner(&self) -> I {
+        self.tcx
+    }
+
+    fn fold_binder<T: TypeFoldable<I>>(&mut self, t: ty::Binder<I, T>) -> ty::Binder<I, T> {
+        self.current_index.shift_in(1);
+        let t = t.super_fold_with(self);
+        self.current_index.shift_out(1);
+        t
+    }
+
+    fn fold_region(&mut self, r: I::Region) -> I::Region {
+        match r.kind() {
+            ty::ReBound(debruijn, br) if debruijn >= self.current_index => {
+                let debruijn = debruijn.shifted_in(self.amount);
+                Region::new_bound(self.tcx, debruijn, br)
+            }
+            _ => r,
+        }
+    }
+
+    fn fold_ty(&mut self, ty: I::Ty) -> I::Ty {
+        match ty.kind() {
+            ty::Bound(debruijn, bound_ty) if debruijn >= self.current_index => {
+                let debruijn = debruijn.shifted_in(self.amount);
+                Ty::new_bound(self.tcx, debruijn, bound_ty)
+            }
+
+            _ if ty.has_vars_bound_at_or_above(self.current_index) => ty.super_fold_with(self),
+            _ => ty,
+        }
+    }
+
+    fn fold_const(&mut self, ct: I::Const) -> I::Const {
+        match ct.kind() {
+            ty::ConstKind::Bound(debruijn, bound_ct) if debruijn >= self.current_index => {
+                let debruijn = debruijn.shifted_in(self.amount);
+                Const::new_bound(self.tcx, debruijn, bound_ct)
+            }
+            _ => ct.super_fold_with(self),
+        }
+    }
+
+    fn fold_predicate(&mut self, p: I::Predicate) -> I::Predicate {
+        if p.has_vars_bound_at_or_above(self.current_index) { p.super_fold_with(self) } else { p }
+    }
+}
+
+pub fn shift_region<I: Interner>(tcx: I, region: I::Region, amount: u32) -> I::Region {
+    match region.kind() {
+        ty::ReBound(debruijn, br) if amount > 0 => {
+            Region::new_bound(tcx, debruijn.shifted_in(amount), br)
+        }
+        _ => region,
+    }
+}
+
+pub fn shift_vars<I: Interner, T>(tcx: I, value: T, amount: u32) -> T
+where
+    T: TypeFoldable<I>,
+{
+    debug!("shift_vars(value={:?}, amount={})", value, amount);
+
+    if amount == 0 || !value.has_escaping_bound_vars() {
+        return value;
+    }
+
+    value.fold_with(&mut Shifter::new(tcx, amount))
 }

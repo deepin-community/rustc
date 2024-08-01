@@ -5,6 +5,7 @@
 
 use crate::mir::*;
 use rustc_hir as hir;
+use tracing::{debug, instrument};
 
 #[derive(Copy, Clone, Debug, TypeFoldable, TypeVisitable)]
 pub struct PlaceTy<'tcx> {
@@ -14,8 +15,8 @@ pub struct PlaceTy<'tcx> {
 }
 
 // At least on 64 bit systems, `PlaceTy` should not be larger than two or three pointers.
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(PlaceTy<'_>, 16);
+#[cfg(target_pointer_width = "64")]
+rustc_data_structures::static_assert_size!(PlaceTy<'_>, 16);
 
 impl<'tcx> PlaceTy<'tcx> {
     #[inline]
@@ -78,13 +79,9 @@ impl<'tcx> PlaceTy<'tcx> {
         }
         let answer = match *elem {
             ProjectionElem::Deref => {
-                let ty = self
-                    .ty
-                    .builtin_deref(true)
-                    .unwrap_or_else(|| {
-                        bug!("deref projection of non-dereferenceable ty {:?}", self)
-                    })
-                    .ty;
+                let ty = self.ty.builtin_deref(true).unwrap_or_else(|| {
+                    bug!("deref projection of non-dereferenceable ty {:?}", self)
+                });
                 PlaceTy::from_ty(ty)
             }
             ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
@@ -170,11 +167,11 @@ impl<'tcx> Rvalue<'tcx> {
             Rvalue::ThreadLocalRef(did) => tcx.thread_local_ptr_ty(did),
             Rvalue::Ref(reg, bk, ref place) => {
                 let place_ty = place.ty(local_decls, tcx).ty;
-                Ty::new_ref(tcx, reg, ty::TypeAndMut { ty: place_ty, mutbl: bk.to_mutbl_lossy() })
+                Ty::new_ref(tcx, reg, place_ty, bk.to_mutbl_lossy())
             }
             Rvalue::AddressOf(mutability, ref place) => {
                 let place_ty = place.ty(local_decls, tcx).ty;
-                Ty::new_ptr(tcx, ty::TypeAndMut { ty: place_ty, mutbl: mutability })
+                Ty::new_ptr(tcx, place_ty, mutability)
             }
             Rvalue::Len(..) => tcx.types.usize,
             Rvalue::Cast(.., ty) => ty,
@@ -183,18 +180,15 @@ impl<'tcx> Rvalue<'tcx> {
                 let rhs_ty = rhs.ty(local_decls, tcx);
                 op.ty(tcx, lhs_ty, rhs_ty)
             }
-            Rvalue::CheckedBinaryOp(op, box (ref lhs, ref rhs)) => {
-                let lhs_ty = lhs.ty(local_decls, tcx);
-                let rhs_ty = rhs.ty(local_decls, tcx);
-                let ty = op.ty(tcx, lhs_ty, rhs_ty);
-                Ty::new_tup(tcx, &[ty, tcx.types.bool])
+            Rvalue::UnaryOp(op, ref operand) => {
+                let arg_ty = operand.ty(local_decls, tcx);
+                op.ty(tcx, arg_ty)
             }
-            Rvalue::UnaryOp(UnOp::Not | UnOp::Neg, ref operand) => operand.ty(local_decls, tcx),
             Rvalue::Discriminant(ref place) => place.ty(local_decls, tcx).ty.discriminant_ty(tcx),
             Rvalue::NullaryOp(NullOp::SizeOf | NullOp::AlignOf | NullOp::OffsetOf(..), _) => {
                 tcx.types.usize
             }
-            Rvalue::NullaryOp(NullOp::UbCheck(_), _) => tcx.types.bool,
+            Rvalue::NullaryOp(NullOp::UbChecks, _) => tcx.types.bool,
             Rvalue::Aggregate(ref ak, ref ops) => match **ak {
                 AggregateKind::Array(ty) => Ty::new_array(tcx, ty, ops.len() as u64),
                 AggregateKind::Tuple => {
@@ -206,6 +200,7 @@ impl<'tcx> Rvalue<'tcx> {
                 AggregateKind::CoroutineClosure(did, args) => {
                     Ty::new_coroutine_closure(tcx, did, args)
                 }
+                AggregateKind::RawPtr(ty, mutability) => Ty::new_ptr(tcx, ty, mutability),
             },
             Rvalue::ShallowInitBox(_, ty) => Ty::new_box(tcx, ty),
             Rvalue::CopyForDeref(ref place) => place.ty(local_decls, tcx).ty,
@@ -266,6 +261,11 @@ impl<'tcx> BinOp {
                 assert_eq!(lhs_ty, rhs_ty);
                 lhs_ty
             }
+            &BinOp::AddWithOverflow | &BinOp::SubWithOverflow | &BinOp::MulWithOverflow => {
+                // these should be integers of the same size.
+                assert_eq!(lhs_ty, rhs_ty);
+                Ty::new_tup(tcx, &[lhs_ty, tcx.types.bool])
+            }
             &BinOp::Shl
             | &BinOp::ShlUnchecked
             | &BinOp::Shr
@@ -275,6 +275,32 @@ impl<'tcx> BinOp {
             }
             &BinOp::Eq | &BinOp::Lt | &BinOp::Le | &BinOp::Ne | &BinOp::Ge | &BinOp::Gt => {
                 tcx.types.bool
+            }
+            &BinOp::Cmp => {
+                // these should be integer-like types of the same size.
+                assert_eq!(lhs_ty, rhs_ty);
+                tcx.ty_ordering_enum(None)
+            }
+        }
+    }
+}
+
+impl<'tcx> UnOp {
+    pub fn ty(&self, tcx: TyCtxt<'tcx>, arg_ty: Ty<'tcx>) -> Ty<'tcx> {
+        match self {
+            UnOp::Not | UnOp::Neg => arg_ty,
+            UnOp::PtrMetadata => {
+                let pointee_ty = arg_ty
+                    .builtin_deref(true)
+                    .unwrap_or_else(|| bug!("PtrMetadata of non-dereferenceable ty {arg_ty:?}"));
+                if pointee_ty.is_trivially_sized(tcx) {
+                    tcx.types.unit
+                } else {
+                    let Some(metadata_def_id) = tcx.lang_items().metadata_type() else {
+                        bug!("No metadata_type lang item while looking at {arg_ty:?}")
+                    };
+                    Ty::new_projection(tcx, metadata_def_id, [pointee_ty])
+                }
             }
         }
     }
@@ -288,17 +314,19 @@ impl BorrowKind {
 
             // We have no type corresponding to a shallow borrow, so use
             // `&` as an approximation.
-            BorrowKind::Fake => hir::Mutability::Not,
+            BorrowKind::Fake(_) => hir::Mutability::Not,
         }
     }
 }
 
 impl BinOp {
-    pub fn to_hir_binop(self) -> hir::BinOpKind {
+    pub(crate) fn to_hir_binop(self) -> hir::BinOpKind {
         match self {
-            BinOp::Add => hir::BinOpKind::Add,
-            BinOp::Sub => hir::BinOpKind::Sub,
-            BinOp::Mul => hir::BinOpKind::Mul,
+            // HIR `+`/`-`/`*` can map to either of these MIR BinOp, depending
+            // on whether overflow checks are enabled or not.
+            BinOp::Add | BinOp::AddWithOverflow => hir::BinOpKind::Add,
+            BinOp::Sub | BinOp::SubWithOverflow => hir::BinOpKind::Sub,
+            BinOp::Mul | BinOp::MulWithOverflow => hir::BinOpKind::Mul,
             BinOp::Div => hir::BinOpKind::Div,
             BinOp::Rem => hir::BinOpKind::Rem,
             BinOp::BitXor => hir::BinOpKind::BitXor,
@@ -312,7 +340,9 @@ impl BinOp {
             BinOp::Gt => hir::BinOpKind::Gt,
             BinOp::Le => hir::BinOpKind::Le,
             BinOp::Ge => hir::BinOpKind::Ge,
-            BinOp::AddUnchecked
+            // We don't have HIR syntax for these.
+            BinOp::Cmp
+            | BinOp::AddUnchecked
             | BinOp::SubUnchecked
             | BinOp::MulUnchecked
             | BinOp::ShlUnchecked
@@ -321,5 +351,30 @@ impl BinOp {
                 unreachable!()
             }
         }
+    }
+
+    /// If this is a `FooWithOverflow`, return `Some(Foo)`.
+    pub fn overflowing_to_wrapping(self) -> Option<BinOp> {
+        Some(match self {
+            BinOp::AddWithOverflow => BinOp::Add,
+            BinOp::SubWithOverflow => BinOp::Sub,
+            BinOp::MulWithOverflow => BinOp::Mul,
+            _ => return None,
+        })
+    }
+
+    /// Returns whether this is a `FooWithOverflow`
+    pub fn is_overflowing(self) -> bool {
+        self.overflowing_to_wrapping().is_some()
+    }
+
+    /// If this is a `Foo`, return `Some(FooWithOverflow)`.
+    pub fn wrapping_to_overflowing(self) -> Option<BinOp> {
+        Some(match self {
+            BinOp::Add => BinOp::AddWithOverflow,
+            BinOp::Sub => BinOp::SubWithOverflow,
+            BinOp::Mul => BinOp::MulWithOverflow,
+            _ => return None,
+        })
     }
 }

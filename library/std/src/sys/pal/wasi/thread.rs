@@ -66,7 +66,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub const DEFAULT_MIN_STACK_SIZE: usize = 4096;
+pub const DEFAULT_MIN_STACK_SIZE: usize = 64 * 1024;
 
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
@@ -188,14 +188,4 @@ impl Thread {
 
 pub fn available_parallelism() -> io::Result<NonZero<usize>> {
     unsupported()
-}
-
-pub mod guard {
-    pub type Guard = !;
-    pub unsafe fn current() -> Option<Guard> {
-        None
-    }
-    pub unsafe fn init() -> Option<Guard> {
-        None
-    }
 }

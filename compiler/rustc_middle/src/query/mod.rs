@@ -72,8 +72,9 @@ use rustc_hir::def_id::{
 use rustc_hir::lang_items::{LangItem, LanguageItems};
 use rustc_hir::{Crate, ItemLocalId, ItemLocalMap, TraitCandidate};
 use rustc_index::IndexVec;
+use rustc_macros::rustc_queries;
 use rustc_query_system::ich::StableHashingContext;
-use rustc_query_system::query::{try_get_cached, CacheSelector, QueryCache, QueryMode, QueryState};
+use rustc_query_system::query::{try_get_cached, QueryCache, QueryMode, QueryState};
 use rustc_session::config::{EntryFnType, OptLevel, OutputFilenames, SymbolManglingVersion};
 use rustc_session::cstore::{CrateDepKind, CrateSource};
 use rustc_session::cstore::{ExternCrate, ForeignModule, LinkagePreference, NativeLib};
@@ -208,7 +209,7 @@ rustc_queries! {
 
     /// Given the def_id of a const-generic parameter, computes the associated default const
     /// parameter. e.g. `fn example<const N: usize=3>` called on `N` would return `3`.
-    query const_param_default(param: DefId) -> ty::EarlyBinder<ty::Const<'tcx>> {
+    query const_param_default(param: DefId) -> ty::EarlyBinder<'tcx, ty::Const<'tcx>> {
         desc { |tcx| "computing const default for a given parameter `{}`", tcx.def_path_str(param)  }
         cache_on_disk_if { param.is_local() }
         separate_provide_extern
@@ -218,7 +219,7 @@ rustc_queries! {
     /// to an alias, it will "skip" this alias to return the aliased type.
     ///
     /// [`DefId`]: rustc_hir::def_id::DefId
-    query type_of(key: DefId) -> ty::EarlyBinder<Ty<'tcx>> {
+    query type_of(key: DefId) -> ty::EarlyBinder<'tcx, Ty<'tcx>> {
         desc { |tcx|
             "{action} `{path}`",
             action = {
@@ -239,7 +240,7 @@ rustc_queries! {
     /// Specialized instance of `type_of` that detects cycles that are due to
     /// revealing opaque because of an auto trait bound. Unless `CyclePlaceholder` needs
     /// to be handled separately, call `type_of` instead.
-    query type_of_opaque(key: DefId) -> Result<ty::EarlyBinder<Ty<'tcx>>, CyclePlaceholder> {
+    query type_of_opaque(key: DefId) -> Result<ty::EarlyBinder<'tcx, Ty<'tcx>>, CyclePlaceholder> {
         desc { |tcx|
             "computing type of opaque `{path}`",
             path = tcx.def_path_str(key),
@@ -256,7 +257,7 @@ rustc_queries! {
     }
 
     query collect_return_position_impl_trait_in_trait_tys(key: DefId)
-        -> Result<&'tcx DefIdMap<ty::EarlyBinder<Ty<'tcx>>>, ErrorGuaranteed>
+        -> Result<&'tcx DefIdMap<ty::EarlyBinder<'tcx, Ty<'tcx>>>, ErrorGuaranteed>
     {
         desc { "comparing an impl and trait method signature, inferring any hidden `impl Trait` types in the process" }
         cache_on_disk_if { key.is_local() }
@@ -343,11 +344,14 @@ rustc_queries! {
         }
     }
 
-    /// Returns the list of bounds that can be used for
-    /// `SelectionCandidate::ProjectionCandidate(_)` and
-    /// `ProjectionTyCandidate::TraitDef`.
-    /// Specifically this is the bounds written on the trait's type
-    /// definition, or those after the `impl` keyword
+    /// Returns the list of bounds that are required to be satsified
+    /// by a implementation or definition. For associated types, these
+    /// must be satisfied for an implementation to be well-formed,
+    /// and for opaque types, these are required to be satisfied by
+    /// the hidden-type of the opaque.
+    ///
+    /// Syntactially, these are the bounds written on the trait's type
+    /// definition, or those after the `impl` keyword for an opaque:
     ///
     /// ```ignore (incomplete)
     /// type X: Bound + 'lt
@@ -359,11 +363,20 @@ rustc_queries! {
     /// `key` is the `DefId` of the associated type or opaque type.
     ///
     /// Bounds from the parent (e.g. with nested impl trait) are not included.
-    query explicit_item_bounds(key: DefId) -> ty::EarlyBinder<&'tcx [(ty::Clause<'tcx>, Span)]> {
+    query explicit_item_bounds(key: DefId) -> ty::EarlyBinder<'tcx, &'tcx [(ty::Clause<'tcx>, Span)]> {
         desc { |tcx| "finding item bounds for `{}`", tcx.def_path_str(key) }
         cache_on_disk_if { key.is_local() }
         separate_provide_extern
-        feedable
+    }
+
+    /// The set of item bounds (see [`TyCtxt::explicit_item_bounds`]) that
+    /// share the `Self` type of the item. These are a subset of the bounds
+    /// that may explicitly be used for things like closure signature
+    /// deduction.
+    query explicit_item_super_predicates(key: DefId) -> ty::EarlyBinder<'tcx, &'tcx [(ty::Clause<'tcx>, Span)]> {
+        desc { |tcx| "finding item bounds for `{}`", tcx.def_path_str(key) }
+        cache_on_disk_if { key.is_local() }
+        separate_provide_extern
     }
 
     /// Elaborated version of the predicates from `explicit_item_bounds`.
@@ -386,8 +399,16 @@ rustc_queries! {
     /// ```
     ///
     /// Bounds from the parent (e.g. with nested impl trait) are not included.
-    query item_bounds(key: DefId) -> ty::EarlyBinder<&'tcx ty::List<ty::Clause<'tcx>>> {
+    query item_bounds(key: DefId) -> ty::EarlyBinder<'tcx, ty::Clauses<'tcx>> {
         desc { |tcx| "elaborating item bounds for `{}`", tcx.def_path_str(key) }
+    }
+
+    query item_super_predicates(key: DefId) -> ty::EarlyBinder<'tcx, ty::Clauses<'tcx>> {
+        desc { |tcx| "elaborating item assumptions for `{}`", tcx.def_path_str(key) }
+    }
+
+    query item_non_self_assumptions(key: DefId) -> ty::EarlyBinder<'tcx, ty::Clauses<'tcx>> {
+        desc { |tcx| "elaborating item assumptions for `{}`", tcx.def_path_str(key) }
     }
 
     /// Look up all native libraries this crate depends on.
@@ -454,20 +475,6 @@ rustc_queries! {
         desc { |tcx| "building THIR for `{}`", tcx.def_path_str(key) }
     }
 
-    /// Create a THIR tree for debugging.
-    query thir_tree(key: LocalDefId) -> &'tcx String {
-        no_hash
-        arena_cache
-        desc { |tcx| "constructing THIR tree for `{}`", tcx.def_path_str(key) }
-    }
-
-    /// Create a list-like THIR representation for debugging.
-    query thir_flat(key: LocalDefId) -> &'tcx String {
-        no_hash
-        arena_cache
-        desc { |tcx| "constructing flat THIR representation for `{}`", tcx.def_path_str(key) }
-    }
-
     /// Set of all the `DefId`s in this crate that have MIR associated with
     /// them. This includes all the body owners, but also things like struct
     /// constructors.
@@ -485,25 +492,19 @@ rustc_queries! {
         separate_provide_extern
     }
 
-    /// Fetch the MIR for a given `DefId` right after it's built - this includes
-    /// unreachable code.
+    /// Build the MIR for a given `DefId` and prepare it for const qualification.
+    ///
+    /// See the [rustc dev guide] for more info.
+    ///
+    /// [rustc dev guide]: https://rustc-dev-guide.rust-lang.org/mir/construction.html
     query mir_built(key: LocalDefId) -> &'tcx Steal<mir::Body<'tcx>> {
         desc { |tcx| "building MIR for `{}`", tcx.def_path_str(key) }
-    }
-
-    /// Fetch the MIR for a given `DefId` up till the point where it is
-    /// ready for const qualification.
-    ///
-    /// See the README for the `mir` module for details.
-    query mir_const(key: LocalDefId) -> &'tcx Steal<mir::Body<'tcx>> {
-        desc { |tcx| "preparing `{}` for borrow checking", tcx.def_path_str(key) }
-        no_hash
     }
 
     /// Try to build an abstract representation of the given constant.
     query thir_abstract_const(
         key: DefId
-    ) -> Result<Option<ty::EarlyBinder<ty::Const<'tcx>>>, ErrorGuaranteed> {
+    ) -> Result<Option<ty::EarlyBinder<'tcx, ty::Const<'tcx>>>, ErrorGuaranteed> {
         desc {
             |tcx| "building an abstract representation for `{}`", tcx.def_path_str(key),
         }
@@ -702,9 +703,14 @@ rustc_queries! {
         cache_on_disk_if { key.is_local() }
         separate_provide_extern
     }
+    query adt_async_destructor(key: DefId) -> Option<ty::AsyncDestructor> {
+        desc { |tcx| "computing `AsyncDrop` impl for `{}`", tcx.def_path_str(key) }
+        cache_on_disk_if { key.is_local() }
+        separate_provide_extern
+    }
 
-    query adt_sized_constraint(key: DefId) -> ty::EarlyBinder<&'tcx ty::List<Ty<'tcx>>> {
-        desc { |tcx| "computing `Sized` constraints for `{}`", tcx.def_path_str(key) }
+    query adt_sized_constraint(key: DefId) -> Option<ty::EarlyBinder<'tcx, Ty<'tcx>>> {
+        desc { |tcx| "computing the `Sized` constraint for `{}`", tcx.def_path_str(key) }
     }
 
     query adt_dtorck_constraint(
@@ -779,7 +785,7 @@ rustc_queries! {
         separate_provide_extern
     }
 
-    /// Maps from a trait item to the trait item "descriptor".
+    /// Maps from a trait/impl item to the trait/impl item "descriptor".
     query associated_item(key: DefId) -> ty::AssocItem {
         desc { |tcx| "computing associated item data for `{}`", tcx.def_path_str(key) }
         cache_on_disk_if { key.is_local() }
@@ -846,8 +852,10 @@ rustc_queries! {
         separate_provide_extern
     }
 
-    query issue33140_self_ty(key: DefId) -> Option<ty::EarlyBinder<ty::Ty<'tcx>>> {
-        desc { |tcx| "computing Self type wrt issue #33140 `{}`", tcx.def_path_str(key) }
+    query self_ty_of_trait_impl_enabling_order_dep_trait_object_hack(
+        key: DefId
+    ) -> Option<ty::EarlyBinder<'tcx, ty::Ty<'tcx>>> {
+        desc { |tcx| "computing self type wrt issue #33140 `{}`", tcx.def_path_str(key) }
     }
 
     /// Maps a `DefId` of a type to a list of its inherent impls.
@@ -861,12 +869,6 @@ rustc_queries! {
 
     query incoherent_impls(key: SimplifiedType) -> Result<&'tcx [DefId], ErrorGuaranteed> {
         desc { |tcx| "collecting all inherent impls for `{:?}`", key }
-    }
-
-    /// The result of unsafety-checking this `LocalDefId` with the old checker.
-    query mir_unsafety_check_result(key: LocalDefId) -> &'tcx mir::UnsafetyCheckResult {
-        desc { |tcx| "unsafety-checking `{}`", tcx.def_path_str(key) }
-        cache_on_disk_if { true }
     }
 
     /// Unsafety-check this `LocalDefId`.
@@ -891,7 +893,7 @@ rustc_queries! {
     }
 
     /// Computes the signature of the function.
-    query fn_sig(key: DefId) -> ty::EarlyBinder<ty::PolyFnSig<'tcx>> {
+    query fn_sig(key: DefId) -> ty::EarlyBinder<'tcx, ty::PolyFnSig<'tcx>> {
         desc { |tcx| "computing function signature of `{}`", tcx.def_path_str(key) }
         cache_on_disk_if { key.is_local() }
         separate_provide_extern
@@ -981,10 +983,6 @@ rustc_queries! {
         cache_on_disk_if { true }
     }
 
-    query has_typeck_results(def_id: DefId) -> bool {
-        desc { |tcx| "checking whether `{}` has a body", tcx.def_path_str(def_id) }
-    }
-
     query coherent_trait(def_id: DefId) -> Result<(), ErrorGuaranteed> {
         desc { |tcx| "coherence checking all impls of trait `{}`", tcx.def_path_str(def_id) }
         ensure_forwards_result_if_red
@@ -1040,6 +1038,13 @@ rustc_queries! {
             "computing all local function calls in `{}`",
             tcx.def_path_str(key.def_id()),
         }
+    }
+
+    /// Computes the tag (if any) for a given type and variant.
+    query tag_for_variant(
+        key: (Ty<'tcx>, abi::VariantIdx)
+    ) -> Option<ty::ScalarInt> {
+        desc { "computing variant tag for enum" }
     }
 
     /// Evaluates a constant and returns the computed allocation.
@@ -1304,7 +1309,7 @@ rustc_queries! {
     query object_safety_violations(trait_id: DefId) -> &'tcx [ObjectSafetyViolation] {
         desc { |tcx| "determining object safety of trait `{}`", tcx.def_path_str(trait_id) }
     }
-    query check_is_object_safe(trait_id: DefId) -> bool {
+    query is_object_safe(trait_id: DefId) -> bool {
         desc { |tcx| "checking if trait `{}` is object safe", tcx.def_path_str(trait_id) }
     }
 
@@ -1346,6 +1351,10 @@ rustc_queries! {
     /// Query backing `Ty::needs_drop`.
     query needs_drop_raw(env: ty::ParamEnvAnd<'tcx, Ty<'tcx>>) -> bool {
         desc { "computing whether `{}` needs drop", env.value }
+    }
+    /// Query backing `Ty::needs_async_drop`.
+    query needs_async_drop_raw(env: ty::ParamEnvAnd<'tcx, Ty<'tcx>>) -> bool {
+        desc { "computing whether `{}` needs async drop", env.value }
     }
     /// Query backing `Ty::has_significant_drop_raw`.
     query has_significant_drop_raw(env: ty::ParamEnvAnd<'tcx, Ty<'tcx>>) -> bool {
@@ -1482,6 +1491,11 @@ rustc_queries! {
     query extern_crate(def_id: DefId) -> Option<&'tcx ExternCrate> {
         eval_always
         desc { "getting crate's ExternCrateData" }
+        separate_provide_extern
+    }
+
+    query specialization_enabled_in(cnum: CrateNum) -> bool {
+        desc { "checking whether the crate enabled `specialization`/`min_specialization`" }
         separate_provide_extern
     }
 
@@ -2141,7 +2155,7 @@ rustc_queries! {
         desc { "resolving instance `{}`", ty::Instance::new(key.value.0, key.value.1) }
     }
 
-    query reveal_opaque_types_in_bounds(key: &'tcx ty::List<ty::Clause<'tcx>>) -> &'tcx ty::List<ty::Clause<'tcx>> {
+    query reveal_opaque_types_in_bounds(key: ty::Clauses<'tcx>) -> ty::Clauses<'tcx> {
         desc { "revealing opaque types in `{:?}`", key }
     }
 
@@ -2199,15 +2213,6 @@ rustc_queries! {
         eval_always
         desc { "traits in scope for documentation links for a module" }
         separate_provide_extern
-    }
-
-    /// Used in `super_combine_consts` to ICE if the type of the two consts are definitely not going to end up being
-    /// equal to eachother. This might return `Ok` even if the types are not equal, but will never return `Err` if
-    /// the types might be equal.
-    query check_tys_might_be_eq(
-        arg: Canonical<'tcx, ty::ParamEnvAnd<'tcx, (Ty<'tcx>, Ty<'tcx>)>>
-    ) -> Result<(), NoSolution> {
-        desc { "check whether two const param are definitely not equal to eachother"}
     }
 
     /// Get all item paths that were stripped by a `#[cfg]` in a particular crate.

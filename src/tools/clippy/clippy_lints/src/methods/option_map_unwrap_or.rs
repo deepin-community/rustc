@@ -59,8 +59,8 @@ pub(super) fn check<'tcx>(
             };
 
             let map = cx.tcx.hir();
-            let body = map.body(map.body_owned_by(map.enclosing_body_owner(expr.hir_id)));
-            reference_visitor.visit_body(body);
+            let body = map.body_owned_by(map.enclosing_body_owner(expr.hir_id));
+            reference_visitor.visit_body(&body);
 
             if reference_visitor.found_reference {
                 return;
@@ -97,7 +97,7 @@ pub(super) fn check<'tcx>(
         } else {
             "map_or(<a>, <f>)"
         };
-        let msg = &format!("called `map(<f>).unwrap_or({arg})` on an `Option` value");
+        let msg = format!("called `map(<f>).unwrap_or({arg})` on an `Option` value");
 
         span_lint_and_then(cx, MAP_UNWRAP_OR, expr.span, msg, |diag| {
             let map_arg_span = map_arg.span;

@@ -12,10 +12,8 @@
 //! symbol to the `accepted` or `removed` modules respectively.
 
 #![allow(internal_features)]
-#![feature(generic_nonzero)]
 #![feature(rustdoc_internals)]
 #![doc(rust_logo)]
-#![feature(lazy_cell)]
 
 mod accepted;
 mod builtin_attrs;
@@ -124,9 +122,9 @@ pub fn find_feature_issue(feature: Symbol, issue: GateIssue) -> Option<NonZero<u
 pub use accepted::ACCEPTED_FEATURES;
 pub use builtin_attrs::AttributeDuplicates;
 pub use builtin_attrs::{
-    deprecated_attributes, find_gated_cfg, is_builtin_attr_name, is_builtin_only_local,
-    is_valid_for_get_attr, AttributeGate, AttributeTemplate, AttributeType, BuiltinAttribute,
-    GatedCfg, BUILTIN_ATTRIBUTES, BUILTIN_ATTRIBUTE_MAP,
+    deprecated_attributes, encode_cross_crate, find_gated_cfg, is_builtin_attr_name,
+    is_unsafe_attr, is_valid_for_get_attr, AttributeGate, AttributeTemplate, AttributeType,
+    BuiltinAttribute, GatedCfg, BUILTIN_ATTRIBUTES, BUILTIN_ATTRIBUTE_MAP,
 };
 pub use removed::REMOVED_FEATURES;
 pub use unstable::{Features, INCOMPATIBLE_FEATURES, UNSTABLE_FEATURES};

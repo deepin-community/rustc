@@ -10,7 +10,7 @@ extern crate rustc_session;
 extern crate rustc_span;
 
 use rustc_errors::{
-    emitter::Emitter, registry, translation::Translate, DiagCtxt, Diagnostic, FluentBundle,
+    emitter::Emitter, registry, translation::Translate, DiagCtxt, DiagInner, FluentBundle,
 };
 use rustc_session::config;
 use rustc_span::source_map::SourceMap;
@@ -22,7 +22,7 @@ use std::{
 
 struct DebugEmitter {
     source_map: Arc<SourceMap>,
-    diagnostics: Arc<Mutex<Vec<Diagnostic>>>,
+    diagnostics: Arc<Mutex<Vec<DiagInner>>>,
 }
 
 impl Translate for DebugEmitter {
@@ -36,8 +36,8 @@ impl Translate for DebugEmitter {
 }
 
 impl Emitter for DebugEmitter {
-    fn emit_diagnostic(&mut self, diag: &Diagnostic) {
-        self.diagnostics.lock().unwrap().push(diag.clone());
+    fn emit_diagnostic(&mut self, diag: DiagInner) {
+        self.diagnostics.lock().unwrap().push(diag);
     }
 
     fn source_map(&self) -> Option<&Arc<SourceMap>> {
@@ -52,7 +52,7 @@ fn main() {
         .output()
         .unwrap();
     let sysroot = str::from_utf8(&out.stdout).unwrap().trim();
-    let buffer: Arc<Mutex<Vec<Diagnostic>>> = Arc::default();
+    let buffer: Arc<Mutex<Vec<DiagInner>>> = Arc::default();
     let diagnostics = buffer.clone();
     let config = rustc_interface::Config {
         opts: config::Options {
@@ -76,15 +76,15 @@ fn main() {
         file_loader: None,
         locale_resources: rustc_driver::DEFAULT_LOCALE_RESOURCES,
         lint_caps: rustc_hash::FxHashMap::default(),
-        parse_sess_created: Some(Box::new(|parse_sess| {
-            parse_sess.dcx = DiagCtxt::with_emitter(Box::new(DebugEmitter {
+        psess_created: Some(Box::new(|parse_sess| {
+            parse_sess.dcx = DiagCtxt::new(Box::new(DebugEmitter {
                 source_map: parse_sess.clone_source_map(),
                 diagnostics,
             }))
         })),
         register_lints: None,
         override_queries: None,
-        registry: registry::Registry::new(rustc_error_codes::DIAGNOSTICS),
+        registry: registry::Registry::new(rustc_errors::codes::DIAGNOSTICS),
         make_codegen_backend: None,
         expanded_args: Vec::new(),
         ice_file: None,

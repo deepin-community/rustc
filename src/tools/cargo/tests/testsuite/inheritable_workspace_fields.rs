@@ -30,9 +30,6 @@ fn permit_additional_workspace_fields() {
             exclude = ["foo.txt"]
             include = ["bar.txt", "**/*.rs", "Cargo.toml", "LICENSE", "README.md"]
 
-            [workspace.package.badges]
-            gitlab = { repository = "https://gitlab.com/rust-lang/rust", branch = "master" }
-
             [workspace.dependencies]
             dep = "0.1"
         "#,
@@ -117,8 +114,6 @@ fn inherit_own_workspace_fields() {
         .file(
             "Cargo.toml",
             r#"
-            badges.workspace = true
-
             [package]
             name = "foo"
             version.workspace = true
@@ -153,8 +148,6 @@ fn inherit_own_workspace_fields() {
             rust-version = "1.60"
             exclude = ["foo.txt"]
             include = ["bar.txt", "**/*.rs", "Cargo.toml"]
-            [workspace.package.badges]
-            gitlab = { repository = "https://gitlab.com/rust-lang/rust", branch = "master" }
             "#,
         )
         .file("src/main.rs", "fn main() {}")
@@ -186,9 +179,7 @@ You may press ctrl-c to skip waiting; the crate should be available shortly.
         r#"
         {
           "authors": ["Rustaceans"],
-          "badges": {
-            "gitlab": { "branch": "master", "repository": "https://gitlab.com/rust-lang/rust" }
-          },
+          "badges": {},
           "categories": ["development-tools"],
           "deps": [],
           "description": "This is a crate",
@@ -226,6 +217,7 @@ rust-version = "1.60"
 name = "foo"
 version = "1.2.3"
 authors = ["Rustaceans"]
+build = false
 exclude = ["foo.txt"]
 include = [
     "bar.txt",
@@ -233,19 +225,24 @@ include = [
     "Cargo.toml",
 ]
 publish = true
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "This is a crate"
 homepage = "https://www.rust-lang.org"
 documentation = "https://www.rust-lang.org/learn"
+readme = false
 keywords = ["cli"]
 categories = ["development-tools"]
 license = "MIT"
 repository = "https://github.com/example/example"
 
-[badges.gitlab]
-branch = "master"
-repository = "https://gitlab.com/rust-lang/rust"
+[[bin]]
+name = "foo"
+path = "src/main.rs"
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -294,6 +291,7 @@ fn inherit_own_dependencies() {
         .with_stderr_unordered(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 4 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v0.1.2 ([..])
 [DOWNLOADED] dep-build v0.8.2 ([..])
@@ -395,6 +393,16 @@ edition = "2015"
 name = "bar"
 version = "0.2.0"
 authors = []
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+readme = false
+
+[[bin]]
+name = "bar"
+path = "src/main.rs"
 
 [dependencies.dep]
 version = "0.1"
@@ -405,7 +413,7 @@ version = "0.5.2"
 [build-dependencies.dep-build]
 version = "0.8"
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -445,6 +453,7 @@ fn inherit_own_detailed_dependencies() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v0.1.2 ([..])
 [CHECKING] dep v0.1.2
@@ -525,12 +534,22 @@ edition = "2015"
 name = "bar"
 version = "0.2.0"
 authors = []
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+readme = false
+
+[[bin]]
+name = "bar"
+path = "src/main.rs"
 
 [dependencies.dep]
 version = "0.1.2"
 features = ["testing"]
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -614,6 +633,7 @@ fn inherited_dependencies_union_features() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 4 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] fancy_dep v0.2.4 ([..])
 [DOWNLOADED] dep v0.1.0 ([..])
@@ -662,15 +682,12 @@ fn inherit_workspace_fields() {
             rust-version = "1.60"
             exclude = ["foo.txt"]
             include = ["bar.txt", "**/*.rs", "Cargo.toml", "LICENSE", "README.md"]
-            [workspace.package.badges]
-            gitlab = { repository = "https://gitlab.com/rust-lang/rust", branch = "master" }
             "#,
         )
         .file("src/main.rs", "fn main() {}")
         .file(
             "bar/Cargo.toml",
             r#"
-            badges.workspace = true
             [package]
             name = "bar"
             workspace = ".."
@@ -728,9 +745,7 @@ You may press ctrl-c to skip waiting; the crate should be available shortly.
         r#"
         {
           "authors": ["Rustaceans"],
-          "badges": {
-            "gitlab": { "branch": "master", "repository": "https://gitlab.com/rust-lang/rust" }
-          },
+          "badges": {},
           "categories": ["development-tools"],
           "deps": [],
           "description": "This is a crate",
@@ -770,6 +785,7 @@ rust-version = "1.60"
 name = "bar"
 version = "1.2.3"
 authors = ["Rustaceans"]
+build = false
 exclude = ["foo.txt"]
 include = [
     "bar.txt",
@@ -779,6 +795,10 @@ include = [
     "README.md",
 ]
 publish = true
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "This is a crate"
 homepage = "https://www.rust-lang.org"
 documentation = "https://www.rust-lang.org/learn"
@@ -789,11 +809,11 @@ license = "MIT"
 license-file = "LICENSE"
 repository = "https://github.com/example/example"
 
-[badges.gitlab]
-branch = "master"
-repository = "https://gitlab.com/rust-lang/rust"
+[[bin]]
+name = "bar"
+path = "src/main.rs"
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -843,6 +863,7 @@ fn inherit_dependencies() {
         .with_stderr_unordered(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 4 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v0.1.2 ([..])
 [DOWNLOADED] dep-build v0.8.2 ([..])
@@ -945,6 +966,16 @@ edition = "2015"
 name = "bar"
 version = "0.2.0"
 authors = []
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+readme = false
+
+[[bin]]
+name = "bar"
+path = "src/main.rs"
 
 [dependencies.dep]
 version = "0.1"
@@ -955,7 +986,7 @@ version = "0.5.2"
 [build-dependencies.dep-build]
 version = "0.8"
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -997,6 +1028,7 @@ fn inherit_target_dependencies() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v0.1.2 ([..])
 [CHECKING] dep v0.1.2
@@ -1044,6 +1076,7 @@ fn inherit_dependency_override_optional() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [CHECKING] bar v0.2.0 ([CWD]/bar)
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
 ",
@@ -1087,6 +1120,7 @@ fn inherit_dependency_features() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 3 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] fancy_dep v0.2.4 ([..])
 [DOWNLOADED] dep v0.1.0 ([..])
@@ -1159,6 +1193,7 @@ fn inherit_detailed_dependencies() {
         .with_stderr(&format!(
             "\
 [UPDATING] git repository `{}`\n\
+[LOCKING] 2 packages to latest compatible versions
 [CHECKING] detailed v0.5.0 ({}?branch=branchy#[..])\n\
 [CHECKING] bar v0.2.0 ([CWD]/bar)\n\
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]\n",
@@ -1201,6 +1236,7 @@ fn inherit_path_dependencies() {
     p.cargo("check")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [CHECKING] dep v0.9.0 ([CWD]/dep)
 [CHECKING] bar v0.2.0 ([CWD]/bar)
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -1291,14 +1327,10 @@ fn error_workspace_dependency_looked_for_workspace_itself() {
         .with_status(101)
         .with_stderr(
             "\
-[WARNING] [CWD]/Cargo.toml: unused manifest key: workspace.dependencies.dep.workspace
-[WARNING] [CWD]/Cargo.toml: dependency (dep) specified without providing a local path, Git repository, version, \
-or workspace dependency to use. \
-This will be considered an error in future versions
-[UPDATING] `dummy-registry` index
-[ERROR] no matching package named `dep` found
-location searched: registry `crates-io`
-required by package `bar v1.2.3 ([CWD])`
+[ERROR] failed to parse manifest at `[CWD]/Cargo.toml`
+
+Caused by:
+  dependency (dep) specified without providing a local path, Git repository, version, or workspace dependency to use
 ",
         )
         .run();
@@ -1473,6 +1505,7 @@ fn warn_inherit_def_feat_true_member_def_feat_false() {
 [WARNING] [CWD]/Cargo.toml: `default-features` is ignored for dep, since `default-features` was \
 true for `workspace.dependencies.dep`, this could become a hard error in the future
 [UPDATING] `dummy-registry` index
+[LOCKING] 3 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] fancy_dep v0.2.4 ([..])
 [DOWNLOADED] dep v0.1.0 ([..])
@@ -1480,6 +1513,56 @@ true for `workspace.dependencies.dep`, this could become a hard error in the fut
 [CHECKING] dep v0.1.0
 [CHECKING] bar v0.2.0 ([CWD])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
+        )
+        .run();
+}
+
+#[cargo_test(nightly, reason = "edition2024 is not stable")]
+fn warn_inherit_def_feat_true_member_def_feat_false_2024_edition() {
+    Package::new("dep", "0.1.0")
+        .feature("default", &["fancy_dep"])
+        .add_dep(Dependency::new("fancy_dep", "0.2").optional(true))
+        .file("src/lib.rs", "")
+        .publish();
+
+    Package::new("fancy_dep", "0.2.4").publish();
+
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+            cargo-features = ["edition2024"]
+
+            [package]
+            name = "bar"
+            version = "0.2.0"
+            edition = "2024"
+            authors = []
+            [dependencies]
+            dep = { workspace = true, default-features = false }
+
+            [workspace]
+            members = []
+            [workspace.dependencies]
+            dep = { version = "0.1.0", default-features = true }
+        "#,
+        )
+        .file("src/main.rs", "fn main() {}")
+        .build();
+
+    p.cargo("check")
+        .masquerade_as_nightly_cargo(&["edition2024"])
+        .with_status(101)
+        .with_stderr(
+            "\
+[ERROR] failed to parse manifest at `[CWD]/Cargo.toml`
+
+Caused by:
+  error inheriting `dep` from workspace root manifest's `workspace.dependencies.dep`
+
+Caused by:
+  `default-features = false` cannot override workspace's `default-features`
 ",
         )
         .run();
@@ -1522,6 +1605,7 @@ fn warn_inherit_simple_member_def_feat_false() {
 [WARNING] [CWD]/Cargo.toml: `default-features` is ignored for dep, since `default-features` was \
 not specified for `workspace.dependencies.dep`, this could become a hard error in the future
 [UPDATING] `dummy-registry` index
+[LOCKING] 3 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] fancy_dep v0.2.4 ([..])
 [DOWNLOADED] dep v0.1.0 ([..])
@@ -1529,6 +1613,56 @@ not specified for `workspace.dependencies.dep`, this could become a hard error i
 [CHECKING] dep v0.1.0
 [CHECKING] bar v0.2.0 ([CWD])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
+        )
+        .run();
+}
+
+#[cargo_test(nightly, reason = "edition2024 is not stable")]
+fn warn_inherit_simple_member_def_feat_false_2024_edition() {
+    Package::new("dep", "0.1.0")
+        .feature("default", &["fancy_dep"])
+        .add_dep(Dependency::new("fancy_dep", "0.2").optional(true))
+        .file("src/lib.rs", "")
+        .publish();
+
+    Package::new("fancy_dep", "0.2.4").publish();
+
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+            cargo-features = ["edition2024"]
+
+            [package]
+            name = "bar"
+            version = "0.2.0"
+            edition = "2024"
+            authors = []
+            [dependencies]
+            dep = { workspace = true, default-features = false }
+
+            [workspace]
+            members = []
+            [workspace.dependencies]
+            dep = "0.1.0"
+        "#,
+        )
+        .file("src/main.rs", "fn main() {}")
+        .build();
+
+    p.cargo("check")
+        .masquerade_as_nightly_cargo(&["edition2024"])
+        .with_status(101)
+        .with_stderr(
+            "\
+[ERROR] failed to parse manifest at `[CWD]/Cargo.toml`
+
+Caused by:
+  error inheriting `dep` from workspace root manifest's `workspace.dependencies.dep`
+
+Caused by:
+  `default-features = false` cannot override workspace's `default-features`
 ",
         )
         .run();
@@ -1569,6 +1703,7 @@ fn inherit_def_feat_false_member_def_feat_true() {
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
+[LOCKING] 3 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] fancy_dep v0.2.4 ([..])
 [DOWNLOADED] dep v0.1.0 ([..])
@@ -1615,15 +1750,10 @@ fn cannot_inherit_in_patch() {
         .with_status(101)
         .with_stderr(
             "\
-[WARNING] [CWD]/Cargo.toml: unused manifest key: patch.crates-io.bar.workspace
-[WARNING] [CWD]/Cargo.toml: dependency (bar) specified without providing a local path, Git repository, version, \
-or workspace dependency to use. \
-This will be considered an error in future versions
-[UPDATING] `dummy-registry` index
-[ERROR] failed to resolve patches for `https://github.com/rust-lang/crates.io-index`
+[ERROR] failed to parse manifest at `[CWD]/Cargo.toml`
 
 Caused by:
-  patch for `bar` in `https://github.com/rust-lang/crates.io-index` points to the same source, but patches must point to different sources
+  dependency (bar) specified without providing a local path, Git repository, version, or workspace dependency to use
 ",
         )
         .run();
@@ -1661,6 +1791,7 @@ fn warn_inherit_unused_manifest_key_dep() {
 [WARNING] [CWD]/Cargo.toml: unused manifest key: workspace.dependencies.dep.wxz
 [WARNING] [CWD]/Cargo.toml: unused manifest key: dependencies.dep.wxz
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v0.1.0 ([..])
 [CHECKING] [..]
@@ -1711,8 +1842,6 @@ fn warn_inherit_unused_manifest_key_package() {
         .file(
             "Cargo.toml",
             r#"
-            badges = { workspace = true, xyz = "abc"}
-
             [workspace]
             members = []
             [workspace.package]
@@ -1730,8 +1859,6 @@ fn warn_inherit_unused_manifest_key_package() {
             rust-version = "1.60"
             exclude = ["foo.txt"]
             include = ["bar.txt", "**/*.rs", "Cargo.toml"]
-            [workspace.package.badges]
-            gitlab = { repository = "https://gitlab.com/rust-lang/rust", branch = "master" }
 
             [package]
             name = "bar"

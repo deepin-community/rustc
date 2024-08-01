@@ -912,8 +912,8 @@ impl f64 {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
     pub fn to_radians(self) -> f64 {
-        let value: f64 = consts::PI;
-        self * (value / 180.0)
+        const RADS_PER_DEG: f64 = consts::PI / 180.0;
+        self * RADS_PER_DEG
     }
 
     /// Returns the maximum of the two numbers, ignoring NaN.
@@ -1111,7 +1111,6 @@ impl f64 {
     /// ```
     /// assert!((1f64).to_bits() != 1f64 as u64); // to_bits() is not casting!
     /// assert_eq!((12.5f64).to_bits(), 0x4029000000000000);
-    ///
     /// ```
     #[must_use = "this returns the result of the operation, \
                   without modifying the original"]
@@ -1146,11 +1145,7 @@ impl f64 {
             // Stability concerns.
             unsafe { mem::transmute::<f64, u64>(rt) }
         }
-        #[cfg_attr(not(bootstrap), allow(unused_unsafe))] // on bootstrap bump, remove unsafe block
-        // SAFETY: We use internal implementations that either always work or fail at compile time.
-        unsafe {
-            intrinsics::const_eval_select((self,), ct_f64_to_u64, rt_f64_to_u64)
-        }
+        intrinsics::const_eval_select((self,), ct_f64_to_u64, rt_f64_to_u64)
     }
 
     /// Raw transmutation from `u64`.
@@ -1246,11 +1241,7 @@ impl f64 {
             // Stability concerns.
             unsafe { mem::transmute::<u64, f64>(rt) }
         }
-        #[cfg_attr(not(bootstrap), allow(unused_unsafe))] // on bootstrap bump, remove unsafe block
-        // SAFETY: We use internal implementations that either always work or fail at compile time.
-        unsafe {
-            intrinsics::const_eval_select((v,), ct_u64_to_f64, rt_u64_to_f64)
-        }
+        intrinsics::const_eval_select((v,), ct_u64_to_f64, rt_u64_to_f64)
     }
 
     /// Return the memory representation of this floating point number as a byte array in

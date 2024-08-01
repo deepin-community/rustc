@@ -8,6 +8,7 @@ use rustc_hash::FxHashMap;
 use span::Span;
 use stdx::never;
 use syntax::SmolStr;
+use triomphe::Arc;
 
 use crate::{db::ExpandDatabase, tt, ExpandError, ExpandResult};
 
@@ -23,7 +24,7 @@ impl ProcMacroId {
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum ProcMacroKind {
     CustomDerive,
-    FuncLike,
+    Bang,
     Attr,
 }
 
@@ -157,7 +158,7 @@ impl CustomProcMacroExpander {
                         ProcMacroExpansionError::System(text)
                         | ProcMacroExpansionError::Panic(text) => ExpandResult::new(
                             tt::Subtree::empty(tt::DelimSpan { open: call_site, close: call_site }),
-                            ExpandError::ProcMacroPanic(Box::new(text.into_boxed_str())),
+                            ExpandError::ProcMacroPanic(Arc::new(text.into_boxed_str())),
                         ),
                     },
                 }

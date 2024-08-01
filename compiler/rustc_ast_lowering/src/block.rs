@@ -76,12 +76,12 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 StmtKind::Empty => {}
                 StmtKind::MacCall(..) => panic!("shouldn't exist here"),
             }
-            ast_stmts = &ast_stmts[1..];
+            ast_stmts = tail;
         }
         (self.arena.alloc_from_iter(stmts), expr)
     }
 
-    fn lower_local(&mut self, l: &Local) -> &'hir hir::Local<'hir> {
+    fn lower_local(&mut self, l: &Local) -> &'hir hir::LetStmt<'hir> {
         let ty = l
             .ty
             .as_ref()
@@ -97,7 +97,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
         let span = self.lower_span(l.span);
         let source = hir::LocalSource::Normal;
         self.lower_attrs(hir_id, &l.attrs);
-        self.arena.alloc(hir::Local { hir_id, ty, pat, init, els, span, source })
+        self.arena.alloc(hir::LetStmt { hir_id, ty, pat, init, els, span, source })
     }
 
     fn lower_block_check_mode(&mut self, b: &BlockCheckMode) -> hir::BlockCheckMode {

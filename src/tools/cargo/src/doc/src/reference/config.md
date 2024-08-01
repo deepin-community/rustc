@@ -170,7 +170,7 @@ rustflags = ["…", "…"]  # custom flags for `rustc`
 [target.<triple>.<links>] # `links` build script override
 rustc-link-lib = ["foo"]
 rustc-link-search = ["/path/to/foo"]
-rustc-flags = ["-L", "/some/path"]
+rustc-flags = "-L /some/path"
 rustc-cfg = ['key="value"']
 rustc-env = {key = "value"}
 rustc-cdylib-link-arg = ["…"]
@@ -415,10 +415,14 @@ wrapper is the path to the actual executable to use
 * Default: none
 * Environment: `CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER` or `RUSTC_WORKSPACE_WRAPPER`
 
-Sets a wrapper to execute instead of `rustc`, for workspace members only.
-The first argument passed to the wrapper is the path to the actual
-executable to use (i.e., `build.rustc`, if that is set, or `"rustc"` otherwise).
-It affects the filename hash so that artifacts produced by the wrapper are cached separately.
+Sets a wrapper to execute instead of `rustc`, for workspace members only. When building a
+single-package project without workspaces, that package is considered to be the workspace. The first
+argument passed to the wrapper is the path to the actual executable to use (i.e., `build.rustc`, if
+that is set, or `"rustc"` otherwise). It affects the filename hash so that artifacts produced by the
+wrapper are cached separately.
+
+If both `rustc-wrapper` and `rustc-workspace-wrapper` are set, then they will be nested:
+the final invocation is `$RUSTC_WRAPPER $RUSTC_WORKSPACE_WRAPPER $RUSTC`.
 
 #### `build.rustdoc`
 * Type: string (program path)
@@ -1343,7 +1347,7 @@ Sets the width for progress bar.
 [toml]: https://toml.io/
 [incremental compilation]: profiles.md#incremental
 [program path with args]: #executable-paths-with-arguments
-[libcurl format]: https://everything.curl.dev/libcurl/proxies#proxy-types
+[libcurl format]: https://everything.curl.dev/transfers/conn/proxies#proxy-types
 [source replacement]: source-replacement.md
 [revision]: https://git-scm.com/docs/gitrevisions
 [registries]: registries.md

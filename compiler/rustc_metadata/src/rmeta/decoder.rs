@@ -21,12 +21,14 @@ use rustc_middle::middle::lib_features::LibFeatures;
 use rustc_middle::mir::interpret::{AllocDecodingSession, AllocDecodingState};
 use rustc_middle::ty::codec::TyDecoder;
 use rustc_middle::ty::Visibility;
+use rustc_middle::{bug, implement_ty_decoder};
 use rustc_serialize::opaque::MemDecoder;
 use rustc_serialize::{Decodable, Decoder};
 use rustc_session::cstore::{CrateSource, ExternCrate};
 use rustc_session::Session;
 use rustc_span::symbol::kw;
 use rustc_span::{BytePos, Pos, SpanData, SpanDecoder, SyntaxContext, DUMMY_SP};
+use tracing::debug;
 
 use proc_macro::bridge::client::ProcMacro;
 use std::iter::TrustedLen;
@@ -39,10 +41,9 @@ use rustc_span::hygiene::HygieneDecodeContext;
 mod cstore_impl;
 
 /// A reference to the raw binary version of crate metadata.
-/// A `MetadataBlob` internally is just a reference counted pointer to
-/// the actual data, so cloning it is cheap.
-#[derive(Clone)]
-pub(crate) struct MetadataBlob(pub(crate) OwnedSlice);
+/// This struct applies [`MemDecoder`]'s validation when constructed
+/// so that later constructions are guaranteed to succeed.
+pub(crate) struct MetadataBlob(OwnedSlice);
 
 impl std::ops::Deref for MetadataBlob {
     type Target = [u8];
@@ -50,6 +51,19 @@ impl std::ops::Deref for MetadataBlob {
     #[inline]
     fn deref(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl MetadataBlob {
+    /// Runs the [`MemDecoder`] validation and if it passes, constructs a new [`MetadataBlob`].
+    pub fn new(slice: OwnedSlice) -> Result<Self, ()> {
+        if MemDecoder::new(&slice, 0).is_ok() { Ok(Self(slice)) } else { Err(()) }
+    }
+
+    /// Since this has passed the validation of [`MetadataBlob::new`], this returns bytes which are
+    /// known to pass the [`MemDecoder`] validation.
+    pub fn bytes(&self) -> &OwnedSlice {
+        &self.0
     }
 }
 
@@ -164,7 +178,14 @@ pub(super) trait Metadata<'a, 'tcx>: Copy {
     fn decoder(self, pos: usize) -> DecodeContext<'a, 'tcx> {
         let tcx = self.tcx();
         DecodeContext {
-            opaque: MemDecoder::new(self.blob(), pos),
+            // FIXME: This unwrap should never panic because we check that it won't when creating
+            // `MetadataBlob`. Ideally we'd just have a `MetadataDecoder` and hand out subslices of
+            // it as we do elsewhere in the compiler using `MetadataDecoder::split_at`. But we own
+            // the data for the decoder so holding onto the `MemDecoder` too would make us a
+            // self-referential struct which is downright goofy because `MetadataBlob` is already
+            // self-referential. Probably `MemDecoder` should contain an `OwnedSlice`, but that
+            // demands a significant refactoring due to our crate graph.
+            opaque: MemDecoder::new(self.blob(), pos).unwrap(),
             cdata: self.cdata(),
             blob: self.blob(),
             sess: self.sess().or(tcx.map(|tcx| tcx.sess)),
@@ -392,7 +413,7 @@ impl<'a, 'tcx> TyDecoder for DecodeContext<'a, 'tcx> {
     where
         F: FnOnce(&mut Self) -> R,
     {
-        let new_opaque = MemDecoder::new(self.opaque.data(), pos);
+        let new_opaque = self.opaque.split_at(pos);
         let old_opaque = mem::replace(&mut self.opaque, new_opaque);
         let old_state = mem::replace(&mut self.lazy_state, LazyState::NoNode);
         let r = f(self);
@@ -1053,8 +1074,22 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         self,
         index: DefIndex,
         tcx: TyCtxt<'tcx>,
-    ) -> ty::EarlyBinder<&'tcx [(ty::Clause<'tcx>, Span)]> {
+    ) -> ty::EarlyBinder<'tcx, &'tcx [(ty::Clause<'tcx>, Span)]> {
         let lazy = self.root.tables.explicit_item_bounds.get(self, index);
+        let output = if lazy.is_default() {
+            &mut []
+        } else {
+            tcx.arena.alloc_from_iter(lazy.decode((self, tcx)))
+        };
+        ty::EarlyBinder::bind(&*output)
+    }
+
+    fn get_explicit_item_super_predicates(
+        self,
+        index: DefIndex,
+        tcx: TyCtxt<'tcx>,
+    ) -> ty::EarlyBinder<'tcx, &'tcx [(ty::Clause<'tcx>, Span)]> {
+        let lazy = self.root.tables.explicit_item_super_predicates.get(self, index);
         let output = if lazy.is_default() {
             &mut []
         } else {
@@ -1194,7 +1229,7 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         tcx.arena.alloc_from_iter(self.root.stability_implications.decode(self))
     }
 
-    /// Iterates over the language items in the given crate.
+    /// Iterates over the lang items in the given crate.
     fn get_lang_items(self, tcx: TyCtxt<'tcx>) -> &'tcx [(DefId, LangItem)] {
         tcx.arena.alloc_from_iter(
             self.root
@@ -1246,30 +1281,34 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
         id: DefIndex,
         sess: &'a Session,
     ) -> impl Iterator<Item = ModChild> + 'a {
-        iter::from_coroutine(move || {
-            if let Some(data) = &self.root.proc_macro_data {
-                // If we are loading as a proc macro, we want to return
-                // the view of this crate as a proc macro crate.
-                if id == CRATE_DEF_INDEX {
-                    for child_index in data.macros.decode(self) {
+        iter::from_coroutine(
+            #[coroutine]
+            move || {
+                if let Some(data) = &self.root.proc_macro_data {
+                    // If we are loading as a proc macro, we want to return
+                    // the view of this crate as a proc macro crate.
+                    if id == CRATE_DEF_INDEX {
+                        for child_index in data.macros.decode(self) {
+                            yield self.get_mod_child(child_index, sess);
+                        }
+                    }
+                } else {
+                    // Iterate over all children.
+                    let non_reexports =
+                        self.root.tables.module_children_non_reexports.get(self, id);
+                    for child_index in non_reexports.unwrap().decode(self) {
                         yield self.get_mod_child(child_index, sess);
                     }
-                }
-            } else {
-                // Iterate over all children.
-                let non_reexports = self.root.tables.module_children_non_reexports.get(self, id);
-                for child_index in non_reexports.unwrap().decode(self) {
-                    yield self.get_mod_child(child_index, sess);
-                }
 
-                let reexports = self.root.tables.module_children_reexports.get(self, id);
-                if !reexports.is_default() {
-                    for reexport in reexports.decode((self, sess)) {
-                        yield reexport;
+                    let reexports = self.root.tables.module_children_reexports.get(self, id);
+                    if !reexports.is_default() {
+                        for reexport in reexports.decode((self, sess)) {
+                            yield reexport;
+                        }
                     }
                 }
-            }
-        })
+            },
+        )
     }
 
     fn is_ctfe_mir_available(self, id: DefIndex) -> bool {
@@ -1590,17 +1629,17 @@ impl<'a, 'tcx> CrateMetadataRef<'a> {
             })
         }
 
-        // Translate the virtual `/rustc/$hash` prefix back to a real directory
-        // that should hold actual sources, where possible.
-        //
-        // NOTE: if you update this, you might need to also update bootstrap's code for generating
-        // the `rust-src` component in `Src::run` in `src/bootstrap/dist.rs`.
-        let virtual_rust_source_base_dir = [
-            filter(sess, option_env!("CFG_VIRTUAL_RUST_SOURCE_BASE_DIR").map(Path::new)),
-            filter(sess, sess.opts.unstable_opts.simulate_remapped_rust_src_base.as_deref()),
-        ];
-
         let try_to_translate_virtual_to_real = |name: &mut rustc_span::FileName| {
+            // Translate the virtual `/rustc/$hash` prefix back to a real directory
+            // that should hold actual sources, where possible.
+            //
+            // NOTE: if you update this, you might need to also update bootstrap's code for generating
+            // the `rust-src` component in `Src::run` in `src/bootstrap/dist.rs`.
+            let virtual_rust_source_base_dir = [
+                filter(sess, option_env!("CFG_VIRTUAL_RUST_SOURCE_BASE_DIR").map(Path::new)),
+                filter(sess, sess.opts.unstable_opts.simulate_remapped_rust_src_base.as_deref()),
+            ];
+
             debug!(
                 "try_to_translate_virtual_to_real(name={:?}): \
                  virtual_rust_source_base_dir={:?}, real_rust_source_base_dir={:?}",

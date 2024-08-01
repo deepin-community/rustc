@@ -11,6 +11,7 @@ use rustc_middle::mir::{self, Const};
 use rustc_middle::thir::{self, FieldPat, Pat, PatKind, PatRange, PatRangeBoundary};
 use rustc_middle::ty::layout::IntegerExt;
 use rustc_middle::ty::{self, FieldDef, OpaqueTypeKey, Ty, TyCtxt, TypeVisitableExt, VariantDef};
+use rustc_middle::{bug, span_bug};
 use rustc_session::lint;
 use rustc_span::{ErrorGuaranteed, Span, DUMMY_SP};
 use rustc_target::abi::{FieldIdx, Integer, VariantIdx, FIRST_VARIANT};
@@ -186,7 +187,6 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
 
     /// Returns the types of the fields for a given constructor. The result must have a length of
     /// `ctor.arity()`.
-    #[instrument(level = "trace", skip(self))]
     pub(crate) fn ctor_sub_tys<'a>(
         &'a self,
         ctor: &'a Constructor<'p, 'tcx>,
@@ -247,7 +247,7 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
                 _ => bug!("bad slice pattern {:?} {:?}", ctor, ty),
             },
             Bool(..) | IntRange(..) | F32Range(..) | F64Range(..) | Str(..) | Opaque(..)
-            | NonExhaustive | Hidden | Missing | PrivateUninhabited | Wildcard => &[],
+            | Never | NonExhaustive | Hidden | Missing | PrivateUninhabited | Wildcard => &[],
             Or => {
                 bug!("called `Fields::wildcards` on an `Or` ctor")
             }
@@ -275,7 +275,7 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
             Ref => 1,
             Slice(slice) => slice.arity(),
             Bool(..) | IntRange(..) | F32Range(..) | F64Range(..) | Str(..) | Opaque(..)
-            | NonExhaustive | Hidden | Missing | PrivateUninhabited | Wildcard => 0,
+            | Never | NonExhaustive | Hidden | Missing | PrivateUninhabited | Wildcard => 0,
             Or => bug!("The `Or` constructor doesn't have a fixed arity"),
         }
     }
@@ -283,7 +283,6 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
     /// Creates a set that represents all the constructors of `ty`.
     ///
     /// See [`crate::constructor`] for considerations of emptiness.
-    #[instrument(level = "debug", skip(self), ret)]
     pub fn ctors_for_ty(
         &self,
         ty: RevealedTy<'tcx>,
@@ -398,9 +397,10 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
             ty::Float(_)
             | ty::Str
             | ty::Foreign(_)
-            | ty::RawPtr(_)
+            | ty::RawPtr(_, _)
             | ty::FnDef(_, _)
             | ty::FnPtr(_)
+            | ty::Pat(_, _)
             | ty::Dynamic(_, _, _)
             | ty::Closure(..)
             | ty::CoroutineClosure(..)
@@ -461,6 +461,12 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
                     ty::Ref(..) => Ref,
                     _ => bug!("pattern has unexpected type: pat: {:?}, ty: {:?}", pat, ty),
                 };
+            }
+            PatKind::DerefPattern { .. } => {
+                // FIXME(deref_patterns): At least detect that `box _` is irrefutable.
+                fields = vec![];
+                arity = 0;
+                ctor = Opaque(OpaqueId::new());
             }
             PatKind::Leaf { subpatterns } | PatKind::Variant { subpatterns, .. } => {
                 match ty.kind() {
@@ -731,7 +737,7 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
                 // this). We show this to the user as `usize::MAX..` which is slightly incorrect but
                 // probably clear enough.
                 let c = ty.numeric_max_val(cx.tcx).unwrap();
-                let value = mir::Const::from_ty_const(c, cx.tcx);
+                let value = mir::Const::from_ty_const(c, ty.0, cx.tcx);
                 lo = PatRangeBoundary::Finite(value);
             }
             let hi = if let Some(hi) = range.hi.minus_one() {
@@ -824,7 +830,8 @@ impl<'p, 'tcx: 'p> RustcPatCtxt<'p, 'tcx> {
                 }
             }
             &Str(value) => PatKind::Constant { value },
-            Wildcard | NonExhaustive | Hidden | PrivateUninhabited => PatKind::Wild,
+            Never if self.tcx.features().never_patterns => PatKind::Never,
+            Never | Wildcard | NonExhaustive | Hidden | PrivateUninhabited => PatKind::Wild,
             Missing { .. } => bug!(
                 "trying to convert a `Missing` constructor into a `Pat`; this is probably a bug,
                 `Missing` should have been processed in `apply_constructors`"
@@ -873,13 +880,14 @@ impl<'p, 'tcx: 'p> PatCx for RustcPatCtxt<'p, 'tcx> {
 
     fn write_variant_name(
         f: &mut fmt::Formatter<'_>,
-        pat: &crate::pat::DeconstructedPat<Self>,
+        ctor: &crate::constructor::Constructor<Self>,
+        ty: &Self::Ty,
     ) -> fmt::Result {
-        if let ty::Adt(adt, _) = pat.ty().kind() {
+        if let ty::Adt(adt, _) = ty.kind() {
             if adt.is_box() {
                 write!(f, "Box")?
             } else {
-                let variant = adt.variant(Self::variant_index_for_adt(pat.ctor(), *adt));
+                let variant = adt.variant(Self::variant_index_for_adt(ctor, *adt));
                 write!(f, "{}", variant.name)?;
             }
         }

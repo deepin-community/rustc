@@ -2,11 +2,12 @@ use rustc_middle::mir::interpret::{InterpResult, Pointer};
 use rustc_middle::ty::layout::LayoutOf;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_target::abi::{Align, Size};
+use tracing::trace;
 
 use super::util::ensure_monomorphic_enough;
 use super::{InterpCx, Machine};
 
-impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
+impl<'tcx, M: Machine<'tcx>> InterpCx<'tcx, M> {
     /// Creates a dynamic vtable for the given type and vtable origin. This is used only for
     /// objects.
     ///
@@ -28,7 +29,7 @@ impl<'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> InterpCx<'mir, 'tcx, M> {
         ensure_monomorphic_enough(*self.tcx, poly_trait_ref)?;
 
         let vtable_symbolic_allocation = self.tcx.reserve_and_set_vtable_alloc(ty, poly_trait_ref);
-        let vtable_ptr = self.global_base_pointer(Pointer::from(vtable_symbolic_allocation))?;
+        let vtable_ptr = self.global_root_pointer(Pointer::from(vtable_symbolic_allocation))?;
         Ok(vtable_ptr.into())
     }
 

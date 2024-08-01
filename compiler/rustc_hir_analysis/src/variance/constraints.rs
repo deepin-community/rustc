@@ -1,6 +1,6 @@
 //! Constraint construction and representation
 //!
-//! The second pass over the AST determines the set of constraints.
+//! The second pass over the HIR determines the set of constraints.
 //! We walk the set of items and, for each member, generate new constraints.
 
 use hir::def_id::{DefId, LocalDefId};
@@ -8,6 +8,7 @@ use rustc_hir as hir;
 use rustc_hir::def::DefKind;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_middle::ty::{GenericArgKind, GenericArgsRef};
+use rustc_middle::{bug, span_bug};
 
 use super::terms::VarianceTerm::*;
 use super::terms::*;
@@ -98,7 +99,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
         debug!("build_constraints_for_item({})", tcx.def_path_str(def_id));
 
         // Skip items with no generics - there's nothing to infer in them.
-        if tcx.generics_of(def_id).count() == 0 {
+        if tcx.generics_of(def_id).is_empty() {
             return;
         }
 
@@ -236,7 +237,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
             }
 
             ty::FnDef(..) | ty::Coroutine(..) | ty::Closure(..) | ty::CoroutineClosure(..) => {
-                bug!("Unexpected coroutine/closure type in variance computation");
+                bug!("Unexpected unnameable type in variance computation: {ty}");
             }
 
             ty::Ref(region, ty, mutbl) => {
@@ -249,12 +250,26 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
                 self.add_constraints_from_ty(current, typ, variance);
             }
 
+            ty::Pat(typ, pat) => {
+                match *pat {
+                    ty::PatternKind::Range { start, end, include_end: _ } => {
+                        if let Some(start) = start {
+                            self.add_constraints_from_const(current, start, variance);
+                        }
+                        if let Some(end) = end {
+                            self.add_constraints_from_const(current, end, variance);
+                        }
+                    }
+                }
+                self.add_constraints_from_ty(current, typ, variance);
+            }
+
             ty::Slice(typ) => {
                 self.add_constraints_from_ty(current, typ, variance);
             }
 
-            ty::RawPtr(ref mt) => {
-                self.add_constraints_from_mt(current, mt, variance);
+            ty::RawPtr(ty, mutbl) => {
+                self.add_constraints_from_mt(current, &ty::TypeAndMut { ty, mutbl }, variance);
             }
 
             ty::Tuple(subtys) => {

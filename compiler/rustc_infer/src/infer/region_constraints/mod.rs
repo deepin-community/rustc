@@ -11,11 +11,13 @@ use rustc_data_structures::sync::Lrc;
 use rustc_data_structures::undo_log::UndoLogs;
 use rustc_data_structures::unify as ut;
 use rustc_index::IndexVec;
+use rustc_macros::{TypeFoldable, TypeVisitable};
 use rustc_middle::infer::unify_key::{RegionVariableValue, RegionVidKey};
 use rustc_middle::ty::ReStatic;
 use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_middle::ty::{ReBound, ReVar};
 use rustc_middle::ty::{Region, RegionVid};
+use rustc_middle::{bug, span_bug};
 use rustc_span::Span;
 
 use std::ops::Range;
@@ -104,7 +106,7 @@ pub struct RegionConstraintData<'tcx> {
 }
 
 /// Represents a constraint that influences the inference process.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Constraint<'tcx> {
     /// A region variable is a subregion of another.
     VarSubVar(RegionVid, RegionVid),

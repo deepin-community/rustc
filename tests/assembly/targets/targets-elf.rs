@@ -369,6 +369,9 @@
 //@ revisions: riscv32im_unknown_none_elf
 //@ [riscv32im_unknown_none_elf] compile-flags: --target riscv32im-unknown-none-elf
 //@ [riscv32im_unknown_none_elf] needs-llvm-components: riscv
+//@ revisions: riscv32ima_unknown_none_elf
+//@ [riscv32ima_unknown_none_elf] compile-flags: --target riscv32ima-unknown-none-elf
+//@ [riscv32ima_unknown_none_elf] needs-llvm-components: riscv
 //@ revisions: riscv32imac_esp_espidf
 //@ [riscv32imac_esp_espidf] compile-flags: --target riscv32imac-esp-espidf
 //@ [riscv32imac_esp_espidf] needs-llvm-components: riscv
@@ -552,6 +555,9 @@
 //@ revisions: x86_64_unknown_linux_ohos
 //@ [x86_64_unknown_linux_ohos] compile-flags: --target x86_64-unknown-linux-ohos
 //@ [x86_64_unknown_linux_ohos] needs-llvm-components: x86
+//@ revisions: x86_64_unknown_linux_none
+//@ [x86_64_unknown_linux_none] compile-flags: --target x86_64-unknown-linux-none
+//@ [x86_64_unknown_linux_none] needs-llvm-components: x86
 //@ revisions: x86_64_unknown_netbsd
 //@ [x86_64_unknown_netbsd] compile-flags: --target x86_64-unknown-netbsd
 //@ [x86_64_unknown_netbsd] needs-llvm-components: x86

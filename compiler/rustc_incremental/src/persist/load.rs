@@ -11,6 +11,8 @@ use rustc_session::config::IncrementalStateAssertion;
 use rustc_session::Session;
 use rustc_span::ErrorGuaranteed;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tracing::{debug, warn};
 
 use super::data::*;
 use super::file_format;
@@ -88,7 +90,7 @@ fn delete_dirty_work_product(sess: &Session, swp: SerializedWorkProduct) {
     work_product::delete_workproduct_files(sess, &swp.work_product);
 }
 
-fn load_dep_graph(sess: &Session) -> LoadResult<(SerializedDepGraph, WorkProductMap)> {
+fn load_dep_graph(sess: &Session) -> LoadResult<(Arc<SerializedDepGraph>, WorkProductMap)> {
     let prof = sess.prof.clone();
 
     if sess.opts.incremental.is_none() {
@@ -114,7 +116,11 @@ fn load_dep_graph(sess: &Session) -> LoadResult<(SerializedDepGraph, WorkProduct
 
         if let LoadResult::Ok { data: (work_products_data, start_pos) } = load_result {
             // Decode the list of work_products
-            let mut work_product_decoder = MemDecoder::new(&work_products_data[..], start_pos);
+            let Ok(mut work_product_decoder) = MemDecoder::new(&work_products_data[..], start_pos)
+            else {
+                sess.dcx().emit_warn(errors::CorruptFile { path: &work_products_path });
+                return LoadResult::DataOutOfDate;
+            };
             let work_products: Vec<SerializedWorkProduct> =
                 Decodable::decode(&mut work_product_decoder);
 
@@ -144,7 +150,10 @@ fn load_dep_graph(sess: &Session) -> LoadResult<(SerializedDepGraph, WorkProduct
         LoadResult::DataOutOfDate => LoadResult::DataOutOfDate,
         LoadResult::LoadDepGraph(path, err) => LoadResult::LoadDepGraph(path, err),
         LoadResult::Ok { data: (bytes, start_pos) } => {
-            let mut decoder = MemDecoder::new(&bytes, start_pos);
+            let Ok(mut decoder) = MemDecoder::new(&bytes, start_pos) else {
+                sess.dcx().emit_warn(errors::CorruptFile { path: &path });
+                return LoadResult::DataOutOfDate;
+            };
             let prev_commandline_args_hash = u64::decode(&mut decoder);
 
             if prev_commandline_args_hash != expected_hash {
@@ -180,9 +189,14 @@ pub fn load_query_result_cache(sess: &Session) -> Option<OnDiskCache<'_>> {
 
     let _prof_timer = sess.prof.generic_activity("incr_comp_load_query_result_cache");
 
-    match load_data(&query_cache_path(sess), sess) {
+    let path = query_cache_path(sess);
+    match load_data(&path, sess) {
         LoadResult::Ok { data: (bytes, start_pos) } => {
-            Some(OnDiskCache::new(sess, bytes, start_pos))
+            let cache = OnDiskCache::new(sess, bytes, start_pos).unwrap_or_else(|()| {
+                sess.dcx().emit_warn(errors::CorruptFile { path: &path });
+                OnDiskCache::new_empty(sess.source_map())
+            });
+            Some(cache)
         }
         _ => Some(OnDiskCache::new_empty(sess.source_map())),
     }

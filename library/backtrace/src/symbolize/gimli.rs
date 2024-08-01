@@ -30,15 +30,16 @@ cfg_if::cfg_if! {
     if #[cfg(windows)] {
         #[path = "gimli/mmap_windows.rs"]
         mod mmap;
+    } else if #[cfg(target_vendor = "apple")] {
+        #[path = "gimli/mmap_unix.rs"]
+        mod mmap;
     } else if #[cfg(any(
         target_os = "android",
         target_os = "freebsd",
         target_os = "fuchsia",
         target_os = "haiku",
         target_os = "hurd",
-        target_os = "ios",
         target_os = "linux",
-        target_os = "macos",
         target_os = "openbsd",
         target_os = "solaris",
         target_os = "illumos",
@@ -195,12 +196,7 @@ cfg_if::cfg_if! {
     if #[cfg(windows)] {
         mod coff;
         use self::coff::{handle_split_dwarf, Object};
-    } else if #[cfg(any(
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "tvos",
-        target_os = "watchos",
-    ))] {
+    } else if #[cfg(any(target_vendor = "apple"))] {
         mod macho;
         use self::macho::{handle_split_dwarf, Object};
     } else if #[cfg(target_os = "aix")] {
@@ -216,12 +212,7 @@ cfg_if::cfg_if! {
     if #[cfg(windows)] {
         mod libs_windows;
         use libs_windows::native_libraries;
-    } else if #[cfg(any(
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "tvos",
-        target_os = "watchos",
-    ))] {
+    } else if #[cfg(target_vendor = "apple")] {
         mod libs_macos;
         use libs_macos::native_libraries;
     } else if #[cfg(target_os = "illumos")] {
@@ -472,10 +463,7 @@ pub unsafe fn resolve(what: ResolveWhat<'_>, cb: &mut dyn FnMut(&super::Symbol))
         }
         if !any_frames {
             if let Some(name) = cx.object.search_symtab(addr as u64) {
-                call(Symbol::Symtab {
-                    addr: addr as *mut c_void,
-                    name,
-                });
+                call(Symbol::Symtab { name });
             }
         }
     });
@@ -491,7 +479,7 @@ pub enum Symbol<'a> {
     },
     /// Couldn't find debug information, but we found it in the symbol table of
     /// the elf executable.
-    Symtab { addr: *mut c_void, name: &'a [u8] },
+    Symtab { name: &'a [u8] },
 }
 
 impl Symbol<'_> {

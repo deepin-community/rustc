@@ -32,6 +32,7 @@ fn dependency_with_crate_syntax() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 3 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] [..]
 [DOWNLOADED] [..]
@@ -174,6 +175,7 @@ fn namespaced_implicit_feature() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [CHECKING] foo v0.0.1 [..]
 [FINISHED] [..]
 ",
@@ -323,6 +325,7 @@ fn namespaced_same_name() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] foo v0.0.1 [..]
 [FINISHED] [..]
 [RUNNING] [..]
@@ -374,6 +377,7 @@ fn no_implicit_feature() {
             r#"
                 fn main() {
                     if cfg!(feature = "regex") { println!("regex"); }
+                    #[allow(unexpected_cfgs)]
                     if cfg!(feature = "lazy_static") { println!("lazy_static"); }
                 }
             "#,
@@ -384,6 +388,7 @@ fn no_implicit_feature() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 3 packages to latest compatible versions
 [COMPILING] foo v0.1.0 [..]
 [FINISHED] [..]
 [RUNNING] `target/debug/foo[EXE]`
@@ -564,6 +569,7 @@ fn crate_required_features() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [ERROR] invalid feature `dep:bar` in required-features of target `foo`: \
 `dep:` prefixed feature values are not allowed in required-features
 ",
@@ -686,6 +692,7 @@ fn crate_feature_with_explicit() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v1.0.0 [..]
 [CHECKING] bar v1.0.0
@@ -979,9 +986,19 @@ You may press ctrl-c [..]
 edition = "2015"
 name = "foo"
 version = "0.1.0"
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "foo"
 homepage = "https://example.com/"
+readme = false
 license = "MIT"
+
+[lib]
+name = "foo"
+path = "src/lib.rs"
 
 [dependencies.opt-dep1]
 version = "1.0"
@@ -994,7 +1011,7 @@ optional = true
 [features]
 feat = ["opt-dep1"]
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -1097,9 +1114,19 @@ You may press ctrl-c [..]
 edition = "2015"
 name = "foo"
 version = "0.1.0"
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "foo"
 homepage = "https://example.com/"
+readme = false
 license = "MIT"
+
+[lib]
+name = "foo"
+path = "src/lib.rs"
 
 [dependencies.bar]
 version = "1.0"
@@ -1110,7 +1137,7 @@ feat1 = []
 feat2 = ["dep:bar"]
 feat3 = ["feat2"]
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );
@@ -1289,7 +1316,11 @@ fn dep_feature_when_hidden() {
             "\
 foo v0.1.0 ([ROOT]/foo) features=",
         )
-        .with_stderr("")
+        .with_stderr(
+            "\
+[LOCKING] 2 packages to latest compatible versions
+",
+        )
         .run();
 
     p.cargo("tree -F f1 -f")

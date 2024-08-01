@@ -2,8 +2,9 @@ use std::fmt;
 
 use rustc_errors::ErrorGuaranteed;
 use rustc_infer::infer::canonical::Canonical;
+use rustc_middle::bug;
 use rustc_middle::mir::ConstraintCategory;
-use rustc_middle::ty::{self, ToPredicate, Ty, TyCtxt, TypeFoldable};
+use rustc_middle::ty::{self, Ty, TyCtxt, TypeFoldable, Upcast};
 use rustc_span::def_id::DefId;
 use rustc_span::Span;
 use rustc_trait_selection::traits::query::type_op::{self, TypeOpOutput};
@@ -39,6 +40,12 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
 
         let TypeOpOutput { output, constraints, error_info } =
             op.fully_perform(self.infcx, locations.span(self.body))?;
+        if cfg!(debug_assertions) {
+            let data = self.infcx.take_and_reset_region_constraints();
+            if !data.is_empty() {
+                panic!("leftover region constraints: {data:#?}");
+            }
+        }
 
         debug!(?output, ?constraints);
 
@@ -61,7 +68,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
         Ok(output)
     }
 
-    pub(super) fn instantiate_canonical_with_fresh_inference_vars<T>(
+    pub(super) fn instantiate_canonical<T>(
         &mut self,
         span: Span,
         canonical: &Canonical<'tcx, T>,
@@ -69,8 +76,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
     where
         T: TypeFoldable<TyCtxt<'tcx>>,
     {
-        let (instantiated, _) =
-            self.infcx.instantiate_canonical_with_fresh_inference_vars(span, canonical);
+        let (instantiated, _) = self.infcx.instantiate_canonical(span, canonical);
         instantiated
     }
 
@@ -83,7 +89,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
     ) {
         self.prove_predicate(
             ty::Binder::dummy(ty::PredicateKind::Clause(ty::ClauseKind::Trait(
-                ty::TraitPredicate { trait_ref, polarity: ty::ImplPolarity::Positive },
+                ty::TraitPredicate { trait_ref, polarity: ty::PredicatePolarity::Positive },
             ))),
             locations,
             category,
@@ -109,7 +115,7 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
 
     pub(super) fn prove_predicates(
         &mut self,
-        predicates: impl IntoIterator<Item: ToPredicate<'tcx> + std::fmt::Debug>,
+        predicates: impl IntoIterator<Item: Upcast<TyCtxt<'tcx>, ty::Predicate<'tcx>> + std::fmt::Debug>,
         locations: Locations,
         category: ConstraintCategory<'tcx>,
     ) {
@@ -121,12 +127,12 @@ impl<'a, 'tcx> TypeChecker<'a, 'tcx> {
     #[instrument(skip(self), level = "debug")]
     pub(super) fn prove_predicate(
         &mut self,
-        predicate: impl ToPredicate<'tcx> + std::fmt::Debug,
+        predicate: impl Upcast<TyCtxt<'tcx>, ty::Predicate<'tcx>> + std::fmt::Debug,
         locations: Locations,
         category: ConstraintCategory<'tcx>,
     ) {
         let param_env = self.param_env;
-        let predicate = predicate.to_predicate(self.tcx());
+        let predicate = predicate.upcast(self.tcx());
         let _: Result<_, ErrorGuaranteed> = self.fully_perform_op(
             locations,
             category,

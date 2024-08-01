@@ -114,6 +114,7 @@ fn transitive_minor_update() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 0 packages to latest compatible versions
 [NOTE] pass `--verbose` to see 2 unchanged dependencies behind latest
 ",
         )
@@ -167,6 +168,7 @@ fn conservative() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 1 package to latest compatible version
 [UPDATING] serde v0.1.0 -> v0.1.1
 [NOTE] pass `--verbose` to see 1 unchanged dependencies behind latest
 ",
@@ -579,6 +581,7 @@ fn update_recursive() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [UPDATING] log v0.1.0 -> v0.1.1
 [UPDATING] serde v0.2.1 -> v0.2.2
 ",
@@ -617,6 +620,7 @@ fn update_aggressive_alias_for_recursive() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 2 packages to latest compatible versions
 [UPDATING] log v0.1.0 -> v0.1.1
 [UPDATING] serde v0.2.1 -> v0.2.2
 ",
@@ -926,6 +930,7 @@ fn dry_run_update() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 1 package to latest compatible version
 [UPDATING] serde v0.1.0 -> v0.1.1
 [NOTE] pass `--verbose` to see 1 unchanged dependencies behind latest
 [WARNING] not updating lockfile due to dry run
@@ -1107,7 +1112,10 @@ rustdns.workspace = true
     // First time around we should compile both foo and bar
     p.cargo("generate-lockfile")
         .with_stderr(&format!(
-            "[UPDATING] git repository `{}`\n",
+            "\
+[UPDATING] git repository `{}`
+[LOCKING] 3 packages to latest compatible versions
+",
             git_project.url(),
         ))
         .run();
@@ -1123,6 +1131,7 @@ rustdns.workspace = true
     p.cargo("update -p rootcrate")
         .with_stderr(&format!(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [UPDATING] rootcrate v2.29.8 ([CWD]/rootcrate) -> v2.29.81
 [UPDATING] subcrate v2.29.8 ([CWD]/subcrate) -> v2.29.81",
         ))
@@ -1195,7 +1204,10 @@ rustdns.workspace = true
     // First time around we should compile both foo and bar
     p.cargo("generate-lockfile")
         .with_stderr(&format!(
-            "[UPDATING] git repository `{}`\n",
+            "\
+[UPDATING] git repository `{}`
+[LOCKING] 3 packages to latest compatible versions
+",
             git_project.url(),
         ))
         .run();
@@ -1211,6 +1223,7 @@ rustdns.workspace = true
     p.cargo("update -p crate2")
         .with_stderr(&format!(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [UPDATING] crate1 v2.29.8 ([CWD]/crate1) -> v2.29.81
 [UPDATING] crate2 v2.29.8 ([CWD]/crate2) -> v2.29.81",
         ))
@@ -1283,7 +1296,10 @@ rustdns.workspace = true
     // First time around we should compile both foo and bar
     p.cargo("generate-lockfile")
         .with_stderr(&format!(
-            "[UPDATING] git repository `{}`\n",
+            "\
+[UPDATING] git repository `{}`
+[LOCKING] 3 packages to latest compatible versions
+",
             git_project.url(),
         ))
         .run();
@@ -1299,6 +1315,7 @@ rustdns.workspace = true
     p.cargo("update --workspace")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [UPDATING] crate1 v2.29.8 ([CWD]/crate1) -> v2.29.81
 [UPDATING] crate2 v2.29.8 ([CWD]/crate2) -> v2.29.81",
         )
@@ -1340,7 +1357,11 @@ fn update_precise_git_revisions() {
         .build();
 
     p.cargo("fetch")
-        .with_stderr(format!("[UPDATING] git repository `{url}`"))
+        .with_stderr(format!(
+            "\
+[UPDATING] git repository `{url}`
+[LOCKING] 2 packages to latest compatible versions"
+        ))
         .run();
 
     assert!(p.read_lockfile().contains(&head_id));
@@ -1429,26 +1450,6 @@ fn precise_yanked() {
     assert!(lockfile.contains("\nname = \"bar\"\nversion = \"0.1.0\""));
 
     p.cargo("update --precise 0.1.1 bar")
-        .with_status(101)
-        .with_stderr(
-            "\
-[UPDATING] `dummy-registry` index
-[ERROR] failed to get `bar` as a dependency of package `foo v0.0.0 ([CWD])`
-
-Caused by:
-  failed to query replaced source registry `crates-io`
-
-Caused by:
-  the `--precise <yanked-version>` flag is unstable[..]
-  See [..]
-  See [..]
-",
-        )
-        .run();
-
-    p.cargo("update --precise 0.1.1 bar")
-        .masquerade_as_nightly_cargo(&["--precise <yanked-version>"])
-        .arg("-Zunstable-options")
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
@@ -1490,8 +1491,6 @@ fn precise_yanked_multiple_presence() {
     assert!(lockfile.contains("\nname = \"bar\"\nversion = \"0.1.0\""));
 
     p.cargo("update --precise 0.1.1 bar")
-        .masquerade_as_nightly_cargo(&["--precise <yanked-version>"])
-        .arg("-Zunstable-options")
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
@@ -1540,6 +1539,7 @@ fn report_behind() {
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
+[LOCKING] 1 package to latest compatible version
 [UPDATING] breaking v0.1.0 -> v0.1.1 (latest: v0.2.0)
 [NOTE] pass `--verbose` to see 2 unchanged dependencies behind latest
 [WARNING] not updating lockfile due to dry run
@@ -1551,6 +1551,7 @@ fn report_behind() {
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
+[LOCKING] 1 package to latest compatible version
 [UPDATING] breaking v0.1.0 -> v0.1.1 (latest: v0.2.0)
 [UNCHANGED] pre v1.0.0-alpha.0 (latest: v1.0.0-alpha.1)
 [UNCHANGED] two-ver v0.1.0 (latest: v0.2.0)
@@ -1566,6 +1567,7 @@ fn report_behind() {
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
+[LOCKING] 0 packages to latest compatible versions
 [NOTE] pass `--verbose` to see 3 unchanged dependencies behind latest
 [WARNING] not updating lockfile due to dry run
 ",
@@ -1576,6 +1578,7 @@ fn report_behind() {
         .with_stderr(
             "\
 [UPDATING] `dummy-registry` index
+[LOCKING] 0 packages to latest compatible versions
 [UNCHANGED] breaking v0.1.1 (latest: v0.2.0)
 [UNCHANGED] pre v1.0.0-alpha.0 (latest: v1.0.0-alpha.1)
 [UNCHANGED] two-ver v0.1.0 (latest: v0.2.0)
@@ -1616,6 +1619,7 @@ fn update_with_missing_feature() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 0 packages to latest compatible versions
 [NOTE] pass `--verbose` to see 1 unchanged dependencies behind latest
 ",
         )
@@ -1627,6 +1631,7 @@ fn update_with_missing_feature() {
         .with_stderr(
             "\
 [UPDATING] `[..]` index
+[LOCKING] 1 package to latest compatible version
 [UPDATING] bar v0.1.0 -> v0.1.2
 ",
         )

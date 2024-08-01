@@ -62,6 +62,16 @@ fn clone_method_rhs_complex(mut_thing: &mut HasCloneFrom, ref_thing: &HasCloneFr
     *mut_thing = (ref_thing + ref_thing).clone();
 }
 
+fn clone_method_macro() {
+    let mut s = String::from("");
+    s = format!("{} {}", "hello", "world").clone();
+}
+
+fn clone_function_macro() {
+    let mut s = String::from("");
+    s = Clone::clone(&format!("{} {}", "hello", "world"));
+}
+
 fn assign_to_init_mut_var(b: HasCloneFrom) -> HasCloneFrom {
     let mut a = HasCloneFrom;
     for _ in 1..10 {
@@ -84,6 +94,12 @@ fn assign_to_uninit_var(b: HasCloneFrom) {
 fn assign_to_uninit_mut_var(b: HasCloneFrom) {
     let mut a;
     a = b.clone();
+}
+
+fn late_init_let_tuple() {
+    let (p, q): (String, String);
+    p = "ghi".to_string();
+    q = p.clone();
 }
 
 #[derive(Clone)]
@@ -128,6 +144,19 @@ fn ignore_generic_clone<T: Clone>(a: &mut T, b: &T) {
     *a = b.clone();
 }
 
+#[clippy::msrv = "1.62"]
+fn msrv_1_62(mut a: String, b: String, c: &str) {
+    a = b.clone();
+    // Should not be linted, as clone_into wasn't stabilized until 1.63
+    a = c.to_owned();
+}
+
+#[clippy::msrv = "1.63"]
+fn msrv_1_63(mut a: String, b: String, c: &str) {
+    a = b.clone();
+    a = c.to_owned();
+}
+
 macro_rules! clone_inside {
     ($a:expr, $b: expr) => {
         $a = $b.clone();
@@ -138,6 +167,19 @@ fn clone_inside_macro() {
     let mut a = String::new();
     let b = String::new();
     clone_inside!(a, b);
+}
+
+// Make sure that we don't suggest the lint when we call clone inside a Clone impl
+// https://github.com/rust-lang/rust-clippy/issues/12600
+pub struct AvoidRecursiveCloneFrom;
+
+impl Clone for AvoidRecursiveCloneFrom {
+    fn clone(&self) -> Self {
+        Self
+    }
+    fn clone_from(&mut self, source: &Self) {
+        *self = source.clone();
+    }
 }
 
 // ToOwned
@@ -180,6 +222,16 @@ fn owned_function_mut_ref(mut_thing: &mut String, ref_str: &str) {
 
 fn owned_function_val(mut mut_thing: String, ref_str: &str) {
     mut_thing = ToOwned::to_owned(ref_str);
+}
+
+fn owned_method_macro() {
+    let mut s = String::from("");
+    s = format!("{} {}", "hello", "world").to_owned();
+}
+
+fn owned_function_macro() {
+    let mut s = String::from("");
+    s = ToOwned::to_owned(&format!("{} {}", "hello", "world"));
 }
 
 struct FakeToOwned;

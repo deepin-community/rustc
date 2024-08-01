@@ -87,7 +87,6 @@ impl fmt::Display for NewProjectKind {
 
 struct SourceFileInformation {
     relative_path: String,
-    target_name: String,
     bin: bool,
 }
 
@@ -132,6 +131,7 @@ impl NewOptions {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
 struct CargoNewConfig {
     #[deprecated = "cargo-new no longer supports adding the authors field"]
     #[allow(dead_code)]
@@ -344,12 +344,10 @@ fn detect_source_paths_and_types(
         let sfi = match i.handling {
             H::Bin => SourceFileInformation {
                 relative_path: pp,
-                target_name: package_name.to_string(),
                 bin: true,
             },
             H::Lib => SourceFileInformation {
                 relative_path: pp,
-                target_name: package_name.to_string(),
                 bin: false,
             },
             H::Detect => {
@@ -357,7 +355,6 @@ fn detect_source_paths_and_types(
                 let isbin = content.contains("fn main");
                 SourceFileInformation {
                     relative_path: pp,
-                    target_name: package_name.to_string(),
                     bin: isbin,
                 }
             }
@@ -372,7 +369,7 @@ fn detect_source_paths_and_types(
 
     for i in detected_files {
         if i.bin {
-            if let Some(x) = BTreeMap::get::<str>(&duplicates_checker, i.target_name.as_ref()) {
+            if let Some(x) = BTreeMap::get::<str>(&duplicates_checker, &name) {
                 anyhow::bail!(
                     "\
 multiple possible binary sources found:
@@ -383,7 +380,7 @@ cannot automatically generate Cargo.toml as the main target would be ambiguous",
                     &i.relative_path
                 );
             }
-            duplicates_checker.insert(i.target_name.as_ref(), i);
+            duplicates_checker.insert(name, i);
         } else {
             if let Some(plp) = previous_lib_relpath {
                 anyhow::bail!(
@@ -401,17 +398,15 @@ cannot automatically generate Cargo.toml as the main target would be ambiguous",
     Ok(())
 }
 
-fn plan_new_source_file(bin: bool, package_name: String) -> SourceFileInformation {
+fn plan_new_source_file(bin: bool) -> SourceFileInformation {
     if bin {
         SourceFileInformation {
             relative_path: "src/main.rs".to_string(),
-            target_name: package_name,
             bin: true,
         }
     } else {
         SourceFileInformation {
             relative_path: "src/lib.rs".to_string(),
-            target_name: package_name,
             bin: false,
         }
     }
@@ -460,7 +455,7 @@ pub fn new(opts: &NewOptions, gctx: &GlobalContext) -> CargoResult<()> {
         version_control: opts.version_control,
         path,
         name,
-        source_files: vec![plan_new_source_file(opts.kind.is_bin(), name.to_string())],
+        source_files: vec![plan_new_source_file(opts.kind.is_bin())],
         edition: opts.edition.as_deref(),
         registry: opts.registry.as_deref(),
     };
@@ -497,7 +492,7 @@ pub fn init(opts: &NewOptions, gctx: &GlobalContext) -> CargoResult<NewProjectKi
     let has_bin = kind.is_bin();
 
     if src_paths_types.is_empty() {
-        src_paths_types.push(plan_new_source_file(has_bin, name.to_string()));
+        src_paths_types.push(plan_new_source_file(has_bin));
     } else if src_paths_types.len() == 1 && !src_paths_types.iter().any(|x| x.bin == has_bin) {
         // we've found the only file and it's not the type user wants. Change the type and warn
         let file_type = if src_paths_types[0].bin {
@@ -790,7 +785,7 @@ fn mk(gctx: &GlobalContext, opts: &MkOptions<'_>) -> CargoResult<()> {
         if i.bin {
             if i.relative_path != "src/main.rs" {
                 let mut bin = toml_edit::Table::new();
-                bin["name"] = toml_edit::value(i.target_name.clone());
+                bin["name"] = toml_edit::value(name);
                 bin["path"] = toml_edit::value(i.relative_path.clone());
                 manifest["bin"]
                     .or_insert(toml_edit::Item::ArrayOfTables(
@@ -802,7 +797,6 @@ fn mk(gctx: &GlobalContext, opts: &MkOptions<'_>) -> CargoResult<()> {
             }
         } else if i.relative_path != "src/lib.rs" {
             let mut lib = toml_edit::Table::new();
-            lib["name"] = toml_edit::value(i.target_name.clone());
             lib["path"] = toml_edit::value(i.relative_path.clone());
             manifest["lib"] = toml_edit::Item::Table(lib);
         }
@@ -882,7 +876,7 @@ fn main() {
 "
         } else {
             b"\
-pub fn add(left: usize, right: usize) -> usize {
+pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
@@ -977,38 +971,40 @@ fn update_manifest_with_new_member(
     workspace_document: &mut toml_edit::DocumentMut,
     display_path: &str,
 ) -> CargoResult<bool> {
+    let Some(workspace) = workspace_document.get_mut("workspace") else {
+        return Ok(false);
+    };
+
     // If the members element already exist, check if one of the patterns
     // in the array already includes the new package's relative path.
     // - Add the relative path if the members don't match the new package's path.
     // - Create a new members array if there are no members element in the workspace yet.
-    if let Some(workspace) = workspace_document.get_mut("workspace") {
-        if let Some(members) = workspace
-            .get_mut("members")
-            .and_then(|members| members.as_array_mut())
-        {
-            for member in members.iter() {
-                let pat = member
-                    .as_str()
-                    .with_context(|| format!("invalid non-string member `{}`", member))?;
-                let pattern = glob::Pattern::new(pat)
-                    .with_context(|| format!("cannot build glob pattern from `{}`", pat))?;
+    if let Some(members) = workspace
+        .get_mut("members")
+        .and_then(|members| members.as_array_mut())
+    {
+        for member in members.iter() {
+            let pat = member
+                .as_str()
+                .with_context(|| format!("invalid non-string member `{}`", member))?;
+            let pattern = glob::Pattern::new(pat)
+                .with_context(|| format!("cannot build glob pattern from `{}`", pat))?;
 
-                if pattern.matches(&display_path) {
-                    return Ok(false);
-                }
+            if pattern.matches(&display_path) {
+                return Ok(false);
             }
-
-            let was_sorted = is_sorted(members.iter().map(Value::as_str));
-            members.push(display_path);
-            if was_sorted {
-                members.sort_by(|lhs, rhs| lhs.as_str().cmp(&rhs.as_str()));
-            }
-        } else {
-            let mut array = Array::new();
-            array.push(display_path);
-
-            workspace["members"] = toml_edit::value(array);
         }
+
+        let was_sorted = is_sorted(members.iter().map(Value::as_str));
+        members.push(display_path);
+        if was_sorted {
+            members.sort_by(|lhs, rhs| lhs.as_str().cmp(&rhs.as_str()));
+        }
+    } else {
+        let mut array = Array::new();
+        array.push(display_path);
+
+        workspace["members"] = toml_edit::value(array);
     }
 
     write_atomic(

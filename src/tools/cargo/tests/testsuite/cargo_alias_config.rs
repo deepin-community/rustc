@@ -429,3 +429,61 @@ To pass the arguments to the subcommand, remove `--`
         )
         .run();
 }
+
+#[cargo_test]
+fn empty_alias() {
+    let p = project()
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file("src/main.rs", "fn main() {}")
+        .file(
+            ".cargo/config.toml",
+            r#"
+               [alias]
+               string = ""
+               array = []
+            "#,
+        )
+        .build();
+
+    p.cargo("string")
+        .with_status(101)
+        .with_stderr(
+            "\
+[ERROR] subcommand is required, but `alias.string` is empty
+",
+        )
+        .run();
+
+    p.cargo("array")
+        .with_status(101)
+        .with_stderr(
+            "\
+[ERROR] subcommand is required, but `alias.array` is empty
+",
+        )
+        .run();
+}
+
+#[cargo_test]
+fn alias_no_subcommand() {
+    let p = project()
+        .file("Cargo.toml", &basic_bin_manifest("foo"))
+        .file("src/main.rs", "fn main() {}")
+        .file(
+            ".cargo/config.toml",
+            r#"
+               [alias]
+               a = "--locked"
+            "#,
+        )
+        .build();
+
+    p.cargo("a")
+        .with_status(101)
+        .with_stderr(
+            "\
+[ERROR] subcommand is required, add a subcommand to the command alias `alias.a`
+",
+        )
+        .run();
+}

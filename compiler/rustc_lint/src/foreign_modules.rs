@@ -5,8 +5,10 @@ use rustc_hir::def::DefKind;
 use rustc_middle::query::Providers;
 use rustc_middle::ty::layout::LayoutError;
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
+use rustc_session::declare_lint;
 use rustc_span::{sym, Span, Symbol};
 use rustc_target::abi::FIRST_VARIANT;
+use tracing::{debug, instrument};
 
 use crate::lints::{BuiltinClashingExtern, BuiltinClashingExternSub};
 use crate::{types, LintVec};
@@ -322,10 +324,10 @@ fn structurally_same_type_impl<'tcx>(
                 (Slice(a_ty), Slice(b_ty)) => {
                     structurally_same_type_impl(seen_types, tcx, param_env, *a_ty, *b_ty, ckind)
                 }
-                (RawPtr(a_tymut), RawPtr(b_tymut)) => {
-                    a_tymut.mutbl == b_tymut.mutbl
+                (RawPtr(a_ty, a_mutbl), RawPtr(b_ty, b_mutbl)) => {
+                    a_mutbl == b_mutbl
                         && structurally_same_type_impl(
-                            seen_types, tcx, param_env, a_tymut.ty, b_tymut.ty, ckind,
+                            seen_types, tcx, param_env, *a_ty, *b_ty, ckind,
                         )
                 }
                 (Ref(_a_region, a_ty, a_mut), Ref(_b_region, b_ty, b_mut)) => {
@@ -344,8 +346,8 @@ fn structurally_same_type_impl<'tcx>(
                     let a_sig = tcx.instantiate_bound_regions_with_erased(a_poly_sig);
                     let b_sig = tcx.instantiate_bound_regions_with_erased(b_poly_sig);
 
-                    (a_sig.abi, a_sig.unsafety, a_sig.c_variadic)
-                        == (b_sig.abi, b_sig.unsafety, b_sig.c_variadic)
+                    (a_sig.abi, a_sig.safety, a_sig.c_variadic)
+                        == (b_sig.abi, b_sig.safety, b_sig.c_variadic)
                         && a_sig.inputs().iter().eq_by(b_sig.inputs().iter(), |a, b| {
                             structurally_same_type_impl(seen_types, tcx, param_env, *a, *b, ckind)
                         })

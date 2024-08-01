@@ -210,10 +210,10 @@ fn requires_z_flag() {
 #[cargo_test]
 fn clean_output_with_edition() {
     let script = r#"#!/usr/bin/env cargo
-```cargo
+---
 [package]
 edition = "2018"
-```
+---
 
 fn main() {
     println!("Hello world!");
@@ -241,9 +241,9 @@ fn main() {
 #[cargo_test]
 fn warning_without_edition() {
     let script = r#"#!/usr/bin/env cargo
-```cargo
+---
 [package]
-```
+---
 
 fn main() {
     println!("Hello world!");
@@ -714,10 +714,10 @@ fn did_you_mean_command_stable() {
 fn test_name_same_as_dependency() {
     Package::new("script", "1.0.0").publish();
     let script = r#"#!/usr/bin/env cargo
-```cargo
+---
 [dependencies]
 script = "1.0.0"
-```
+---
 
 fn main() {
     println!("Hello world!");
@@ -736,6 +736,7 @@ fn main() {
             "\
 [WARNING] `package.edition` is unspecified, defaulting to `2021`
 [UPDATING] `dummy-registry` index
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] script v1.0.0 (registry `dummy-registry`)
 [COMPILING] script v1.0.0
@@ -750,10 +751,10 @@ fn main() {
 #[cargo_test]
 fn test_path_dep() {
     let script = r#"#!/usr/bin/env cargo
-```cargo
+---
 [dependencies]
 bar.path = "./bar"
-```
+---
 
 fn main() {
     println!("Hello world!");
@@ -774,6 +775,7 @@ fn main() {
         .with_stderr(
             "\
 [WARNING] `package.edition` is unspecified, defaulting to `2021`
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] bar v0.0.1 ([ROOT]/foo/bar)
 [COMPILING] script v0.0.0 ([ROOT]/foo)
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]s

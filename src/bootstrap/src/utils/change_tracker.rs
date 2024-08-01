@@ -60,6 +60,20 @@ pub fn find_recent_config_change_ids(current_id: usize) -> Vec<ChangeInfo> {
         .collect()
 }
 
+pub fn human_readable_changes(changes: &[ChangeInfo]) -> String {
+    let mut message = String::new();
+
+    for change in changes {
+        message.push_str(&format!("  [{}] {}\n", change.severity, change.summary));
+        message.push_str(&format!(
+            "    - PR Link https://github.com/rust-lang/rust/pull/{}\n",
+            change.change_id
+        ));
+    }
+
+    message
+}
+
 /// Keeps track of major changes made to the bootstrap configuration.
 ///
 /// If you make any major changes (such as adding new values or changing default values),
@@ -155,5 +169,30 @@ pub const CONFIG_CHANGE_HISTORY: &[ChangeInfo] = &[
         change_id: 121754,
         severity: ChangeSeverity::Warning,
         summary: "`rust.split-debuginfo` has been moved to `target.<triple>.split-debuginfo` and its default value is determined for each target individually.",
+    },
+    ChangeInfo {
+        change_id: 123711,
+        severity: ChangeSeverity::Warning,
+        summary: "The deprecated field `changelog-seen` has been removed. Using that field in `config.toml` from now on will result in breakage.",
+    },
+    ChangeInfo {
+        change_id: 124501,
+        severity: ChangeSeverity::Info,
+        summary: "New option `build.lldb` that will override the default lldb binary path used in debuginfo tests",
+    },
+    ChangeInfo {
+        change_id: 123337,
+        severity: ChangeSeverity::Info,
+        summary: r#"The compiler profile now defaults to rust.debuginfo-level = "line-tables-only""#,
+    },
+    ChangeInfo {
+        change_id: 124129,
+        severity: ChangeSeverity::Warning,
+        summary: "`rust.lld` has a new default value of `true` on `x86_64-unknown-linux-gnu`. Starting at stage1, `rust-lld` will thus be this target's default linker. No config changes should be necessary.",
+    },
+    ChangeInfo {
+        change_id: 125535,
+        severity: ChangeSeverity::Warning,
+        summary: "Removed `dist.missing-tools` configuration as it was deprecated long time ago.",
     },
 ];

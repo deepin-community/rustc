@@ -12,8 +12,8 @@ mod vec_box;
 use rustc_hir as hir;
 use rustc_hir::intravisit::FnKind;
 use rustc_hir::{
-    Body, FnDecl, FnRetTy, GenericArg, ImplItem, ImplItemKind, Item, ItemKind, Local, MutTy, QPath, TraitItem,
-    TraitItemKind, TyKind,
+    Body, FnDecl, FnRetTy, GenericArg, ImplItem, ImplItemKind, Item, ItemKind, LetStmt, MutTy, QPath, TraitFn,
+    TraitItem, TraitItemKind, TyKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::impl_lint_pass;
@@ -217,7 +217,7 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for `Rc<T>` and `Arc<T>` when `T` is a mutable buffer type such as `String` or `Vec`.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// Expressions such as `Rc<String>` usually have no advantage over `Rc<str>`, since
     /// it is larger and involves an extra level of indirection, and doesn't implement `Borrow<str>`.
     ///
@@ -274,7 +274,7 @@ declare_clippy_lint! {
     /// ### What it does
     /// Checks for `Rc<Mutex<T>>`.
     ///
-    /// ### Why is this bad?
+    /// ### Why restrict this?
     /// `Rc` is used in single thread and `Mutex` is used in multi thread.
     /// Consider using `Rc<RefCell<T>>` in single thread or `Arc<Mutex<T>>` in multi thread.
     ///
@@ -392,6 +392,10 @@ impl<'tcx> LateLintPass<'tcx> for Types {
     }
 
     fn check_field_def(&mut self, cx: &LateContext<'tcx>, field: &hir::FieldDef<'tcx>) {
+        if field.span.from_expansion() {
+            return;
+        }
+
         let is_exported = cx.effective_visibilities.is_exported(field.def_id);
 
         self.check_ty(
@@ -416,12 +420,18 @@ impl<'tcx> LateLintPass<'tcx> for Types {
             TraitItemKind::Const(ty, _) | TraitItemKind::Type(_, Some(ty)) => {
                 self.check_ty(cx, ty, context);
             },
-            TraitItemKind::Fn(ref sig, _) => self.check_fn_decl(cx, sig.decl, context),
+            TraitItemKind::Fn(ref sig, trait_method) => {
+                // Check only methods without body
+                // Methods with body are covered by check_fn.
+                if let TraitFn::Required(_) = trait_method {
+                    self.check_fn_decl(cx, sig.decl, context);
+                }
+            },
             TraitItemKind::Type(..) => (),
         }
     }
 
-    fn check_local(&mut self, cx: &LateContext<'tcx>, local: &Local<'tcx>) {
+    fn check_local(&mut self, cx: &LateContext<'tcx>, local: &LetStmt<'tcx>) {
         if let Some(ty) = local.ty {
             self.check_ty(
                 cx,

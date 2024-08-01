@@ -326,4 +326,15 @@ fn test_match_as_stmt() {
     };
 }
 
+fn allow_works() -> i32 {
+    #[allow(clippy::needless_return, clippy::match_single_binding)]
+    match () {
+        () => return 42,
+    }
+}
+
+fn conjunctive_blocks() -> String {
+    return { "a".to_string() } + "b" + { "c" };
+}
+
 fn main() {}

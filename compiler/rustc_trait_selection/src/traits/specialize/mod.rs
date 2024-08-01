@@ -11,6 +11,7 @@
 
 pub mod specialization_graph;
 use rustc_infer::infer::DefineOpaqueTypes;
+use rustc_middle::ty::print::PrintTraitRefExt as _;
 use specialization_graph::GraphExt;
 
 use crate::errors::NegativePositiveConflict;
@@ -20,8 +21,10 @@ use crate::traits::{
     self, coherence, FutureCompatOverlapErrorKind, ObligationCause, ObligationCtxt,
 };
 use rustc_data_structures::fx::FxIndexSet;
-use rustc_errors::{codes::*, DelayDm, Diag, EmissionGuarantee};
+use rustc_errors::{codes::*, Diag, EmissionGuarantee};
 use rustc_hir::def_id::{DefId, LocalDefId};
+use rustc_middle::bug;
+use rustc_middle::query::LocalCrate;
 use rustc_middle::ty::{self, ImplSubject, Ty, TyCtxt, TypeVisitableExt};
 use rustc_middle::ty::{GenericArgs, GenericArgsRef};
 use rustc_session::lint::builtin::COHERENCE_LEAK_CHECK;
@@ -134,6 +137,10 @@ pub fn translate_args_with_cause<'tcx>(
     source_args.rebase_onto(infcx.tcx, source_impl, target_args)
 }
 
+pub(super) fn specialization_enabled_in(tcx: TyCtxt<'_>, _: LocalCrate) -> bool {
+    tcx.features().specialization || tcx.features().min_specialization
+}
+
 /// Is `impl1` a specialization of `impl2`?
 ///
 /// Specialization is determined by the sets of types to which the impls apply;
@@ -141,31 +148,18 @@ pub fn translate_args_with_cause<'tcx>(
 /// to.
 #[instrument(skip(tcx), level = "debug")]
 pub(super) fn specializes(tcx: TyCtxt<'_>, (impl1_def_id, impl2_def_id): (DefId, DefId)) -> bool {
-    // The feature gate should prevent introducing new specializations, but not
-    // taking advantage of upstream ones.
-    // If specialization is enabled for this crate then no extra checks are needed.
-    // If it's not, and either of the `impl`s is local to this crate, then this definitely
-    // isn't specializing - unless specialization is enabled for the `impl` span,
-    // e.g. if it comes from an `allow_internal_unstable` macro
-    let features = tcx.features();
-    let specialization_enabled = features.specialization || features.min_specialization;
-    if !specialization_enabled {
-        if impl1_def_id.is_local() {
-            let span = tcx.def_span(impl1_def_id);
-            if !span.allows_unstable(sym::specialization)
-                && !span.allows_unstable(sym::min_specialization)
-            {
-                return false;
-            }
-        }
-
-        if impl2_def_id.is_local() {
-            let span = tcx.def_span(impl2_def_id);
-            if !span.allows_unstable(sym::specialization)
-                && !span.allows_unstable(sym::min_specialization)
-            {
-                return false;
-            }
+    // We check that the specializing impl comes from a crate that has specialization enabled,
+    // or if the specializing impl is marked with `allow_internal_unstable`.
+    //
+    // We don't really care if the specialized impl (the parent) is in a crate that has
+    // specialization enabled, since it's not being specialized, and it's already been checked
+    // for coherence.
+    if !tcx.specialization_enabled_in(impl1_def_id.krate) {
+        let span = tcx.def_span(impl1_def_id);
+        if !span.allows_unstable(sym::specialization)
+            && !span.allows_unstable(sym::min_specialization)
+        {
+            return false;
         }
     }
 
@@ -239,15 +233,20 @@ fn fulfill_implication<'tcx>(
 
     let source_trait = ImplSubject::Trait(source_trait_ref);
 
-    let selcx = &mut SelectionContext::new(infcx);
+    let selcx = SelectionContext::new(infcx);
     let target_args = infcx.fresh_args_for_item(DUMMY_SP, target_impl);
     let (target_trait, obligations) =
-        util::impl_subject_and_oblig(selcx, param_env, target_impl, target_args, error_cause);
+        util::impl_subject_and_oblig(&selcx, param_env, target_impl, target_args, error_cause);
 
     // do the impls unify? If not, no specialization.
     let Ok(InferOk { obligations: more_obligations, .. }) = infcx
         .at(&ObligationCause::dummy(), param_env)
-        .eq(DefineOpaqueTypes::No, source_trait, target_trait)
+        // Ok to use `Yes`, as all the generic params are already replaced by inference variables,
+        // which will match the opaque type no matter if it is defining or not.
+        // Any concrete type that would match the opaque would already be handled by coherence rules,
+        // and thus either be ok to match here and already have errored, or it won't match, in which
+        // case there is no issue anyway.
+        .eq(DefineOpaqueTypes::Yes, source_trait, target_trait)
     else {
         debug!("fulfill_implication: {:?} does not unify with {:?}", source_trait, target_trait);
         return Err(());
@@ -402,10 +401,6 @@ fn report_conflicting_impls<'tcx>(
         impl_span: Span,
         err: &mut Diag<'_, G>,
     ) {
-        if (overlap.trait_ref, overlap.self_ty).references_error() {
-            err.downgrade_to_delayed_bug();
-        }
-
         match tcx.span_of_impl(overlap.with_impl) {
             Ok(span) => {
                 err.span_label(span, "first implementation here");
@@ -446,24 +441,29 @@ fn report_conflicting_impls<'tcx>(
         }
     }
 
-    let msg = DelayDm(|| {
+    let msg = || {
         format!(
             "conflicting implementations of trait `{}`{}{}",
             overlap.trait_ref.print_trait_sugared(),
             overlap.self_ty.map_or_else(String::new, |ty| format!(" for type `{ty}`")),
             match used_to_be_allowed {
-                Some(FutureCompatOverlapErrorKind::Issue33140) => ": (E0119)",
+                Some(FutureCompatOverlapErrorKind::OrderDepTraitObjects) => ": (E0119)",
                 _ => "",
             }
         )
-    });
+    };
+
+    // Don't report overlap errors if the header references error
+    if let Err(err) = (overlap.trait_ref, overlap.self_ty).error_reported() {
+        return Err(err);
+    }
 
     match used_to_be_allowed {
         None => {
             let reported = if overlap.with_impl.is_local()
                 || tcx.ensure().orphan_check_impl(impl_def_id).is_ok()
             {
-                let mut err = tcx.dcx().struct_span_err(impl_span, msg);
+                let mut err = tcx.dcx().struct_span_err(impl_span, msg());
                 err.code(E0119);
                 decorate(tcx, &overlap, impl_span, &mut err);
                 err.emit()
@@ -474,18 +474,13 @@ fn report_conflicting_impls<'tcx>(
         }
         Some(kind) => {
             let lint = match kind {
-                FutureCompatOverlapErrorKind::Issue33140 => ORDER_DEPENDENT_TRAIT_OBJECTS,
+                FutureCompatOverlapErrorKind::OrderDepTraitObjects => ORDER_DEPENDENT_TRAIT_OBJECTS,
                 FutureCompatOverlapErrorKind::LeakCheck => COHERENCE_LEAK_CHECK,
             };
-            tcx.node_span_lint(
-                lint,
-                tcx.local_def_id_to_hir_id(impl_def_id),
-                impl_span,
-                msg,
-                |err| {
-                    decorate(tcx, &overlap, impl_span, err);
-                },
-            );
+            tcx.node_span_lint(lint, tcx.local_def_id_to_hir_id(impl_def_id), impl_span, |err| {
+                err.primary_message(msg());
+                decorate(tcx, &overlap, impl_span, err);
+            });
             Ok(())
         }
     }

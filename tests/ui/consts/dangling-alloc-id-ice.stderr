@@ -1,5 +1,5 @@
 error: encountered dangling pointer in final value of constant
-  --> $DIR/dangling-alloc-id-ice.rs:8:1
+  --> $DIR/dangling-alloc-id-ice.rs:12:1
    |
 LL | const FOO: &() = {
    | ^^^^^^^^^^^^^^

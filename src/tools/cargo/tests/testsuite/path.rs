@@ -72,11 +72,13 @@ fn cargo_compile_with_nested_deps_shorthand() {
 
     p.cargo("build")
         .with_stderr(
-            "[COMPILING] baz v0.5.0 ([CWD]/bar/baz)\n\
-             [COMPILING] bar v0.5.0 ([CWD]/bar)\n\
-             [COMPILING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 3 packages to latest compatible versions
+[COMPILING] baz v0.5.0 ([CWD]/bar/baz)
+[COMPILING] bar v0.5.0 ([CWD]/bar)
+[COMPILING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
 
@@ -193,6 +195,7 @@ fn cargo_compile_with_root_dev_deps_with_testing() {
     p.cargo("test")
         .with_stderr(
             "\
+[LOCKING] 2 packages to latest compatible versions
 [COMPILING] [..] v0.5.0 ([..])
 [COMPILING] [..] v0.5.0 ([..])
 [FINISHED] `test` profile [unoptimized + debuginfo] target(s) in [..]
@@ -253,10 +256,12 @@ fn cargo_compile_with_transitive_dev_deps() {
 
     p.cargo("build")
         .with_stderr(
-            "[COMPILING] bar v0.5.0 ([CWD]/bar)\n\
-             [COMPILING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in \
-             [..]\n",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[COMPILING] bar v0.5.0 ([CWD]/bar)
+[COMPILING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
 
@@ -289,10 +294,12 @@ fn no_rebuild_dependency() {
     // First time around we should compile both foo and bar
     p.cargo("check")
         .with_stderr(
-            "[CHECKING] bar v0.5.0 ([CWD]/bar)\n\
-             [CHECKING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[CHECKING] bar v0.5.0 ([CWD]/bar)
+[CHECKING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
 
@@ -357,11 +364,13 @@ fn deep_dependencies_trigger_rebuild() {
         .build();
     p.cargo("check")
         .with_stderr(
-            "[CHECKING] baz v0.5.0 ([CWD]/baz)\n\
-             [CHECKING] bar v0.5.0 ([CWD]/bar)\n\
-             [CHECKING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 3 packages to latest compatible versions
+[CHECKING] baz v0.5.0 ([CWD]/baz)
+[CHECKING] bar v0.5.0 ([CWD]/bar)
+[CHECKING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
     p.cargo("check").with_stderr("[FINISHED] [..]").run();
@@ -445,11 +454,13 @@ fn no_rebuild_two_deps() {
         .build();
     p.cargo("build")
         .with_stderr(
-            "[COMPILING] baz v0.5.0 ([CWD]/baz)\n\
-             [COMPILING] bar v0.5.0 ([CWD]/bar)\n\
-             [COMPILING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 3 packages to latest compatible versions
+[COMPILING] baz v0.5.0 ([CWD]/baz)
+[COMPILING] bar v0.5.0 ([CWD]/bar)
+[COMPILING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
     assert!(p.bin("foo").is_file());
@@ -483,10 +494,12 @@ fn nested_deps_recompile() {
 
     p.cargo("check")
         .with_stderr(
-            "[CHECKING] bar v0.5.0 ([CWD]/src/bar)\n\
-             [CHECKING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[CHECKING] bar v0.5.0 ([CWD]/src/bar)
+[CHECKING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
     sleep_ms(1000);
@@ -731,10 +744,12 @@ fn path_dep_build_cmd() {
 
     p.cargo("build")
         .with_stderr(
-            "[COMPILING] bar v0.5.0 ([CWD]/bar)\n\
-             [COMPILING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in \
-             [..]\n",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[COMPILING] bar v0.5.0 ([CWD]/bar)
+[COMPILING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
 
@@ -790,9 +805,11 @@ fn dev_deps_no_rebuild_lib() {
     p.cargo("build")
         .env("FOO", "bar")
         .with_stderr(
-            "[COMPILING] foo v0.5.0 ([CWD])\n\
-             [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) \
-             in [..]\n",
+            "\
+[LOCKING] 2 packages to latest compatible versions
+[COMPILING] foo v0.5.0 ([CWD])
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
+",
         )
         .run();
 
@@ -845,6 +862,7 @@ fn custom_target_no_rebuild() {
     p.cargo("check")
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [CHECKING] a v0.5.0 ([..])
 [CHECKING] foo v0.5.0 ([..])
 [FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
@@ -906,6 +924,7 @@ fn override_and_depend() {
         .cwd("b")
         .with_stderr(
             "\
+[LOCKING] 3 packages to latest compatible versions
 [WARNING] skipping duplicate package `a2` found at `[..]`
 [CHECKING] a2 v0.5.0 ([..])
 [CHECKING] a1 v0.5.0 ([..])
@@ -1183,5 +1202,70 @@ fn catch_tricky_cycle() {
     p.cargo("test")
         .with_stderr_contains("[..]cyclic package dependency[..]")
         .with_status(101)
+        .run();
+}
+
+#[cargo_test]
+fn same_name_version_changed() {
+    // Illustrates having two path packages with the same name, but different versions.
+    // Verifies it works correctly when one of the versions is changed.
+    let p = project()
+        .file(
+            "Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                version = "1.0.0"
+                edition = "2021"
+
+                [dependencies]
+                foo2 = { path = "foo2", package = "foo" }
+            "#,
+        )
+        .file("src/lib.rs", "")
+        .file(
+            "foo2/Cargo.toml",
+            r#"
+                [package]
+                name = "foo"
+                version = "2.0.0"
+                edition = "2021"
+            "#,
+        )
+        .file("foo2/src/lib.rs", "")
+        .build();
+
+    p.cargo("tree")
+        .with_stderr("[LOCKING] 2 packages to latest compatible versions")
+        .with_stdout(
+            "\
+foo v1.0.0 ([ROOT]/foo)
+└── foo v2.0.0 ([ROOT]/foo/foo2)
+",
+        )
+        .run();
+
+    p.change_file(
+        "foo2/Cargo.toml",
+        r#"
+            [package]
+            name = "foo"
+            version = "2.0.1"
+            edition = "2021"
+        "#,
+    );
+    p.cargo("tree")
+        .with_stderr(
+            "\
+[LOCKING] 1 package to latest compatible version
+[ADDING] foo v2.0.1 ([ROOT]/foo/foo2)
+",
+        )
+        .with_stdout(
+            "\
+foo v1.0.0 ([ROOT]/foo)
+└── foo v2.0.1 ([ROOT]/foo/foo2)
+",
+        )
         .run();
 }

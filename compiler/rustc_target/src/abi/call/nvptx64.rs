@@ -11,11 +11,10 @@ fn classify_ret<Ty>(ret: &mut ArgAbi<'_, Ty>) {
 }
 
 fn classify_arg<Ty>(arg: &mut ArgAbi<'_, Ty>) {
-    if arg.layout.is_aggregate() && arg.layout.size.bits() > 64 {
-        arg.make_indirect();
-    } else {
-        // FIXME: this is wrong! Need to decide which ABI we really want here.
-        arg.make_direct_deprecated();
+    if arg.layout.is_aggregate() {
+        arg.make_indirect_byval(None);
+    } else if arg.layout.size.bits() < 32 {
+        arg.extend_integer_width_to(32);
     }
 }
 
@@ -35,7 +34,7 @@ where
             16 => Reg::i128(),
             _ => unreachable!("Align is given as power of 2 no larger than 16 bytes"),
         };
-        arg.cast_to(Uniform { unit, total: Size::from_bytes(2 * align_bytes) });
+        arg.cast_to(Uniform::new(unit, Size::from_bytes(2 * align_bytes)));
     } else {
         // FIXME: find a better way to do this. See https://github.com/rust-lang/rust/issues/117271.
         arg.make_direct_deprecated();

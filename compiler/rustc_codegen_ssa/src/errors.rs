@@ -414,6 +414,10 @@ pub struct UnableToExeLinker {
 pub struct MsvcMissingLinker;
 
 #[derive(Diagnostic)]
+#[diag(codegen_ssa_self_contained_linker_missing)]
+pub struct SelfContainedLinkerMissing;
+
+#[derive(Diagnostic)]
 #[diag(codegen_ssa_check_installed_visual_studio)]
 pub struct CheckInstalledVisualStudio;
 
@@ -431,7 +435,6 @@ pub struct ProcessingDymutilFailed {
 
 #[derive(Diagnostic)]
 #[diag(codegen_ssa_unable_to_run_dsymutil)]
-#[note]
 pub struct UnableToRunDsymutil {
     pub error: Error,
 }
@@ -1029,4 +1032,11 @@ pub struct FailedToGetLayout<'tcx> {
 #[diag(codegen_ssa_error_creating_remark_dir)]
 pub struct ErrorCreatingRemarkDir {
     pub error: std::io::Error,
+}
+
+#[derive(Diagnostic)]
+#[diag(codegen_ssa_compiler_builtins_cannot_call)]
+pub struct CompilerBuiltinsCannotCall {
+    pub caller: String,
+    pub callee: String,
 }

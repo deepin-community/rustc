@@ -4,6 +4,7 @@ use rustc_hir::intravisit::FnKind;
 use rustc_hir::{Body, FnDecl};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_lint::{LateContext, LateLintPass};
+use rustc_middle::ty::print::PrintTraitRefExt;
 use rustc_middle::ty::{self, AliasTy, ClauseKind, PredicateKind};
 use rustc_session::declare_lint_pass;
 use rustc_span::def_id::LocalDefId;
@@ -64,7 +65,7 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
         }
         let ret_ty = return_ty(cx, cx.tcx.local_def_id_to_hir_id(fn_def_id).expect_owner());
         if let ty::Alias(ty::Opaque, AliasTy { def_id, args, .. }) = *ret_ty.kind() {
-            let preds = cx.tcx.explicit_item_bounds(def_id);
+            let preds = cx.tcx.explicit_item_super_predicates(def_id);
             let mut is_future = false;
             for (p, _span) in preds.iter_instantiated_copied(cx.tcx, args) {
                 if let Some(trait_pred) = p.as_trait_clause() {
@@ -78,7 +79,7 @@ impl<'tcx> LateLintPass<'tcx> for FutureNotSend {
                 let send_trait = cx.tcx.get_diagnostic_item(sym::Send).unwrap();
                 let span = decl.output.span();
                 let infcx = cx.tcx.infer_ctxt().build();
-                let ocx = ObligationCtxt::new(&infcx);
+                let ocx = ObligationCtxt::new_with_diagnostics(&infcx);
                 let cause = traits::ObligationCause::misc(span, fn_def_id);
                 ocx.register_bound(cause, cx.param_env, ret_ty, send_trait);
                 let send_errors = ocx.select_all_or_error();

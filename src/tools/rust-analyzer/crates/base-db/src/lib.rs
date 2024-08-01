@@ -7,15 +7,16 @@ mod input;
 
 use std::panic;
 
-use syntax::{ast, Parse, SourceFile};
+use salsa::Durability;
+use syntax::{ast, Parse, SourceFile, SyntaxError};
 use triomphe::Arc;
 
 pub use crate::{
     change::FileChange,
     input::{
-        CrateData, CrateDisplayName, CrateGraph, CrateId, CrateName, CrateOrigin, Dependency,
-        DependencyKind, Edition, Env, LangCrateOrigin, ProcMacroPaths, ReleaseChannel, SourceRoot,
-        SourceRootId, TargetLayoutLoadResult,
+        CrateData, CrateDisplayName, CrateGraph, CrateId, CrateName, CrateOrigin, Dependency, Env,
+        LangCrateOrigin, ProcMacroPaths, ReleaseChannel, SourceRoot, SourceRootId,
+        TargetLayoutLoadResult,
     },
 };
 pub use salsa::{self, Cancelled};
@@ -42,13 +43,15 @@ pub trait Upcast<T: ?Sized> {
     fn upcast(&self) -> &T;
 }
 
+pub const DEFAULT_FILE_TEXT_LRU_CAP: usize = 16;
 pub const DEFAULT_PARSE_LRU_CAP: usize = 128;
-pub const DEFAULT_BORROWCK_LRU_CAP: usize = 1024;
+pub const DEFAULT_BORROWCK_LRU_CAP: usize = 2024;
 
 pub trait FileLoader {
     /// Text of the file.
     fn file_text(&self, file_id: FileId) -> Arc<str>;
     fn resolve_path(&self, path: AnchoredPath<'_>) -> Option<FileId>;
+    /// Crates whose root's source root is the same as the source root of `file_id`
     fn relevant_crates(&self, file_id: FileId) -> Arc<[CrateId]>;
 }
 
@@ -58,6 +61,9 @@ pub trait FileLoader {
 pub trait SourceDatabase: FileLoader + std::fmt::Debug {
     /// Parses the file into the syntax tree.
     fn parse(&self, file_id: FileId) -> Parse<ast::SourceFile>;
+
+    /// Returns the set of errors obtained from parsing the file including validation errors.
+    fn parse_errors(&self, file_id: FileId) -> Option<Arc<[SyntaxError]>>;
 
     /// The crate graph.
     #[salsa::input]
@@ -79,9 +85,18 @@ fn toolchain_channel(db: &dyn SourceDatabase, krate: CrateId) -> Option<ReleaseC
 }
 
 fn parse(db: &dyn SourceDatabase, file_id: FileId) -> Parse<ast::SourceFile> {
-    let _p = tracing::span!(tracing::Level::INFO, "parse_query", ?file_id).entered();
+    let _p = tracing::span!(tracing::Level::INFO, "parse", ?file_id).entered();
     let text = db.file_text(file_id);
-    SourceFile::parse(&text)
+    // FIXME: Edition based parsing
+    SourceFile::parse(&text, span::Edition::CURRENT)
+}
+
+fn parse_errors(db: &dyn SourceDatabase, file_id: FileId) -> Option<Arc<[SyntaxError]>> {
+    let errors = db.parse(file_id).errors();
+    match &*errors {
+        [] => None,
+        [..] => Some(errors.into()),
+    }
 }
 
 /// We don't want to give HIR knowledge of source roots, hence we extract these
@@ -89,7 +104,10 @@ fn parse(db: &dyn SourceDatabase, file_id: FileId) -> Parse<ast::SourceFile> {
 #[salsa::query_group(SourceDatabaseExtStorage)]
 pub trait SourceDatabaseExt: SourceDatabase {
     #[salsa::input]
+    fn compressed_file_text(&self, file_id: FileId) -> Arc<[u8]>;
+
     fn file_text(&self, file_id: FileId) -> Arc<str>;
+
     /// Path to a file, relative to the root of its source root.
     /// Source root of the file.
     #[salsa::input]
@@ -98,7 +116,46 @@ pub trait SourceDatabaseExt: SourceDatabase {
     #[salsa::input]
     fn source_root(&self, id: SourceRootId) -> Arc<SourceRoot>;
 
+    /// Crates whose root fool is in `id`.
     fn source_root_crates(&self, id: SourceRootId) -> Arc<[CrateId]>;
+}
+
+fn file_text(db: &dyn SourceDatabaseExt, file_id: FileId) -> Arc<str> {
+    let bytes = db.compressed_file_text(file_id);
+    let bytes =
+        lz4_flex::decompress_size_prepended(&bytes).expect("lz4 decompression should not fail");
+    let text = std::str::from_utf8(&bytes).expect("file contents should be valid UTF-8");
+    Arc::from(text)
+}
+
+pub trait SourceDatabaseExt2 {
+    fn set_file_text(&mut self, file_id: FileId, text: &str) {
+        self.set_file_text_with_durability(file_id, text, Durability::LOW);
+    }
+
+    fn set_file_text_with_durability(
+        &mut self,
+        file_id: FileId,
+        text: &str,
+        durability: Durability,
+    );
+}
+
+impl<Db: ?Sized + SourceDatabaseExt> SourceDatabaseExt2 for Db {
+    fn set_file_text_with_durability(
+        &mut self,
+        file_id: FileId,
+        text: &str,
+        durability: Durability,
+    ) {
+        let bytes = text.as_bytes();
+        let compressed = lz4_flex::compress_prepend_size(bytes);
+        self.set_compressed_file_text_with_durability(
+            file_id,
+            Arc::from(compressed.as_slice()),
+            durability,
+        )
+    }
 }
 
 fn source_root_crates(db: &dyn SourceDatabaseExt, id: SourceRootId) -> Arc<[CrateId]> {

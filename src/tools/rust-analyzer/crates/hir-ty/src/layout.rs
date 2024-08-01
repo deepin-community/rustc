@@ -6,8 +6,8 @@ use base_db::salsa::Cycle;
 use chalk_ir::{AdtId, FloatTy, IntTy, TyKind, UintTy};
 use hir_def::{
     layout::{
-        Abi, FieldsShape, Integer, LayoutCalculator, LayoutS, Primitive, ReprOptions, Scalar, Size,
-        StructKind, TargetDataLayout, WrappingRange,
+        Abi, FieldsShape, Float, Integer, LayoutCalculator, LayoutS, Primitive, ReprOptions,
+        Scalar, Size, StructKind, TargetDataLayout, WrappingRange,
     },
     LocalFieldId, StructId,
 };
@@ -264,10 +264,10 @@ pub fn layout_of_ty_query(
             ),
             chalk_ir::Scalar::Float(f) => scalar(
                 dl,
-                match f {
-                    FloatTy::F32 => Primitive::F32,
-                    FloatTy::F64 => Primitive::F64,
-                },
+                Primitive::Float(match f {
+                    FloatTy::F32 => Float::F32,
+                    FloatTy::F64 => Float::F64,
+                }),
             ),
         },
         TyKind::Tuple(len, tys) => {
@@ -371,8 +371,8 @@ pub fn layout_of_ty_query(
         TyKind::Never => cx.layout_of_never_type(),
         TyKind::Dyn(_) | TyKind::Foreign(_) => {
             let mut unit = layout_of_unit(&cx, dl)?;
-            match unit.abi {
-                Abi::Aggregate { ref mut sized } => *sized = false,
+            match &mut unit.abi {
+                Abi::Aggregate { sized } => *sized = false,
                 _ => return Err(LayoutError::Unknown),
             }
             unit
@@ -388,6 +388,9 @@ pub fn layout_of_ty_query(
                 crate::ImplTraitId::ReturnTypeImplTrait(func, idx) => {
                     let infer = db.infer(func.into());
                     return db.layout_of_ty(infer.type_of_rpit[idx].clone(), trait_env);
+                }
+                crate::ImplTraitId::AssociatedTypeImplTrait(..) => {
+                    return Err(LayoutError::NotImplemented);
                 }
                 crate::ImplTraitId::AsyncBlockTypeImplTrait(_, _) => {
                     return Err(LayoutError::NotImplemented)

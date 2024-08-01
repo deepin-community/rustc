@@ -19,6 +19,7 @@ use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::intern::Interned;
 use rustc_errors::{codes::*, pluralize, struct_span_code_err, Applicability, MultiSpan};
 use rustc_hir::def::{self, DefKind, PartialRes};
+use rustc_hir::def_id::DefId;
 use rustc_middle::metadata::ModChild;
 use rustc_middle::metadata::Reexport;
 use rustc_middle::span_bug;
@@ -33,6 +34,7 @@ use rustc_span::hygiene::LocalExpnId;
 use rustc_span::symbol::{kw, Ident, Symbol};
 use rustc_span::Span;
 use smallvec::SmallVec;
+use tracing::debug;
 
 use std::cell::Cell;
 use std::mem;
@@ -250,6 +252,9 @@ struct UnresolvedImportError {
     note: Option<String>,
     suggestion: Option<Suggestion>,
     candidates: Option<Vec<ImportSuggestion>>,
+    segment: Option<Symbol>,
+    /// comes from `PathRes::Failed { module }`
+    module: Option<DefId>,
 }
 
 // Reexports of the form `pub use foo as bar;` where `foo` is `extern crate foo;`
@@ -347,9 +352,9 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     (old_glob @ true, false) | (old_glob @ false, true) => {
                         let (glob_binding, nonglob_binding) =
                             if old_glob { (old_binding, binding) } else { (binding, old_binding) };
-                        if glob_binding.res() != nonglob_binding.res()
-                            && key.ns == MacroNS
+                        if key.ns == MacroNS
                             && nonglob_binding.expansion != LocalExpnId::ROOT
+                            && glob_binding.res() != nonglob_binding.res()
                         {
                             resolution.binding = Some(this.ambiguity(
                                 AmbiguityKind::GlobVsExpanded,
@@ -528,10 +533,11 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
 
         let mut seen_spans = FxHashSet::default();
         let mut errors = vec![];
-        let mut prev_root_id: NodeId = NodeId::from_u32(0);
+        let mut prev_root_id: NodeId = NodeId::ZERO;
         let determined_imports = mem::take(&mut self.determined_imports);
         let indeterminate_imports = mem::take(&mut self.indeterminate_imports);
 
+        let mut glob_error = false;
         for (is_indeterminate, import) in determined_imports
             .iter()
             .map(|i| (false, i))
@@ -543,6 +549,8 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
             self.import_dummy_binding(*import, is_indeterminate);
 
             if let Some(err) = unresolved_import_error {
+                glob_error |= import.is_glob();
+
                 if let ImportKind::Single { source, ref source_bindings, .. } = import.kind {
                     if source.name == kw::SelfLower {
                         // Silence `unresolved import` error if E0429 is already emitted
@@ -552,13 +560,13 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     }
                 }
 
-                if prev_root_id.as_u32() != 0
-                    && prev_root_id.as_u32() != import.root_id.as_u32()
+                if prev_root_id != NodeId::ZERO
+                    && prev_root_id != import.root_id
                     && !errors.is_empty()
                 {
                     // In the case of a new import line, throw a diagnostic message
                     // for the previous line.
-                    self.throw_unresolved_import_error(errors);
+                    self.throw_unresolved_import_error(errors, glob_error);
                     errors = vec![];
                 }
                 if seen_spans.insert(err.span) {
@@ -569,7 +577,7 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         }
 
         if !errors.is_empty() {
-            self.throw_unresolved_import_error(errors);
+            self.throw_unresolved_import_error(errors, glob_error);
             return;
         }
 
@@ -579,23 +587,23 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 &import.kind,
                 import.span,
             );
-            let err = UnresolvedImportError {
-                span: import.span,
-                label: None,
-                note: None,
-                suggestion: None,
-                candidates: None,
-            };
             // FIXME: there should be a better way of doing this than
             // formatting this as a string then checking for `::`
             if path.contains("::") {
+                let err = UnresolvedImportError {
+                    span: import.span,
+                    label: None,
+                    note: None,
+                    suggestion: None,
+                    candidates: None,
+                    segment: None,
+                    module: None,
+                };
                 errors.push((*import, err))
             }
         }
 
-        if !errors.is_empty() {
-            self.throw_unresolved_import_error(errors);
-        }
+        self.throw_unresolved_import_error(errors, glob_error);
     }
 
     pub(crate) fn check_hidden_glob_reexports(
@@ -612,11 +620,10 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                         && binding.res() != Res::Err
                         && exported_ambiguities.contains(&binding)
                     {
-                        self.lint_buffer.buffer_lint_with_diagnostic(
+                        self.lint_buffer.buffer_lint(
                             AMBIGUOUS_GLOB_REEXPORTS,
                             import.root_id,
                             import.root_span,
-                            "ambiguous glob re-exports",
                             BuiltinLintDiag::AmbiguousGlobReexports {
                                 name: key.ident.to_string(),
                                 namespace: key.ns.descr().to_string(),
@@ -648,11 +655,10 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                             && glob_binding.vis.is_public()
                             && !binding.vis.is_public()
                         {
-                            self.lint_buffer.buffer_lint_with_diagnostic(
+                            self.lint_buffer.buffer_lint(
                                 HIDDEN_GLOB_REEXPORTS,
                                 binding_id,
                                 binding.span,
-                                "private item shadows public glob re-export",
                                 BuiltinLintDiag::HiddenGlobReexports {
                                     name: key.ident.name.to_string(),
                                     namespace: key.ns.descr().to_owned(),
@@ -667,7 +673,11 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         }
     }
 
-    fn throw_unresolved_import_error(&mut self, errors: Vec<(Import<'_>, UnresolvedImportError)>) {
+    fn throw_unresolved_import_error(
+        &mut self,
+        errors: Vec<(Import<'_>, UnresolvedImportError)>,
+        glob_error: bool,
+    ) {
         if errors.is_empty() {
             return;
         }
@@ -738,19 +748,18 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 }
             }
 
-            match &import.kind {
-                ImportKind::Single { source, .. } => {
-                    if let Some(ModuleOrUniformRoot::Module(module)) = import.imported_module.get()
-                        && let Some(module) = module.opt_def_id()
-                    {
-                        self.find_cfg_stripped(&mut diag, &source.name, module)
-                    }
-                }
-                _ => {}
+            if matches!(import.kind, ImportKind::Single { .. })
+                && let Some(segment) = err.segment
+                && let Some(module) = err.module
+            {
+                self.find_cfg_stripped(&mut diag, &segment, module)
             }
         }
 
-        diag.emit();
+        let guar = diag.emit();
+        if glob_error {
+            self.glob_error = Some(guar);
+        }
     }
 
     /// Attempts to resolve the given import, returning:
@@ -916,10 +925,17 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 span,
                 label,
                 suggestion,
+                module,
+                segment_name,
                 ..
             } => {
                 if no_ambiguity {
                     assert!(import.imported_module.get().is_none());
+                    let module = if let Some(ModuleOrUniformRoot::Module(m)) = module {
+                        m.opt_def_id()
+                    } else {
+                        None
+                    };
                     let err = match self.make_path_suggestion(
                         span,
                         import.module_path.clone(),
@@ -935,6 +951,8 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                                 Applicability::MaybeIncorrect,
                             )),
                             candidates: None,
+                            segment: Some(segment_name),
+                            module,
                         },
                         None => UnresolvedImportError {
                             span,
@@ -942,6 +960,8 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                             note: None,
                             suggestion,
                             candidates: None,
+                            segment: Some(segment_name),
+                            module,
                         },
                     };
                     return Some(err);
@@ -990,6 +1010,8 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                                 note: None,
                                 suggestion: None,
                                 candidates: None,
+                                segment: None,
+                                module: None,
                             });
                         }
                     }
@@ -999,17 +1021,13 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                         && !max_vis.is_at_least(import_vis, self.tcx)
                     {
                         let def_id = self.local_def_id(id);
-                        let msg = format!(
-                            "glob import doesn't reexport anything with visibility `{}` because no imported item is public enough",
-                            import_vis.to_string(def_id, self.tcx)
-                        );
-                        self.lint_buffer.buffer_lint_with_diagnostic(
+                        self.lint_buffer.buffer_lint(
                             UNUSED_IMPORTS,
                             id,
                             import.span,
-                            msg,
                             BuiltinLintDiag::RedundantImportVisibility {
                                 max_vis: max_vis.to_string(def_id, self.tcx),
+                                import_vis: import_vis.to_string(def_id, self.tcx),
                                 span: import.span,
                             },
                         );
@@ -1199,6 +1217,14 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                     } else {
                         None
                     },
+                    module: import.imported_module.get().and_then(|module| {
+                        if let ModuleOrUniformRoot::Module(m) = module {
+                            m.opt_def_id()
+                        } else {
+                            None
+                        }
+                    }),
+                    segment: Some(ident.name),
                 })
             } else {
                 // `resolve_ident_in_module` reported a privacy error.
@@ -1228,16 +1254,11 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
         if !any_successful_reexport {
             let (ns, binding) = reexport_error.unwrap();
             if pub_use_of_private_extern_crate_hack(import, binding) {
-                let msg = format!(
-                    "extern crate `{ident}` is private, and cannot be \
-                                   re-exported (error E0365), consider declaring with \
-                                   `pub`"
-                );
                 self.lint_buffer.buffer_lint(
                     PUB_USE_OF_PRIVATE_EXTERN_CRATE,
                     import_id,
                     import.span,
-                    msg,
+                    BuiltinLintDiag::PrivateExternCrateReexport(ident),
                 );
             } else {
                 if ns == TypeNS {
@@ -1373,7 +1394,6 @@ impl<'a, 'tcx> Resolver<'a, 'tcx> {
                 UNUSED_IMPORTS,
                 id,
                 import.span,
-                format!("the item `{source}` is imported redundantly"),
                 BuiltinLintDiag::RedundantImport(redundant_spans, source),
             );
             */

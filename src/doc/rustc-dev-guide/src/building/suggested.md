@@ -69,13 +69,13 @@ Task] instead:
 
 For Neovim users there are several options for configuring for rustc. The easiest way is by using 
 [neoconf.nvim](https://github.com/folke/neoconf.nvim/), which allows for project-local
-configuration files with the native LSP. The steps for how to use it are below. Note that requires 
-Rust-Analyzer to already be configured with Neovim. Steps for this can be 
-[found here](https://rust-analyzer.github.io/manual.html#nvim-lsp).
+configuration files with the native LSP. The steps for how to use it are below.
+Note that they require rust-analyzer to already be configured with Neovim.
+Steps for this can be [found here](https://rust-analyzer.github.io/manual.html#nvim-lsp).
 
 1. First install the plugin. This can be done by following the steps in the README.
 2. Run `x setup`, which will have a prompt for it to create a `.vscode/settings.json` file.
-   `neoconf` is able to read and update Rust-Analyzer settings automatically when the project is
+   `neoconf` is able to read and update rust-analyzer settings automatically when the project is
    opened when this file is detected.
 
 If you're running `coc.nvim`,
@@ -139,8 +139,7 @@ rustup override set nightly
 
 after [installing a nightly toolchain] with `rustup`. Don't forget to do this for all
 directories you have [setup a worktree for]. You may need to use the pinned
-nightly version from `src/stage0.json`, but often the normal `nightly` channel
-will work.
+nightly version from `src/stage0`, but often the normal `nightly` channel will work.
 
 **Note** see [the section on vscode] for how to configure it with this real rustfmt `x` uses,
 and [the section on rustup] for how to setup `rustup` toolchain for your bootstrapped compiler
@@ -303,7 +302,7 @@ let
   ''
 pkgs.mkShell {
   /* ... */
-  # This environment varaible tells bootstrap where our config.toml is.
+  # This environment variable tells bootstrap where our config.toml is.
   RUST_BOOTSTRAP_CONFIG = config;
 }
 ```

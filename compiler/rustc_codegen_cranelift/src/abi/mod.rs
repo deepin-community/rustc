@@ -7,9 +7,14 @@ mod returning;
 use std::borrow::Cow;
 
 use cranelift_codegen::ir::SigRef;
+use cranelift_codegen::isa::CallConv;
 use cranelift_module::ModuleError;
+use rustc_codegen_ssa::errors::CompilerBuiltinsCannotCall;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::ty::layout::FnAbiOf;
+use rustc_middle::ty::print::with_no_trimmed_paths;
+use rustc_middle::ty::TypeVisitableExt;
+use rustc_monomorphize::is_call_from_compiler_builtins_to_upstream_monomorphization;
 use rustc_session::Session;
 use rustc_span::source_map::Spanned;
 use rustc_target::abi::call::{Conv, FnAbi};
@@ -219,17 +224,15 @@ pub(crate) fn codegen_fn_prelude<'tcx>(fx: &mut FunctionCx<'_, '_, 'tcx>, start_
         Spread(Vec<Option<CValue<'tcx>>>),
     }
 
-    let fn_abi = fx.fn_abi.take().unwrap();
-
     // FIXME implement variadics in cranelift
-    if fn_abi.c_variadic {
+    if fx.fn_abi.c_variadic {
         fx.tcx.dcx().span_fatal(
             fx.mir.span,
             "Defining variadic functions is not yet supported by Cranelift",
         );
     }
 
-    let mut arg_abis_iter = fn_abi.args.iter();
+    let mut arg_abis_iter = fx.fn_abi.args.iter();
 
     let func_params = fx
         .mir
@@ -276,7 +279,6 @@ pub(crate) fn codegen_fn_prelude<'tcx>(fx: &mut FunctionCx<'_, '_, 'tcx>, start_
     }
 
     assert!(arg_abis_iter.next().is_none(), "ArgAbi left behind");
-    fx.fn_abi = Some(fn_abi);
     assert!(block_params_iter.next().is_none(), "arg_value left behind");
 
     self::comments::add_locals_header_comment(fx);
@@ -372,6 +374,17 @@ pub(crate) fn codegen_terminator_call<'tcx>(
             ty::Instance::expect_resolve(fx.tcx, ty::ParamEnv::reveal_all(), def_id, fn_args)
                 .polymorphize(fx.tcx);
 
+        if is_call_from_compiler_builtins_to_upstream_monomorphization(fx.tcx, instance) {
+            if target.is_some() {
+                let caller = with_no_trimmed_paths!(fx.tcx.def_path_str(fx.instance.def_id()));
+                let callee = with_no_trimmed_paths!(fx.tcx.def_path_str(def_id));
+                fx.tcx.dcx().emit_err(CompilerBuiltinsCannotCall { caller, callee });
+            } else {
+                fx.bcx.ins().trap(TrapCode::User(0));
+                return;
+            }
+        }
+
         if fx.tcx.symbol_name(instance).name.starts_with("llvm.") {
             crate::intrinsics::codegen_llvm_intrinsic_call(
                 fx,
@@ -399,7 +412,7 @@ pub(crate) fn codegen_terminator_call<'tcx>(
                     Err(instance) => Some(instance),
                 }
             }
-            InstanceDef::DropGlue(_, None) => {
+            InstanceDef::DropGlue(_, None) | ty::InstanceDef::AsyncDropGlueCtorShim(_, None) => {
                 // empty drop glue - a nop.
                 let dest = target.expect("Non terminating drop_in_place_real???");
                 let ret_block = fx.get_block(dest);
@@ -580,11 +593,14 @@ pub(crate) fn codegen_drop<'tcx>(
     fx: &mut FunctionCx<'_, '_, 'tcx>,
     source_info: mir::SourceInfo,
     drop_place: CPlace<'tcx>,
+    target: BasicBlock,
 ) {
     let ty = drop_place.layout().ty;
     let drop_instance = Instance::resolve_drop_in_place(fx.tcx, ty).polymorphize(fx.tcx);
 
-    if let ty::InstanceDef::DropGlue(_, None) = drop_instance.def {
+    if let ty::InstanceDef::DropGlue(_, None) | ty::InstanceDef::AsyncDropGlueCtorShim(_, None) =
+        drop_instance.def
+    {
         // we don't actually need to drop anything
     } else {
         match ty.kind() {
@@ -604,6 +620,12 @@ pub(crate) fn codegen_drop<'tcx>(
                 let (ptr, vtable) = drop_place.to_ptr_unsized();
                 let ptr = ptr.get_addr(fx);
                 let drop_fn = crate::vtable::drop_fn_of_obj(fx, vtable);
+
+                let is_null = fx.bcx.ins().icmp_imm(IntCC::Equal, drop_fn, 0);
+                let target_block = fx.get_block(target);
+                let continued = fx.bcx.create_block();
+                fx.bcx.ins().brif(is_null, target_block, &[], continued, &[]);
+                fx.bcx.switch_to_block(continued);
 
                 // FIXME(eddyb) perhaps move some of this logic into
                 // `Instance::resolve_drop_in_place`?
@@ -644,6 +666,12 @@ pub(crate) fn codegen_drop<'tcx>(
                 let (data, vtable) = drop_place.to_cvalue(fx).dyn_star_force_data_on_stack(fx);
                 let drop_fn = crate::vtable::drop_fn_of_obj(fx, vtable);
 
+                let is_null = fx.bcx.ins().icmp_imm(IntCC::Equal, drop_fn, 0);
+                let target_block = fx.get_block(target);
+                let continued = fx.bcx.create_block();
+                fx.bcx.ins().brif(is_null, target_block, &[], continued, &[]);
+                fx.bcx.switch_to_block(continued);
+
                 let virtual_drop = Instance {
                     def: ty::InstanceDef::Virtual(drop_instance.def_id(), 0),
                     args: drop_instance.args,
@@ -663,11 +691,7 @@ pub(crate) fn codegen_drop<'tcx>(
 
                 let arg_value = drop_place.place_ref(
                     fx,
-                    fx.layout_of(Ty::new_ref(
-                        fx.tcx,
-                        fx.tcx.lifetimes.re_erased,
-                        TypeAndMut { ty, mutbl: crate::rustc_hir::Mutability::Mut },
-                    )),
+                    fx.layout_of(Ty::new_mut_ref(fx.tcx, fx.tcx.lifetimes.re_erased, ty)),
                 );
                 let arg_value = adjust_arg_for_abi(fx, arg_value, &fn_abi.args[0], true);
 
@@ -686,4 +710,7 @@ pub(crate) fn codegen_drop<'tcx>(
             }
         }
     }
+
+    let target_block = fx.get_block(target);
+    fx.bcx.ins().jump(target_block, &[]);
 }

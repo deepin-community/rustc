@@ -1,5 +1,7 @@
+#[cfg(feature = "serde")]
+use crate::resolve;
 use crate::PrintFmt;
-use crate::{resolve, resolve_frame, trace, BacktraceFmt, Symbol, SymbolName};
+use crate::{resolve_frame, trace, BacktraceFmt, Symbol, SymbolName};
 use std::ffi::c_void;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -21,7 +23,6 @@ use serde::{Deserialize, Serialize};
 /// This function requires the `std` feature of the `backtrace` crate to be
 /// enabled, and the `std` feature is enabled by default.
 #[derive(Clone)]
-#[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Backtrace {
     // Frames here are listed from top-to-bottom of the stack
@@ -51,7 +52,7 @@ pub struct BacktraceFrame {
 #[derive(Clone)]
 enum Frame {
     Raw(crate::Frame),
-    #[allow(dead_code)]
+    #[cfg(feature = "serde")]
     Deserialized {
         ip: usize,
         symbol_address: usize,
@@ -63,6 +64,7 @@ impl Frame {
     fn ip(&self) -> *mut c_void {
         match *self {
             Frame::Raw(ref f) => f.ip(),
+            #[cfg(feature = "serde")]
             Frame::Deserialized { ip, .. } => ip as *mut c_void,
         }
     }
@@ -70,6 +72,7 @@ impl Frame {
     fn symbol_address(&self) -> *mut c_void {
         match *self {
             Frame::Raw(ref f) => f.symbol_address(),
+            #[cfg(feature = "serde")]
             Frame::Deserialized { symbol_address, .. } => symbol_address as *mut c_void,
         }
     }
@@ -77,6 +80,7 @@ impl Frame {
     fn module_base_address(&self) -> Option<*mut c_void> {
         match *self {
             Frame::Raw(ref f) => f.module_base_address(),
+            #[cfg(feature = "serde")]
             Frame::Deserialized {
                 module_base_address,
                 ..
@@ -98,6 +102,7 @@ impl Frame {
         };
         match *self {
             Frame::Raw(ref f) => resolve_frame(f, sym),
+            #[cfg(feature = "serde")]
             Frame::Deserialized { ip, .. } => {
                 resolve(ip as *mut c_void, sym);
             }
@@ -116,7 +121,6 @@ impl Frame {
 /// This function requires the `std` feature of the `backtrace` crate to be
 /// enabled, and the `std` feature is enabled by default.
 #[derive(Clone)]
-#[cfg_attr(feature = "serialize-rustc", derive(RustcDecodable, RustcEncodable))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct BacktraceSymbol {
     name: Option<Vec<u8>>,
@@ -437,53 +441,6 @@ impl fmt::Debug for BacktraceSymbol {
             .field("lineno", &self.lineno())
             .field("colno", &self.colno())
             .finish()
-    }
-}
-
-#[cfg(feature = "serialize-rustc")]
-mod rustc_serialize_impls {
-    use super::*;
-    use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-
-    #[derive(RustcEncodable, RustcDecodable)]
-    struct SerializedFrame {
-        ip: usize,
-        symbol_address: usize,
-        module_base_address: Option<usize>,
-        symbols: Option<Vec<BacktraceSymbol>>,
-    }
-
-    impl Decodable for BacktraceFrame {
-        fn decode<D>(d: &mut D) -> Result<Self, D::Error>
-        where
-            D: Decoder,
-        {
-            let frame: SerializedFrame = SerializedFrame::decode(d)?;
-            Ok(BacktraceFrame {
-                frame: Frame::Deserialized {
-                    ip: frame.ip,
-                    symbol_address: frame.symbol_address,
-                    module_base_address: frame.module_base_address,
-                },
-                symbols: frame.symbols,
-            })
-        }
-    }
-
-    impl Encodable for BacktraceFrame {
-        fn encode<E>(&self, e: &mut E) -> Result<(), E::Error>
-        where
-            E: Encoder,
-        {
-            let BacktraceFrame { frame, symbols } = self;
-            SerializedFrame {
-                ip: frame.ip() as usize,
-                symbol_address: frame.symbol_address() as usize,
-                module_base_address: frame.module_base_address().map(|addr| addr as usize),
-                symbols: symbols.clone(),
-            }
-            .encode(e)
-        }
     }
 }
 

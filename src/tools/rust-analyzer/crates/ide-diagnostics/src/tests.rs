@@ -283,12 +283,17 @@ fn test_disabled_diagnostics() {
 
 #[test]
 fn minicore_smoke_test() {
+    if test_utils::skip_slow_tests() {
+        return;
+    }
+
     fn check(minicore: MiniCore) {
         let source = minicore.source_code();
         let mut config = DiagnosticsConfig::test_sample();
         // This should be ignored since we conditionally remove code which creates single item use with braces
         config.disabled.insert("unused_braces".to_owned());
         config.disabled.insert("unused_variables".to_owned());
+        config.disabled.insert("remove-unnecessary-else".to_owned());
         check_diagnostics_with_config(config, &source);
     }
 

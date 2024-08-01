@@ -1,6 +1,6 @@
 use clippy_utils::diagnostics::{span_lint, span_lint_and_sugg, span_lint_and_then};
-use clippy_utils::source::snippet_with_context;
-use clippy_utils::sugg::Sugg;
+use clippy_utils::source::{snippet_opt, snippet_with_context};
+use clippy_utils::sugg::{has_enclosing_paren, Sugg};
 use clippy_utils::{get_item_name, get_parent_as_impl, is_lint_allowed, peel_ref_operators};
 use rustc_ast::ast::LitKind;
 use rustc_errors::Applicability;
@@ -9,7 +9,7 @@ use rustc_hir::def_id::{DefId, DefIdSet};
 use rustc_hir::{
     AssocItemKind, BinOpKind, Expr, ExprKind, FnRetTy, GenericArg, GenericBound, ImplItem, ImplItemKind,
     ImplicitSelfKind, Item, ItemKind, Mutability, Node, OpaqueTyOrigin, PatKind, PathSegment, PrimTy, QPath,
-    TraitItemRef, TyKind, TypeBindingKind,
+    TraitItemRef, TyKind,
 };
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::ty::{self, AssocKind, FnSig, Ty};
@@ -192,7 +192,7 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
 
         if let ExprKind::Binary(Spanned { node: cmp, .. }, left, right) = expr.kind {
             // expr.span might contains parenthesis, see issue #10529
-            let actual_span = left.span.with_hi(right.span.hi());
+            let actual_span = span_without_enclosing_paren(cx, expr.span);
             match cmp {
                 BinOpKind::Eq => {
                     check_cmp(cx, actual_span, left, right, "", 0); // len == 0
@@ -218,6 +218,20 @@ impl<'tcx> LateLintPass<'tcx> for LenZero {
     }
 }
 
+fn span_without_enclosing_paren(cx: &LateContext<'_>, span: Span) -> Span {
+    let Some(snippet) = snippet_opt(cx, span) else {
+        return span;
+    };
+    if has_enclosing_paren(snippet) {
+        let source_map = cx.tcx.sess.source_map();
+        let left_paren = source_map.start_point(span);
+        let right_parent = source_map.end_point(span);
+        left_paren.between(right_parent)
+    } else {
+        span
+    }
+}
+
 fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items: &[TraitItemRef]) {
     fn is_named_self(cx: &LateContext<'_>, item: &TraitItemRef, name: Symbol) -> bool {
         item.ident.name == name
@@ -239,7 +253,7 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
     // fill the set with current and super traits
     fn fill_trait_set(traitt: DefId, set: &mut DefIdSet, cx: &LateContext<'_>) {
         if set.insert(traitt) {
-            for supertrait in rustc_trait_selection::traits::supertrait_def_ids(cx.tcx, traitt) {
+            for supertrait in cx.tcx.supertrait_def_ids(traitt) {
                 fill_trait_set(supertrait, set, cx);
             }
         }
@@ -256,7 +270,7 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
             .items()
             .flat_map(|&i| cx.tcx.associated_items(i).filter_by_name_unhygienic(is_empty))
             .any(|i| {
-                i.kind == ty::AssocKind::Fn
+                i.kind == AssocKind::Fn
                     && i.fn_has_self_parameter
                     && cx.tcx.fn_sig(i.def_id).skip_binder().inputs().skip_binder().len() == 1
             });
@@ -266,7 +280,7 @@ fn check_trait_items(cx: &LateContext<'_>, visited_trait: &Item<'_>, trait_items
                 cx,
                 LEN_WITHOUT_IS_EMPTY,
                 visited_trait.span,
-                &format!(
+                format!(
                     "trait `{}` has a `len` method but no (possibly inherited) `is_empty` method",
                     visited_trait.ident.name
                 ),
@@ -293,17 +307,12 @@ fn extract_future_output<'tcx>(cx: &LateContext<'tcx>, ty: Ty<'tcx>) -> Option<&
         && let [GenericBound::Trait(trait_ref, _)] = &opaque.bounds
         && let Some(segment) = trait_ref.trait_ref.path.segments.last()
         && let Some(generic_args) = segment.args
-        && generic_args.bindings.len() == 1
-        && let TypeBindingKind::Equality {
-            term:
-                rustc_hir::Term::Ty(rustc_hir::Ty {
-                    kind: TyKind::Path(QPath::Resolved(_, path)),
-                    ..
-                }),
-        } = &generic_args.bindings[0].kind
-        && path.segments.len() == 1
+        && let [constraint] = generic_args.constraints
+        && let Some(ty) = constraint.ty()
+        && let TyKind::Path(QPath::Resolved(_, path)) = ty.kind
+        && let [segment] = path.segments
     {
-        return Some(&path.segments[0]);
+        return Some(segment);
     }
 
     None
@@ -384,8 +393,8 @@ impl LenOutput {
 
     fn expected_sig(self, self_kind: ImplicitSelfKind) -> String {
         let self_ref = match self_kind {
-            ImplicitSelfKind::ImmRef => "&",
-            ImplicitSelfKind::MutRef => "&mut ",
+            ImplicitSelfKind::RefImm => "&",
+            ImplicitSelfKind::RefMut => "&mut ",
             _ => "",
         };
         match self {
@@ -411,8 +420,8 @@ fn check_is_empty_sig<'tcx>(
         [arg, res] if len_output.matches_is_empty_output(cx, *res) => {
             matches!(
                 (arg.kind(), self_kind),
-                (ty::Ref(_, _, Mutability::Not), ImplicitSelfKind::ImmRef)
-                    | (ty::Ref(_, _, Mutability::Mut), ImplicitSelfKind::MutRef)
+                (ty::Ref(_, _, Mutability::Not), ImplicitSelfKind::RefImm)
+                    | (ty::Ref(_, _, Mutability::Mut), ImplicitSelfKind::RefMut)
             ) || (!arg.is_ref() && matches!(self_kind, ImplicitSelfKind::Imm | ImplicitSelfKind::Mut))
         },
         _ => false,
@@ -484,7 +493,7 @@ fn check_for_is_empty(
         Some(_) => return,
     };
 
-    span_lint_and_then(cx, LEN_WITHOUT_IS_EMPTY, span, &msg, |db| {
+    span_lint_and_then(cx, LEN_WITHOUT_IS_EMPTY, span, msg, |db| {
         if let Some(span) = is_empty_span {
             db.span_note(span, "`is_empty` defined here");
         }
@@ -495,6 +504,10 @@ fn check_for_is_empty(
 }
 
 fn check_cmp(cx: &LateContext<'_>, span: Span, method: &Expr<'_>, lit: &Expr<'_>, op: &str, compare_to: u32) {
+    if method.span.from_expansion() {
+        return;
+    }
+
     if let (&ExprKind::MethodCall(method_path, receiver, args, _), ExprKind::Lit(lit)) = (&method.kind, &lit.kind) {
         // check if we are in an is_empty() method
         if let Some(name) = get_item_name(cx, method) {
@@ -542,8 +555,8 @@ fn check_len(
                 cx,
                 LEN_ZERO,
                 span,
-                &format!("length comparison to {}", if compare_to == 0 { "zero" } else { "one" }),
-                &format!("using `{op}is_empty` is clearer and more explicit"),
+                format!("length comparison to {}", if compare_to == 0 { "zero" } else { "one" }),
+                format!("using `{op}is_empty` is clearer and more explicit"),
                 format!(
                     "{op}{}.is_empty()",
                     snippet_with_context(cx, receiver.span, span.ctxt(), "_", &mut applicability).0,
@@ -566,7 +579,7 @@ fn check_empty_expr(cx: &LateContext<'_>, span: Span, lit1: &Expr<'_>, lit2: &Ex
             COMPARISON_TO_EMPTY,
             span,
             "comparison to empty slice",
-            &format!("using `{op}is_empty` is clearer and more explicit"),
+            format!("using `{op}is_empty` is clearer and more explicit"),
             format!("{op}{lit_str}.is_empty()"),
             applicability,
         );
@@ -594,7 +607,7 @@ fn is_empty_array(expr: &Expr<'_>) -> bool {
 fn has_is_empty(cx: &LateContext<'_>, expr: &Expr<'_>) -> bool {
     /// Gets an `AssocItem` and return true if it matches `is_empty(self)`.
     fn is_is_empty(cx: &LateContext<'_>, item: &ty::AssocItem) -> bool {
-        if item.kind == ty::AssocKind::Fn {
+        if item.kind == AssocKind::Fn {
             let sig = cx.tcx.fn_sig(item.def_id).skip_binder();
             let ty = sig.skip_binder();
             ty.inputs().len() == 1

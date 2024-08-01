@@ -53,8 +53,8 @@ pub fn cli() -> clap::Command {
         )
         .arg(opt("base-rev", "Git revision to lookup for a baseline"))
         .arg(opt("head-rev", "Git revision with changes"))
-        .arg(flag("frozen", "Require Cargo.lock and cache are up to date").global(true))
-        .arg(flag("locked", "Require Cargo.lock is up to date").global(true))
+        .arg(flag("frozen", "Require Cargo.lock and cache to be up-to-date").global(true))
+        .arg(flag("locked", "Require Cargo.lock to be up-to-date").global(true))
         .arg(flag("offline", "Run without accessing the network").global(true))
         .arg(multi_opt("config", "KEY=VALUE", "Override a configuration value").global(true))
         .arg(
@@ -118,10 +118,19 @@ fn bump_check(args: &clap::ArgMatches, gctx: &cargo::util::GlobalContext) -> Car
     let changed_members = changed(&ws, &repo, &base_commit, &head_commit)?;
     let status = |msg: &str| gctx.shell().status(STATUS, msg);
 
-    // Don't check against beta and stable branches,
-    // as the publish of these crates are not tied with Rust release process.
-    // See `TO_PUBLISH` in publish.py.
-    let crates_not_check_against_channels = ["home"];
+    let crates_not_check_against_channels = [
+        // High false positive rate between beta branch and requisite version bump soon after
+        //
+        // Low risk because we always bump the "major" version after beta branch; we are
+        // only losing out on checks for patch releases.
+        //
+        // Note: this is already skipped in `changed`
+        "cargo",
+        // Don't check against beta and stable branches,
+        // as the publish of these crates are not tied with Rust release process.
+        // See `TO_PUBLISH` in publish.py.
+        "home",
+    ];
 
     status(&format!("base commit `{}`", base_commit.id()))?;
     status(&format!("head commit `{}`", head_commit.id()))?;
@@ -168,6 +177,8 @@ fn bump_check(args: &clap::ArgMatches, gctx: &cargo::util::GlobalContext) -> Car
     let mut cmd = ProcessBuilder::new("cargo");
     cmd.arg("semver-checks")
         .arg("check-release")
+        .args(&["--exclude", "cargo-test-macro"]) // FIXME: Remove once 1.79 is stable.
+        .args(&["--exclude", "cargo-test-support"]) // FIXME: Remove once 1.79 is stable.
         .arg("--workspace");
     gctx.shell().status("Running", &cmd)?;
     cmd.exec()?;
@@ -176,6 +187,8 @@ fn bump_check(args: &clap::ArgMatches, gctx: &cargo::util::GlobalContext) -> Car
         let mut cmd = ProcessBuilder::new("cargo");
         cmd.arg("semver-checks")
             .arg("--workspace")
+            .args(&["--exclude", "cargo-test-macro"]) // FIXME: Remove once 1.79 is stable.
+            .args(&["--exclude", "cargo-test-support"]) // FIXME: Remove once 1.79 is stable.
             .arg("--baseline-rev")
             .arg(referenced_commit.id().to_string());
         for krate in crates_not_check_against_channels {

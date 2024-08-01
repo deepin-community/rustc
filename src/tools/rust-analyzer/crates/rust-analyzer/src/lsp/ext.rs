@@ -2,6 +2,7 @@
 
 #![allow(clippy::disallowed_types)]
 
+use std::ops;
 use std::path::PathBuf;
 
 use ide_db::line_index::WideEncoding;
@@ -194,7 +195,8 @@ pub struct TestItem {
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverTestResults {
     pub tests: Vec<TestItem>,
-    pub scope: Vec<String>,
+    pub scope: Option<Vec<String>>,
+    pub scope_file: Option<Vec<TextDocumentIdentifier>>,
 }
 
 pub enum DiscoverTest {}
@@ -232,6 +234,13 @@ pub enum EndRunTest {}
 impl Notification for EndRunTest {
     type Params = ();
     const METHOD: &'static str = "experimental/endRunTest";
+}
+
+pub enum AppendOutputToRunTest {}
+
+impl Notification for AppendOutputToRunTest {
+    type Params = String;
+    const METHOD: &'static str = "experimental/appendOutputToRunTest";
 }
 
 pub enum AbortRunTest {}
@@ -432,6 +441,8 @@ pub struct CargoRunnable {
     pub override_cargo: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_root: Option<PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<PathBuf>,
     // command, --package and --lib stuff
     pub cargo_args: Vec<String>,
     // user-specified additional cargo args, like `--release`.
@@ -453,13 +464,6 @@ impl Request for RelatedTests {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TestInfo {
     pub runnable: Runnable,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct InlayHintsParams {
-    pub text_document: TextDocumentIdentifier,
-    pub range: Option<lsp_types::Range>,
 }
 
 pub enum Ssr {}
@@ -493,6 +497,7 @@ impl Notification for ServerStatusNotification {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerStatusParams {
     pub health: Health,
     pub quiescent: bool,
@@ -505,6 +510,16 @@ pub enum Health {
     Ok,
     Warning,
     Error,
+}
+
+impl ops::BitOrAssign for Health {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = match (*self, rhs) {
+            (Health::Error, _) | (_, Health::Error) => Health::Error,
+            (Health::Warning, _) | (_, Health::Warning) => Health::Warning,
+            _ => Health::Ok,
+        }
+    }
 }
 
 pub enum CodeActionRequest {}
@@ -547,6 +562,7 @@ pub struct CodeAction {
 pub struct CodeActionData {
     pub code_action_params: lsp_types::CodeActionParams,
     pub id: String,
+    pub version: Option<i32>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -788,11 +804,15 @@ impl Request for OnTypeFormatting {
 pub struct CompletionResolveData {
     pub position: lsp_types::TextDocumentPositionParams,
     pub imports: Vec<CompletionImport>,
+    pub version: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InlayHintResolveData {
     pub file_id: u32,
+    // This is a string instead of a u64 as javascript can't represent u64 fully
+    pub hash: String,
+    pub version: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -9,21 +9,23 @@ use crate::errors::*;
 use crate::thir::util::UserAnnotatedTyHelpers;
 
 use rustc_errors::codes::*;
-use rustc_hir as hir;
 use rustc_hir::def::{CtorOf, DefKind, Res};
 use rustc_hir::pat_util::EnumerateAndAdjustIterator;
-use rustc_hir::RangeEnd;
+use rustc_hir::{self as hir, ByRef, Mutability, RangeEnd};
 use rustc_index::Idx;
+use rustc_lint as lint;
 use rustc_middle::mir::interpret::{ErrorHandled, GlobalId, LitToConstError, LitToConstInput};
-use rustc_middle::mir::{self, BorrowKind, Const, Mutability};
+use rustc_middle::mir::{self, Const};
 use rustc_middle::thir::{
-    Ascription, BindingMode, FieldPat, LocalVarId, Pat, PatKind, PatRange, PatRangeBoundary,
+    Ascription, FieldPat, LocalVarId, Pat, PatKind, PatRange, PatRangeBoundary,
 };
 use rustc_middle::ty::layout::IntegerExt;
 use rustc_middle::ty::{self, CanonicalUserTypeAnnotation, Ty, TyCtxt, TypeVisitableExt};
+use rustc_middle::{bug, span_bug};
 use rustc_span::def_id::LocalDefId;
 use rustc_span::{ErrorGuaranteed, Span};
 use rustc_target::abi::{FieldIdx, Integer};
+use tracing::{debug, instrument};
 
 use std::cmp::Ordering;
 
@@ -31,6 +33,9 @@ struct PatCtxt<'a, 'tcx> {
     tcx: TyCtxt<'tcx>,
     param_env: ty::ParamEnv<'tcx>,
     typeck_results: &'a ty::TypeckResults<'tcx>,
+
+    /// Used by the Rust 2024 migration lint.
+    rust_2024_migration_suggestion: Option<Rust2024IncompatiblePatSugg>,
 }
 
 pub(super) fn pat_from_hir<'a, 'tcx>(
@@ -39,9 +44,25 @@ pub(super) fn pat_from_hir<'a, 'tcx>(
     typeck_results: &'a ty::TypeckResults<'tcx>,
     pat: &'tcx hir::Pat<'tcx>,
 ) -> Box<Pat<'tcx>> {
-    let mut pcx = PatCtxt { tcx, param_env, typeck_results };
+    let mut pcx = PatCtxt {
+        tcx,
+        param_env,
+        typeck_results,
+        rust_2024_migration_suggestion: typeck_results
+            .rust_2024_migration_desugared_pats()
+            .contains(pat.hir_id)
+            .then_some(Rust2024IncompatiblePatSugg { suggestion: Vec::new() }),
+    };
     let result = pcx.lower_pattern(pat);
     debug!("pat_from_hir({:?}) = {:?}", pat, result);
+    if let Some(sugg) = pcx.rust_2024_migration_suggestion {
+        tcx.emit_node_span_lint(
+            lint::builtin::RUST_2024_INCOMPATIBLE_PAT,
+            pat.hir_id,
+            pat.span,
+            Rust2024IncompatiblePat { sugg },
+        );
+    }
     result
 }
 
@@ -66,18 +87,46 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         // we wrap the unadjusted pattern in `PatKind::Deref` repeatedly, consuming the
         // adjustments in *reverse order* (last-in-first-out, so that the last `Deref` inserted
         // gets the least-dereferenced type).
-        let unadjusted_pat = self.lower_pattern_unadjusted(pat);
-        self.typeck_results.pat_adjustments().get(pat.hir_id).unwrap_or(&vec![]).iter().rev().fold(
-            unadjusted_pat,
-            |pat: Box<_>, ref_ty| {
-                debug!("{:?}: wrapping pattern with type {:?}", pat, ref_ty);
-                Box::new(Pat {
-                    span: pat.span,
-                    ty: *ref_ty,
-                    kind: PatKind::Deref { subpattern: pat },
+        let unadjusted_pat = match pat.kind {
+            hir::PatKind::Ref(inner, _)
+                if self.typeck_results.skipped_ref_pats().contains(pat.hir_id) =>
+            {
+                self.lower_pattern(inner)
+            }
+            _ => self.lower_pattern_unadjusted(pat),
+        };
+
+        let adjustments: &[Ty<'tcx>] =
+            self.typeck_results.pat_adjustments().get(pat.hir_id).map_or(&[], |v| &**v);
+        let adjusted_pat = adjustments.iter().rev().fold(unadjusted_pat, |thir_pat, ref_ty| {
+            debug!("{:?}: wrapping pattern with type {:?}", thir_pat, ref_ty);
+            Box::new(Pat {
+                span: thir_pat.span,
+                ty: *ref_ty,
+                kind: PatKind::Deref { subpattern: thir_pat },
+            })
+        });
+
+        if let Some(s) = &mut self.rust_2024_migration_suggestion
+            && !adjustments.is_empty()
+        {
+            let suggestion_str: String = adjustments
+                .iter()
+                .map(|ref_ty| {
+                    let &ty::Ref(_, _, mutbl) = ref_ty.kind() else {
+                        span_bug!(pat.span, "pattern implicitly dereferences a non-ref type");
+                    };
+
+                    match mutbl {
+                        ty::Mutability::Not => "&",
+                        ty::Mutability::Mut => "&mut ",
+                    }
                 })
-            },
-        )
+                .collect();
+            s.suggestion.push((pat.span.shrink_to_lo(), suggestion_str));
+        };
+
+        adjusted_pat
     }
 
     fn lower_pattern_range_endpoint(
@@ -257,11 +306,16 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
                 return self.lower_path(qpath, pat.hir_id, pat.span);
             }
 
+            hir::PatKind::Deref(subpattern) => {
+                let mutable = self.typeck_results.pat_has_ref_mut_binding(subpattern);
+                let mutability = if mutable { hir::Mutability::Mut } else { hir::Mutability::Not };
+                PatKind::DerefPattern { subpattern: self.lower_pattern(subpattern), mutability }
+            }
             hir::PatKind::Ref(subpattern, _) | hir::PatKind::Box(subpattern) => {
                 PatKind::Deref { subpattern: self.lower_pattern(subpattern) }
             }
 
-            hir::PatKind::Slice(prefix, ref slice, suffix) => {
+            hir::PatKind::Slice(prefix, slice, suffix) => {
                 self.slice_or_array_pattern(pat.span, ty, prefix, slice, suffix)
             }
 
@@ -273,31 +327,35 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
                 PatKind::Leaf { subpatterns }
             }
 
-            hir::PatKind::Binding(_, id, ident, ref sub) => {
+            hir::PatKind::Binding(explicit_ba, id, ident, sub) => {
                 if let Some(ident_span) = ident.span.find_ancestor_inside(span) {
                     span = span.with_hi(ident_span.hi());
                 }
 
-                let bm = *self
+                let mode = *self
                     .typeck_results
                     .pat_binding_modes()
                     .get(pat.hir_id)
                     .expect("missing binding mode");
-                let (mutability, mode) = match bm {
-                    ty::BindByValue(mutbl) => (mutbl, BindingMode::ByValue),
-                    ty::BindByReference(hir::Mutability::Mut) => (
-                        Mutability::Not,
-                        BindingMode::ByRef(BorrowKind::Mut { kind: mir::MutBorrowKind::Default }),
-                    ),
-                    ty::BindByReference(hir::Mutability::Not) => {
-                        (Mutability::Not, BindingMode::ByRef(BorrowKind::Shared))
-                    }
-                };
+
+                if let Some(s) = &mut self.rust_2024_migration_suggestion
+                    && explicit_ba.0 == ByRef::No
+                    && let ByRef::Yes(mutbl) = mode.0
+                {
+                    let sugg_str = match mutbl {
+                        Mutability::Not => "ref ",
+                        Mutability::Mut => "ref mut ",
+                    };
+                    s.suggestion.push((
+                        pat.span.with_lo(ident.span.lo()).shrink_to_lo(),
+                        sugg_str.to_owned(),
+                    ))
+                }
 
                 // A ref x pattern is the same node used for x, and as such it has
                 // x's type, which is &T, where we want T (the type being matched).
                 let var_ty = ty;
-                if let ty::BindByReference(_) = bm {
+                if let hir::ByRef::Yes(_) = mode.0 {
                     if let ty::Ref(_, rty, _) = ty.kind() {
                         ty = *rty;
                     } else {
@@ -306,7 +364,6 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
                 };
 
                 PatKind::Binding {
-                    mutability,
                     mode,
                     name: ident.name,
                     var: LocalVarId(id),
@@ -366,10 +423,7 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         pats.iter().map(|p| self.lower_pattern(p)).collect()
     }
 
-    fn lower_opt_pattern(
-        &mut self,
-        pat: &'tcx Option<&'tcx hir::Pat<'tcx>>,
-    ) -> Option<Box<Pat<'tcx>>> {
+    fn lower_opt_pattern(&mut self, pat: Option<&'tcx hir::Pat<'tcx>>) -> Option<Box<Pat<'tcx>>> {
         pat.map(|p| self.lower_pattern(p))
     }
 
@@ -378,7 +432,7 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         span: Span,
         ty: Ty<'tcx>,
         prefix: &'tcx [hir::Pat<'tcx>],
-        slice: &'tcx Option<&'tcx hir::Pat<'tcx>>,
+        slice: Option<&'tcx hir::Pat<'tcx>>,
         suffix: &'tcx [hir::Pat<'tcx>],
     ) -> PatKind<'tcx> {
         let prefix = self.lower_patterns(prefix);
@@ -524,12 +578,12 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         // Prefer valtrees over opaque constants.
         let const_value = self
             .tcx
-            .const_eval_global_id_for_typeck(param_env_reveal_all, cid, Some(span))
+            .const_eval_global_id_for_typeck(param_env_reveal_all, cid, span)
             .map(|val| match val {
-                Some(valtree) => mir::Const::Ty(ty::Const::new_value(self.tcx, valtree, ty)),
+                Some(valtree) => mir::Const::Ty(ty, ty::Const::new_value(self.tcx, valtree, ty)),
                 None => mir::Const::Val(
                     self.tcx
-                        .const_eval_global_id(param_env_reveal_all, cid, Some(span))
+                        .const_eval_global_id(param_env_reveal_all, cid, span)
                         .expect("const_eval_global_id_for_typeck should have already failed"),
                     ty,
                 ),
@@ -607,7 +661,7 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         };
         if let Some(lit_input) = lit_input {
             match tcx.at(expr.span).lit_to_const(lit_input) {
-                Ok(c) => return self.const_to_pat(Const::Ty(c), id, span).kind,
+                Ok(c) => return self.const_to_pat(Const::Ty(ty, c), id, span).kind,
                 // If an error occurred, ignore that it's a literal
                 // and leave reporting the error up to const eval of
                 // the unevaluated constant below.
@@ -627,15 +681,17 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
         // First try using a valtree in order to destructure the constant into a pattern.
         // FIXME: replace "try to do a thing, then fall back to another thing"
         // but something more principled, like a trait query checking whether this can be turned into a valtree.
-        if let Ok(Some(valtree)) =
-            self.tcx.const_eval_resolve_for_typeck(self.param_env, ct, Some(span))
+        if let Ok(Some(valtree)) = self.tcx.const_eval_resolve_for_typeck(self.param_env, ct, span)
         {
-            let subpattern =
-                self.const_to_pat(Const::Ty(ty::Const::new_value(self.tcx, valtree, ty)), id, span);
+            let subpattern = self.const_to_pat(
+                Const::Ty(ty, ty::Const::new_value(self.tcx, valtree, ty)),
+                id,
+                span,
+            );
             PatKind::InlineConstant { subpattern, def: def_id }
         } else {
             // If that fails, convert it to an opaque constant pattern.
-            match tcx.const_eval_resolve(self.param_env, uneval, Some(span)) {
+            match tcx.const_eval_resolve(self.param_env, uneval, span) {
                 Ok(val) => self.const_to_pat(mir::Const::Val(val, ty), id, span).kind,
                 Err(ErrorHandled::TooGeneric(_)) => {
                     // If we land here it means the const can't be evaluated because it's `TooGeneric`.
@@ -669,10 +725,12 @@ impl<'a, 'tcx> PatCtxt<'a, 'tcx> {
             _ => span_bug!(expr.span, "not a literal: {:?}", expr),
         };
 
-        let lit_input =
-            LitToConstInput { lit: &lit.node, ty: self.typeck_results.expr_ty(expr), neg };
+        let ct_ty = self.typeck_results.expr_ty(expr);
+        let lit_input = LitToConstInput { lit: &lit.node, ty: ct_ty, neg };
         match self.tcx.at(expr.span).lit_to_const(lit_input) {
-            Ok(constant) => self.const_to_pat(Const::Ty(constant), expr.hir_id, lit.span).kind,
+            Ok(constant) => {
+                self.const_to_pat(Const::Ty(ct_ty, constant), expr.hir_id, lit.span).kind
+            }
             Err(LitToConstError::Reported(e)) => PatKind::Error(e),
             Err(LitToConstError::TypeError) => bug!("lower_lit: had type error"),
         }

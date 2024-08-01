@@ -5,6 +5,10 @@ use crate::{BytePos, SpanData};
 
 use rustc_data_structures::fx::FxIndexSet;
 
+// This code is very hot and uses lots of arithmetic, avoid overflow checks for performance.
+// See https://github.com/rust-lang/rust/pull/119440#issuecomment-1874255727
+use rustc_serialize::int_overflow::DebugStrictAdd;
+
 /// A compressed span.
 ///
 /// [`SpanData`] is 16 bytes, which is too big to stick everywhere. `Span` only
@@ -166,7 +170,7 @@ impl Span {
                 debug_assert!(len <= MAX_LEN);
                 SpanData {
                     lo: BytePos(self.lo_or_index),
-                    hi: BytePos(self.lo_or_index + len),
+                    hi: BytePos(self.lo_or_index.debug_strict_add(len)),
                     ctxt: SyntaxContext::from_u32(self.ctxt_or_parent_or_marker as u32),
                     parent: None,
                 }
@@ -179,7 +183,7 @@ impl Span {
                 };
                 SpanData {
                     lo: BytePos(self.lo_or_index),
-                    hi: BytePos(self.lo_or_index + len),
+                    hi: BytePos(self.lo_or_index.debug_strict_add(len)),
                     ctxt: SyntaxContext::root(),
                     parent: Some(parent),
                 }
@@ -212,6 +216,7 @@ impl Span {
 
     // Returns either syntactic context, if it can be retrieved without taking the interner lock,
     // or an index into the interner if it cannot.
+    #[inline]
     fn inline_ctxt(self) -> Result<SyntaxContext, usize> {
         Ok(if self.len_with_tag_or_marker != BASE_LEN_INTERNED_MARKER {
             if self.len_with_tag_or_marker & PARENT_TAG == 0 {

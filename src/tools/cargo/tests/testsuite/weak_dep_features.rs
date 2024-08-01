@@ -9,6 +9,7 @@ use std::fmt::Write;
 // Helper to create lib.rs files that check features.
 fn require(enabled_features: &[&str], disabled_features: &[&str]) -> String {
     let mut s = String::new();
+    writeln!(s, "#![allow(unexpected_cfgs)]").unwrap();
     for feature in enabled_features {
         writeln!(s, "#[cfg(not(feature=\"{feature}\"))] compile_error!(\"expected feature {feature} to be enabled\");",
             feature=feature).unwrap();
@@ -51,6 +52,7 @@ fn simple() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v1.0.0 [..]
 [CHECKING] foo v0.1.0 [..]
@@ -106,6 +108,7 @@ fn deferred() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 4 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] dep v1.0.0 [..]
 [DOWNLOADED] bar_activator v1.0.0 [..]
@@ -185,6 +188,7 @@ fn optional_cli_syntax() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v1.0.0 [..]
 [CHECKING] foo v0.1.0 [..]
@@ -259,6 +263,7 @@ fn required_features() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [ERROR] invalid feature `bar?/feat` in required-features of target `foo`: \
 optional dependency with `?` is not allowed in required-features
 ",
@@ -354,6 +359,7 @@ fn weak_with_host_decouple() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 4 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] [..]
 [DOWNLOADED] [..]
@@ -400,6 +406,7 @@ fn weak_namespaced() {
         .with_stderr(
             "\
 [UPDATING] [..]
+[LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v1.0.0 [..]
 [CHECKING] foo v0.1.0 [..]
@@ -624,9 +631,19 @@ You may press ctrl-c to skip waiting; the crate should be available shortly.
 edition = "2015"
 name = "foo"
 version = "0.1.0"
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "foo"
 homepage = "https://example.com/"
+readme = false
 license = "MIT"
+
+[lib]
+name = "foo"
+path = "src/lib.rs"
 
 [dependencies.bar]
 version = "1.0"
@@ -636,7 +653,7 @@ optional = true
 feat1 = []
 feat2 = ["bar?/feat"]
 "#,
-                cargo::core::package::MANIFEST_PREAMBLE
+                cargo::core::manifest::MANIFEST_PREAMBLE
             ),
         )],
     );

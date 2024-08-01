@@ -101,7 +101,7 @@ use hir_def::{
 use hir_expand::{attrs::AttrId, name::AsName, HirFileId, HirFileIdExt, MacroCallId};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
-use stdx::{impl_from, never};
+use stdx::impl_from;
 use syntax::{
     ast::{self, HasName},
     AstNode, SyntaxNode,
@@ -118,10 +118,10 @@ pub(super) struct SourceToDefCtx<'a, 'b> {
 
 impl SourceToDefCtx<'_, '_> {
     pub(super) fn file_to_def(&self, file: FileId) -> SmallVec<[ModuleId; 1]> {
-        let _p = tracing::span!(tracing::Level::INFO, "SourceBinder::file_to_module_def");
+        let _p = tracing::span!(tracing::Level::INFO, "SourceToDefCtx::file_to_def").entered();
         let mut mods = SmallVec::new();
         for &crate_id in self.db.relevant_crates(file).iter() {
-            // FIXME: inner items
+            // Note: `mod` declarations in block modules cannot be supported here
             let crate_def_map = self.db.crate_def_map(crate_id);
             mods.extend(
                 crate_def_map
@@ -129,14 +129,17 @@ impl SourceToDefCtx<'_, '_> {
                     .map(|local_id| crate_def_map.module_id(local_id)),
             )
         }
+        if mods.is_empty() {
+            // FIXME: detached file
+        }
         mods
     }
 
     pub(super) fn module_to_def(&mut self, src: InFile<ast::Module>) -> Option<ModuleId> {
-        let _p = tracing::span!(tracing::Level::INFO, "module_to_def");
+        let _p = tracing::span!(tracing::Level::INFO, "module_to_def").entered();
         let parent_declaration = src
             .syntax()
-            .ancestors_with_macros_skip_attr_item(self.db.upcast())
+            .ancestors_with_macros(self.db.upcast())
             .find_map(|it| it.map(Either::<ast::Module, ast::BlockExpr>::cast).transpose())
             .map(|it| it.transpose());
 
@@ -158,7 +161,7 @@ impl SourceToDefCtx<'_, '_> {
     }
 
     pub(super) fn source_file_to_def(&self, src: InFile<ast::SourceFile>) -> Option<ModuleId> {
-        let _p = tracing::span!(tracing::Level::INFO, "source_file_to_def");
+        let _p = tracing::span!(tracing::Level::INFO, "source_file_to_def").entered();
         let file_id = src.file_id.original_file(self.db.upcast());
         self.file_to_def(file_id).first().copied()
     }
@@ -253,14 +256,8 @@ impl SourceToDefCtx<'_, '_> {
         src: InFile<ast::SelfParam>,
     ) -> Option<(DefWithBodyId, BindingId)> {
         let container = self.find_pat_or_label_container(src.syntax())?;
-        let (body, source_map) = self.db.body_with_source_map(container);
-        let pat_id = source_map.node_self_param(src.as_ref())?;
-        if let crate::Pat::Bind { id, .. } = body[pat_id] {
-            Some((container, id))
-        } else {
-            never!();
-            None
-        }
+        let body = self.db.body(container);
+        Some((container, body.self_param?))
     }
     pub(super) fn label_to_def(
         &mut self,
@@ -369,7 +366,7 @@ impl SourceToDefCtx<'_, '_> {
     }
 
     pub(super) fn find_container(&mut self, src: InFile<&SyntaxNode>) -> Option<ChildContainer> {
-        for container in src.ancestors_with_macros_skip_attr_item(self.db.upcast()) {
+        for container in src.ancestors_with_macros(self.db.upcast()) {
             if let Some(res) = self.container_to_def(container) {
                 return Some(res);
             }
@@ -423,7 +420,7 @@ impl SourceToDefCtx<'_, '_> {
     }
 
     fn find_generic_param_container(&mut self, src: InFile<&SyntaxNode>) -> Option<GenericDefId> {
-        let ancestors = src.ancestors_with_macros_skip_attr_item(self.db.upcast());
+        let ancestors = src.ancestors_with_macros(self.db.upcast());
         for InFile { file_id, value } in ancestors {
             let item = match ast::Item::cast(value) {
                 Some(it) => it,
@@ -432,6 +429,7 @@ impl SourceToDefCtx<'_, '_> {
             let res: GenericDefId = match item {
                 ast::Item::Fn(it) => self.fn_to_def(InFile::new(file_id, it))?.into(),
                 ast::Item::Struct(it) => self.struct_to_def(InFile::new(file_id, it))?.into(),
+                ast::Item::Union(it) => self.union_to_def(InFile::new(file_id, it))?.into(),
                 ast::Item::Enum(it) => self.enum_to_def(InFile::new(file_id, it))?.into(),
                 ast::Item::Trait(it) => self.trait_to_def(InFile::new(file_id, it))?.into(),
                 ast::Item::TraitAlias(it) => {
@@ -449,11 +447,18 @@ impl SourceToDefCtx<'_, '_> {
     }
 
     fn find_pat_or_label_container(&mut self, src: InFile<&SyntaxNode>) -> Option<DefWithBodyId> {
-        let ancestors = src.ancestors_with_macros_skip_attr_item(self.db.upcast());
+        let ancestors = src.ancestors_with_macros(self.db.upcast());
         for InFile { file_id, value } in ancestors {
-            let item = match ast::Item::cast(value) {
+            let item = match ast::Item::cast(value.clone()) {
                 Some(it) => it,
-                None => continue,
+                None => {
+                    if let Some(variant) = ast::Variant::cast(value.clone()) {
+                        return self
+                            .enum_variant_to_def(InFile::new(file_id, variant))
+                            .map(Into::into);
+                    }
+                    continue;
+                }
             };
             let res: DefWithBodyId = match item {
                 ast::Item::Const(it) => self.const_to_def(InFile::new(file_id, it))?.into(),

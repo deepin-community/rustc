@@ -17,6 +17,7 @@ use itertools::Itertools;
 use proc_macro_api::{MacroDylib, ProcMacroServer};
 use project_model::{CargoConfig, PackageRoot, ProjectManifest, ProjectWorkspace};
 use span::Span;
+use tracing::{instrument, Level};
 use vfs::{file_set::FileSetConfig, loader::Handle, AbsPath, AbsPathBuf, VfsPath};
 
 pub struct LoadCargoConfig {
@@ -38,7 +39,7 @@ pub fn load_workspace_at(
     load_config: &LoadCargoConfig,
     progress: &dyn Fn(String),
 ) -> anyhow::Result<(RootDatabase, vfs::Vfs, Option<ProcMacroServer>)> {
-    let root = AbsPathBuf::assert(std::env::current_dir()?.join(root));
+    let root = AbsPathBuf::assert_utf8(std::env::current_dir()?.join(root));
     let root = ProjectManifest::discover_single(&root)?;
     let mut workspace = ProjectWorkspace::load(root, cargo_config, progress)?;
 
@@ -50,6 +51,7 @@ pub fn load_workspace_at(
     load_workspace(workspace, &cargo_config.extra_env, load_config)
 }
 
+#[instrument(skip_all)]
 pub fn load_workspace(
     ws: ProjectWorkspace,
     extra_env: &FxHashMap<String, String>,
@@ -66,9 +68,9 @@ pub fn load_workspace(
     let proc_macro_server = match &load_config.with_proc_macro_server {
         ProcMacroServerChoice::Sysroot => ws
             .find_sysroot_proc_macro_srv()
-            .and_then(|it| ProcMacroServer::spawn(it, extra_env).map_err(Into::into)),
+            .and_then(|it| ProcMacroServer::spawn(&it, extra_env).map_err(Into::into)),
         ProcMacroServerChoice::Explicit(path) => {
-            ProcMacroServer::spawn(path.clone(), extra_env).map_err(Into::into)
+            ProcMacroServer::spawn(path, extra_env).map_err(Into::into)
         }
         ProcMacroServerChoice::None => Err(anyhow::format_err!("proc macro server disabled")),
     };
@@ -333,9 +335,7 @@ fn load_crate_graph(
     vfs: &mut vfs::Vfs,
     receiver: &Receiver<vfs::loader::Message>,
 ) -> RootDatabase {
-    let (ProjectWorkspace::Cargo { toolchain, target_layout, .. }
-    | ProjectWorkspace::Json { toolchain, target_layout, .. }
-    | ProjectWorkspace::DetachedFiles { toolchain, target_layout, .. }) = ws;
+    let ProjectWorkspace { toolchain, target_layout, .. } = ws;
 
     let lru_cap = std::env::var("RA_LRU_CAP").ok().and_then(|it| it.parse::<usize>().ok());
     let mut db = RootDatabase::new(lru_cap);
@@ -352,6 +352,8 @@ fn load_crate_graph(
                 }
             }
             vfs::loader::Message::Loaded { files } | vfs::loader::Message::Changed { files } => {
+                let _p = tracing::span!(Level::INFO, "load_cargo::load_crate_craph/LoadedChanged")
+                    .entered();
                 for (path, contents) in files {
                     vfs.set_file_contents(path.into(), contents);
                 }
@@ -359,10 +361,10 @@ fn load_crate_graph(
         }
     }
     let changes = vfs.take_changes();
-    for file in changes {
-        if let vfs::Change::Create(v) | vfs::Change::Modify(v) = file.change {
-            if let Ok(text) = std::str::from_utf8(&v) {
-                analysis_change.change_file(file.file_id, Some(text.into()))
+    for (_, file) in changes {
+        if let vfs::Change::Create(v, _) | vfs::Change::Modify(v, _) = file.change {
+            if let Ok(text) = String::from_utf8(v) {
+                analysis_change.change_file(file.file_id, Some(text))
             }
         }
     }
@@ -387,7 +389,7 @@ fn expander_to_proc_macro(
     let name = From::from(expander.name());
     let kind = match expander.kind() {
         proc_macro_api::ProcMacroKind::CustomDerive => ProcMacroKind::CustomDerive,
-        proc_macro_api::ProcMacroKind::FuncLike => ProcMacroKind::FuncLike,
+        proc_macro_api::ProcMacroKind::Bang => ProcMacroKind::Bang,
         proc_macro_api::ProcMacroKind::Attr => ProcMacroKind::Attr,
     };
     let disabled = ignored_macros.iter().any(|replace| **replace == name);
@@ -407,8 +409,7 @@ impl ProcMacroExpander for Expander {
         call_site: Span,
         mixed_site: Span,
     ) -> Result<tt::Subtree<Span>, ProcMacroExpansionError> {
-        let env = env.iter().map(|(k, v)| (k.to_owned(), v.to_owned())).collect();
-        match self.0.expand(subtree, attrs, env, def_site, call_site, mixed_site) {
+        match self.0.expand(subtree, attrs, env.clone(), def_site, call_site, mixed_site) {
             Ok(Ok(subtree)) => Ok(subtree),
             Ok(Err(err)) => Err(ProcMacroExpansionError::Panic(err.0)),
             Err(err) => Err(ProcMacroExpansionError::System(err.to_string())),
@@ -419,13 +420,9 @@ impl ProcMacroExpander for Expander {
 #[cfg(test)]
 mod tests {
     use ide_db::base_db::SourceDatabase;
+    use vfs::file_set::FileSetConfigBuilder;
 
     use super::*;
-
-    use ide_db::base_db::SourceRootId;
-    use vfs::{file_set::FileSetConfigBuilder, VfsPath};
-
-    use crate::SourceRootConfig;
 
     #[test]
     fn test_loading_rust_analyzer() {

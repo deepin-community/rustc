@@ -18,6 +18,7 @@ use rustc_session::lint::BuiltinLintDiag;
 use rustc_session::parse::ParseSess;
 use rustc_span::symbol::Symbol;
 use rustc_span::{edition::Edition, BytePos, Pos, Span};
+use tracing::debug;
 
 mod diagnostics;
 mod tokentrees;
@@ -30,19 +31,18 @@ use unescape_error_reporting::{emit_unescape_error, escaped_char};
 //
 // This assertion is in this crate, rather than in `rustc_lexer`, because that
 // crate cannot depend on `rustc_data_structures`.
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[cfg(target_pointer_width = "64")]
 rustc_data_structures::static_assert_size!(rustc_lexer::Token, 12);
 
 #[derive(Clone, Debug)]
-pub struct UnmatchedDelim {
-    pub expected_delim: Delimiter,
+pub(crate) struct UnmatchedDelim {
     pub found_delim: Option<Delimiter>,
     pub found_span: Span,
     pub unclosed_span: Option<Span>,
     pub candidate_span: Option<Span>,
 }
 
-pub(crate) fn parse_token_trees<'psess, 'src>(
+pub(crate) fn lex_token_trees<'psess, 'src>(
     psess: &'psess ParseSess,
     mut src: &'src str,
     mut start_pos: BytePos,
@@ -63,9 +63,10 @@ pub(crate) fn parse_token_trees<'psess, 'src>(
         cursor,
         override_span,
         nbsp_is_whitespace: false,
+        last_lifetime: None,
     };
     let (stream, res, unmatched_delims) =
-        tokentrees::TokenTreesReader::parse_all_token_trees(string_reader);
+        tokentrees::TokenTreesReader::lex_all_token_trees(string_reader);
     match res {
         Ok(()) if unmatched_delims.is_empty() => Ok(stream),
         _ => {
@@ -105,10 +106,14 @@ struct StringReader<'psess, 'src> {
     /// in this file, it's safe to treat further occurrences of the non-breaking
     /// space character as whitespace.
     nbsp_is_whitespace: bool,
+
+    /// Track the `Span` for the leading `'` of the last lifetime. Used for
+    /// diagnostics to detect possible typo where `"` was meant.
+    last_lifetime: Option<Span>,
 }
 
 impl<'psess, 'src> StringReader<'psess, 'src> {
-    pub fn dcx(&self) -> &'psess DiagCtxt {
+    fn dcx(&self) -> &'psess DiagCtxt {
         &self.psess.dcx
     }
 
@@ -129,6 +134,18 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
             self.pos = self.pos + BytePos(token.len);
 
             debug!("next_token: {:?}({:?})", token.kind, self.str_from(start));
+
+            if let rustc_lexer::TokenKind::Semi
+            | rustc_lexer::TokenKind::LineComment { .. }
+            | rustc_lexer::TokenKind::BlockComment { .. }
+            | rustc_lexer::TokenKind::CloseParen
+            | rustc_lexer::TokenKind::CloseBrace
+            | rustc_lexer::TokenKind::CloseBracket = token.kind
+            {
+                // Heuristic: we assume that it is unlikely we're dealing with an unterminated
+                // string surrounded by single quotes.
+                self.last_lifetime = None;
+            }
 
             // Now "cook" the token, converting the simple `rustc_lexer::TokenKind` enum into a
             // rich `rustc_ast::TokenKind`. This turns strings into interned symbols and runs
@@ -188,6 +205,7 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
                     self.ident(start)
                 }
                 rustc_lexer::TokenKind::InvalidIdent
+                | rustc_lexer::TokenKind::InvalidPrefix
                     // Do not recover an identifier with emoji if the codepoint is a confusable
                     // with a recoverable substitution token, like `➖`.
                     if !UNICODE_ARRAY
@@ -247,6 +265,7 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
                     // expansion purposes. See #12512 for the gory details of why
                     // this is necessary.
                     let lifetime_name = self.str_from(start);
+                    self.last_lifetime = Some(self.mk_sp(start, start + BytePos(1)));
                     if starts_with_number {
                         let span = self.mk_sp(start, self.pos);
                         self.dcx().struct_err("lifetimes cannot start with a number")
@@ -284,7 +303,9 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
                 rustc_lexer::TokenKind::Caret => token::BinOp(token::Caret),
                 rustc_lexer::TokenKind::Percent => token::BinOp(token::Percent),
 
-                rustc_lexer::TokenKind::Unknown | rustc_lexer::TokenKind::InvalidIdent => {
+                rustc_lexer::TokenKind::Unknown
+                | rustc_lexer::TokenKind::InvalidIdent
+                | rustc_lexer::TokenKind::InvalidPrefix => {
                     // Don't emit diagnostics for sequences of the same invalid token
                     if swallow_next_invalid > 0 {
                         swallow_next_invalid -= 1;
@@ -350,11 +371,10 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
         let content = self.str_from(content_start);
         if contains_text_flow_control_chars(content) {
             let span = self.mk_sp(start, self.pos);
-            self.psess.buffer_lint_with_diagnostic(
+            self.psess.buffer_lint(
                 TEXT_DIRECTION_CODEPOINT_IN_COMMENT,
                 span,
                 ast::CRATE_NODE_ID,
-                "unicode codepoint changing visible direction of text present in comment",
                 BuiltinLintDiag::UnicodeTextFlow(span, content.to_string()),
             );
         }
@@ -395,10 +415,21 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
         match kind {
             rustc_lexer::LiteralKind::Char { terminated } => {
                 if !terminated {
-                    self.dcx()
+                    let mut err = self
+                        .dcx()
                         .struct_span_fatal(self.mk_sp(start, end), "unterminated character literal")
-                        .with_code(E0762)
-                        .emit()
+                        .with_code(E0762);
+                    if let Some(lt_sp) = self.last_lifetime {
+                        err.multipart_suggestion(
+                            "if you meant to write a string literal, use double quotes",
+                            vec![
+                                (lt_sp, "\"".to_string()),
+                                (self.mk_sp(start, start + BytePos(1)), "\"".to_string()),
+                            ],
+                            Applicability::MaybeIncorrect,
+                        );
+                    }
+                    err.emit()
                 }
                 self.cook_unicode(token::Char, Mode::Char, start, end, 1, 1) // ' '
             }
@@ -673,19 +704,30 @@ impl<'psess, 'src> StringReader<'psess, 'src> {
             let sugg = if prefix == "rb" {
                 Some(errors::UnknownPrefixSugg::UseBr(prefix_span))
             } else if expn_data.is_root() {
-                Some(errors::UnknownPrefixSugg::Whitespace(prefix_span.shrink_to_hi()))
+                if self.cursor.first() == '\''
+                    && let Some(start) = self.last_lifetime
+                    && self.cursor.third() != '\''
+                    && let end = self.mk_sp(self.pos, self.pos + BytePos(1))
+                    && !self.psess.source_map().is_multiline(start.until(end))
+                {
+                    // FIXME: An "unclosed `char`" error will be emitted already in some cases,
+                    // but it's hard to silence this error while not also silencing important cases
+                    // too. We should use the error stashing machinery instead.
+                    Some(errors::UnknownPrefixSugg::MeantStr { start, end })
+                } else {
+                    Some(errors::UnknownPrefixSugg::Whitespace(prefix_span.shrink_to_hi()))
+                }
             } else {
                 None
             };
             self.dcx().emit_err(errors::UnknownPrefix { span: prefix_span, prefix, sugg });
         } else {
             // Before Rust 2021, only emit a lint for migration.
-            self.psess.buffer_lint_with_diagnostic(
+            self.psess.buffer_lint(
                 RUST_2021_PREFIXES_INCOMPATIBLE_SYNTAX,
                 prefix_span,
                 ast::CRATE_NODE_ID,
-                format!("prefix `{prefix}` is unknown"),
-                BuiltinLintDiag::ReservedPrefix(prefix_span),
+                BuiltinLintDiag::ReservedPrefix(prefix_span, prefix.to_string()),
             );
         }
     }
