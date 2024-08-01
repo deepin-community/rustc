@@ -15,7 +15,6 @@ prune/d-0001-pkg-config-no-special-snowflake.patch
 prune/d-0002-mdbook-strip-embedded-libs.patch
 prune/d-0005-no-jemalloc.patch
 prune/d-0010-cargo-remove-vendored-c-crates.patch
-prune/opener-cherry-pick-fix-to-avoid-vendored-dbus.patch
 prune/d-0011-cargo-remove-nghttp2.patch
 prune/d-0020-remove-windows-dependencies.patch
 prune/d-0021-vendor-remove-windows-dependencies.patch
