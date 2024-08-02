@@ -11,6 +11,7 @@ upstream/u-hurd-tests.patch
 upstream/d-ignore-test_arc_condvar_poison-ppc.patch
 upstream/d-disable-download-tests.patch
 upstream/u-add-missing-f16-intrinsics.patch
+upstream/u-add-f16-f128-handling-in-a-couple-places.patch
 prune/d-0000-ignore-removed-submodules.patch
 prune/d-0001-pkg-config-no-special-snowflake.patch
 prune/d-0002-mdbook-strip-embedded-libs.patch
