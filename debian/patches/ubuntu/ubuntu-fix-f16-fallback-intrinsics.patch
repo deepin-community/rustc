@@ -1,0 +1,34 @@
+Description: Fix f16 fallback intrinsics infinite recursion
+Author: Zixing Liu <zixing.liu@canonical.com>
+Forwarded: no
+Last-Update: 2024-08-02
+---
+Index: rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/extend.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
+@@ -32,7 +32,7 @@ where
+ 
+     let sign_bits_delta = dst_sign_bits - src_sign_bits;
+     let exp_bias_delta = dst_exp_bias - src_exp_bias;
+-    let a_abs = a.repr() & src_abs_mask;
++    let a_abs = core::hint::black_box(a.repr()) & src_abs_mask;
+     let mut abs_result = R::Int::ZERO;
+ 
+     if a_abs.wrapping_sub(src_min_normal) < src_infinity.wrapping_sub(src_min_normal) {
+Index: rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
+===================================================================
+--- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
++++ rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
+@@ -43,8 +43,9 @@ where
+ 
+     let sign_bits_delta = F::SIGNIFICAND_BITS - R::SIGNIFICAND_BITS;
+     // Break a into a sign and representation of the absolute value.
+-    let a_abs = a.repr() & src_abs_mask;
+-    let sign = a.repr() & src_sign_mask;
++    let a_repr = core::hint::black_box(a.repr());
++    let a_abs = a_repr & src_abs_mask;
++    let sign = a_repr & src_sign_mask;
+     let mut abs_result: R::Int;
+ 
+     if a_abs.wrapping_sub(underflow) < a_abs.wrapping_sub(overflow) {
