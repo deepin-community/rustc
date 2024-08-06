@@ -50,3 +50,4 @@ ubuntu/ubuntu-disable-nanum-fonts.patch
 ubuntu/ubuntu-skip-gdb-tests.patch
 ubuntu/ubuntu-add-s390x-allowed-features.patch
 ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch
+upstream/u-limit-f16-doctests-to-x86.patch
