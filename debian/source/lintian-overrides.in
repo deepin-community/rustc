@@ -1,6 +1,7 @@
 # Test data
 rustc-@RUST_VERSION@ source: source-is-missing [src/tools/rust-analyzer/crates/ide/src/syntax_highlighting/test_data/*.html]
 rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/notable-trait/doc-notable_trait.*.html]
+rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/notable-trait/doc-notable_trait-slice.*.html]
 rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/notable-trait/spotlight*.html]
 rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/decl-trailing-whitespace.declaration.html]
 rustc-@RUST_VERSION@ source: source-is-missing [vendor/html5ever-*/data/bench/*.html]
