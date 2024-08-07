@@ -1475,12 +1475,6 @@ Copyright: 2020 Vishnunarayan K I <appukuttancr@gmail.com>
 License: MIT or Apache-2.0
 Comment: see https://github.com/vn-ki/gsgdt-rs
 
-Files: vendor/h2-*/*
-Copyright: 2017-2024 Carl Lerche <me@carllerche.com>
-           2017-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT
-Comment: see https://github.com/hyperium/h2
-
 Files: vendor/half-*/*
 Copyright: 2016-2024 Kathryn Long <squeeself@gmail.com>
 License: MIT OR Apache-2.0
@@ -1535,23 +1529,6 @@ Copyright: 2017-2024 Alex Crichton <alex@alexcrichton.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/hyperium/http
 
-Files: vendor/httparse-*/*
-Copyright: 2015-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/seanmonstar/httparse
-
-Files: vendor/http-body-*/*
-Copyright: 2019-2024 Carl Lerche <me@carllerche.com>
-           2019-2024 Lucio Franco <luciofranco14@gmail.com>
-           2019-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT
-Comment: see https://github.com/hyperium/http-body
-
-Files: vendor/httpdate-*/*
-Copyright: 2016-2023 Pyfisch <pyfisch@posteo.org>
-License: MIT or Apache-2.0
-Comment: see https://github.com/pyfisch/httpdate
-
 Files: vendor/http-auth-*/*
 Copyright: 2021-2023 Scott Lamp <slamb@slamb.org>
 License: MIT or Apache-2.0
@@ -1570,16 +1547,6 @@ Copyright:
  2016 Pyfisch
  2005-2013 Rich Felker
 License: MIT or Apache-2.0
-
-Files: vendor/hyper-*/*
-Copyright: 2014-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT
-Comment: see https://github.com/hyperium/hyper
-
-Files: vendor/hyper-tls-*/*
-Copyright: 2017-2023 Sean McArthur <sean@seanmonstar.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/hyperium/hyper-tls
 
 Files: vendor/if_chain-*/*
 Copyright: 2016-2020 Chris Wong <lambda.fairy@gmail.com>
@@ -1642,11 +1609,6 @@ Copyright: 2018-2021 Kekoa Riggin <kekoariggin@gmail.com>
 License: Apache-2.0 or MIT
 Comment: see https://github.com/zbraniecki/pluralrules
 
-Files: vendor/ipnet-*/*
-Copyright: 2017-2023 Kris Price <kris@krisprice.nz>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/krisprice/ipnet
-
 Files: vendor/is-terminal-*/*
 Copyright: 2022-2023 softprops <d.tangren@gmail.com>
            2022-2023 Dan Gohman <dev@sunfishcode.online>
@@ -1662,7 +1624,6 @@ Files:
  vendor/js-sys-*/*
  vendor/wasm-bindgen-*/*
  vendor/wasm-bindgen-backend-*/*
- vendor/wasm-bindgen-futures-*/*
  vendor/wasm-bindgen-macro-support-*/*
  vendor/wasm-bindgen-macro-*/*
  vendor/wasm-bindgen-shared-*/*
@@ -1865,18 +1826,6 @@ Copyright: 2017-2020 Frommi <daniil.liferenko@gmail.com>
 License: MIT
 Comment: see https://github.com/Frommi/miniz_oxide
 
-Files: vendor/mio-*/*
-Copyright: 2014-2024 Carl Lerche <me@carllerche.com>
-           2014-2024 Thomas de Zeeuw <thomasdezeeuw@gmail.com>
-           2014-2024 Tokio Contributors <team@tokio.rs>
-License: MIT
-Comment: see https://github.com/tokio-rs/mio
-
-Files: vendor/native-tls-*/*
-Copyright: 2016-2024 Steven Fackler <sfackler@gmail.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/sfackler/rust-native-tls
-
 Files: vendor/new_debug_unreachable-*/*
 Copyright: 2014-2018 Matt Brubeck <mbrubeck@limpet.net>
            2014-2018 Jonathan Reem <jonathan.reem@gmail.com>
@@ -2020,13 +1969,6 @@ Comment:
  see https://github.com/rust-lang/hashbrown
  see https://github.com/Amanieu/thread_local-rs
  see https://github.com/Amanieu/parking_lot
-
-Files: vendor/packed_simd-*/*
-Copyright:
- 2018-2023 Gonzalo Brito Gadeschi <gonzalobg88@gmail.com>
- 2014-2023 The Rust Project Developers
-License: MIT OR Apache-2.0
-Comment: see https://github.com/rust-lang/packed_simd
 
 Files: vendor/pad-*/*
 Copyright: 2018-2024 Ben S <ogham@bsago.me>
@@ -2224,11 +2166,6 @@ Copyright: 2018-2020 Andrew Gallant <jamslam@gmail.com>
 License: Unlicense or MIT
 Comment: see https://github.com/BurntSushi/regex-automata
 
-Files: vendor/reqwest-*/*
-Copyright: 2016-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/seanmonstar/reqwest
-
 Files: vendor/rowan-*/*
 Copyright: 2018-2022 Aleksey Kladov <aleksey.kladov@gmail.com>
 License: MIT OR Apache-2.0
@@ -2273,11 +2210,6 @@ Copyright: 2020-2023 Dan Gohman <dev@sunfishcode.online>
 License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
 Comment: see https://github.com/bytecodealliance/rustix
 
-Files: vendor/rustls-pemfile-*/*
-Copyright: 2016-2024 Joseph Birr-Pixton <jpixton@gmail.com>
-License: Apache-2.0 OR ISC OR MIT
-Comment: see https://github.com/rustls/pemfile
-
 Files: vendor/rustversion-*/*
 Copyright: 2019-2021 David Tolnay <dtolnay@gmail.com>
 License: MIT OR Apache-2.0
@@ -2297,14 +2229,6 @@ Files: vendor/ryu-*/*
 Copyright: 2018-2018 David Tolnay <dtolnay@gmail.com>
 License: Apache-2.0 or BSL-1.0
 Comment: see https://github.com/dtolnay/ryu
-
-Files:
- vendor/security-framework-*/*
- vendor/security-framework-sys-*/*
-Copyright: 2015-2024 Steven Fackler <sfackler@gmail.com>
-           2015-2024 Kornel <kornel@geekhood.net>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/kornelski/rust-security-framework
 
 Files:
  vendor/self_cell-*/*
@@ -2358,11 +2282,6 @@ Files: vendor/serde-untagged-*/*
 Copyright: 2023-2024 David Tolnay <dtolnay@gmail.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/dtolnay/serde-untagged
-
-Files: vendor/serde_urlencoded-*/*
-Copyright: 2016-2024 Anthony Ramine <n.oxyde@gmail.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/nox/serde_urlencoded
 
 Files: vendor/serde-value-*/*
 Copyright: 2016-2020 arcnmx
@@ -2498,11 +2417,6 @@ Files: vendor/supports-unicode-*/*
 Copyright: 2021-2024 Kat Marchán <kzm@zkat.tech>
 License: Apache-2.0
 Comment: see https://github.com/zkat/supports-unicode
-
-Files: vendor/sync_wrapper-*/*
-Copyright: 2020-2024 Actyx AG <developer@actyx.io>
-License: Apache-2.0
-Comment: see https://github.com/Actyx/sync_wrapper
 
 Files:
  vendor/synstructure-*/*
@@ -2666,11 +2580,6 @@ Copyright: 2018-2024 The Servo Project Developers
 License: MIT OR Apache-2.0
 Comment: see https://github.com/Manishearth/triomphe
 
-Files: vendor/try-lock-*/*
-Copyright: 2018-2023 Sean McArthur <sean@seanmonstar.com>
-License: MIT
-Comment: see https://github.com/seanmonstar/try-lock
-
 Files: vendor/twox-hash-*/*
 Copyright: 2015-2022 Jake Goulding <jake.goulding@gmail.com>
 License: MIT
@@ -2748,17 +2657,6 @@ Files: vendor/version_check-*/*
 Copyright: 2017-2019 Sergio Benitez <sb@sergio.bz>
 License: MIT or Apache-2.0
 Comment: see https://github.com/SergioBenitez/version_check
-
-Files: vendor/want-*/*
-Copyright: 2018-2023 Sean McArthur <sean@seanmonstar.com>
-License: MIT
-Comment: see https://github.com/seanmonstar/want
-
-Files: vendor/xz-*/*
-Copyright: 2016-2023 Hyeon Kim <simnalamburt@gmail.com>
-           2016-2023 Alex Crichton <alex@alexcrichton.com>
-License: MIT or Apache-2.0
-Comment: see https://github.com/alexcrichton/xz2-rs
 
 Files:
  vendor/ucd-parse-*/*
@@ -2940,21 +2838,6 @@ Copyright: 2016-2022 Tokio Contributors <team@tokio.rs>
 License: MIT
 Comment: see https://github.com/tokio-rs/tokio
 
-Files: vendor/tokio-native-tls-*/*
-Copyright: 2017-2023 Tokio Contributors <team@tokio.rs>
-License: MIT
-Comment: see https://github.com/tokio-rs/tls
-
-Files: vendor/tokio-util-*/*
-Copyright: 2016-2024 Tokio Contributors <team@tokio.rs>
-License: MIT
-Comment: see https://github.com/tokio-rs/tokio
-
-Files: vendor/tower-service-*/*
-Copyright: 2016-2023 Tower Maintainers <team@tower-rs.com>
-License: MIT
-Comment: see https://github.com/tower-rs/tower
-
 Files: vendor/valuable-*/*
 Copyright:
  2021 Valuable Contributors
@@ -3019,6 +2902,116 @@ Copyright: Mozilla Foundation
 License: CC-BY
 Comment:
  Relevant discussion in https://github.com/rust-lang/rust/issues/11562
+
+Files: vendor/linereader-0.4.0/*
+Copyright: 2019 Thomas Hurst <tom@hur.st>
+License: MIT
+Comment: see https://github.com/Freaky/rust-linereader.git
+
+Files: vendor/quick-xml-0.31.0/*
+Copyright: 2016-2024 Johann Tuffe
+  2016-2024 Mingun
+  2016-2024 Daniel Alley
+License: MIT
+Comment: see https://github.com/tafia/quick-xml
+
+Files: vendor/assert_cmd-2.0.14/*
+Copyright: 2018-2024 Pascal Hertleif <killercup@gmail.com>
+  2018-2024 Ed Page <eopage@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/assert-rs/assert_cmd.git
+
+Files: vendor/line-wrap-0.2.0/*
+Copyright: 2018-2024 Marshall Pierce <marshall@mpierce.org>
+License: Apache-2.0
+Comment: see https://bitbucket.org/marshallpierce/line-wrap-rs/src
+
+Files: vendor/syntect-5.2.0/*
+Copyright: 2016-2024 Tristan Hume <tristan@thume.ca>
+License: MIT
+Comment: see https://github.com/trishume/syntect
+
+Files: vendor/onig_sys-69.8.1/*
+Copyright: 2016-2022 Will Speak <will@willspeak.me>
+  2016-2022 Ivan Ivashchenko <defuz@me.com>
+License: MIT
+Comment: see http://github.com/iwillspeak/rust-onig
+
+Files: vendor/textwrap-0.16.1/*
+Copyright: 2016-2024 Martin Geisler <martin@geisler.net>
+License: MIT
+Comment: see https://github.com/mgeisler/textwrap
+
+Files: vendor/plist-1.6.1/*
+Copyright: 2015-2024 Ed Barnard <eabarnard@gmail.com>
+License: MIT
+Comment: see https://github.com/ebarnard/rust-plist/
+
+Files: vendor/doc-comment-0.3.3/*
+Copyright: 2018-2020 Guillaume Gomez <guillaume1.gomez@gmail.com>
+License: MIT
+Comment: see https://github.com/GuillaumeGomez/doc-comment
+
+Files: vendor/polib-0.2.0/*
+Copyright: 2022-2023 Brett Dong <brett.browning.dong@gmail.com>
+License: MIT
+Comment: see https://github.com/brettdong/polib
+
+Files: vendor/predicates-3.1.0/*
+Copyright: 2017-2024 Nick Stevens <nick@bitcurry.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/assert-rs/predicates-rs
+
+Files: vendor/is_terminal_polyfill-1.70.0/*
+Copyright: 2024 Ed Page
+License: MIT OR Apache-2.0
+Comment: see https://github.com/polyfill-rs/is_terminal_polyfill
+
+Files: vendor/difflib-0.4.0/*
+Copyright: 2016-2018 Dima Kudosh <dimakudosh@gmail.com>
+License: MIT
+Comment: see https://github.com/DimaKudosh/difflib
+
+Files: vendor/option-ext-0.2.0/*
+Copyright: 2022-2023 Simon Ochsenreither <simon@ochsenreither.de>
+License: MPL-2.0
+Comment: see https://github.com/soc/option-ext.git
+
+Files: vendor/onig-6.4.0/*
+Copyright: 2016-2022 Will Speak <will@willspeak.me>
+  2016-2022 Ivan Ivashchenko <defuz@me.com>
+License: MIT
+Comment: see http://github.com/iwillspeak/rust-onig
+
+Files: vendor/predicates-core-1.0.6/*
+Copyright: 2018-2024 Nick Stevens <nick@bitcurry.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/assert-rs/predicates-rs/tree/master/crates/core
+
+Files: vendor/xmlparser-0.13.6/*
+Copyright: 2017-2023 Yevhenii Reizner <razrfalcon@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/RazrFalcon/xmlparser
+
+Files: vendor/termtree-0.4.1/*
+Copyright: 2021-2024 Ed Page
+License: MIT
+Comment: see https://github.com/rust-cli/termtree
+
+Files: vendor/directories-5.0.1/*
+Copyright: 2017-2023 Simon Ochsenreither <simon@ochsenreither.de>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/soc/directories-rs
+
+Files: vendor/yaml-rust-0.4.5/*
+Copyright: 2015-2021 Yuheng Chen <yuhengchen@sensetime.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/chyh1990/yaml-rust
+
+Files: vendor/predicates-tree-1.0.9/*
+Copyright: 2018-2024 Nick Stevens <nick@bitcurry.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/assert-rs/predicates-rs/tree/master/crates/tree
 
 License: 0BSD
  Permission to use, copy, modify, and/or distribute this software for
