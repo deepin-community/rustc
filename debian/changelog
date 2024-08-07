@@ -1,3 +1,23 @@
+rustc-1.80 (1.80.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
+
+  * New upstream release 1.80.0 (LP: #2076206)
+    - d/patches: refresh patches
+    - d/copyright: update the list of unused vendored dependencies
+    - d/copyright: delete src/tools/rustc-perf we don't need this upstream
+      benchmarking facility (not used anywhere)
+    - d/control: re-generate files for rustc-1.80
+    - d/p/series: remove opener-cherry-pick-fix-to-avoid-vendored-dbus.patch
+  * d/p/upstream/u-add-missing-f16-intrinsics.patch,
+    d/p/upstream/u-add-f16-f128-handling-in-a-couple-places.patch,
+    d/p/upstream/u-limit-f16-doctests-to-x86.patch,
+    d/p/upstream/u-disable-f16-f128-on-unsupported-platforms.patch:
+    backported patches from upstream to fix compiler crash from LLVM
+    mishandling f16 lowering on some platforms
+  * d/p/ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch: add a patch to fix
+    LLVM misoptimizations
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Wed, 07 Aug 2024 00:17:21 -0600
+
 rustc-1.79 (1.79.0+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
 
   [ Zixing Liu ]
