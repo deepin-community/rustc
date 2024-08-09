@@ -1,6 +1,6 @@
-rustc-1.80 (1.80.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
+rustc-1.80 (1.80.1+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
-  * New upstream release 1.80.0 (LP: #2076206)
+  * New upstream release 1.80.1 (LP: #2076206)
     - d/patches: refresh patches
     - d/copyright: update the list of unused vendored dependencies
     - d/copyright: delete src/tools/rustc-perf we don't need this upstream
@@ -16,7 +16,7 @@ rustc-1.80 (1.80.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
   * d/p/ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch: add a patch to fix
     LLVM misoptimizations
 
- -- Zixing Liu <zixing.liu@canonical.com>  Wed, 07 Aug 2024 00:17:21 -0600
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 08 Aug 2024 08:56:51 -0600
 
 rustc-1.79 (1.79.0+dfsg1ubuntu1-0ubuntu1) oracular; urgency=medium
 
