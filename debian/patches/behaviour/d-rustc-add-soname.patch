@@ -37,7 +37,7 @@ index b458f32..07b7b55 100644
 +       && sess.target.linker_flavor.is_gnu() {
 +        let filename = out_filename.file_name().unwrap().to_str().unwrap();
 +        let soname = format!("-Wl,-soname={}", &filename);
-+        cmd.arg(soname);
++        cmd.cc_arg(soname);
 +    }
  }
  

@@ -20,7 +20,6 @@ prune/d-0010-cargo-remove-vendored-c-crates.patch
 prune/d-0011-cargo-remove-nghttp2.patch
 prune/d-0020-remove-windows-dependencies.patch
 prune/d-0021-vendor-remove-windows-dependencies.patch
-vendor/u-hurd-gix-index.patch
 vendor/u-hurd-gix-index-2.patch
 vendor/u-hurd-socket2.patch
 vendor/u-hurd-rustix.patch
@@ -50,5 +49,4 @@ ubuntu/ubuntu-disable-nanum-fonts.patch
 ubuntu/ubuntu-skip-gdb-tests.patch
 ubuntu/ubuntu-add-s390x-allowed-features.patch
 ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch
-upstream/u-limit-f16-doctests-to-x86.patch
 upstream/u-disable-f16-f128-on-unsupported-platforms.patch

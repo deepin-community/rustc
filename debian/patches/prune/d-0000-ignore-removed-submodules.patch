@@ -18,14 +18,13 @@ Index: rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -20,22 +20,16 @@ members = [
+@@ -20,21 +20,15 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
 -  "src/tools/remote-test-client",
 -  "src/tools/remote-test-server",
    "src/tools/rust-installer",
-   "src/tools/rust-demangler",
    "src/tools/rustdoc",
 -  "src/tools/rls",
    "src/tools/rustfmt",
@@ -60,7 +59,7 @@ Index: rustc/src/bootstrap/src/core/build_steps/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/build_steps/test.rs
 +++ rustc/src/bootstrap/src/core/build_steps/test.rs
-@@ -2430,17 +2430,7 @@ impl Step for RustcGuide {
+@@ -2398,18 +2398,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
@@ -68,8 +67,9 @@ Index: rustc/src/bootstrap/src/core/build_steps/test.rs
 -        builder.update_submodule(&relative_path);
 -
 -        let src = builder.src.join(relative_path);
--        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook);
--        let toolstate = if builder.run_delaying_failure(rustbook_cmd.arg("linkcheck").arg(&src)) {
+-        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook).delay_failure();
+-        rustbook_cmd.arg("linkcheck").arg(&src);
+-        let toolstate = if rustbook_cmd.run(builder).is_success() {
 -            ToolState::TestPass
 -        } else {
 -            ToolState::TestFail
@@ -83,7 +83,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/builder.rs
 +++ rustc/src/bootstrap/src/core/builder.rs
-@@ -730,25 +730,14 @@ impl<'a> Builder<'a> {
+@@ -778,28 +778,16 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -94,7 +94,6 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 -                tool::Rls,
 -                tool::RustAnalyzer,
                  tool::RustAnalyzerProcMacroSrv,
-                 tool::RustDemangler,
                  tool::Rustdoc,
                  tool::Clippy,
                  tool::CargoClippy,
@@ -108,8 +107,12 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 -                tool::RustdocGUITest,
                  tool::OptimizedDist,
                  tool::CoverageDump,
-                 tool::LlvmBitcodeLinker
-@@ -787,12 +776,7 @@ impl<'a> Builder<'a> {
+                 tool::LlvmBitcodeLinker,
+-                tool::RustcPerf,
+             ),
+             Kind::Clippy => describe!(
+                 clippy::Std,
+@@ -834,12 +822,7 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -122,24 +125,24 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  check::Bootstrap,
              ),
              Kind::Test => describe!(
-@@ -825,7 +809,6 @@ impl<'a> Builder<'a> {
+@@ -872,7 +855,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
 -                test::RustAnalyzer,
                  test::ErrorIndex,
                  test::Distcheck,
-                 test::RunMakeFullDeps,
-@@ -841,8 +824,6 @@ impl<'a> Builder<'a> {
+                 test::Nomicon,
+@@ -887,8 +869,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
 -                test::Miri,
 -                test::CargoMiri,
                  test::Clippy,
-                 test::RustDemangler,
                  test::CompiletestTest,
-@@ -881,7 +862,6 @@ impl<'a> Builder<'a> {
+                 test::CrateRunMakeSupport,
+@@ -927,7 +907,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -147,32 +150,30 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -902,12 +882,9 @@ impl<'a> Builder<'a> {
+@@ -948,11 +927,8 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
 -                dist::Rls,
 -                dist::RustAnalyzer,
                  dist::Rustfmt,
-                 dist::RustDemangler,
                  dist::Clippy,
 -                dist::Miri,
                  dist::LlvmTools,
                  dist::LlvmBitcodeLinker,
                  dist::RustDev,
-@@ -930,11 +907,9 @@ impl<'a> Builder<'a> {
+@@ -975,10 +951,8 @@ impl<'a> Builder<'a> {
                  // install the same binaries twice for each tool, leaving backup files (*.old) as a result.
                  install::Rustc,
                  install::Cargo,
 -                install::RustAnalyzer,
                  install::Rustfmt,
-                 install::RustDemangler,
                  install::Clippy,
 -                install::Miri,
                  install::LlvmTools,
                  install::Src,
              ),
-@@ -942,7 +917,6 @@ impl<'a> Builder<'a> {
+@@ -986,7 +960,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -180,7 +181,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -2081,10 +2055,7 @@ impl<'a> Builder<'a> {
+@@ -2131,10 +2104,7 @@ impl<'a> Builder<'a> {
              }
          }
  
@@ -192,31 +193,6 @@ Index: rustc/src/bootstrap/src/core/builder.rs
              cargo.arg("--frozen");
          }
  
-@@ -2233,16 +2204,16 @@ impl<'a> Builder<'a> {
-         static SUBMODULES_PATHS: OnceLock<Vec<String>> = OnceLock::new();
- 
-         let init_submodules_paths = |src: &PathBuf| {
--            let file = File::open(src.join(".gitmodules")).unwrap();
-+           //let file = File::open(src.join(".gitmodules")).unwrap();
- 
-             let mut submodules_paths = vec![];
--            for line in BufReader::new(file).lines().map_while(Result::ok) {
--                let line = line.trim();
--                if line.starts_with("path") {
--                    let actual_path = line.split(' ').last().expect("Couldn't get value of path");
--                    submodules_paths.push(actual_path.to_owned());
--                }
--            }
-+            //for line in BufReader::new(file).lines().map_while(Result::ok) {
-+            //    let line = line.trim();
-+            //    if line.starts_with("path") {
-+            //        let actual_path = line.split(' ').last().expect("Couldn't get value of path");
-+            //        submodules_paths.push(actual_path.to_owned());
-+            //    }
-+            //}
- 
-             submodules_paths
-         };
 Index: rustc/src/tools/rust-analyzer/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/rust-analyzer/Cargo.toml
@@ -237,3 +213,29 @@ Index: rustc/src/tools/rust-analyzer/Cargo.toml
  exclude = ["crates/proc-macro-srv/proc-macro-test/imp"]
  resolver = "2"
  
+Index: rustc/src/tools/build_helper/src/util.rs
+===================================================================
+--- rustc.orig/src/tools/build_helper/src/util.rs
++++ rustc/src/tools/build_helper/src/util.rs
+@@ -53,20 +53,9 @@ pub fn try_run(cmd: &mut Command, print_
+ /// Returns the submodule paths from the `.gitmodules` file in the given directory.
+ pub fn parse_gitmodules(target_dir: &Path) -> &[String] {
+     static SUBMODULES_PATHS: OnceLock<Vec<String>> = OnceLock::new();
+-    let gitmodules = target_dir.join(".gitmodules");
+-    assert!(gitmodules.exists(), "'{}' file is missing.", gitmodules.display());
+ 
+     let init_submodules_paths = || {
+-        let file = File::open(gitmodules).unwrap();
+-
+-        let mut submodules_paths = vec![];
+-        for line in BufReader::new(file).lines().map_while(Result::ok) {
+-            let line = line.trim();
+-            if line.starts_with("path") {
+-                let actual_path = line.split(' ').last().expect("Couldn't get value of path");
+-                submodules_paths.push(actual_path.to_owned());
+-            }
+-        }
++        let submodules_paths: Vec<String> = vec![];
+ 
+         submodules_paths
+     };

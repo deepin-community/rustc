@@ -8,13 +8,13 @@ Forwarded: not-needed
  src/bootstrap/src/core/build_steps/doc.rs | 27 +++++++++++++++++++++------
  1 file changed, 21 insertions(+), 6 deletions(-)
 
-diff --git a/src/bootstrap/src/core/build_steps/doc.rs b/src/bootstrap/src/core/build_steps/doc.rs
-index 38c48bd..e2fb48b 100644
---- a/src/bootstrap/src/core/build_steps/doc.rs
-+++ b/src/bootstrap/src/core/build_steps/doc.rs
-@@ -363,7 +363,27 @@ impl Step for Standalone {
+Index: rustc/src/bootstrap/src/core/build_steps/doc.rs
+===================================================================
+--- rustc.orig/src/bootstrap/src/core/build_steps/doc.rs
++++ rustc/src/bootstrap/src/core/build_steps/doc.rs
+@@ -387,7 +387,27 @@ impl Step for Standalone {
                  .arg("--index-page")
-                 .arg(&builder.src.join("src/doc/index.md"))
+                 .arg(builder.src.join("src/doc/index.md"))
                  .arg("--markdown-playground-url")
 -                .arg("https://play.rust-lang.org/")
 +                .arg("https://play.rust-lang.org/");
@@ -41,7 +41,7 @@ index 38c48bd..e2fb48b 100644
                  .arg("-o")
                  .arg(&out)
                  .arg(&path);
-@@ -372,11 +392,6 @@ impl Step for Standalone {
+@@ -396,11 +416,6 @@ impl Step for Standalone {
                  cmd.arg("--disable-minification");
              }
  
@@ -50,6 +50,6 @@ index 38c48bd..e2fb48b 100644
 -            } else {
 -                cmd.arg("--markdown-css").arg("rust.css");
 -            }
-             builder.run(&mut cmd);
+             cmd.run(builder);
          }
  
