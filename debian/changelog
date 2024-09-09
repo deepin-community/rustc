@@ -1,3 +1,19 @@
+rustc-1.81 (1.81.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
+
+  * New upstream release 1.81.0 (LP: #2080415)
+    - d/patches: refresh patches
+    - d/copyright: update the list of unused vendored dependencies
+    - d/control: re-generate files for rustc-1.81
+    - d/p/ubuntu/ubuntu-libgit2-downgrade.patch: downgrade libgit2
+      requirements to 1.7
+    - d/config.toml.in: update change ID to suppress warnings
+    - d/copyright: update copyright information
+    - d/s/lintian-overrides.in: add new overrides for test data
+    - d/p/upstream/u-limit-f16-doctests-to-x86.patch,
+      d/p/vendor/u-hurd-gix-index.patch: remove unneeded patches
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Mon, 09 Sep 2024 10:19:09 -0600
+
 rustc-1.80 (1.80.1+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.80.1 (LP: #2076206)
