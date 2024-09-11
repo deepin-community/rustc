@@ -951,7 +951,7 @@ Files: C*.md
        src/etc/*
        src/lib*
        src/rust*
-       src/stage0.json
+       src/stage0
        src/tools/*
        src/version
        tests/*
@@ -1493,11 +1493,6 @@ Copyright: 2014-2024 Alex Crichton <alex@alexcrichton.com>
 License: MIT
 Comment: see https://github.com/alexcrichton/curl-rust
 
-Files: vendor/dashmap-*/*
-Copyright: 2019-2022 Acrimon <joel.wejdenstal@gmail.com>
-License: MIT
-Comment: see https://github.com/xacrimon/dashmap
-
 Files:
  vendor/darling-*/*
  vendor/darling_core-*/*
@@ -1908,13 +1903,6 @@ Copyright: 2020-2023 Magic Len <len@magiclen.org>
 License: MIT
 Comment: see https://github.com/magiclen/html-escape
 
-Files: vendor/http-*/*
-Copyright: 2017-2024 Alex Crichton <alex@alexcrichton.com>
-           2017-2024 Carl Lerche <me@carllerche.com>
-           2017-2024 Sean McArthur <sean@seanmonstar.com>
-License: MIT OR Apache-2.0
-Comment: see https://github.com/hyperium/http
-
 Files: vendor/http-auth-*/*
 Copyright: 2021-2023 Scott Lamp <slamb@slamb.org>
 License: MIT or Apache-2.0
@@ -2019,34 +2007,6 @@ Copyright:
 License: MIT or Apache-2.0
 Comment:
  see https://github.com/rustwasm/wasm-bindgen
-
-Files: vendor/web-sys-*/*
-Copyright: 2018-2024 The wasm-bindgen Developers
-License: MIT or Apache-2.0
-Comment:
- see https://github.com/rustwasm/wasm-bindgen/tee/master/crates/web-sys
-
-Files: vendor/web-sys-*/webidls/enabled/*.webidl
-       vendor/web-sys-*/webidls/unavailable_option_primitive/*.webidl
-       vendor/web-sys-*/webidls/unstable/*.webidl
-Copyright:
- 2004-2011 Apple Computer, Inc., Mozilla Foundation, and Opera Software ASA.
- 2012-2018 W3C® (MIT, ERCIM, Keio)
-License: MPL-2.0
-Comment:
- see https://github.com/rustwasm/wasm-bindgen/tee/master/crates/web-sys
-
-Files: vendor/web-sys-*/webidls/enabled/MediaCapabilities.webidl
-Copyright: 2018 the Contributors to the Media Capabilities Specification
-License: MPL-2.0
-Comment:
- see https://github.com/rustwasm/wasm-bindgen/tee/master/crates/web-sys
-
-Files: vendor/web-sys-*/webidls/enabled/PointerEvent.webidl
-Copyright: 2013 Microsoft Open Technologies, Inc. */
-License: MPL-2.0
-Comment:
- see https://github.com/rustwasm/wasm-bindgen/tee/master/crates/web-sys
 
 Files: vendor/jsonpath_lib-*/*
 Copyright: 2018-2021 Changseok Han <freestrings@gmail.com>
@@ -2517,13 +2477,13 @@ Comment:
 Files: vendor/r-efi-*/*
 Copyright: 2018-2024 David Rheinsberg <david.rheinsberg@gmail.com>
            2018-2024 Tom Gundersen <teg@jklm.no>
-License: MIT OR Apache-2.0 OR LGPL-2.1-or-later
+License: MIT OR Apache-2.0 OR LGPL-2.1
 Comment: see https://github.com/r-efi/r-efi
 
 Files: vendor/r-efi-alloc-*/*
 Copyright: 2018-2022 David Rheinsberg <david.rheinsberg@gmail.com>
            2018-2022 Tom Gundersen <teg@jklm.no>
-License: MIT OR Apache-2.0 OR LGPL-2.1-or-later
+License: MIT OR Apache-2.0 OR LGPL-2.1
 Comment: see https://github.com/r-efi/r-efi-alloc
 
 Files: vendor/libredox-*/*
@@ -2536,12 +2496,6 @@ Copyright: 2017-2021 Jose Narvaez <goyox86@gmail.com>
            2017-2021 Wesley Hershberger <mggmugginsmc@gmail.com>
 License: MIT
 Comment: see https://gitlab.redox-os.org/redox-os/users
-
-Files: vendor/redox_syscall-*/*
-Copyright: 2016-2021 Jeremy Soller <jackpot51@gmail.com>
-License: MIT
-Comment:
- see https://github.com/redox-os/syscall
 
 Files:
  vendor/regex-automata-*/*
@@ -3399,6 +3353,69 @@ Copyright: 2018-2024 Nick Stevens <nick@bitcurry.com>
 License: MIT OR Apache-2.0
 Comment: see https://github.com/assert-rs/predicates-rs/tree/master/crates/tree
 
+Files: vendor/typeid-1.0.0/*
+Copyright: 2024 David Tolnay <dtolnay@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/dtolnay/typeid
+
+Files: vendor/spdx-0.10.6/*
+Copyright: 2019-2024 Embark <opensource@embark-studios.com>
+  2019-2024 Jake Shadle <jake.shadle@embark-studios.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/EmbarkStudios/spdx
+
+Files: vendor/wit-parser-0.210.0/*
+Copyright: 2019-2024 Alex Crichton <alex@alexcrichton.com>
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser
+
+Files: vendor/quickcheck-0.4.1/*
+Copyright: 2014-2021 Andrew Gallant <jamslam@gmail.com>
+License: Unlicense OR MIT
+Comment: see https://github.com/BurntSushi/quickcheck
+
+Files: vendor/lexopt-0.3.0/*
+Copyright: 2021-2023 Jan Verbeek <jan.verbeek@posteo.nl>
+License: MIT
+Comment: see https://github.com/blyxxyz/lexopt
+
+Files: vendor/wat-1.211.1/*
+Copyright: 2016-2024 Alex Crichton <alex@alexcrichton.com>
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wat
+
+Files: vendor/wasm-metadata-0.210.0/*
+Copyright: 2023-2024 Alex Crichton
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-metadata
+
+Files: vendor/wit-component-0.210.0/*
+Copyright: 2022-2024 Peter Huene <peter@huene.dev>
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component
+
+Files: vendor/rustc-stable-hash-0.1.0/*
+Copyright: 2024 Michael Woerister
+  2024 rust-lang-owner
+License: Apache-2.0 OR MIT
+Comment: see https://github.com/rust-lang/rustc-stable-hash
+
+Files: vendor/wast-211.0.1/*
+Copyright: 2019-2024 Alex Crichton <alex@alexcrichton.com>
+License: Apache-2.0 with LLVM exception
+Comment: see https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wast
+
+Files: vendor/id-arena-2.2.1/*
+Copyright: 2018-2019 Nick Fitzgerald <fitzgen@gmail.com>
+  2018-2019 Aleksey Kladov <aleksey.kladov@gmail.com>
+License: MIT OR Apache-2.0
+Comment: see https://github.com/fitzgen/id-arena
+
+Files: vendor/wasm-component-ld-0.5.4/*
+Copyright: 2024 Alex Crichton
+License: Apache-2.0 with LLVM exception OR Apache-2.0 OR MIT
+Comment: see https://github.com/bytecodealliance/wasm-component-ld
+
 License: 0BSD
  Permission to use, copy, modify, and/or distribute this software for
  any purpose with or without fee is hereby granted.
@@ -4177,3 +4194,20 @@ License: BSD-1-Clause-fiat-crypto
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+License: LGPL-2.1
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1, or (at your option)
+ any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public License along
+ with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License version 2.1 can be found in ‘/usr/share/common-licenses/LGPL-2.1’.
