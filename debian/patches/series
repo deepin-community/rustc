@@ -50,3 +50,4 @@ ubuntu/ubuntu-skip-gdb-tests.patch
 ubuntu/ubuntu-add-s390x-allowed-features.patch
 ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch
 upstream/u-disable-f16-f128-on-unsupported-platforms.patch
+ubuntu/ubuntu-libgit2-downgrade.patch
