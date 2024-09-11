@@ -63,6 +63,8 @@ found in [`header.rs`] from the compiletest source.
 * [Building auxiliary crates](compiletest.md#building-auxiliary-crates)
     * `aux-build`
     * `aux-crate`
+    * `aux-bin`
+    * `aux-codegen-backend`
 * [Pretty-printer](compiletest.md#pretty-printer-tests) headers
     * `pretty-compare-only`
     * `pretty-expanded`
@@ -94,6 +96,8 @@ found in [`header.rs`] from the compiletest source.
     * `no-auto-check-cfg` — disable auto check-cfg (only for `--check-cfg` tests)
     * `force-host` — build only for the host target
     * [`revisions`](compiletest.md#revisions) — compile multiple times
+    * [`unused-revision-names`](compiletest.md#ignoring-unused-revision-names) -
+      suppress tidy checks for mentioning unknown revision names
     * [`forbid-output`](compiletest.md#incremental-tests) — incremental cfail rejects output pattern
     * [`should-ice`](compiletest.md#incremental-tests) — incremental cfail should ICE
     * [`known-bug`](ui.md#known-bugs) — indicates that the test is
@@ -160,6 +164,8 @@ The following header commands will check rustc build settings and target setting
 * `needs-rust-lld` — ignores if the rust lld support is not enabled
   (`rust.lld = true` in `config.toml`)
 * `needs-threads` — ignores if the target does not have threading support
+* `needs-symlink` — ignores if the target does not support symlinks. This can be the case on Windows
+  if the developer did not enable priviledged symlink permissions.
 
 The following header commands will check LLVM support:
 
@@ -170,12 +176,13 @@ The following header commands will check LLVM support:
 * `ignore-llvm-version: 9.0` — ignores a specific LLVM version
 * `ignore-llvm-version: 7.0 - 9.9.9` — ignores LLVM versions in a range (inclusive)
 * `needs-llvm-components: powerpc` — ignores if the specific LLVM component was not built.
-  Note: The test will fail on CI if the component does not exist.
-* `needs-matching-clang` — ignores if the version of clang does not match the
-  LLVM version of rustc.
-  These tests are always ignored unless a special environment variable,
-  `RUSTBUILD_FORCE_CLANG_BASED_TESTS`, is set
-  (which is only done in one CI job [`x86_64-gnu-debug`]).
+  Note: The test will fail on CI (when `COMPILETEST_REQUIRE_ALL_LLVM_COMPONENTS` is set) if the component does not exist.
+* `needs-forced-clang-based-tests` —
+  test is ignored unless the environment variable `RUSTBUILD_FORCE_CLANG_BASED_TESTS`
+  is set, which enables building clang alongside LLVM
+  - This is only set in one CI job ([`x86_64-gnu-debug`]), which only runs a tiny
+    subset of `run-make` tests. Other tests with this header will not run at all,
+    which is usually not what you want.
 
 See also [Debuginfo tests](compiletest.md#debuginfo-tests) for headers for
 ignoring debuggers.
@@ -278,6 +285,13 @@ described below:
 - `{{build-base}}`: The base directory where the test's output goes. This is
   equivalent to `$TEST_BUILD_DIR` for [output normalization].
   - Example: `/path/to/rust/build/x86_64-unknown-linux-gnu/test/ui`
+- `{{sysroot-base}}`: Path of the sysroot directory used to build the test.
+  - Mainly intended for `ui-fulldeps` tests that run the compiler via API.
+- `{{target-linker}}`: Linker that would be passed to `-Clinker` for this test,
+  or blank if no linker override is active.
+  - Mainly intended for `ui-fulldeps` tests that run the compiler via API.
+- `{{target}}`: The target the test is compiling for
+  - Example: `x86_64-unknown-linux-gnu`
 
 See [`tests/ui/commandline-argfile.rs`](https://github.com/rust-lang/rust/blob/master/tests/ui/commandline-argfile.rs)
 for an example of a test that uses this substitution.

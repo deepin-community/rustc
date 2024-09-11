@@ -285,6 +285,10 @@ pkgs.mkShell {
   ];
   # Avoid creating text files for ICEs.
   RUSTC_ICE = "0";
+  # Provide `libstdc++.so.6` for the self-contained lld.
+  LD_LIBRARY_PATH = "${with pkgs; lib.makeLibraryPath [
+    stdenv.cc.cc.lib
+  ]}";
 }
 ```
 
@@ -314,7 +318,7 @@ Zsh support will also be included once issues with [`clap_complete`](https://cra
 
 You can use `source ./src/etc/completions/x.py.<extension>`
 to load completions for your shell of choice,
-or `source .\src\etc\completions\x.py.ps1` for PowerShell.
+or `& .\src\etc\completions\x.py.ps1` for PowerShell.
 Adding this to your shell's startup script (e.g. `.bashrc`) will automatically load this completion.
 
 [`src/etc/rust_analyzer_settings.json`]: https://github.com/rust-lang/rust/blob/master/src/etc/rust_analyzer_settings.json

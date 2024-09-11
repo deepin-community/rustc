@@ -1,6 +1,7 @@
 //! Tests for Cargo usage of rustc `--check-cfg`.
 
-use cargo_test_support::{basic_manifest, project};
+use cargo_test_support::prelude::*;
+use cargo_test_support::{basic_manifest, project, str};
 
 macro_rules! x {
     ($tool:tt => $what:tt $(of $who:tt)?) => {{
@@ -29,7 +30,8 @@ macro_rules! x {
     }};
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features() {
     let p = project()
         .file(
@@ -51,11 +53,11 @@ fn features() {
     p.cargo("check -v")
         .with_stderr_contains(x!("rustc" => "cfg" of "feature" with "f_a" "f_b"))
         .with_stderr_contains(x!("rustc" => "cfg" of "docsrs"))
-        .with_stderr_does_not_contain("[..]-Zunstable-options[..]")
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_with_deps() {
     let p = project()
         .file(
@@ -85,7 +87,8 @@ fn features_with_deps() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_with_opt_deps() {
     let p = project()
         .file(
@@ -116,7 +119,8 @@ fn features_with_opt_deps() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_with_namespaced_features() {
     let p = project()
         .file(
@@ -146,7 +150,8 @@ fn features_with_namespaced_features() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_fingerprint() {
     let p = project()
         .file(
@@ -208,15 +213,23 @@ fn features_fingerprint() {
 
     p.cargo("check -v")
         // we check that the fingerprint is indeed dirty
-        .with_stderr_contains("[..]Dirty[..]the list of declared features changed")
         // that is cause rustc to be called again with the new check-cfg args
-        .with_stderr_contains(x!("rustc" => "cfg" of "feature" with "f_a"))
         // and that we indeed found a new warning from the unexpected_cfgs lint
-        .with_stderr_contains("[..]unexpected_cfgs[..]")
+        .with_stderr_data(format!(
+            "\
+[DIRTY] foo v0.1.0 ([ROOT]/foo): the list of declared features changed
+[CHECKING] foo v0.1.0 ([ROOT]/foo)
+{running_rustc}
+[WARNING] unexpected `cfg` condition value: `f_b`
+...
+",
+            running_rustc = x!("rustc" => "cfg" of "feature" with "f_a")
+        ))
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn well_known_names_values() {
     let p = project()
         .file("Cargo.toml", &basic_manifest("foo", "0.1.0"))
@@ -229,7 +242,8 @@ fn well_known_names_values() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_test() {
     let p = project()
         .file(
@@ -254,7 +268,8 @@ fn features_test() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_doctest() {
     let p = project()
         .file(
@@ -279,11 +294,11 @@ fn features_doctest() {
         .with_stderr_contains(x!("rustdoc" => "cfg" of "feature" with "default" "f_a" "f_b"))
         .with_stderr_contains(x!("rustc" => "cfg" of "docsrs"))
         .with_stderr_contains(x!("rustdoc" => "cfg" of "docsrs"))
-        .with_stderr_does_not_contain("[..]-Zunstable-options[..]")
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn well_known_names_values_test() {
     let p = project()
         .file("Cargo.toml", &basic_manifest("foo", "0.1.0"))
@@ -296,7 +311,8 @@ fn well_known_names_values_test() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn well_known_names_values_doctest() {
     let p = project()
         .file("Cargo.toml", &basic_manifest("foo", "0.1.0"))
@@ -311,7 +327,8 @@ fn well_known_names_values_doctest() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn features_doc() {
     let p = project()
         .file(
@@ -334,11 +351,11 @@ fn features_doc() {
     p.cargo("doc -v")
         .with_stderr_contains(x!("rustdoc" => "cfg" of "feature" with "default" "f_a" "f_b"))
         .with_stderr_contains(x!("rustdoc" => "cfg" of "docsrs"))
-        .with_stderr_does_not_contain("[..]-Zunstable-options[..]")
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn build_script_feedback() {
     let p = project()
         .file(
@@ -362,11 +379,11 @@ fn build_script_feedback() {
     p.cargo("check -v")
         .with_stderr_contains(x!("rustc" => "cfg" of "foo"))
         .with_stderr_contains(x!("rustc" => "cfg" of "docsrs"))
-        .with_stderr_does_not_contain("[..]-Zunstable-options[..]")
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn build_script_doc() {
     let p = project()
         .file(
@@ -389,22 +406,23 @@ fn build_script_doc() {
 
     p.cargo("doc -v")
         .with_stderr_does_not_contain("rustc [..] --check-cfg [..]")
-        .with_stderr_contains(x!("rustdoc" => "cfg" of "foo"))
-        .with_stderr(
+        .with_stderr_data(format!(
             "\
-[COMPILING] foo v0.0.1 ([CWD])
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
 [RUNNING] `rustc [..] build.rs [..]`
-[RUNNING] `[..]/build-script-build`
-[DOCUMENTING] foo [..]
-[RUNNING] `rustdoc [..] src/main.rs [..]
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
+[RUNNING] `[ROOT]/foo/target/debug/build/foo-[HASH]/build-script-build`
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+{running_rustdoc}
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
 ",
-        )
+            running_rustdoc = x!("rustdoc" => "cfg" of "foo")
+        ))
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn build_script_override() {
     let target = cargo_test_support::rustc_host();
 
@@ -442,7 +460,7 @@ fn build_script_override() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn build_script_test() {
     let p = project()
         .file(
@@ -489,15 +507,32 @@ fn build_script_test() {
         .build();
 
     p.cargo("test -v")
-        .with_stderr_contains(x!("rustc" => "cfg" of "foo"))
-        .with_stderr_contains(x!("rustdoc" => "cfg" of "foo"))
-        .with_stdout_contains("test test_foo ... ok")
-        .with_stdout_contains("test test_bar ... ok")
-        .with_stdout_contains_n("test [..] ... ok", 3)
+        .with_stderr_data(
+            format!(
+                "\
+{running_rustc}
+{running_rustdoc}
+...
+",
+                running_rustc = x!("rustc" => "cfg" of "foo"),
+                running_rustdoc = x!("rustdoc" => "cfg" of "foo")
+            )
+            .unordered(),
+        )
+        .with_stdout_data(
+            str![[r#"
+test test_foo ... ok
+test test_bar ... ok
+test [..] ... ok
+...
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_simple() {
     let p = project()
         .file(
@@ -522,7 +557,8 @@ fn config_simple() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_workspace() {
     let p = project()
         .file(
@@ -551,12 +587,20 @@ fn config_workspace() {
         .build();
 
     p.cargo("check -v")
-        .with_stderr_contains(x!("rustc" => "cfg" of "has_foo"))
+        .with_stderr_data(format!(
+            "\
+...
+{running_rustc}
+...
+",
+            running_rustc = x!("rustc" => "cfg" of "has_foo")
+        ))
         .with_stderr_does_not_contain("unexpected_cfgs")
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_workspace_not_inherited() {
     let p = project()
         .file(
@@ -587,7 +631,8 @@ fn config_workspace_not_inherited() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_invalid_position() {
     let p = project()
         .file(
@@ -606,12 +651,15 @@ fn config_invalid_position() {
         .build();
 
     p.cargo("check -v")
-        .with_stderr_contains("[..]unused manifest key: `lints.rust.use_bracket.check-cfg`[..]")
+        .with_stderr_data(str![[r#"
+[WARNING] unused manifest key: `lints.rust.use_bracket.check-cfg`
+...
+"#]])
         .with_stderr_does_not_contain(x!("rustc" => "cfg" of "has_foo"))
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn config_invalid_empty() {
     let p = project()
         .file(
@@ -630,11 +678,15 @@ fn config_invalid_empty() {
         .build();
 
     p.cargo("check")
-        .with_stderr_contains("[..]missing field `level`[..]")
-        .run_expect_error();
+        .with_status(101)
+        .with_stderr_data(str![[r#"
+[ERROR] missing field `level`
+...
+"#]])
+        .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn config_invalid_not_list() {
     let p = project()
         .file(
@@ -654,13 +706,14 @@ fn config_invalid_not_list() {
 
     p.cargo("check")
         .with_status(101)
-        .with_stderr_contains(
-            "[ERROR] `lints.rust.unexpected_cfgs.check-cfg` must be a list of string",
-        )
+        .with_stderr_data(str![[r#"
+[ERROR] `lints.rust.unexpected_cfgs.check-cfg` must be a list of string
+...
+"#]])
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn config_invalid_not_list_string() {
     let p = project()
         .file(
@@ -680,13 +733,15 @@ fn config_invalid_not_list_string() {
 
     p.cargo("check")
         .with_status(101)
-        .with_stderr_contains(
-            "[ERROR] `lints.rust.unexpected_cfgs.check-cfg` must be a list of string",
-        )
+        .with_stderr_data(str![[r#"
+[ERROR] `lints.rust.unexpected_cfgs.check-cfg` must be a list of string
+...
+"#]])
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_and_features() {
     let p = project()
         .file(
@@ -715,7 +770,7 @@ fn config_and_features() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn config_with_cargo_doc() {
     let p = project()
         .file(
@@ -734,11 +789,18 @@ fn config_with_cargo_doc() {
         .build();
 
     p.cargo("doc -v")
-        .with_stderr_contains(x!("rustdoc" => "cfg" of "has_foo"))
+        .with_stderr_data(format!(
+            "\
+...
+{running_rustdoc}
+...
+",
+            running_rustdoc = x!("rustdoc" => "cfg" of "has_foo")
+        ))
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[cargo_test]
 fn config_with_cargo_test() {
     let p = project()
         .file(
@@ -757,11 +819,19 @@ fn config_with_cargo_test() {
         .build();
 
     p.cargo("test -v")
-        .with_stderr_contains(x!("rustc" => "cfg" of "has_foo"))
+        .with_stderr_data(format!(
+            "\
+...
+{running_rustc}
+...
+",
+            running_rustc = x!("rustc" => "cfg" of "has_foo")
+        ))
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_and_build_script() {
     let p = project()
         .file(
@@ -790,7 +860,8 @@ fn config_and_build_script() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_features_and_build_script() {
     let p = project()
         .file(
@@ -825,7 +896,8 @@ fn config_features_and_build_script() {
         .run();
 }
 
-#[cargo_test(>=1.79, reason = "--check-cfg was stabilized in Rust 1.79")]
+#[allow(deprecated)]
+#[cargo_test]
 fn config_fingerprint() {
     let p = project()
         .file(

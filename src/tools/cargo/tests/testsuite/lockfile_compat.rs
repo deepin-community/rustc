@@ -2,6 +2,7 @@
 
 use cargo_test_support::compare::assert_e2e;
 use cargo_test_support::git;
+use cargo_test_support::prelude::*;
 use cargo_test_support::registry::Package;
 use cargo_test_support::str;
 use cargo_test_support::{basic_lib_manifest, basic_manifest, project};
@@ -234,10 +235,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
     p.cargo("check")
         .with_status(101)
-        .with_stderr(
-            "\
-[UPDATING] `[..]` index
-error: checksum for `bar v0.1.0` changed between lock files
+        .with_stderr_data(str![[r#"
+[UPDATING] `dummy-registry` index
+[ERROR] checksum for `bar v0.1.0` changed between lock files
 
 this could be indicative of a few possible errors:
 
@@ -247,8 +247,8 @@ this could be indicative of a few possible errors:
 
 unable to verify that `bar v0.1.0` is the same as when the lockfile was generated
 
-",
-        )
+
+"#]])
         .run();
 }
 
@@ -295,25 +295,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
         );
     let p = p.build();
 
-    p.cargo("fetch")
-        .with_status(101)
-        .with_stderr(
-            "\
-[UPDATING] `[..]` index
-error: checksum for `bar v0.1.0` was not previously calculated, but a checksum \
-could now be calculated
+    p.cargo("fetch").with_status(101).with_stderr_data(str![[r#"
+[UPDATING] `dummy-registry` index
+[ERROR] checksum for `bar v0.1.0` was not previously calculated, but a checksum could now be calculated
 
 this could be indicative of a few possible situations:
 
-    * the source `[..]` did not previously support checksums,
+    * the source `registry `crates-io`` did not previously support checksums,
       but was replaced with one that does
     * newer Cargo implementations know how to checksum this source, but this
       older implementation does not
     * the lock file is corrupt
 
-",
-        )
-        .run();
+
+"#]]).run();
 }
 
 // If the checksum is listed in the lock file yet we cannot calculate it (e.g.,
@@ -368,25 +363,20 @@ source = "git+{0}"
 
     let p = p.build();
 
-    p.cargo("fetch")
-        .with_status(101)
-        .with_stderr(
-            "\
-[UPDATING] git repository `[..]`
-error: checksum for `bar v0.1.0 ([..])` could not be calculated, but a \
-checksum is listed in the existing lock file[..]
+    p.cargo("fetch").with_status(101).with_stderr_data(str![[r#"
+[UPDATING] git repository `[ROOTURL]/bar`
+[ERROR] checksum for `bar v0.1.0 ([ROOTURL]/bar)` could not be calculated, but a checksum is listed in the existing lock file
 
 this could be indicative of a few possible situations:
 
-    * the source `[..]` supports checksums,
+    * the source `[ROOTURL]/bar` supports checksums,
       but was replaced with one that doesn't
     * the lock file is corrupt
 
-unable to verify that `bar v0.1.0 ([..])` is the same as when the lockfile was generated
+unable to verify that `bar v0.1.0 ([ROOTURL]/bar)` is the same as when the lockfile was generated
 
-",
-        )
-        .run();
+
+"#]]).run();
 }
 
 #[cargo_test]
@@ -525,14 +515,12 @@ fn locked_correct_error() {
 
     p.cargo("check --locked")
         .with_status(101)
-        .with_stderr(
-            "\
-[UPDATING] `[..]` index
-error: the lock file [CWD]/Cargo.lock needs to be updated but --locked was passed to prevent this
-If you want to try to generate the lock file without accessing the network, \
-remove the --locked flag and use --offline instead.
-",
-        )
+        .with_stderr_data(str![[r#"
+[UPDATING] `dummy-registry` index
+[ERROR] the lock file [ROOT]/foo/Cargo.lock needs to be updated but --locked was passed to prevent this
+If you want to try to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+
+"#]])
         .run();
 }
 
@@ -729,18 +717,13 @@ fn lock_from_the_future() {
         .file("Cargo.lock", "version = 10000000")
         .build();
 
-    p.cargo("fetch")
-        .with_stderr(
-            "\
-error: failed to parse lock file at: [..]
+    p.cargo("fetch").with_stderr_data(str![[r#"
+[ERROR] failed to parse lock file at: [ROOT]/foo/Cargo.lock
 
 Caused by:
-  lock file version `10000000` was found, but this version of Cargo does not \
-  understand this lock file, perhaps Cargo needs to be updated?
-",
-        )
-        .with_status(101)
-        .run();
+  lock file version `10000000` was found, but this version of Cargo does not understand this lock file, perhaps Cargo needs to be updated?
+
+"#]]).with_status(101).run();
 }
 
 #[cargo_test]
@@ -902,16 +885,15 @@ dependencies = [
         .build();
     p.cargo("check")
         .with_status(101)
-        .with_stderr(
-            "\
-[..]
-[ERROR] failed to select a version for the requirement `bar = \"*\"` (locked to 0.1.0)
+        .with_stderr_data(str![[r#"
+[UPDATING] `dummy-registry` index
+[ERROR] failed to select a version for the requirement `bar = "*"` (locked to 0.1.0)
 candidate versions found which didn't match: 0.0.1
 location searched: `dummy-registry` index (which is replacing registry `crates-io`)
-required by package `test v0.0.0 ([..])`
+required by package `test v0.0.0 ([ROOT]/foo)`
 perhaps a crate was updated and forgotten to be re-vendored?
-",
-        )
+
+"#]])
         .run();
 }
 
@@ -933,31 +915,25 @@ fn next_version_is_always_unstable() {
         .file("Cargo.lock", "version = 5")
         .build();
 
-    p.cargo("fetch")
-        .with_status(101)
-        .with_stderr(
-            "\
-error: failed to parse lock file at: [CWD]/Cargo.lock
+    p.cargo("fetch").with_status(101).with_stderr_data(str![[r#"
+[ERROR] failed to parse lock file at: [ROOT]/foo/Cargo.lock
 
 Caused by:
-  lock file version `5` was found, but this version of Cargo does not \
-  understand this lock file, perhaps Cargo needs to be updated?
-",
-        )
-        .run();
+  lock file version `5` was found, but this version of Cargo does not understand this lock file, perhaps Cargo needs to be updated?
+
+"#]]).run();
 
     // On nightly, let the user know about the `-Z` flag.
     p.cargo("fetch")
         .masquerade_as_nightly_cargo(&["-Znext-lockfile-bump"])
         .with_status(101)
-        .with_stderr(
-            "\
-error: failed to parse lock file at: [CWD]/Cargo.lock
+        .with_stderr_data(str![[r#"
+[ERROR] failed to parse lock file at: [ROOT]/foo/Cargo.lock
 
 Caused by:
   lock file version `5` requires `-Znext-lockfile-bump`
-",
-        )
+
+"#]])
         .run();
 }
 
@@ -1060,15 +1036,15 @@ dependencies = [
         .build();
 
     p.cargo("check")
-        .with_stderr(format!(
+        .with_stderr_data(format!(
             "\
-[UPDATING] git repository `{url}`
+[UPDATING] git repository `[ROOTURL]/dep1`
 [LOCKING] 2 packages to latest compatible versions
-[ADDING] dep1 v0.5.0 ({url}?{ref_kind}={git_ref}#[..])
-[ADDING] foo v0.0.1 ([CWD])
-[CHECKING] dep1 v0.5.0 ({url}?{ref_kind}={git_ref}#[..])
-[CHECKING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [..]
+[ADDING] dep1 v0.5.0 ([ROOTURL]/dep1?{ref_kind}={git_ref}#[..])
+[ADDING] foo v0.0.1 ([ROOT]/foo)
+[CHECKING] dep1 v0.5.0 ([ROOTURL]/dep1?{ref_kind}={git_ref}#[..])
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 "
         ))
         .run();
@@ -1080,10 +1056,10 @@ dependencies = [
     // was URL-encoded. Therefore Cargo thinks they are from different source
     // and clones the repository again.
     p.cargo("check")
-        .with_stderr(format!(
+        .with_stderr_data(format!(
             "\
-[UPDATING] git repository `{url}`
-[FINISHED] `dev` profile [..]
+[UPDATING] git repository `[ROOTURL]/dep1`
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 "
         ))
         .run();
@@ -1156,15 +1132,15 @@ dependencies = [
         .build();
 
     p.cargo("check")
-        .with_stderr(format!(
+        .with_stderr_data(format!(
             "\
-[UPDATING] git repository `{url}`
+[UPDATING] git repository `[ROOTURL]/dep1`
 [LOCKING] 2 packages to latest compatible versions
-[ADDING] dep1 v0.5.0 ({url}?{ref_kind}={git_ref}#[..])
-[ADDING] foo v0.0.1 ([CWD])
-[CHECKING] dep1 v0.5.0 ({url}?{ref_kind}={git_ref}#[..])
-[CHECKING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [..]
+[ADDING] dep1 v0.5.0 ([ROOTURL]/dep1?{ref_kind}={git_ref}#[..])
+[ADDING] foo v0.0.1 ([ROOT]/foo)
+[CHECKING] dep1 v0.5.0 ([ROOTURL]/dep1?{ref_kind}={git_ref}#[..])
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 "
         ))
         .run();
@@ -1175,7 +1151,11 @@ dependencies = [
     // Unlike v3_and_git_url_encoded, v4 encodes URL parameters so no git
     // repository re-clone happen.
     p.cargo("check")
-        .with_stderr("[FINISHED] `dev` profile [..]")
+        .with_stderr_data(
+            "\
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+",
+        )
         .run();
 }
 

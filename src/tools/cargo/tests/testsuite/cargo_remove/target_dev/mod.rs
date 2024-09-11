@@ -1,6 +1,7 @@
 use cargo_test_support::compare::assert_ui;
 use cargo_test_support::current_dir;
 use cargo_test_support::file;
+use cargo_test_support::prelude::*;
 use cargo_test_support::str;
 use cargo_test_support::CargoCommand;
 use cargo_test_support::Project;
@@ -28,7 +29,7 @@ fn case() {
 
     snapbox::cmd::Command::cargo_ui()
         .arg("remove")
-        .args(["--dev", "--target", "x86_64-unknown-linux-gnu", "ncurses"])
+        .args(["--dev", "--target", "wasm32-unknown-unknown", "ncurses"])
         .current_dir(cwd)
         .assert()
         .success()

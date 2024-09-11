@@ -404,6 +404,18 @@ Two `run-make` tests are ported over to Rust recipes as examples:
 - <https://github.com/rust-lang/rust/tree/master/tests/run-make/CURRENT_RUSTC_VERSION>
 - <https://github.com/rust-lang/rust/tree/master/tests/run-make/a-b-a-linker-guard>
 
+#### Quickly check if `rmake.rs` tests can be compiled
+
+You can quickly check if `rmake.rs` tests can be compiled without having to
+build stage1 rustc by forcing `rmake.rs` to be compiled with the stage0
+compiler:
+
+```bash
+$ COMPILETEST_FORCE_STAGE0=1 x test --stage 0 tests/run-make/<test-name>
+```
+
+Of course, some tests will not successfully *run* in this way.
+
 #### Using Makefiles (legacy)
 
 > NOTE:
@@ -504,11 +516,12 @@ only running the main `coverage` suite.
 ## Building auxiliary crates
 
 It is common that some tests require additional auxiliary crates to be compiled.
-There are three [headers](headers.md) to assist with that:
+There are multiple [headers](headers.md) to assist with that:
 
 * `aux-build`
 * `aux-crate`
 * `aux-bin`
+* `aux-codegen-backend`
 
 `aux-build` will build a separate crate from the named source file.
 The source file should be in a directory called `auxiliary` beside the test file.
@@ -536,6 +549,10 @@ This is similar to how Cargo does dependency renaming.
 `aux-bin` is similar to `aux-build` but will build a binary instead of a
 library. The binary will be available in `auxiliary/bin` relative to the working
 directory of the test.
+
+`aux-codegen-backend` is similar to `aux-build`, but will then pass the compiled
+dylib to `-Zcodegen-backend` when building the main file. This will only work
+for tests in `tests/ui-fulldeps`, since it requires the use of compiler crates.
 
 ### Auxiliary proc-macro
 
@@ -638,6 +655,19 @@ Following is classes of tests that support revisions:
 - debuginfo
 - rustdoc UI tests
 - incremental (these are special in that they inherently cannot be run in parallel)
+
+### Ignoring unused revision names
+
+Normally, revision names mentioned in other headers and error annotations must
+correspond to an actual revision declared in a `revisions` header. This is
+enforced by an `./x test tidy` check.
+
+If a revision name needs to be temporarily removed from the revision list for
+some reason, the above check can be suppressed by adding the revision name to
+an `//@ unused-revision-names:` header instead.
+
+Specifying an unused name of `*` (i.e. `//@ unused-revision-names: *`) will
+permit any unused revision name to be mentioned.
 
 ## Compare modes
 

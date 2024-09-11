@@ -67,9 +67,6 @@ and then there is no step two. If you're not using Cargo, you already had to pas
 `--extern` flags to give `rustc` the location of external crates, so you'd just
 keep doing what you were doing there as well.
 
-> One small note here: `cargo fix` will not currently automate this change. We may
-> have it do this for you in the future.
-
 #### An exception
 
 There's one exception to this rule, and that's the "sysroot" crates. These are the
@@ -207,7 +204,7 @@ mod submodule {
 ```
 
 If you have a local module or item with the same name as an external crate, a
-path begining with that name will be taken to refer to the local module or
+path beginning with that name will be taken to refer to the local module or
 item. To explicitly refer to the external crate, use the `::name` form.
 
 

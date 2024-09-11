@@ -86,12 +86,29 @@ unexpected because stage0 doesn't know about the new target specification and
 we pass `--check-cfg` in order to tell it to check.
 
 To fix the errors you will need to manually add the unexpected value to the
-`EXTRA_CHECK_CFGS` list in `src/bootstrap/src/lib.rs`. Here is an example for
-adding `NEW_TARGET_OS` as `target_os`:
+different `Cargo.toml` in `library/{std,alloc,core}/Cargo.toml`. Here is an
+example for adding `NEW_TARGET_ARCH` as `target_arch`:
+
+*`library/std/Cargo.toml`*:
 ```diff
-- (Some(Mode::Std), "target_os", Some(&["watchos"])),
-+ // #[cfg(bootstrap)] NEW_TARGET_OS
-+ (Some(Mode::Std), "target_os", Some(&["watchos", "NEW_TARGET_OS"])),
+  [lints.rust.unexpected_cfgs]
+  level = "warn"
+  check-cfg = [
+      'cfg(bootstrap)',
+-      'cfg(target_arch, values("xtensa"))',
++      # #[cfg(bootstrap)] NEW_TARGET_ARCH
++      'cfg(target_arch, values("xtensa", "NEW_TARGET_ARCH"))',
+```
+
+To use this target in bootstrap, we need to explicitly add the target triple to the `STAGE0_MISSING_TARGETS`
+list in `src/bootstrap/src/core/sanity.rs`. This is necessary because the default compiler bootstrap uses does
+not recognize the new target we just added. Therefore, it should be added to `STAGE0_MISSING_TARGETS` so that the
+bootstrap is aware that this target is not yet supported by the stage0 compiler.
+
+```diff
+const STAGE0_MISSING_TARGETS: &[&str] = &[
++   "NEW_TARGET_TRIPLE"
+];
 ```
 
 ## Patching crates

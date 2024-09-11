@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::str::{self, FromStr};
 
+use crate::core::summary::MissingDependencyError;
 use crate::AlreadyPrintedError;
 use anyhow::{anyhow, bail, Context as _};
 use cargo_platform::Platform;
@@ -14,6 +15,7 @@ use cargo_util_schemas::manifest::{RustVersion, StringOrBool};
 use itertools::Itertools;
 use lazycell::LazyCell;
 use pathdiff::diff_paths;
+use toml_edit::ImDocument;
 use url::Url;
 
 use crate::core::compiler::{CompileKind, CompileTarget};
@@ -28,6 +30,7 @@ use crate::core::{GitReference, PackageIdSpec, SourceId, WorkspaceConfig, Worksp
 use crate::sources::{CRATES_IO_INDEX, CRATES_IO_REGISTRY};
 use crate::util::errors::{CargoResult, ManifestError};
 use crate::util::interning::InternedString;
+use crate::util::lints::{get_span, rel_cwd_manifest_path};
 use crate::util::{self, context::ConfigRelativePath, GlobalContext, IntoUrl, OptVersionReq};
 
 mod embedded;
@@ -288,7 +291,7 @@ fn resolve_toml(
         dev_dependencies2: None,
         build_dependencies: None,
         build_dependencies2: None,
-        features: original_toml.features.clone(),
+        features: None,
         target: None,
         replace: original_toml.replace.clone(),
         patch: original_toml.patch.clone(),
@@ -318,6 +321,8 @@ fn resolve_toml(
                 Edition::from_str(&e).unwrap_or_default()
             });
         resolved_toml.package = Some(resolved_package);
+
+        resolved_toml.features = resolve_features(original_toml.features.as_ref())?;
 
         resolved_toml.lib = targets::resolve_lib(
             original_toml.lib.as_ref(),
@@ -681,6 +686,17 @@ fn default_readme_from_package_root(package_root: &Path) -> Option<String> {
     }
 
     None
+}
+
+#[tracing::instrument(skip_all)]
+fn resolve_features(
+    original_features: Option<&BTreeMap<manifest::FeatureName, Vec<String>>>,
+) -> CargoResult<Option<BTreeMap<manifest::FeatureName, Vec<String>>>> {
+    let Some(resolved_features) = original_features.cloned() else {
+        return Ok(None);
+    };
+
+    Ok(Some(resolved_features))
 }
 
 #[tracing::instrument(skip_all)]
@@ -1068,7 +1084,7 @@ fn deprecated_ws_default_features(
 }
 
 #[tracing::instrument(skip_all)]
-fn to_real_manifest(
+pub fn to_real_manifest(
     contents: String,
     document: toml_edit::ImDocument<String>,
     original_toml: manifest::TomlManifest,
@@ -1154,8 +1170,8 @@ fn to_real_manifest(
         // so if they can't use a new edition, don't bother to tell them to set it.
         // This also avoids having to worry about whether `package.edition` is compatible with
         // their MSRV.
-        if msrv_edition != default_edition {
-            let tip = if msrv_edition == latest_edition {
+        if msrv_edition != default_edition || rust_version.is_none() {
+            let tip = if msrv_edition == latest_edition || rust_version.is_none() {
                 format!(" while the latest is {latest_edition}")
             } else {
                 format!(" while {msrv_edition} is compatible with `rust-version`")
@@ -1435,24 +1451,42 @@ fn to_real_manifest(
             .unwrap_or_else(|| semver::Version::new(0, 0, 0)),
         source_id,
     );
-    let summary = Summary::new(
-        pkgid,
-        deps,
-        &resolved_toml
-            .features
-            .as_ref()
-            .unwrap_or(&Default::default())
-            .iter()
-            .map(|(k, v)| {
-                (
-                    InternedString::new(k),
-                    v.iter().map(InternedString::from).collect(),
-                )
-            })
-            .collect(),
-        resolved_package.links.as_deref(),
-        rust_version.clone(),
-    )?;
+    let summary = {
+        let summary = Summary::new(
+            pkgid,
+            deps,
+            &resolved_toml
+                .features
+                .as_ref()
+                .unwrap_or(&Default::default())
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        InternedString::new(k),
+                        v.iter().map(InternedString::from).collect(),
+                    )
+                })
+                .collect(),
+            resolved_package.links.as_deref(),
+            rust_version.clone(),
+        );
+        // editon2024 stops exposing implicit features, which will strip weak optional dependencies from `dependencies`,
+        // need to check whether `dep_name` is stripped as unused dependency
+        if let Err(ref err) = summary {
+            if let Some(missing_dep) = err.downcast_ref::<MissingDependencyError>() {
+                missing_dep_diagnostic(
+                    missing_dep,
+                    &original_toml,
+                    &document,
+                    &contents,
+                    manifest_file,
+                    gctx,
+                )?;
+            }
+        }
+        summary?
+    };
+
     if summary.features().contains_key("default-features") {
         warnings.push(
             "`default-features = [\"..\"]` was found in [features]. \
@@ -1556,6 +1590,85 @@ fn to_real_manifest(
     manifest.feature_gate()?;
 
     Ok(manifest)
+}
+
+fn missing_dep_diagnostic(
+    missing_dep: &MissingDependencyError,
+    orig_toml: &TomlManifest,
+    document: &ImDocument<String>,
+    contents: &str,
+    manifest_file: &Path,
+    gctx: &GlobalContext,
+) -> CargoResult<()> {
+    let dep_name = missing_dep.dep_name;
+    let manifest_path = rel_cwd_manifest_path(manifest_file, gctx);
+    let feature_value_span =
+        get_span(&document, &["features", missing_dep.feature.as_str()], true).unwrap();
+
+    let title = format!(
+        "feature `{}` includes `{}`, but `{}` is not a dependency",
+        missing_dep.feature, missing_dep.feature_value, &dep_name
+    );
+    let help = format!("enable the dependency with `dep:{dep_name}`");
+    let info_label = format!(
+        "`{}` is an unused optional dependency since no feature enables it",
+        &dep_name
+    );
+    let message = Level::Error.title(&title);
+    let snippet = Snippet::source(&contents)
+        .origin(&manifest_path)
+        .fold(true)
+        .annotation(Level::Error.span(feature_value_span.start..feature_value_span.end));
+    let message = if missing_dep.weak_optional {
+        let mut orig_deps = vec![
+            (
+                orig_toml.dependencies.as_ref(),
+                vec![DepKind::Normal.kind_table()],
+            ),
+            (
+                orig_toml.build_dependencies.as_ref(),
+                vec![DepKind::Build.kind_table()],
+            ),
+        ];
+        for (name, platform) in orig_toml.target.iter().flatten() {
+            orig_deps.push((
+                platform.dependencies.as_ref(),
+                vec!["target", name, DepKind::Normal.kind_table()],
+            ));
+            orig_deps.push((
+                platform.build_dependencies.as_ref(),
+                vec!["target", name, DepKind::Normal.kind_table()],
+            ));
+        }
+
+        if let Some((_, toml_path)) = orig_deps.iter().find(|(deps, _)| {
+            if let Some(deps) = deps {
+                deps.keys().any(|p| *p.as_str() == *dep_name)
+            } else {
+                false
+            }
+        }) {
+            let toml_path = toml_path
+                .iter()
+                .map(|s| *s)
+                .chain(std::iter::once(dep_name.as_str()))
+                .collect::<Vec<_>>();
+            let dep_span = get_span(&document, &toml_path, false).unwrap();
+
+            message
+                .snippet(snippet.annotation(Level::Warning.span(dep_span).label(&info_label)))
+                .footer(Level::Help.title(&help))
+        } else {
+            message.snippet(snippet)
+        }
+    } else {
+        message.snippet(snippet)
+    };
+
+    if let Err(err) = gctx.shell().print_message(message) {
+        return Err(err.into());
+    }
+    Err(AlreadyPrintedError::new(anyhow!("").into()).into())
 }
 
 fn to_virtual_manifest(
@@ -2439,7 +2552,7 @@ fn unused_dep_keys(
 pub fn prepare_for_publish(
     me: &Package,
     ws: &Workspace<'_>,
-    included: &[PathBuf],
+    included: Option<&[PathBuf]>,
 ) -> CargoResult<Package> {
     let contents = me.manifest().contents();
     let document = me.manifest().document();
@@ -2476,7 +2589,7 @@ fn prepare_toml_for_publish(
     me: &manifest::TomlManifest,
     ws: &Workspace<'_>,
     package_root: &Path,
-    included: &[PathBuf],
+    included: Option<&[PathBuf]>,
 ) -> CargoResult<manifest::TomlManifest> {
     let gctx = ws.gctx();
 
@@ -2493,7 +2606,8 @@ fn prepare_toml_for_publish(
     package.workspace = None;
     if let Some(StringOrBool::String(path)) = &package.build {
         let path = paths::normalize_path(Path::new(path));
-        let build = if included.contains(&path) {
+        let included = included.map(|i| i.contains(&path)).unwrap_or(true);
+        let build = if included {
             let path = path
                 .into_os_string()
                 .into_string()
@@ -2760,9 +2874,9 @@ fn prepare_toml_for_publish(
     }
 }
 
-fn prepare_targets_for_publish(
+pub fn prepare_targets_for_publish(
     targets: Option<&Vec<manifest::TomlTarget>>,
-    included: &[PathBuf],
+    included: Option<&[PathBuf]>,
     context: &str,
     gctx: &GlobalContext,
 ) -> CargoResult<Option<Vec<manifest::TomlTarget>>> {
@@ -2785,21 +2899,23 @@ fn prepare_targets_for_publish(
     }
 }
 
-fn prepare_target_for_publish(
+pub fn prepare_target_for_publish(
     target: &manifest::TomlTarget,
-    included: &[PathBuf],
+    included: Option<&[PathBuf]>,
     context: &str,
     gctx: &GlobalContext,
 ) -> CargoResult<Option<manifest::TomlTarget>> {
     let path = target.path.as_ref().expect("previously resolved");
     let path = normalize_path(&path.0);
-    if !included.contains(&path) {
-        let name = target.name.as_ref().expect("previously resolved");
-        gctx.shell().warn(format!(
-            "ignoring {context} `{name}` as `{}` is not included in the published package",
-            path.display()
-        ))?;
-        return Ok(None);
+    if let Some(included) = included {
+        if !included.contains(&path) {
+            let name = target.name.as_ref().expect("previously resolved");
+            gctx.shell().warn(format!(
+                "ignoring {context} `{name}` as `{}` is not included in the published package",
+                path.display()
+            ))?;
+            return Ok(None);
+        }
     }
 
     let mut target = target.clone();
@@ -2818,7 +2934,7 @@ fn normalize_path_sep(path: PathBuf, context: &str) -> CargoResult<PathBuf> {
     Ok(path.into())
 }
 
-fn normalize_path_string_sep(path: String) -> String {
+pub fn normalize_path_string_sep(path: String) -> String {
     if std::path::MAIN_SEPARATOR != '/' {
         path.replace(std::path::MAIN_SEPARATOR, "/")
     } else {

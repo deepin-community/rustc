@@ -1,12 +1,15 @@
 //! Tests for the `cargo doc` command.
 
-use cargo::core::compiler::RustDocFingerprint;
-use cargo_test_support::paths::CargoPathExt;
-use cargo_test_support::registry::Package;
-use cargo_test_support::{basic_lib_manifest, basic_manifest, git, project};
-use cargo_test_support::{rustc_host, symlink_supported, tools};
 use std::fs;
 use std::str;
+
+use cargo::core::compiler::RustDocFingerprint;
+use cargo_test_support::paths::CargoPathExt;
+use cargo_test_support::prelude::*;
+use cargo_test_support::registry::Package;
+use cargo_test_support::str;
+use cargo_test_support::{basic_lib_manifest, basic_manifest, git, project};
+use cargo_test_support::{rustc_host, symlink_supported, tools};
 
 #[cargo_test]
 fn simple() {
@@ -27,14 +30,13 @@ fn simple() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
-[..] foo v0.0.1 ([CWD])
-[..] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     assert!(p.root().join("target/doc").is_dir());
     assert!(p.root().join("target/doc/foo/index.html").is_file());
@@ -68,22 +70,20 @@ fn doc_twice() {
     let p = project().file("src/lib.rs", "pub fn foo() {}").build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 }
 
@@ -109,15 +109,17 @@ fn doc_deps() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
+        .with_stderr_data(
+            str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[..] bar v0.0.1 ([CWD]/bar)
-[..] bar v0.0.1 ([CWD]/bar)
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
+[DOCUMENTING] bar v0.0.1 ([ROOT]/foo/bar)
+[CHECKING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 
@@ -131,12 +133,11 @@ fn doc_deps() {
 
     // Make sure it doesn't recompile.
     p.cargo("doc")
-        .with_stderr(
-            "\
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     assert!(p.root().join("target/doc").is_dir());
@@ -166,15 +167,14 @@ fn doc_no_deps() {
         .build();
 
     p.cargo("doc --no-deps")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[CHECKING] bar v0.0.1 ([CWD]/bar)
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[CHECKING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     assert!(p.root().join("target/doc").is_dir());
@@ -248,16 +248,14 @@ fn doc_multiple_targets_same_name_lib() {
 
     p.cargo("doc --workspace")
         .with_status(101)
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-error: document output filename collision
-The lib `foo_lib` in package `foo v0.1.0 ([ROOT]/foo/foo)` has the same name as \
-the lib `foo_lib` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
+[ERROR] document output filename collision
+The lib `foo_lib` in package `foo v0.1.0 ([ROOT]/foo/foo)` has the same name as the lib `foo_lib` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
 Only one may be documented at once since they output to the same path.
 Consider documenting only one, renaming one, or marking one with `doc = false` in Cargo.toml.
-",
-        )
+
+"#]])
         .run();
 }
 
@@ -299,23 +297,20 @@ fn doc_multiple_targets_same_name() {
         .build();
 
     p.cargo("doc --workspace")
-        .with_stderr_unordered(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-warning: output filename collision.
-The bin target `foo_lib` in package `foo v0.1.0 ([ROOT]/foo/foo)` \
-has the same output filename as the lib target `foo_lib` in package \
-`bar v0.1.0 ([ROOT]/foo/bar)`.
+[WARNING] output filename collision.
+The bin target `foo_lib` in package `foo v0.1.0 ([ROOT]/foo/foo)` has the same output filename as the lib target `foo_lib` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
 Colliding filename is: [ROOT]/foo/target/doc/foo_lib/index.html
 The targets should have unique names.
 This is a known bug where multiple crates with the same name use
 the same path; see <https://github.com/rust-lang/cargo/issues/6313>.
 [DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
 [DOCUMENTING] foo v0.1.0 ([ROOT]/foo/foo)
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo_lib/index.html and 1 other file
-",
-        )
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo_lib/index.html and 1 other file
+
+"#]].unordered())
         .run();
 }
 
@@ -353,16 +348,14 @@ fn doc_multiple_targets_same_name_bin() {
 
     p.cargo("doc --workspace")
         .with_status(101)
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-error: document output filename collision
-The bin `foo-cli` in package `foo v0.1.0 ([ROOT]/foo/foo)` has the same name as \
-the bin `foo-cli` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
+[ERROR] document output filename collision
+The bin `foo-cli` in package `foo v0.1.0 ([ROOT]/foo/foo)` has the same name as the bin `foo-cli` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
 Only one may be documented at once since they output to the same path.
 Consider documenting only one, renaming one, or marking one with `doc = false` in Cargo.toml.
-",
-        )
+
+"#]])
         .run();
 }
 
@@ -429,13 +422,12 @@ fn doc_lib_bin_same_name_documents_lib() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     let doc_html = p.read_file("target/doc/foo/index.html");
     assert!(doc_html.contains("Library"));
@@ -465,13 +457,12 @@ fn doc_lib_bin_same_name_documents_lib_when_requested() {
         .build();
 
     p.cargo("doc --lib")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     let doc_html = p.read_file("target/doc/foo/index.html");
     assert!(doc_html.contains("Library"));
@@ -488,13 +479,12 @@ fn doc_lib_bin_same_name_with_dash() {
         .file("src/main.rs", "fn main() {}")
         .build();
     p.cargo("doc")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [DOCUMENTING] foo-bar v1.0.0 ([ROOT]/foo)
-[FINISHED] [..]
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 [GENERATED] [ROOT]/foo/target/doc/foo_bar/index.html
-",
-        )
+
+"#]])
         .run();
     assert!(p.build_dir().join("doc/foo_bar/index.html").exists());
     assert!(!p.build_dir().join("doc/foo_bar/fn.main.html").exists());
@@ -525,21 +515,19 @@ fn doc_lib_bin_same_name_documents_named_bin_when_requested() {
     p.cargo("doc --bin foo")
         // The checking/documenting lines are sometimes swapped since they run
         // concurrently.
-        .with_stderr_unordered(
-            "\
-warning: output filename collision.
-The bin target `foo` in package `foo v0.0.1 ([ROOT]/foo)` \
-has the same output filename as the lib target `foo` in package `foo v0.0.1 ([ROOT]/foo)`.
+        .with_stderr_data(str![[r#"
+[WARNING] output filename collision.
+The bin target `foo` in package `foo v0.0.1 ([ROOT]/foo)` has the same output filename as the lib target `foo` in package `foo v0.0.1 ([ROOT]/foo)`.
 Colliding filename is: [ROOT]/foo/target/doc/foo/index.html
 The targets should have unique names.
 This is a known bug where multiple crates with the same name use
 the same path; see <https://github.com/rust-lang/cargo/issues/6313>.
-[CHECKING] foo v0.0.1 ([CWD])
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]].unordered())
         .run();
     let doc_html = p.read_file("target/doc/foo/index.html");
     assert!(!doc_html.contains("Library"));
@@ -571,21 +559,19 @@ fn doc_lib_bin_same_name_documents_bins_when_requested() {
     p.cargo("doc --bins")
         // The checking/documenting lines are sometimes swapped since they run
         // concurrently.
-        .with_stderr_unordered(
-            "\
-warning: output filename collision.
-The bin target `foo` in package `foo v0.0.1 ([ROOT]/foo)` \
-has the same output filename as the lib target `foo` in package `foo v0.0.1 ([ROOT]/foo)`.
+        .with_stderr_data(str![[r#"
+[WARNING] output filename collision.
+The bin target `foo` in package `foo v0.0.1 ([ROOT]/foo)` has the same output filename as the lib target `foo` in package `foo v0.0.1 ([ROOT]/foo)`.
 Colliding filename is: [ROOT]/foo/target/doc/foo/index.html
 The targets should have unique names.
 This is a known bug where multiple crates with the same name use
 the same path; see <https://github.com/rust-lang/cargo/issues/6313>.
-[CHECKING] foo v0.0.1 ([CWD])
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]].unordered())
         .run();
     let doc_html = p.read_file("target/doc/foo/index.html");
     assert!(!doc_html.contains("Library"));
@@ -624,13 +610,15 @@ fn doc_lib_bin_example_same_name_documents_named_example_when_requested() {
     p.cargo("doc --example ex1")
         // The checking/documenting lines are sometimes swapped since they run
         // concurrently.
-        .with_stderr_unordered(
-            "\
-[CHECKING] foo v0.0.1 ([CWD])
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/ex1/index.html
-",
+        .with_stderr_data(
+            str![[r#"
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/ex1/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 
@@ -679,13 +667,15 @@ fn doc_lib_bin_example_same_name_documents_examples_when_requested() {
     p.cargo("doc --examples")
         // The checking/documenting lines are sometimes swapped since they run
         // concurrently.
-        .with_stderr_unordered(
-            "\
-[CHECKING] foo v0.0.1 ([CWD])
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/ex1/index.html and 1 other file
-",
+        .with_stderr_data(
+            str![[r#"
+[CHECKING] foo v0.0.1 ([ROOT]/foo)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/ex1/index.html and 1 other file
+
+"#]]
+            .unordered(),
         )
         .run();
 
@@ -738,15 +728,17 @@ fn doc_dash_p() {
         .build();
 
     p.cargo("doc -p a")
-        .with_stderr(
-            "\
+        .with_stderr_data(
+            str![[r#"
 [LOCKING] 3 packages to latest compatible versions
-[..] b v0.0.1 ([CWD]/b)
-[..] b v0.0.1 ([CWD]/b)
-[DOCUMENTING] a v0.0.1 ([CWD]/a)
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/a/index.html
-",
+[DOCUMENTING] b v0.0.1 ([ROOT]/foo/b)
+[CHECKING] b v0.0.1 ([ROOT]/foo/b)
+[DOCUMENTING] a v0.0.1 ([ROOT]/foo/a)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/a/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 }
@@ -768,15 +760,13 @@ fn doc_all_exclude() {
         .build();
 
     p.cargo("doc --workspace --exclude baz")
-        .with_stderr_does_not_contain("[DOCUMENTING] baz v0.1.0 [..]")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[DOCUMENTING] bar v0.1.0 ([..])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/bar/index.html
-",
-        )
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html
+
+"#]])
         .run();
 }
 
@@ -797,15 +787,13 @@ fn doc_all_exclude_glob() {
         .build();
 
     p.cargo("doc --workspace --exclude '*z'")
-        .with_stderr_does_not_contain("[DOCUMENTING] baz v0.1.0 [..]")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[DOCUMENTING] bar v0.1.0 ([..])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/bar/index.html
-",
-        )
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html
+
+"#]])
         .run();
 }
 
@@ -905,7 +893,11 @@ fn output_not_captured() {
         .build();
 
     p.cargo("doc")
-        .with_stderr_contains("[..]unknown start of token: `")
+        .with_stderr_data(str![[r#"
+...
+[..]unknown start of token: `
+...
+"#]])
         .run();
 }
 
@@ -990,14 +982,13 @@ fn doc_release() {
 
     p.cargo("check --release").run();
     p.cargo("doc --release -v")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.0.1 ([..])
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
 [RUNNING] `rustdoc [..] src/lib.rs [..]`
-[FINISHED] `release` profile [optimized] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[FINISHED] `release` profile [optimized] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 }
 
@@ -1081,44 +1072,41 @@ fn features() {
         )
         .build();
     p.cargo("doc --features foo")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[COMPILING] bar v0.0.1 [..]
-[DOCUMENTING] bar v0.0.1 [..]
-[DOCUMENTING] foo v0.0.1 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[COMPILING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     assert!(p.root().join("target/doc").is_dir());
     assert!(p.root().join("target/doc/foo/fn.foo.html").is_file());
     assert!(p.root().join("target/doc/bar/fn.bar.html").is_file());
     // Check that turning the feature off will remove the files.
     p.cargo("doc")
-        .with_stderr(
-            "\
-[COMPILING] bar v0.0.1 [..]
-[DOCUMENTING] bar v0.0.1 [..]
-[DOCUMENTING] foo v0.0.1 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[COMPILING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     assert!(!p.root().join("target/doc/foo/fn.foo.html").is_file());
     assert!(!p.root().join("target/doc/bar/fn.bar.html").is_file());
     // And switching back will rebuild and bring them back.
     p.cargo("doc --features foo")
-        .with_stderr(
-            "\
-[DOCUMENTING] bar v0.0.1 [..]
-[DOCUMENTING] foo v0.0.1 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     assert!(p.root().join("target/doc/foo/fn.foo.html").is_file());
     assert!(p.root().join("target/doc/bar/fn.bar.html").is_file());
@@ -1215,10 +1203,18 @@ fn doc_all_workspace() {
 
     // The order in which bar is compiled or documented is not deterministic
     p.cargo("doc --workspace")
-        .with_stderr_contains("[DOCUMENTING] bar v0.1.0 ([..])")
-        .with_stderr_contains("[CHECKING] bar v0.1.0 ([..])")
-        .with_stderr_contains("[DOCUMENTING] foo v0.1.0 ([..])")
-        .with_stderr_contains("[GENERATED] [CWD]/target/doc/bar/index.html and 1 other file")
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[CHECKING] bar v0.1.0 ([ROOT]/foo/bar)
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html and 1 other file
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1246,11 +1242,22 @@ fn doc_all_workspace_verbose() {
 
     // The order in which bar is compiled or documented is not deterministic
     p.cargo("doc --workspace -v")
-        .with_stderr_contains("[DOCUMENTING] bar v0.1.0 ([..])")
-        .with_stderr_contains("[CHECKING] bar v0.1.0 ([..])")
-        .with_stderr_contains("[DOCUMENTING] foo v0.1.0 ([..])")
-        .with_stderr_contains("[GENERATED] [CWD]/target/doc/bar/index.html")
-        .with_stderr_contains("[GENERATED] [CWD]/target/doc/foo/index.html")
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo)
+[RUNNING] `rustdoc [..]
+[CHECKING] bar v0.1.0 ([ROOT]/foo/bar)
+[RUNNING] `rustc [..]
+[RUNNING] `rustdoc [..]
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1272,8 +1279,17 @@ fn doc_all_virtual_manifest() {
 
     // The order in which bar and baz are documented is not guaranteed
     p.cargo("doc --workspace")
-        .with_stderr_contains("[..] Documenting baz v0.1.0 ([..])")
-        .with_stderr_contains("[..] Documenting bar v0.1.0 ([..])")
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[DOCUMENTING] baz v0.1.0 ([ROOT]/foo/baz)
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html and 1 other file
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1295,8 +1311,17 @@ fn doc_virtual_manifest_all_implied() {
 
     // The order in which bar and baz are documented is not guaranteed
     p.cargo("doc")
-        .with_stderr_contains("[..] Documenting baz v0.1.0 ([..])")
-        .with_stderr_contains("[..] Documenting bar v0.1.0 ([..])")
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html and 1 other file
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[DOCUMENTING] baz v0.1.0 ([ROOT]/foo/baz)
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1317,15 +1342,13 @@ fn doc_virtual_manifest_one_project() {
         .build();
 
     p.cargo("doc -p bar")
-        .with_stderr_does_not_contain("[DOCUMENTING] baz v0.1.0 [..]")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[DOCUMENTING] bar v0.1.0 ([..])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/bar/index.html
-",
-        )
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html
+
+"#]])
         .run();
 }
 
@@ -1346,15 +1369,13 @@ fn doc_virtual_manifest_glob() {
         .build();
 
     p.cargo("doc -p '*z'")
-        .with_stderr_does_not_contain("[DOCUMENTING] bar v0.1.0 [..]")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[DOCUMENTING] baz v0.1.0 ([..])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/baz/index.html
-",
-        )
+[DOCUMENTING] baz v0.1.0 ([ROOT]/foo/baz)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/baz/index.html
+
+"#]])
         .run();
 }
 
@@ -1386,26 +1407,24 @@ fn doc_all_member_dependency_same_name() {
     Package::new("bar", "0.1.0").publish();
 
     p.cargo("doc --workspace")
-        .with_stderr_unordered(
-            "\
-[UPDATING] [..]
+        .with_stderr_data(str![[r#"
+[UPDATING] `dummy-registry` index
 [LOCKING] 2 packages to latest compatible versions
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 (registry `dummy-registry`)
-warning: output filename collision.
-The lib target `bar` in package `bar v0.1.0` has the same output filename as \
-the lib target `bar` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
+[WARNING] output filename collision.
+The lib target `bar` in package `bar v0.1.0` has the same output filename as the lib target `bar` in package `bar v0.1.0 ([ROOT]/foo/bar)`.
 Colliding filename is: [ROOT]/foo/target/doc/bar/index.html
 The targets should have unique names.
 This is a known bug where multiple crates with the same name use
 the same path; see <https://github.com/rust-lang/cargo/issues/6313>.
 [DOCUMENTING] bar v0.1.0
 [CHECKING] bar v0.1.0
-[DOCUMENTING] bar v0.1.0 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/bar/index.html
-",
-        )
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/bar/index.html
+
+"#]].unordered())
         .run();
 }
 
@@ -1428,9 +1447,17 @@ fn doc_workspace_open_help_message() {
     // The order in which bar is compiled or documented is not deterministic
     p.cargo("doc --workspace --open")
         .env("BROWSER", tools::echo())
-        .with_stderr_contains("[..] Documenting bar v0.1.0 ([..])")
-        .with_stderr_contains("[..] Documenting foo v0.1.0 ([..])")
-        .with_stderr_contains("[..] Opening [..]/bar/index.html")
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo/foo)
+[DOCUMENTING] bar v0.1.0 ([ROOT]/foo/bar)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[OPENING] [ROOT]/foo/target/doc/bar/index.html
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1453,14 +1480,13 @@ fn doc_extern_map_local() {
     p.cargo("doc -v --no-deps -Zrustdoc-map --open")
         .env("BROWSER", tools::echo())
         .masquerade_as_nightly_cargo(&["rustdoc-map"])
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.1.0 [..]
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo)
 [RUNNING] `rustdoc --edition=2015 --crate-type lib --crate-name foo src/lib.rs [..]--crate-version 0.1.0`
-[FINISHED] [..]
-     Opening [CWD]/target/doc/foo/index.html
-",
-        )
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[OPENING] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 }
 
@@ -1486,7 +1512,11 @@ fn open_no_doc_crate() {
     p.cargo("doc --open")
         .env("BROWSER", "do_not_run_me")
         .with_status(101)
-        .with_stderr_contains("error: no crates with documentation")
+        .with_stderr_data(str![[r#"
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[ERROR] no crates with documentation
+
+"#]])
         .run();
 }
 
@@ -1516,9 +1546,16 @@ fn doc_workspace_open_different_library_and_package_names() {
 
     p.cargo("doc --open")
         .env("BROWSER", tools::echo())
-        .with_stderr_contains("[..] Documenting foo v0.1.0 ([..])")
-        .with_stderr_contains("[..] [CWD]/target/doc/foolib/index.html")
-        .with_stdout_contains("[CWD]/target/doc/foolib/index.html")
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[OPENING] [ROOT]/foo/target/doc/foolib/index.html
+
+"#]])
+        .with_stdout_data(str![[r#"
+[ROOT]/foo/target/doc/foolib/index.html
+
+"#]])
         .run();
 
     p.change_file(
@@ -1535,7 +1572,10 @@ fn doc_workspace_open_different_library_and_package_names() {
     // check that the cargo config overrides the browser env var
     p.cargo("doc --open")
         .env("BROWSER", "do_not_run_me")
-        .with_stdout_contains("a [CWD]/target/doc/foolib/index.html")
+        .with_stdout_data(str![[r#"
+a [ROOT]/foo/target/doc/foolib/index.html
+
+"#]])
         .run();
 }
 
@@ -1566,8 +1606,12 @@ fn doc_workspace_open_binary() {
 
     p.cargo("doc --open")
         .env("BROWSER", tools::echo())
-        .with_stderr_contains("[..] Documenting foo v0.1.0 ([..])")
-        .with_stderr_contains("[..] Opening [CWD]/target/doc/foobin/index.html")
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[OPENING] [ROOT]/foo/target/doc/foobin/index.html
+
+"#]])
         .run();
 }
 
@@ -1601,8 +1645,16 @@ fn doc_workspace_open_binary_and_library() {
 
     p.cargo("doc --open")
         .env("BROWSER", tools::echo())
-        .with_stderr_contains("[..] Documenting foo v0.1.0 ([..])")
-        .with_stderr_contains("[..] Opening [CWD]/target/doc/foolib/index.html")
+        .with_stderr_data(
+            str![[r#"
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo/foo)
+[CHECKING] foo v0.1.0 ([ROOT]/foo/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[OPENING] [ROOT]/foo/target/doc/foolib/index.html
+
+"#]]
+            .unordered(),
+        )
         .run();
 }
 
@@ -1623,11 +1675,19 @@ fn doc_edition() {
         .build();
 
     p.cargo("doc -v")
-        .with_stderr_contains("[RUNNING] `rustdoc [..]--edition=2018[..]")
+        .with_stderr_data(str![[r#"
+...
+[RUNNING] `rustdoc [..]--edition=2018[..]
+...
+"#]])
         .run();
 
     p.cargo("test -v")
-        .with_stderr_contains("[RUNNING] `rustdoc [..]--edition=2018[..]")
+        .with_stderr_data(str![[r#"
+...
+[RUNNING] `rustdoc [..]--edition=2018[..]
+...
+"#]])
         .run();
 }
 
@@ -1651,11 +1711,19 @@ fn doc_target_edition() {
         .build();
 
     p.cargo("doc -v")
-        .with_stderr_contains("[RUNNING] `rustdoc [..]--edition=2018[..]")
+        .with_stderr_data(str![[r#"
+...
+[RUNNING] `rustdoc [..]--edition=2018[..]
+...
+"#]])
         .run();
 
     p.cargo("test -v")
-        .with_stderr_contains("[RUNNING] `rustdoc [..]--edition=2018[..]")
+        .with_stderr_data(str![[r#"
+...
+[RUNNING] `rustdoc [..]--edition=2018[..]
+...
+"#]])
         .run();
 }
 
@@ -1720,20 +1788,32 @@ fn doc_private_ws() {
         .file("b/src/bin/b-cli.rs", "fn main() {}")
         .build();
     p.cargo("doc --workspace --bins --lib --document-private-items -v")
-        .with_stderr_contains(
-            "[RUNNING] `rustdoc [..] a/src/lib.rs [..]--document-private-items[..]",
-        )
-        .with_stderr_contains(
-            "[RUNNING] `rustdoc [..] b/src/lib.rs [..]--document-private-items[..]",
-        )
-        .with_stderr_contains(
-            "[RUNNING] `rustdoc [..] b/src/bin/b-cli.rs [..]--document-private-items[..]",
+        .with_stderr_data(
+            str![[r#"
+[LOCKING] 2 packages to latest compatible versions
+[DOCUMENTING] b v0.0.1 ([ROOT]/foo/b)
+[CHECKING] b v0.0.1 ([ROOT]/foo/b)
+[DOCUMENTING] a v0.0.1 ([ROOT]/foo/a)
+[RUNNING] `rustdoc [..] a/src/lib.rs [..]--document-private-items[..]
+[RUNNING] `rustc [..]
+[WARNING] function `p2` is never used
+...
+[RUNNING] `rustdoc [..] b/src/lib.rs [..]--document-private-items[..]
+[WARNING] `b` (lib) generated 1 warning
+[RUNNING] `rustdoc [..] b/src/bin/b-cli.rs [..]--document-private-items[..]
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/a/index.html
+[GENERATED] [ROOT]/foo/target/doc/b/index.html
+[GENERATED] [ROOT]/foo/target/doc/b_cli/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 }
 
 const BAD_INTRA_LINK_LIB: &str = r#"
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 /// [bad_link]
 pub fn foo() {}
@@ -1767,26 +1847,33 @@ fn doc_cap_lints() {
         .build();
 
     p.cargo("doc")
-        .with_stderr_unordered(
-            "\
+        .with_stderr_data(
+            str![[r#"
 [LOCKING] 2 packages to latest compatible versions
 [UPDATING] git repository `[..]`
 [DOCUMENTING] a v0.5.0 ([..])
 [CHECKING] a v0.5.0 ([..])
-[DOCUMENTING] foo v0.0.1 ([..])
-[FINISHED] `dev` profile [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 
     p.root().join("target").rm_rf();
 
     p.cargo("doc -vv")
-        .with_stderr_contains("[WARNING] [..]`bad_link`[..]")
+        .with_stderr_data(str![[r#"
+...
+[WARNING] [..]`bad_link`[..]
+...
+"#]])
         .run();
 }
 
+#[allow(deprecated)]
 #[cargo_test]
 fn doc_message_format() {
     let p = project().file("src/lib.rs", BAD_INTRA_LINK_LIB).build();
@@ -1815,6 +1902,7 @@ fn doc_message_format() {
         .run();
 }
 
+#[allow(deprecated)]
 #[cargo_test]
 fn doc_json_artifacts() {
     // Checks the output of json artifact messages.
@@ -1903,7 +1991,11 @@ fn short_message_format() {
     let p = project().file("src/lib.rs", BAD_INTRA_LINK_LIB).build();
     p.cargo("doc --message-format=short")
         .with_status(101)
-        .with_stderr_contains("src/lib.rs:4:6: error: [..]`bad_link`[..]")
+        .with_stderr_data(str![[r#"
+...
+src/lib.rs:4:6: [ERROR] [..]`bad_link`[..]
+...
+"#]])
         .run();
 }
 
@@ -2040,13 +2132,12 @@ fn bin_private_items() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     assert!(p.root().join("target/doc/foo/index.html").is_file());
@@ -2100,15 +2191,17 @@ fn bin_private_items_deps() {
         .build();
 
     p.cargo("doc")
-        .with_stderr_unordered(
-            "\
+        .with_stderr_data(
+            str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[DOCUMENTING] bar v0.0.1 ([..])
-[CHECKING] bar v0.0.1 ([..])
-[DOCUMENTING] foo v0.0.1 ([CWD])
-[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
+[DOCUMENTING] bar v0.0.1 ([ROOT]/foo/bar)
+[CHECKING] bar v0.0.1 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]]
+            .unordered(),
         )
         .run();
 
@@ -2138,14 +2231,13 @@ fn crate_versions() {
         .build();
 
     p.cargo("doc -v")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo v1.2.4 [..]
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v1.2.4 ([ROOT]/foo)
 [RUNNING] `rustdoc --edition=2015 --crate-type lib --crate-name foo src/lib.rs [..]--crate-version 1.2.4`
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     let output_path = p.root().join("target/doc/foo/index.html");
@@ -2239,24 +2331,26 @@ fn doc_test_in_workspace() {
         )
         .build();
     p.cargo("test --doc -vv")
-        .with_stderr_contains("[DOCTEST] crate_a")
-        .with_stdout_contains(
-            "
+        .with_stderr_data(str![[r#"
+...
+[DOCTEST] crate_a
+...
+"#]])
+        .with_stdout_data(str![[r#"
+
 running 1 test
 test crate-a/src/lib.rs - (line 1) ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out[..]
-",
-        )
-        .with_stderr_contains("[DOCTEST] crate_b")
-        .with_stdout_contains(
-            "
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in [ELAPSED]s
+
+
 running 1 test
 test crate-b/src/lib.rs - (line 1) ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out[..]
-",
-        )
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in [ELAPSED]s
+
+
+"#]])
         .run();
 }
 
@@ -2331,26 +2425,30 @@ fn doc_test_include_file() {
         .build();
 
     p.cargo("test --workspace --doc -vv -- --test-threads=1")
-        .with_stderr_contains("[DOCTEST] child")
-        .with_stdout_contains(
-            "
+        .with_stderr_data(str![[r#"
+...
+[DOCTEST] child
+...
+[DOCTEST] root
+...
+"#]])
+        .with_stdout_data(str![[r#"
+
 running 2 tests
 test child/src/../../child/src/lib.rs.included.rs - included::foo (line 2) ... ok
 test child/src/lib.rs - included (line 2) ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out[..]
-",
-        )
-        .with_stderr_contains("[DOCTEST] root")
-        .with_stdout_contains(
-            "
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in [ELAPSED]s
+
+
 running 2 tests
 test src/../src/lib.rs.included.rs - included::foo (line 2) ... ok
 test src/lib.rs - included (line 2) ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out[..]
-",
-        )
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in [ELAPSED]s
+
+
+"#]])
         .run();
 }
 
@@ -2558,11 +2656,12 @@ fn doc_fingerprint_unusual_behavior() {
     // Change file to trigger a new build.
     p.change_file("src/lib.rs", "// changed");
     p.cargo("doc")
-        .with_stderr(
-            "[DOCUMENTING] foo [..]\n\
-             [FINISHED] [..]\n\
-             [GENERATED] [CWD]/target/doc/foo/index.html",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     // This will delete somefile, but not .hidden.
     assert!(!real_doc.join("somefile").exists());
@@ -2578,11 +2677,12 @@ fn doc_fingerprint_unusual_behavior() {
     fs::write(real_doc.join("somefile"), "test").unwrap();
     p.cargo("doc -Z skip-rustdoc-fingerprint")
         .masquerade_as_nightly_cargo(&["skip-rustdoc-fingerprint"])
-        .with_stderr(
-            "[DOCUMENTING] foo [..]\n\
-             [FINISHED] [..]\n\
-             [GENERATED] [CWD]/target/doc/foo/index.html",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
     // Should not have deleted anything.
     assert!(build_doc.join("somefile").exists());
@@ -2617,16 +2717,15 @@ fn lib_before_bin() {
 
     // The order of output here should be deterministic.
     p.cargo("doc -v")
-        .with_stderr(
-            "\
-[DOCUMENTING] foo [..]
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
 [RUNNING] `rustdoc --edition=2015 --crate-type lib --crate-name foo src/lib.rs [..]
 [RUNNING] `rustdoc --edition=2015 --crate-type bin --crate-name somebin src/bin/somebin.rs [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-[GENERATED] [CWD]/target/doc/somebin/index.html
-",
-        )
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+[GENERATED] [ROOT]/foo/target/doc/somebin/index.html
+
+"#]])
         .run();
 
     // And the link should exist.
@@ -2671,16 +2770,15 @@ fn doc_lib_false() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[CHECKING] bar v0.1.0 [..]
-[CHECKING] foo v0.1.0 [..]
-[DOCUMENTING] foo v0.1.0 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/some_bin/index.html
-",
-        )
+[CHECKING] bar v0.1.0 ([ROOT]/foo/bar)
+[CHECKING] foo v0.1.0 ([ROOT]/foo)
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/some_bin/index.html
+
+"#]])
         .run();
 
     assert!(!p.build_dir().join("doc/foo").exists());
@@ -2722,15 +2820,14 @@ fn doc_lib_false_dep() {
         .build();
 
     p.cargo("doc")
-        .with_stderr(
-            "\
+        .with_stderr_data(str![[r#"
 [LOCKING] 2 packages to latest compatible versions
-[CHECKING] bar v0.1.0 [..]
-[DOCUMENTING] foo v0.1.0 [..]
-[FINISHED] [..]
-[GENERATED] [CWD]/target/doc/foo/index.html
-",
-        )
+[CHECKING] bar v0.1.0 ([ROOT]/foo/bar)
+[DOCUMENTING] foo v0.1.0 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 
     assert!(p.build_dir().join("doc/foo").exists());
@@ -2746,16 +2843,21 @@ fn link_to_private_item() {
     "#;
     let p = project().file("src/lib.rs", main).build();
     p.cargo("doc")
-        .with_stderr_contains("[..] documentation for `foo` links to private item `bar`")
+        .with_stderr_data(str![[r#"
+...
+[..]documentation for `foo` links to private item `bar`
+...
+"#]])
         .run();
     // Check that binaries don't emit a private_intra_doc_links warning.
     fs::rename(p.root().join("src/lib.rs"), p.root().join("src/main.rs")).unwrap();
     p.cargo("doc")
-        .with_stderr(
-            "[DOCUMENTING] foo [..]\n\
-             [FINISHED] [..]\n\
-             [GENERATED] [CWD]/target/doc/foo/index.html",
-        )
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[GENERATED] [ROOT]/foo/target/doc/foo/index.html
+
+"#]])
         .run();
 }
 
@@ -2763,19 +2865,30 @@ fn link_to_private_item() {
 fn rustdoc_failure_hides_command_line_by_default() {
     let p = project().file("src/lib.rs", "invalid rust code").build();
 
-    let string_to_test = "\
-Caused by:
-  process didn't exit successfully[..]rustdoc[..]";
-
     // `cargo doc` doesn't print the full command line on failures by default
     p.cargo("doc")
-        .with_stderr_does_not_contain(string_to_test)
+        .with_stderr_data(str![[r#"
+[DOCUMENTING] foo v0.0.1 ([ROOT]/foo)
+[ERROR] expected one of `!` or `::`, found `rust`
+ --> src/lib.rs:1:9
+  |
+1 | invalid rust code
+  |         ^^^^ expected one of `!` or `::`
+
+[ERROR] could not document `foo`
+
+"#]])
         .with_status(101)
         .run();
 
     // ... but it still does so if requested with `--verbose`.
     p.cargo("doc --verbose")
-        .with_stderr_contains(string_to_test)
+        .with_stderr_data(str![[r#"
+...
+Caused by:
+  process didn't exit successfully[..]rustdoc[..]
+
+"#]])
         .with_status(101)
         .run();
 }
