@@ -1,5 +1,12 @@
 //! Tests for config settings.
 
+use std::borrow::Borrow;
+use std::collections::{BTreeMap, HashMap};
+use std::fs;
+use std::io;
+use std::os;
+use std::path::{Path, PathBuf};
+
 use cargo::core::features::{GitFeatures, GitoxideFeatures};
 use cargo::core::{PackageIdSpec, Shell};
 use cargo::util::context::{
@@ -14,12 +21,6 @@ use cargo_util_schemas::manifest::TomlTrimPaths;
 use cargo_util_schemas::manifest::TomlTrimPathsValue;
 use cargo_util_schemas::manifest::{self as cargo_toml, TomlDebugInfo, VecStringOrBool as VSOB};
 use serde::Deserialize;
-use std::borrow::Borrow;
-use std::collections::{BTreeMap, HashMap};
-use std::fs;
-use std::io;
-use std::os;
-use std::path::{Path, PathBuf};
 
 /// Helper for constructing a `GlobalContext` object.
 pub struct GlobalContextBuilder {
@@ -1614,7 +1615,10 @@ fn cargo_target_empty_env() {
 
     project.cargo("check")
         .env("CARGO_TARGET_DIR", "")
-        .with_stderr("error: the target directory is set to an empty string in the `CARGO_TARGET_DIR` environment variable")
+        .with_stderr_data(str![[r#"
+[ERROR] the target directory is set to an empty string in the `CARGO_TARGET_DIR` environment variable
+
+"#]])
         .with_status(101)
         .run()
 }

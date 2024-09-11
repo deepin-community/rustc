@@ -20,7 +20,7 @@ use crate::core::{
 };
 use crate::core::{EitherManifest, Package, SourceId, VirtualManifest};
 use crate::ops;
-use crate::sources::{PathSource, CRATES_IO_INDEX, CRATES_IO_REGISTRY};
+use crate::sources::{PathSource, SourceConfigMap, CRATES_IO_INDEX, CRATES_IO_REGISTRY};
 use crate::util::edit_distance;
 use crate::util::errors::{CargoResult, ManifestError};
 use crate::util::interning::InternedString;
@@ -109,6 +109,9 @@ pub struct Workspace<'gctx> {
 
     /// Workspace-level custom metadata
     custom_metadata: Option<toml::Value>,
+
+    /// Local overlay configuration. See [`crate::sources::overlay`].
+    local_overlays: HashMap<SourceId, PathBuf>,
 }
 
 // Separate structure for tracking loaded packages (to avoid loading anything
@@ -237,6 +240,7 @@ impl<'gctx> Workspace<'gctx> {
             resolve_behavior: ResolveBehavior::V1,
             resolve_honors_rust_version: false,
             custom_metadata: None,
+            local_overlays: HashMap::new(),
         }
     }
 
@@ -719,6 +723,7 @@ impl<'gctx> Workspace<'gctx> {
     /// verifies that those are all valid packages to point to. Otherwise, this
     /// will transitively follow all `path` dependencies looking for members of
     /// the workspace.
+    #[tracing::instrument(skip_all)]
     fn find_members(&mut self) -> CargoResult<()> {
         let Some(workspace_config) = self.load_workspace_config()? else {
             debug!("find_members - only me as a member");
@@ -882,6 +887,7 @@ impl<'gctx> Workspace<'gctx> {
     /// 1. A workspace only has one root.
     /// 2. All workspace members agree on this one root as the root.
     /// 3. The current crate is a member of this workspace.
+    #[tracing::instrument(skip_all)]
     fn validate(&mut self) -> CargoResult<()> {
         // The rest of the checks require a VirtualManifest or multiple members.
         if self.root_manifest.is_none() {
@@ -950,6 +956,7 @@ impl<'gctx> Workspace<'gctx> {
         }
     }
 
+    #[tracing::instrument(skip_all)]
     fn validate_members(&mut self) -> CargoResult<()> {
         for member in self.members.clone() {
             let root = self.find_root(&member)?;
@@ -1674,6 +1681,44 @@ impl<'gctx> Workspace<'gctx> {
         // Cargo to panic, see issue #10545.
         self.is_member(&unit.pkg) && !(unit.target.for_host() || unit.pkg.proc_macro())
     }
+
+    /// Adds a local package registry overlaying a `SourceId`.
+    ///
+    /// See [`crate::sources::overlay::DependencyConfusionThreatOverlaySource`] for why you shouldn't use this.
+    pub fn add_local_overlay(&mut self, id: SourceId, registry_path: PathBuf) {
+        self.local_overlays.insert(id, registry_path);
+    }
+
+    /// Builds a package registry that reflects this workspace configuration.
+    pub fn package_registry(&self) -> CargoResult<PackageRegistry<'gctx>> {
+        let source_config =
+            SourceConfigMap::new_with_overlays(self.gctx(), self.local_overlays()?)?;
+        PackageRegistry::new_with_source_config(self.gctx(), source_config)
+    }
+
+    /// Returns all the configured local overlays, including the ones from our secret environment variable.
+    fn local_overlays(&self) -> CargoResult<impl Iterator<Item = (SourceId, SourceId)>> {
+        let mut ret = self
+            .local_overlays
+            .iter()
+            .map(|(id, path)| Ok((*id, SourceId::for_local_registry(path)?)))
+            .collect::<CargoResult<Vec<_>>>()?;
+
+        if let Ok(overlay) = self
+            .gctx
+            .get_env("__CARGO_TEST_DEPENDENCY_CONFUSION_VULNERABILITY_DO_NOT_USE_THIS")
+        {
+            let (url, path) = overlay.split_once('=').ok_or(anyhow::anyhow!(
+                "invalid overlay format. I won't tell you why; you shouldn't be using it anyway"
+            ))?;
+            ret.push((
+                SourceId::from_url(url)?,
+                SourceId::for_local_registry(path.as_ref())?,
+            ));
+        }
+
+        Ok(ret.into_iter())
+    }
 }
 
 impl<'gctx> Packages<'gctx> {
@@ -1770,6 +1815,7 @@ impl WorkspaceRootConfig {
         self.members.is_some()
     }
 
+    #[tracing::instrument(skip_all)]
     fn members_paths(&self, globs: &[String]) -> CargoResult<Vec<PathBuf>> {
         let mut expanded_list = Vec::new();
 

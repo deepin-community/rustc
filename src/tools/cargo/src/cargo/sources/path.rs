@@ -1,15 +1,21 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Formatter};
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::task::Poll;
 
-use crate::core::{Dependency, Package, PackageId, SourceId};
+use crate::core::{Dependency, EitherManifest, Manifest, Package, PackageId, SourceId};
 use crate::ops;
 use crate::sources::source::MaybePackage;
 use crate::sources::source::QueryKind;
 use crate::sources::source::Source;
 use crate::sources::IndexSummary;
-use crate::util::{internal, CargoResult, GlobalContext};
+use crate::util::errors::CargoResult;
+use crate::util::important_paths::find_project_manifest_exact;
+use crate::util::internal;
+use crate::util::toml::read_manifest;
+use crate::util::GlobalContext;
 use anyhow::Context as _;
 use cargo_util::paths;
 use filetime::FileTime;
@@ -17,7 +23,7 @@ use gix::bstr::{BString, ByteVec};
 use gix::dir::entry::Status;
 use gix::index::entry::Stage;
 use ignore::gitignore::GitignoreBuilder;
-use tracing::{debug, trace, warn};
+use tracing::{debug, info, trace, warn};
 use walkdir::WalkDir;
 
 /// A source that represents a package gathered at the root
@@ -30,8 +36,6 @@ pub struct PathSource<'gctx> {
     source_id: SourceId,
     /// The root path of this source.
     path: PathBuf,
-    /// Whether this source has updated all package information it may contain.
-    updated: bool,
     /// Packages that this sources has discovered.
     package: Option<Package>,
     gctx: &'gctx GlobalContext,
@@ -46,7 +50,6 @@ impl<'gctx> PathSource<'gctx> {
         Self {
             source_id,
             path: path.to_path_buf(),
-            updated: false,
             package: None,
             gctx,
         }
@@ -60,7 +63,6 @@ impl<'gctx> PathSource<'gctx> {
         Self {
             source_id,
             path,
-            updated: true,
             package: Some(pkg),
             gctx,
         }
@@ -70,7 +72,7 @@ impl<'gctx> PathSource<'gctx> {
     pub fn root_package(&mut self) -> CargoResult<Package> {
         trace!("root_package; source={:?}", self);
 
-        self.update()?;
+        self.load()?;
 
         match &self.package {
             Some(pkg) => Ok(pkg.clone()),
@@ -79,23 +81,6 @@ impl<'gctx> PathSource<'gctx> {
                 self.path
             ))),
         }
-    }
-
-    /// Returns the packages discovered by this source. It may walk the
-    /// filesystem if package information haven't yet updated.
-    pub fn read_packages(&self) -> CargoResult<Vec<Package>> {
-        if self.updated {
-            Ok(self.package.clone().into_iter().collect())
-        } else {
-            let pkg = self.read_package()?;
-            Ok(vec![pkg])
-        }
-    }
-
-    fn read_package(&self) -> CargoResult<Package> {
-        let path = self.path.join("Cargo.toml");
-        let pkg = ops::read_package(&path, self.source_id, self.gctx)?;
-        Ok(pkg)
     }
 
     /// List all files relevant to building this package inside this source.
@@ -113,10 +98,10 @@ impl<'gctx> PathSource<'gctx> {
     }
 
     /// Gets the last modified file in a package.
-    pub fn last_modified_file(&self, pkg: &Package) -> CargoResult<(FileTime, PathBuf)> {
-        if !self.updated {
+    fn last_modified_file(&self, pkg: &Package) -> CargoResult<(FileTime, PathBuf)> {
+        if self.package.is_none() {
             return Err(internal(format!(
-                "BUG: source `{:?}` was not updated",
+                "BUG: source `{:?}` was not loaded",
                 self.path
             )));
         }
@@ -129,13 +114,18 @@ impl<'gctx> PathSource<'gctx> {
     }
 
     /// Discovers packages inside this source if it hasn't yet done.
-    pub fn update(&mut self) -> CargoResult<()> {
-        if !self.updated {
+    pub fn load(&mut self) -> CargoResult<()> {
+        if self.package.is_none() {
             self.package = Some(self.read_package()?);
-            self.updated = true;
         }
 
         Ok(())
+    }
+
+    fn read_package(&self) -> CargoResult<Package> {
+        let path = self.path.join("Cargo.toml");
+        let pkg = ops::read_package(&path, self.source_id, self.gctx)?;
+        Ok(pkg)
     }
 }
 
@@ -152,7 +142,7 @@ impl<'gctx> Source for PathSource<'gctx> {
         kind: QueryKind,
         f: &mut dyn FnMut(IndexSummary),
     ) -> Poll<CargoResult<()>> {
-        self.update()?;
+        self.load()?;
         if let Some(s) = self.package.as_ref().map(|p| p.summary()) {
             let matched = match kind {
                 QueryKind::Exact => dep.matches(s),
@@ -180,7 +170,7 @@ impl<'gctx> Source for PathSource<'gctx> {
 
     fn download(&mut self, id: PackageId) -> CargoResult<MaybePackage> {
         trace!("getting packages; id={}", id);
-        self.update()?;
+        self.load()?;
         let pkg = self.package.iter().find(|pkg| pkg.package_id() == id);
         pkg.cloned()
             .map(MaybePackage::Ready)
@@ -214,7 +204,7 @@ impl<'gctx> Source for PathSource<'gctx> {
     }
 
     fn block_until_ready(&mut self) -> CargoResult<()> {
-        self.update()
+        self.load()
     }
 
     fn invalidate_cache(&mut self) {
@@ -233,10 +223,14 @@ pub struct RecursivePathSource<'gctx> {
     source_id: SourceId,
     /// The root path of this source.
     path: PathBuf,
-    /// Whether this source has updated all package information it may contain.
-    updated: bool,
+    /// Whether this source has loaded all package information it may contain.
+    loaded: bool,
     /// Packages that this sources has discovered.
-    packages: Vec<Package>,
+    ///
+    /// Tracking all packages for a given ID to warn on-demand for unused packages
+    packages: HashMap<PackageId, Vec<Package>>,
+    /// Avoid redundant unused package warnings
+    warned_duplicate: HashSet<PackageId>,
     gctx: &'gctx GlobalContext,
 }
 
@@ -253,20 +247,24 @@ impl<'gctx> RecursivePathSource<'gctx> {
         Self {
             source_id,
             path: root.to_path_buf(),
-            updated: false,
-            packages: Vec::new(),
+            loaded: false,
+            packages: Default::default(),
+            warned_duplicate: Default::default(),
             gctx,
         }
     }
 
     /// Returns the packages discovered by this source. It may walk the
-    /// filesystem if package information haven't yet updated.
-    pub fn read_packages(&self) -> CargoResult<Vec<Package>> {
-        if self.updated {
-            Ok(self.packages.clone())
-        } else {
-            ops::read_packages(&self.path, self.source_id, self.gctx)
-        }
+    /// filesystem if package information haven't yet loaded.
+    pub fn read_packages(&mut self) -> CargoResult<Vec<Package>> {
+        self.load()?;
+        Ok(self
+            .packages
+            .iter()
+            .map(|(pkg_id, v)| {
+                first_package(*pkg_id, v, &mut self.warned_duplicate, self.gctx).clone()
+            })
+            .collect())
     }
 
     /// List all files relevant to building this package inside this source.
@@ -284,10 +282,10 @@ impl<'gctx> RecursivePathSource<'gctx> {
     }
 
     /// Gets the last modified file in a package.
-    pub fn last_modified_file(&self, pkg: &Package) -> CargoResult<(FileTime, PathBuf)> {
-        if !self.updated {
+    fn last_modified_file(&self, pkg: &Package) -> CargoResult<(FileTime, PathBuf)> {
+        if !self.loaded {
             return Err(internal(format!(
-                "BUG: source `{:?}` was not updated",
+                "BUG: source `{:?}` was not loaded",
                 self.path
             )));
         }
@@ -300,11 +298,10 @@ impl<'gctx> RecursivePathSource<'gctx> {
     }
 
     /// Discovers packages inside this source if it hasn't yet done.
-    pub fn update(&mut self) -> CargoResult<()> {
-        if !self.updated {
-            let packages = self.read_packages()?;
-            self.packages.extend(packages.into_iter());
-            self.updated = true;
+    pub fn load(&mut self) -> CargoResult<()> {
+        if !self.loaded {
+            self.packages = read_packages(&self.path, self.source_id, self.gctx)?;
+            self.loaded = true;
         }
 
         Ok(())
@@ -324,8 +321,16 @@ impl<'gctx> Source for RecursivePathSource<'gctx> {
         kind: QueryKind,
         f: &mut dyn FnMut(IndexSummary),
     ) -> Poll<CargoResult<()>> {
-        self.update()?;
-        for s in self.packages.iter().map(|p| p.summary()) {
+        self.load()?;
+        for s in self
+            .packages
+            .iter()
+            .filter(|(pkg_id, _)| pkg_id.name() == dep.package_name())
+            .map(|(pkg_id, pkgs)| {
+                first_package(*pkg_id, pkgs, &mut self.warned_duplicate, self.gctx)
+            })
+            .map(|p| p.summary())
+        {
             let matched = match kind {
                 QueryKind::Exact => dep.matches(s),
                 QueryKind::Alternatives => true,
@@ -352,9 +357,9 @@ impl<'gctx> Source for RecursivePathSource<'gctx> {
 
     fn download(&mut self, id: PackageId) -> CargoResult<MaybePackage> {
         trace!("getting packages; id={}", id);
-        self.update()?;
-        let pkg = self.packages.iter().find(|pkg| pkg.package_id() == id);
-        pkg.cloned()
+        self.load()?;
+        let pkg = self.packages.get(&id);
+        pkg.map(|pkgs| first_package(id, pkgs, &mut self.warned_duplicate, self.gctx).clone())
             .map(MaybePackage::Ready)
             .ok_or_else(|| internal(format!("failed to find {} in path source", id)))
     }
@@ -386,7 +391,7 @@ impl<'gctx> Source for RecursivePathSource<'gctx> {
     }
 
     fn block_until_ready(&mut self) -> CargoResult<()> {
-        self.update()
+        self.load()
     }
 
     fn invalidate_cache(&mut self) {
@@ -396,6 +401,38 @@ impl<'gctx> Source for RecursivePathSource<'gctx> {
     fn set_quiet(&mut self, _quiet: bool) {
         // Path source does not display status
     }
+}
+
+fn first_package<'p>(
+    pkg_id: PackageId,
+    pkgs: &'p Vec<Package>,
+    warned_duplicate: &mut HashSet<PackageId>,
+    gctx: &GlobalContext,
+) -> &'p Package {
+    if pkgs.len() != 1 && warned_duplicate.insert(pkg_id) {
+        let ignored = pkgs[1..]
+            .iter()
+            // We can assume a package with publish = false isn't intended to be seen
+            // by users so we can hide the warning about those since the user is unlikely
+            // to care about those cases.
+            .filter(|pkg| pkg.publish().is_none())
+            .collect::<Vec<_>>();
+        if !ignored.is_empty() {
+            use std::fmt::Write as _;
+
+            let plural = if ignored.len() == 1 { "" } else { "s" };
+            let mut msg = String::new();
+            let _ = writeln!(&mut msg, "skipping duplicate package{plural} `{pkg_id}`:");
+            for ignored in ignored {
+                let manifest_path = ignored.manifest_path().display();
+                let _ = writeln!(&mut msg, "  {manifest_path}");
+            }
+            let manifest_path = pkgs[0].manifest_path().display();
+            let _ = writeln!(&mut msg, "in favor of {manifest_path}");
+            let _ = gctx.shell().warn(msg);
+        }
+    }
+    &pkgs[0]
 }
 
 /// List all files relevant to building this package inside this source.
@@ -422,16 +459,7 @@ fn _list_files(pkg: &Package, gctx: &GlobalContext) -> CargoResult<Vec<PathBuf>>
     let root = pkg.root();
     let no_include_option = pkg.manifest().include().is_empty();
     let git_repo = if no_include_option {
-        if gctx
-            .get_env("__CARGO_GITOXIDE_DISABLE_LIST_FILES")
-            .ok()
-            .as_deref()
-            == Some("1")
-        {
-            discover_git_repo(root)?.map(Git2OrGixRepository::Git2)
-        } else {
-            discover_gix_repo(root)?.map(Git2OrGixRepository::Gix)
-        }
+        discover_gix_repo(root)?
     } else {
         None
     };
@@ -489,59 +517,12 @@ fn _list_files(pkg: &Package, gctx: &GlobalContext) -> CargoResult<Vec<PathBuf>>
     // Attempt Git-prepopulate only if no `include` (see rust-lang/cargo#4135).
     if no_include_option {
         if let Some(repo) = git_repo {
-            return match repo {
-                Git2OrGixRepository::Git2(repo) => list_files_git(pkg, &repo, &filter, gctx),
-                Git2OrGixRepository::Gix(repo) => list_files_gix(pkg, &repo, &filter, gctx),
-            };
+            return list_files_gix(pkg, &repo, &filter, gctx);
         }
     }
-    list_files_walk(pkg, &filter, gctx)
-}
-
-enum Git2OrGixRepository {
-    Git2(git2::Repository),
-    Gix(gix::Repository),
-}
-
-/// Returns `Some(git2::Repository)` if found sibling `Cargo.toml` and `.git`
-/// directory; otherwise, caller should fall back on full file list.
-fn discover_git_repo(root: &Path) -> CargoResult<Option<git2::Repository>> {
-    let repo = match git2::Repository::discover(root) {
-        Ok(repo) => repo,
-        Err(e) => {
-            tracing::debug!(
-                "could not discover git repo at or above {}: {}",
-                root.display(),
-                e
-            );
-            return Ok(None);
-        }
-    };
-    let index = repo
-        .index()
-        .with_context(|| format!("failed to open git index at {}", repo.path().display()))?;
-    let repo_root = repo.workdir().ok_or_else(|| {
-        anyhow::format_err!(
-            "did not expect repo at {} to be bare",
-            repo.path().display()
-        )
-    })?;
-    let repo_relative_path = match paths::strip_prefix_canonical(root, repo_root) {
-        Ok(p) => p,
-        Err(e) => {
-            warn!(
-                "cannot determine if path `{:?}` is in git repo `{:?}`: {:?}",
-                root, repo_root, e
-            );
-            return Ok(None);
-        }
-    };
-    let manifest_path = repo_relative_path.join("Cargo.toml");
-    if index.get_path(&manifest_path, 0).is_some() {
-        return Ok(Some(repo));
-    }
-    // Package Cargo.toml is not in git, don't use git to guide our selection.
-    Ok(None)
+    let mut ret = Vec::new();
+    list_files_walk(pkg.root(), &mut ret, true, &filter, gctx)?;
+    Ok(ret)
 }
 
 /// Returns [`Some(gix::Repository)`](gix::Repository) if the discovered repository
@@ -587,164 +568,6 @@ fn discover_gix_repo(root: &Path) -> CargoResult<Option<gix::Repository>> {
     }
     // Package Cargo.toml is not in git, don't use git to guide our selection.
     Ok(None)
-}
-
-/// Lists files relevant to building this package inside this source by
-/// consulting both Git index (tracked) or status (untracked) under
-/// a given Git repository.
-///
-/// This looks into Git submodules as well.
-fn list_files_git(
-    pkg: &Package,
-    repo: &git2::Repository,
-    filter: &dyn Fn(&Path, bool) -> bool,
-    gctx: &GlobalContext,
-) -> CargoResult<Vec<PathBuf>> {
-    debug!("list_files_git {}", pkg.package_id());
-    let index = repo.index()?;
-    let root = repo
-        .workdir()
-        .ok_or_else(|| anyhow::format_err!("can't list files on a bare repository"))?;
-    let pkg_path = pkg.root();
-
-    let mut ret = Vec::<PathBuf>::new();
-
-    // We use information from the Git repository to guide us in traversing
-    // its tree. The primary purpose of this is to take advantage of the
-    // `.gitignore` and auto-ignore files that don't matter.
-    //
-    // Here we're also careful to look at both tracked and untracked files as
-    // the untracked files are often part of a build and may become relevant
-    // as part of a future commit.
-    let index_files = index.iter().map(|entry| {
-        use libgit2_sys::{GIT_FILEMODE_COMMIT, GIT_FILEMODE_LINK};
-        // ``is_dir`` is an optimization to avoid calling
-        // ``fs::metadata`` on every file.
-        let is_dir = if entry.mode == GIT_FILEMODE_LINK as u32 {
-            // Let the code below figure out if this symbolic link points
-            // to a directory or not.
-            None
-        } else {
-            Some(entry.mode == GIT_FILEMODE_COMMIT as u32)
-        };
-        (join(root, &entry.path), is_dir)
-    });
-    let mut opts = git2::StatusOptions::new();
-    opts.include_untracked(true);
-    if let Ok(suffix) = pkg_path.strip_prefix(root) {
-        opts.pathspec(suffix);
-    }
-    let statuses = repo.statuses(Some(&mut opts))?;
-    let mut skip_paths = HashSet::new();
-    let untracked: Vec<_> = statuses
-        .iter()
-        .filter_map(|entry| {
-            match entry.status() {
-                // Don't include Cargo.lock if it is untracked. Packaging will
-                // generate a new one as needed.
-                git2::Status::WT_NEW if entry.path() != Some("Cargo.lock") => {
-                    Some(Ok((join(root, entry.path_bytes()), None)))
-                }
-                git2::Status::WT_DELETED => {
-                    let path = match join(root, entry.path_bytes()) {
-                        Ok(p) => p,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    skip_paths.insert(path);
-                    None
-                }
-                _ => None,
-            }
-        })
-        .collect::<CargoResult<_>>()?;
-
-    let mut subpackages_found = Vec::new();
-
-    for (file_path, is_dir) in index_files.chain(untracked) {
-        let file_path = file_path?;
-        if skip_paths.contains(&file_path) {
-            continue;
-        }
-
-        // Filter out files blatantly outside this package. This is helped a
-        // bit above via the `pathspec` function call, but we need to filter
-        // the entries in the index as well.
-        if !file_path.starts_with(pkg_path) {
-            continue;
-        }
-
-        match file_path.file_name().and_then(|s| s.to_str()) {
-            // The `target` directory is never included.
-            Some("target") => {
-                // Only filter out target if its in the package root.
-                if file_path.parent().unwrap() == pkg_path {
-                    continue;
-                }
-            }
-
-            // Keep track of all sub-packages found and also strip out all
-            // matches we've found so far. Note, though, that if we find
-            // our own `Cargo.toml`, we keep going.
-            Some("Cargo.toml") => {
-                let path = file_path.parent().unwrap();
-                if path != pkg_path {
-                    debug!("subpackage found: {}", path.display());
-                    ret.retain(|p| !p.starts_with(path));
-                    subpackages_found.push(path.to_path_buf());
-                    continue;
-                }
-            }
-
-            _ => {}
-        }
-
-        // If this file is part of any other sub-package we've found so far,
-        // skip it.
-        if subpackages_found.iter().any(|p| file_path.starts_with(p)) {
-            continue;
-        }
-
-        // `is_dir` is None for symlinks. The `unwrap` checks if the
-        // symlink points to a directory.
-        let is_dir = is_dir.unwrap_or_else(|| file_path.is_dir());
-        if is_dir {
-            trace!("  found directory {}", file_path.display());
-            match git2::Repository::open(&file_path) {
-                Ok(repo) => {
-                    let files = list_files_git(pkg, &repo, filter, gctx)?;
-                    ret.extend(files.into_iter());
-                }
-                Err(..) => {
-                    walk(&file_path, &mut ret, false, filter, gctx)?;
-                }
-            }
-        } else if filter(&file_path, is_dir) {
-            assert!(!is_dir);
-            // We found a file!
-            trace!("  found {}", file_path.display());
-            ret.push(file_path);
-        }
-    }
-    return Ok(ret);
-
-    #[cfg(unix)]
-    fn join(path: &Path, data: &[u8]) -> CargoResult<PathBuf> {
-        use std::ffi::OsStr;
-        use std::os::unix::prelude::*;
-        Ok(path.join(<OsStr as OsStrExt>::from_bytes(data)))
-    }
-    #[cfg(windows)]
-    fn join(path: &Path, data: &[u8]) -> CargoResult<PathBuf> {
-        use std::str;
-        match str::from_utf8(data) {
-            Ok(s) => Ok(path.join(s)),
-            Err(e) => Err(anyhow::format_err!(
-                "cannot process path in git with a non utf8 filename: {}\n{:?}",
-                e,
-                data
-            )),
-        }
-    }
 }
 
 /// Lists files relevant to building this package inside this source by
@@ -870,7 +693,7 @@ fn list_files_gix(
                     files.extend(list_files_gix(pkg, &sub_repo, filter, gctx)?);
                 }
                 Err(_) => {
-                    walk(&file_path, &mut files, false, filter, gctx)?;
+                    list_files_walk(&file_path, &mut files, false, filter, gctx)?;
                 }
             }
         } else if (filter)(&file_path, is_dir) {
@@ -886,20 +709,9 @@ fn list_files_gix(
 /// Lists files relevant to building this package inside this source by
 /// walking the filesystem from the package root path.
 ///
-/// This is a fallback for [`list_files_git`] when the package
+/// This is a fallback for [`list_files_gix`] when the package
 /// is not tracked under a Git repository.
 fn list_files_walk(
-    pkg: &Package,
-    filter: &dyn Fn(&Path, bool) -> bool,
-    gctx: &GlobalContext,
-) -> CargoResult<Vec<PathBuf>> {
-    let mut ret = Vec::new();
-    walk(pkg.root(), &mut ret, true, filter, gctx)?;
-    Ok(ret)
-}
-
-/// Helper recursive function for [`list_files_walk`].
-fn walk(
     path: &Path,
     ret: &mut Vec<PathBuf>,
     is_root: bool,
@@ -991,4 +803,227 @@ fn last_modified_file(
     }
     trace!("last modified file {}: {}", path.display(), max);
     Ok((max, max_path))
+}
+
+fn read_packages(
+    path: &Path,
+    source_id: SourceId,
+    gctx: &GlobalContext,
+) -> CargoResult<HashMap<PackageId, Vec<Package>>> {
+    let mut all_packages = HashMap::new();
+    let mut visited = HashSet::<PathBuf>::new();
+    let mut errors = Vec::<anyhow::Error>::new();
+
+    trace!(
+        "looking for root package: {}, source_id={}",
+        path.display(),
+        source_id
+    );
+
+    walk(path, &mut |dir| {
+        trace!("looking for child package: {}", dir.display());
+
+        // Don't recurse into hidden/dot directories unless we're at the toplevel
+        if dir != path {
+            let name = dir.file_name().and_then(|s| s.to_str());
+            if name.map(|s| s.starts_with('.')) == Some(true) {
+                return Ok(false);
+            }
+
+            // Don't automatically discover packages across git submodules
+            if dir.join(".git").exists() {
+                return Ok(false);
+            }
+        }
+
+        // Don't ever look at target directories
+        if dir.file_name().and_then(|s| s.to_str()) == Some("target")
+            && has_manifest(dir.parent().unwrap())
+        {
+            return Ok(false);
+        }
+
+        if has_manifest(dir) {
+            read_nested_packages(
+                dir,
+                &mut all_packages,
+                source_id,
+                gctx,
+                &mut visited,
+                &mut errors,
+            )?;
+        }
+        Ok(true)
+    })?;
+
+    if all_packages.is_empty() {
+        match errors.pop() {
+            Some(err) => Err(err),
+            None => {
+                if find_project_manifest_exact(path, "cargo.toml").is_ok() {
+                    Err(anyhow::format_err!(
+                "Could not find Cargo.toml in `{}`, but found cargo.toml please try to rename it to Cargo.toml",
+                path.display()
+            ))
+                } else {
+                    Err(anyhow::format_err!(
+                        "Could not find Cargo.toml in `{}`",
+                        path.display()
+                    ))
+                }
+            }
+        }
+    } else {
+        Ok(all_packages)
+    }
+}
+
+fn nested_paths(manifest: &Manifest) -> Vec<PathBuf> {
+    let mut nested_paths = Vec::new();
+    let resolved = manifest.resolved_toml();
+    let dependencies = resolved
+        .dependencies
+        .iter()
+        .chain(resolved.build_dependencies())
+        .chain(resolved.dev_dependencies())
+        .chain(
+            resolved
+                .target
+                .as_ref()
+                .into_iter()
+                .flat_map(|t| t.values())
+                .flat_map(|t| {
+                    t.dependencies
+                        .iter()
+                        .chain(t.build_dependencies())
+                        .chain(t.dev_dependencies())
+                }),
+        );
+    for dep_table in dependencies {
+        for dep in dep_table.values() {
+            let cargo_util_schemas::manifest::InheritableDependency::Value(dep) = dep else {
+                continue;
+            };
+            let cargo_util_schemas::manifest::TomlDependency::Detailed(dep) = dep else {
+                continue;
+            };
+            let Some(path) = dep.path.as_ref() else {
+                continue;
+            };
+            nested_paths.push(PathBuf::from(path.as_str()));
+        }
+    }
+    nested_paths
+}
+
+fn walk(path: &Path, callback: &mut dyn FnMut(&Path) -> CargoResult<bool>) -> CargoResult<()> {
+    if !callback(path)? {
+        trace!("not processing {}", path.display());
+        return Ok(());
+    }
+
+    // Ignore any permission denied errors because temporary directories
+    // can often have some weird permissions on them.
+    let dirs = match fs::read_dir(path) {
+        Ok(dirs) => dirs,
+        Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => return Ok(()),
+        Err(e) => {
+            let cx = format!("failed to read directory `{}`", path.display());
+            let e = anyhow::Error::from(e);
+            return Err(e.context(cx));
+        }
+    };
+    let mut dirs = dirs.collect::<Vec<_>>();
+    dirs.sort_unstable_by_key(|d| d.as_ref().ok().map(|d| d.file_name()));
+    for dir in dirs {
+        let dir = dir?;
+        if dir.file_type()?.is_dir() {
+            walk(&dir.path(), callback)?;
+        }
+    }
+    Ok(())
+}
+
+fn has_manifest(path: &Path) -> bool {
+    find_project_manifest_exact(path, "Cargo.toml").is_ok()
+}
+
+fn read_nested_packages(
+    path: &Path,
+    all_packages: &mut HashMap<PackageId, Vec<Package>>,
+    source_id: SourceId,
+    gctx: &GlobalContext,
+    visited: &mut HashSet<PathBuf>,
+    errors: &mut Vec<anyhow::Error>,
+) -> CargoResult<()> {
+    if !visited.insert(path.to_path_buf()) {
+        return Ok(());
+    }
+
+    let manifest_path = find_project_manifest_exact(path, "Cargo.toml")?;
+
+    let manifest = match read_manifest(&manifest_path, source_id, gctx) {
+        Err(err) => {
+            // Ignore malformed manifests found on git repositories
+            //
+            // git source try to find and read all manifests from the repository
+            // but since it's not possible to exclude folders from this search
+            // it's safer to ignore malformed manifests to avoid
+            //
+            // TODO: Add a way to exclude folders?
+            info!(
+                "skipping malformed package found at `{}`",
+                path.to_string_lossy()
+            );
+            errors.push(err.into());
+            return Ok(());
+        }
+        Ok(tuple) => tuple,
+    };
+
+    let manifest = match manifest {
+        EitherManifest::Real(manifest) => manifest,
+        EitherManifest::Virtual(..) => return Ok(()),
+    };
+    let nested = nested_paths(&manifest);
+    let pkg = Package::new(manifest, &manifest_path);
+
+    let pkg_id = pkg.package_id();
+    all_packages.entry(pkg_id).or_default().push(pkg);
+
+    // Registry sources are not allowed to have `path=` dependencies because
+    // they're all translated to actual registry dependencies.
+    //
+    // We normalize the path here ensure that we don't infinitely walk around
+    // looking for crates. By normalizing we ensure that we visit this crate at
+    // most once.
+    //
+    // TODO: filesystem/symlink implications?
+    if !source_id.is_registry() {
+        for p in nested.iter() {
+            let path = paths::normalize_path(&path.join(p));
+            let result =
+                read_nested_packages(&path, all_packages, source_id, gctx, visited, errors);
+            // Ignore broken manifests found on git repositories.
+            //
+            // A well formed manifest might still fail to load due to reasons
+            // like referring to a "path" that requires an extra build step.
+            //
+            // See https://github.com/rust-lang/cargo/issues/6822.
+            if let Err(err) = result {
+                if source_id.is_git() {
+                    info!(
+                        "skipping nested package found at `{}`: {:?}",
+                        path.display(),
+                        &err,
+                    );
+                    errors.push(err);
+                } else {
+                    return Err(err);
+                }
+            }
+        }
+    }
+
+    Ok(())
 }

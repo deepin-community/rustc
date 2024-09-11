@@ -78,7 +78,7 @@ pub fn add(workspace: &Workspace<'_>, options: &AddOptions<'_>) -> CargoResult<(
         );
     }
 
-    let mut registry = PackageRegistry::new(options.gctx)?;
+    let mut registry = workspace.package_registry()?;
 
     let deps = {
         let _lock = options
@@ -349,11 +349,8 @@ fn resolve_dependency(
             }
             selected
         } else {
-            let source = crate::sources::PathSource::new(&path, src.source_id()?, gctx);
-            let package = source
-                .read_packages()?
-                .pop()
-                .expect("read_packages errors when no packages");
+            let mut source = crate::sources::PathSource::new(&path, src.source_id()?, gctx);
+            let package = source.root_package()?;
             Dependency::from(package.summary())
         };
         selected

@@ -28,9 +28,9 @@ how the feature works:
 
 * New command-line flags, options, and subcommands require the `-Z
   unstable-options` CLI option to also be included. For example, the new
-  `--out-dir` option is only available on nightly:
+  `--artifact-dir` option is only available on nightly:
 
-  ```cargo +nightly build --out-dir=out -Z unstable-options```
+  ```cargo +nightly build --artifact-dir=out -Z unstable-options```
 
 * `-Z` command-line flags are used to enable new functionality that may not
   have an interface, or the interface has not yet been designed, or for more
@@ -73,8 +73,9 @@ For the latest nightly, see the [nightly version] of this page.
     * [public-dependency](#public-dependency) --- Allows dependencies to be classified as either public or private.
     * [msrv-policy](#msrv-policy) --- MSRV-aware resolver and version selection
     * [precise-pre-release](#precise-pre-release) --- Allows pre-release versions to be selected with `update --precise`
+    * [update-breaking](#update-breaking) --- Allows upgrading to breaking versions with `update --breaking`
 * Output behavior
-    * [out-dir](#out-dir) --- Adds a directory where artifacts are copied to.
+    * [artifact-dir](#artifact-dir) --- Adds a directory where artifacts are copied to.
     * [Different binary name](#different-binary-name) --- Assign a name to the built binary that is separate from the crate name.
 * Compile behavior
     * [mtime-on-use](#mtime-on-use) --- Updates the last-modified timestamp on every dependency every time it is used, to provide a mechanism to delete unused artifacts.
@@ -206,27 +207,27 @@ minimum versions that you are actually using. That is, if Cargo.toml says
 Indirect dependencies are resolved as normal so as not to be blocked on their
 minimal version validation.
 
-## out-dir
+## artifact-dir
 * Original Issue: [#4875](https://github.com/rust-lang/cargo/issues/4875)
 * Tracking Issue: [#6790](https://github.com/rust-lang/cargo/issues/6790)
 
-This feature allows you to specify the directory where artifacts will be
-copied to after they are built. Typically artifacts are only written to the
-`target/release` or `target/debug` directories. However, determining the
-exact filename can be tricky since you need to parse JSON output. The
-`--out-dir` flag makes it easier to predictably access the artifacts. Note
-that the artifacts are copied, so the originals are still in the `target`
-directory. Example:
+This feature allows you to specify the directory where artifacts will be copied
+to after they are built. Typically artifacts are only written to the
+`target/release` or `target/debug` directories. However, determining the exact
+filename can be tricky since you need to parse JSON output. The `--artifact-dir`
+flag makes it easier to predictably access the artifacts. Note that the
+artifacts are copied, so the originals are still in the `target` directory.
+Example:
 
 ```sh
-cargo +nightly build --out-dir=out -Z unstable-options
+cargo +nightly build --artifact-dir=out -Z unstable-options
 ```
 
 This can also be specified in `.cargo/config.toml` files.
 
 ```toml
 [build]
-out-dir = "out"
+artifact-dir = "out"
 ```
 
 ## doctest-xcompile
@@ -377,6 +378,30 @@ my-dependency = "0.1.1"
 It's possible to update `my-dependency` to a pre-release with `update -Zunstable-options my-dependency --precise 0.1.2-pre.0`.
 This is because `0.1.2-pre.0` is considered compatible with `0.1.1`.
 It would not be possible to upgrade to `0.2.0-pre.0` from `0.1.1` in the same way.
+
+## update-breaking
+
+* Tracking Issue: [#12425](https://github.com/rust-lang/cargo/issues/12425)
+
+Allow upgrading dependencies version requirements in `Cargo.toml` across SemVer
+incompatible versions using with the `--breaking` flag.
+
+This only applies to dependencies when
+- The package is a dependency of a workspace member
+- The dependency is not renamed
+- A SemVer-incompatible version is available
+- The "SemVer operator" is used (`^` which is the default)
+
+Users may further restrict which packages get upgraded by specifying them on
+the command line.
+
+Example:
+```console
+$ cargo +nightly -Zunstable-options update --breaking
+$ cargo +nightly -Zunstable-options update --breaking clap
+```
+
+*This is meant to fill a similar role as [cargo-upgrade](https://github.com/killercup/cargo-edit/)*
 
 ## build-std
 * Tracking Repository: <https://github.com/rust-lang/wg-cargo-std-aware>
@@ -569,7 +594,7 @@ cargo +nightly -Ztarget-applies-to-host build --target x86_64-unknown-linux-gnu
 * Original Pull Request: [#9322](https://github.com/rust-lang/cargo/pull/9322)
 * Tracking Issue: [#9452](https://github.com/rust-lang/cargo/issues/9452)
 
-The `host` key in a config file can be used pass flags to host build targets
+The `host` key in a config file can be used to pass flags to host build targets
 such as build scripts that must run on the host system instead of the target
 system when cross compiling. It supports both generic and host arch specific
 tables. Matching host arch tables take precedence over generic host tables.
@@ -589,7 +614,7 @@ rustflags = ["-Clink-arg=--verbose"]
 linker = "/path/to/target/linker"
 ```
 
-The generic `host` table above will be entirely ignored when building on a
+The generic `host` table above will be entirely ignored when building on an
 `x86_64-unknown-linux-gnu` host as the `host.x86_64-unknown-linux-gnu` table
 takes precedence.
 
@@ -1787,5 +1812,5 @@ See [Registry Authentication](registry-authentication.md) documentation for deta
 The `-Z check-cfg` feature has been stabilized in the 1.80 release by making it the
 default behavior.
 
-See the [build script documentation](build-scripts.md#rustc-check-cfg) for informations
+See the [build script documentation](build-scripts.md#rustc-check-cfg) for information
 about specifying custom cfgs.

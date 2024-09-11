@@ -36,14 +36,24 @@
 //!   a problem.
 //! - Carriage returns are removed, which can help when running on Windows.
 
-use crate::diff;
+use crate::cross_compile::try_alternate;
 use crate::paths;
+use crate::{diff, rustc_host};
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::fmt;
 use std::path::Path;
 use std::str;
 use url::Url;
+
+/// This makes it easier to write regex replacements that are guaranteed to only
+/// get compiled once
+macro_rules! regex {
+    ($re:literal $(,)?) => {{
+        static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+        RE.get_or_init(|| regex::Regex::new($re).unwrap())
+    }};
+}
 
 /// Assertion policy for UI tests
 ///
@@ -77,21 +87,12 @@ use url::Url;
 ///   a problem.
 /// - Carriage returns are removed, which can help when running on Windows.
 pub fn assert_ui() -> snapbox::Assert {
-    let root = paths::root();
-    // Use `from_file_path` instead of `from_dir_path` so the trailing slash is
-    // put in the users output, rather than hidden in the variable
-    let root_url = url::Url::from_file_path(&root).unwrap().to_string();
-
     let mut subs = snapbox::Redactions::new();
     subs.extend(MIN_LITERAL_REDACTIONS.into_iter().cloned())
         .unwrap();
-    subs.insert("[ROOT]", root).unwrap();
-    subs.insert("[ROOTURL]", root_url).unwrap();
-    subs.insert(
-        "[ELAPSED]",
-        regex::Regex::new("Finished.*in (?<redacted>[0-9]+(\\.[0-9]+))s").unwrap(),
-    )
-    .unwrap();
+    add_test_support_redactions(&mut subs);
+    add_regex_redactions(&mut subs);
+
     snapbox::Assert::new()
         .action_env(snapbox::assert::DEFAULT_ACTION_ENV)
         .redact_with(subs)
@@ -129,32 +130,117 @@ pub fn assert_ui() -> snapbox::Assert {
 ///   a problem.
 /// - Carriage returns are removed, which can help when running on Windows.
 pub fn assert_e2e() -> snapbox::Assert {
-    let root = paths::root();
-    // Use `from_file_path` instead of `from_dir_path` so the trailing slash is
-    // put in the users output, rather than hidden in the variable
-    let root_url = url::Url::from_file_path(&root).unwrap().to_string();
-
     let mut subs = snapbox::Redactions::new();
     subs.extend(MIN_LITERAL_REDACTIONS.into_iter().cloned())
         .unwrap();
     subs.extend(E2E_LITERAL_REDACTIONS.into_iter().cloned())
         .unwrap();
-    subs.insert("[ROOT]", root).unwrap();
-    subs.insert("[ROOTURL]", root_url).unwrap();
-    subs.insert(
-        "[ELAPSED]",
-        regex::Regex::new("[FINISHED].*in (?<redacted>[0-9]+(\\.[0-9]+))s").unwrap(),
-    )
-    .unwrap();
+    add_test_support_redactions(&mut subs);
+    add_regex_redactions(&mut subs);
+
     snapbox::Assert::new()
         .action_env(snapbox::assert::DEFAULT_ACTION_ENV)
         .redact_with(subs)
+}
+
+fn add_test_support_redactions(subs: &mut snapbox::Redactions) {
+    let root = paths::root();
+    // Use `from_file_path` instead of `from_dir_path` so the trailing slash is
+    // put in the users output, rather than hidden in the variable
+    let root_url = url::Url::from_file_path(&root).unwrap().to_string();
+
+    subs.insert("[ROOT]", root).unwrap();
+    subs.insert("[ROOTURL]", root_url).unwrap();
+    subs.insert("[HOST_TARGET]", rustc_host()).unwrap();
+    if let Some(alt_target) = try_alternate() {
+        subs.insert("[ALT_TARGET]", alt_target).unwrap();
+    }
+}
+
+fn add_regex_redactions(subs: &mut snapbox::Redactions) {
+    // For e2e tests
+    subs.insert(
+        "[ELAPSED]",
+        regex!(r"\[FINISHED\].*in (?<redacted>[0-9]+(\.[0-9]+)?(m [0-9]+)?)s"),
+    )
+    .unwrap();
+    // for UI tests
+    subs.insert(
+        "[ELAPSED]",
+        regex!(r"Finished.*in (?<redacted>[0-9]+(\.[0-9]+)?(m [0-9]+)?)s"),
+    )
+    .unwrap();
+    // output from libtest
+    subs.insert(
+        "[ELAPSED]",
+        regex!(r"; finished in (?<redacted>[0-9]+(\.[0-9]+)?(m [0-9]+)?)s"),
+    )
+    .unwrap();
+    subs.insert(
+        "[FILE_NUM]",
+        regex!(r"\[(REMOVED|SUMMARY)\] (?<redacted>[0-9]+) files"),
+    )
+    .unwrap();
+    subs.insert(
+        "[FILE_SIZE]",
+        regex!(r"(?<redacted>[0-9]+(\.[0-9]+)?([a-zA-Z]i)?)B\s"),
+    )
+    .unwrap();
+    subs.insert(
+        "[HASH]",
+        regex!(r"home/\.cargo/registry/src/-(?<redacted>[a-z0-9]+)"),
+    )
+    .unwrap();
+    subs.insert(
+        "[HASH]",
+        regex!(r"\.cargo/target/(?<redacted>[0-9a-f]{2}/[0-9a-f]{14})"),
+    )
+    .unwrap();
+    subs.insert("[HASH]", regex!(r"/[a-z0-9\-_]+-(?<redacted>[0-9a-f]{16})"))
+        .unwrap();
+    subs.insert(
+        "[AVG_ELAPSED]",
+        regex!(r"(?<redacted>[0-9]+(\.[0-9]+)?) ns/iter"),
+    )
+    .unwrap();
+    subs.insert(
+        "[JITTER]",
+        regex!(r"ns/iter \(\+/- (?<redacted>[0-9]+(\.[0-9]+)?)\)"),
+    )
+    .unwrap();
+
+    // Following 3 subs redact:
+    //   "1719325877.527949100s, 61549498ns after last build at 1719325877.466399602s"
+    //   "1719503592.218193216s, 1h 1s after last build at 1719499991.982681034s"
+    // into "[DIRTY_REASON_NEW_TIME], [DIRTY_REASON_DIFF] after last build at [DIRTY_REASON_OLD_TIME]"
+    subs.insert(
+        "[TIME_DIFF_AFTER_LAST_BUILD]",
+        regex!(r"(?<redacted>[0-9]+(\.[0-9]+)?s, (\s?[0-9]+(\.[0-9]+)?(s|ns|h))+ after last build at [0-9]+(\.[0-9]+)?s)"),
+       )
+       .unwrap();
 }
 
 static MIN_LITERAL_REDACTIONS: &[(&str, &str)] = &[
     ("[EXE]", std::env::consts::EXE_SUFFIX),
     ("[BROKEN_PIPE]", "Broken pipe (os error 32)"),
     ("[BROKEN_PIPE]", "The pipe is being closed. (os error 232)"),
+    // Unix message for an entity was not found
+    ("[NOT_FOUND]", "No such file or directory (os error 2)"),
+    // Windows message for an entity was not found
+    (
+        "[NOT_FOUND]",
+        "The system cannot find the file specified. (os error 2)",
+    ),
+    (
+        "[NOT_FOUND]",
+        "The system cannot find the path specified. (os error 3)",
+    ),
+    ("[NOT_FOUND]", "Access is denied. (os error 5)"),
+    ("[NOT_FOUND]", "program not found"),
+    // Unix message for exit status
+    ("[EXIT_STATUS]", "exit status"),
+    // Windows message for exit status
+    ("[EXIT_STATUS]", "exit code"),
 ];
 static E2E_LITERAL_REDACTIONS: &[(&str, &str)] = &[
     ("[RUNNING]", "     Running"),
@@ -176,6 +262,7 @@ static E2E_LITERAL_REDACTIONS: &[(&str, &str)] = &[
     ("[DIRTY]", "       Dirty"),
     ("[LOCKING]", "     Locking"),
     ("[UPDATING]", "    Updating"),
+    ("[UPGRADING]", "   Upgrading"),
     ("[ADDING]", "      Adding"),
     ("[REMOVING]", "    Removing"),
     ("[REMOVED]", "     Removed"),
@@ -210,6 +297,7 @@ static E2E_LITERAL_REDACTIONS: &[(&str, &str)] = &[
     ("[PUBLISHED]", "   Published"),
     ("[BLOCKING]", "    Blocking"),
     ("[GENERATED]", "   Generated"),
+    ("[OPENING]", "     Opening"),
 ];
 
 /// Normalizes the output so that it can be compared against the expected value.
@@ -742,129 +830,153 @@ impl fmt::Debug for WildStr<'_> {
     }
 }
 
-#[test]
-fn wild_str_cmp() {
-    for (a, b) in &[
-        ("a b", "a b"),
-        ("a[..]b", "a b"),
-        ("a[..]", "a b"),
-        ("[..]", "a b"),
-        ("[..]b", "a b"),
-    ] {
-        assert_eq!(WildStr::new(a), WildStr::new(b));
+#[cfg(test)]
+mod test {
+    use snapbox::assert_data_eq;
+    use snapbox::prelude::*;
+    use snapbox::str;
+
+    use super::*;
+
+    #[test]
+    fn wild_str_cmp() {
+        for (a, b) in &[
+            ("a b", "a b"),
+            ("a[..]b", "a b"),
+            ("a[..]", "a b"),
+            ("[..]", "a b"),
+            ("[..]b", "a b"),
+        ] {
+            assert_eq!(WildStr::new(a), WildStr::new(b));
+        }
+        for (a, b) in &[("[..]b", "c"), ("b", "c"), ("b", "cb")] {
+            assert_ne!(WildStr::new(a), WildStr::new(b));
+        }
     }
-    for (a, b) in &[("[..]b", "c"), ("b", "c"), ("b", "cb")] {
-        assert_ne!(WildStr::new(a), WildStr::new(b));
-    }
-}
 
-#[test]
-fn dirty_msvc() {
-    let case = |expected: &str, wild: &str, msvc: bool| {
-        assert_eq!(expected, &replace_dirty_msvc_impl(wild, msvc));
-    };
+    #[test]
+    fn dirty_msvc() {
+        let case = |expected: &str, wild: &str, msvc: bool| {
+            assert_eq!(expected, &replace_dirty_msvc_impl(wild, msvc));
+        };
 
-    // no replacements
-    case("aa", "aa", false);
-    case("aa", "aa", true);
+        // no replacements
+        case("aa", "aa", false);
+        case("aa", "aa", true);
 
-    // with replacements
-    case(
-        "\
+        // with replacements
+        case(
+            "\
 [DIRTY] a",
-        "\
+            "\
 [DIRTY-MSVC] a",
-        true,
-    );
-    case(
-        "",
-        "\
+            true,
+        );
+        case(
+            "",
+            "\
 [DIRTY-MSVC] a",
-        false,
-    );
-    case(
-        "\
+            false,
+        );
+        case(
+            "\
 [DIRTY] a
 [COMPILING] a",
-        "\
+            "\
 [DIRTY-MSVC] a
 [COMPILING] a",
-        true,
-    );
-    case(
-        "\
+            true,
+        );
+        case(
+            "\
 [COMPILING] a",
-        "\
+            "\
 [DIRTY-MSVC] a
 [COMPILING] a",
-        false,
-    );
+            false,
+        );
 
-    // test trailing newline behavior
-    case(
-        "\
+        // test trailing newline behavior
+        case(
+            "\
 A
 B
 ", "\
 A
 B
 ", true,
-    );
+        );
 
-    case(
-        "\
+        case(
+            "\
 A
 B
 ", "\
 A
 B
 ", false,
-    );
+        );
 
-    case(
-        "\
+        case(
+            "\
 A
 B", "\
 A
 B", true,
-    );
+        );
 
-    case(
-        "\
+        case(
+            "\
 A
 B", "\
 A
 B", false,
-    );
+        );
 
-    case(
-        "\
+        case(
+            "\
 [DIRTY] a
 ",
-        "\
+            "\
 [DIRTY-MSVC] a
 ",
-        true,
-    );
-    case(
-        "\n",
-        "\
+            true,
+        );
+        case(
+            "\n",
+            "\
 [DIRTY-MSVC] a
 ",
-        false,
-    );
+            false,
+        );
 
-    case(
-        "\
+        case(
+            "\
 [DIRTY] a",
-        "\
+            "\
 [DIRTY-MSVC] a",
-        true,
-    );
-    case(
-        "",
-        "\
+            true,
+        );
+        case(
+            "",
+            "\
 [DIRTY-MSVC] a",
-        false,
-    );
+            false,
+        );
+    }
+
+    #[test]
+    fn redact_elapsed_time() {
+        let mut subs = snapbox::Redactions::new();
+        add_regex_redactions(&mut subs);
+
+        assert_data_eq!(
+            subs.redact("[FINISHED] `release` profile [optimized] target(s) in 5.5s"),
+            str!["[FINISHED] `release` profile [optimized] target(s) in [ELAPSED]s"].raw()
+        );
+        assert_data_eq!(
+            subs.redact("[FINISHED] `release` profile [optimized] target(s) in 1m 05s"),
+            str!["[FINISHED] `release` profile [optimized] target(s) in [ELAPSED]s"].raw()
+        );
+    }
 }
