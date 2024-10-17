@@ -1,3 +1,9 @@
+rustc-1.81 (1.81.0+dfsg0ubuntu1-0ubuntu1deepin1) unstable; urgency=medium
+
+  * Adapt to deepin's four architectures and version requirements.
+
+ -- Mingcong Bai <baimingcong@uniontech.com>  Wed, 16 Oct 2024 11:52:52 +0800
+
 rustc-1.81 (1.81.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 
   * New upstream release 1.81.0 (LP: #2080415)
