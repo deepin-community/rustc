@@ -1,9 +1,6 @@
 # Rust By Example
 
-[![Build Status][travis-badge]][travis-repo]
-
-[travis-badge]: https://travis-ci.com/rust-lang/rust-by-example.svg?branch=master
-[travis-repo]: https://travis-ci.com/rust-lang/rust-by-example
+[![Build Status](https://github.com/rust-lang/rust-by-example/actions/workflows/rbe.yml/badge.svg)](https://github.com/rust-lang/rust-by-example/actions)
 
 Learn Rust with examples (Live code editor included)
 
@@ -68,7 +65,6 @@ Please see the [TRANSLATING.md] file for more details.
 
 * [Bulgarian](https://github.com/kberov/rust-by-example-bg)
 * [Chinese](https://github.com/rust-lang-cn/rust-by-example-cn)
-* [Japanese](https://github.com/rust-lang-ja/rust-by-example-ja)
 * [French](https://github.com/Songbird0/FR_RBE)
 * [Russian](https://github.com/ruRust/rust-by-example)
 * [Vietnamese](https://github.com/EyesCrypto-Insights/rust-by-example-vn)

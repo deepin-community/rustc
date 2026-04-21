@@ -1,0 +1,6 @@
+# False positives that change quite often, so just override with a wildcard
+rust-1.82-src binary: executable-not-elf-or-script [usr/src/rustc-*/*]
+rust-1.82-src binary: package-contains-eslint-config-file usr/src/rustc-*/src/librustdoc/html/static/.eslintrc.js
+rust-1.82-src binary: breakout-link usr/lib/rustlib/src/rust -> usr/src/rustc-*
+rust-1.82-src binary: embedded-javascript-library * [usr/src/rustc-*/*]
+rust-1.82-src binary: national-encoding [usr/src/rustc-*/*]

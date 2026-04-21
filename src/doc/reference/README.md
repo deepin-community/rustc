@@ -12,7 +12,6 @@ what we have for now.
 
 - Nightly Rust
 - [mdbook](https://rust-lang.github.io/mdBook/)
-- [`mdbook-spec`](https://github.com/rust-lang/spec/tree/main/mdbook-spec)
 
 ## Installing dependencies
 
@@ -28,12 +27,6 @@ build the Reference:
 
 ```sh
 cargo install --locked mdbook
-```
-
-Also install `mdbook-spec` which is a preprocessor which adds some Markdown extensions:
-
-```sh
-cargo install --locked mdbook-spec
 ```
 
 ## Building
@@ -62,9 +55,21 @@ To test all of the code examples in the Reference, run:
 mdbook test
 ```
 
+For authors, consider using the server functionality which supports automatic reload.
+
 To build the Reference locally (in `build/`) and open it in a web
 browser, run:
 
 ```sh
-mdbook build --open
+SPEC_RELATIVE=0 mdbook build --open
+```
+
+This will open a browser with a websocket live-link to automatically reload whenever the source is updated.
+
+The `SPEC_RELATIVE=0` environment variable makes links to the standard library go to <https://doc.rust-lang.org/> instead of being relative, which is useful when viewing locally since you normally don't have a copy of the standard library.
+
+You can also use mdbook's live webserver option, which will automatically rebuild the book and reload your web browser whenever a source file is modified:
+
+```sh
+SPEC_RELATIVE=0 mdbook serve --open
 ```

@@ -587,6 +587,19 @@ pub unsafe fn _mm256_broadcastsd_pd(a: __m128d) -> __m256d {
     simd_shuffle!(a, _mm_setzero_pd(), [0_u32; 4])
 }
 
+/// Broadcasts 128 bits of integer data from a to all 128-bit lanes in
+/// the 256-bit returned value.
+///
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_broadcastsi128_si256)
+#[inline]
+#[target_feature(enable = "avx2")]
+#[stable(feature = "simd_x86_updates", since = "1.82.0")]
+pub unsafe fn _mm_broadcastsi128_si256(a: __m128i) -> __m256i {
+    let zero = _mm_setzero_si128();
+    let ret = simd_shuffle!(a.as_i64x2(), zero.as_i64x2(), [0, 1, 0, 1]);
+    transmute::<i64x4, _>(ret)
+}
+
 // N.B., `broadcastsi128_si256` is often compiled to `vinsertf128` or
 // `vbroadcastf128`.
 /// Broadcasts 128 bits of integer data from a to all 128-bit lanes in
@@ -896,7 +909,7 @@ pub unsafe fn _mm256_cvtepu8_epi64(a: __m128i) -> __m256i {
 #[inline]
 #[target_feature(enable = "avx2")]
 #[cfg_attr(
-    all(test, not(target_os = "windows")),
+    all(test, not(target_env = "msvc")),
     assert_instr(vextractf128, IMM1 = 1)
 )]
 #[rustc_legacy_const_generics(1)]
@@ -1718,7 +1731,7 @@ pub unsafe fn _mm256_mask_i64gather_pd<const SCALE: i32>(
 #[inline]
 #[target_feature(enable = "avx2")]
 #[cfg_attr(
-    all(test, not(target_os = "windows")),
+    all(test, not(target_env = "msvc")),
     assert_instr(vinsertf128, IMM1 = 1)
 )]
 #[rustc_legacy_const_generics(2)]
@@ -2977,7 +2990,7 @@ pub unsafe fn _mm256_bsrli_epi128<const IMM8: i32>(a: __m256i) -> __m256i {
             a,
             zero,
             [
-                14, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 31, 32, 32, 32, 32,
+                15, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 31, 32, 32, 32, 32,
                 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
             ],
         ),
@@ -3124,7 +3137,25 @@ pub unsafe fn _mm256_srlv_epi64(a: __m256i, count: __m256i) -> __m256i {
     transmute(psrlvq256(a.as_i64x4(), count.as_i64x4()))
 }
 
-// TODO _mm256_stream_load_si256 (__m256i const* mem_addr)
+/// Load 256-bits of integer data from memory into dst using a non-temporal memory hint. mem_addr
+/// must be aligned on a 32-byte boundary or a general-protection exception may be generated. To
+/// minimize caching, the data is flagged as non-temporal (unlikely to be used again soon)
+///
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_stream_load_si256)
+#[inline]
+#[target_feature(enable = "avx,avx2")]
+#[cfg_attr(test, assert_instr(vmovntdqa))]
+#[stable(feature = "simd_x86_updates", since = "1.82.0")]
+pub unsafe fn _mm256_stream_load_si256(mem_addr: *const __m256i) -> __m256i {
+    let dst: __m256i;
+    crate::arch::asm!(
+        vpl!("vmovntdqa {a}"),
+        a = out(ymm_reg) dst,
+        p = in(reg) mem_addr,
+        options(pure, readonly, nostack, preserves_flags),
+    );
+    dst
+}
 
 /// Subtract packed 16-bit integers in `b` from packed 16-bit integers in `a`
 ///
@@ -3612,40 +3643,6 @@ pub unsafe fn _mm256_extract_epi16<const INDEX: i32>(a: __m256i) -> i32 {
     simd_extract!(a.as_u16x16(), INDEX as u32, u16) as i32
 }
 
-/// Extracts a 32-bit integer from `a`, selected with `INDEX`.
-///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_extract_epi32)
-#[inline]
-#[target_feature(enable = "avx2")]
-// This intrinsic has no corresponding instruction.
-#[rustc_legacy_const_generics(1)]
-#[stable(feature = "simd_x86", since = "1.27.0")]
-pub unsafe fn _mm256_extract_epi32<const INDEX: i32>(a: __m256i) -> i32 {
-    static_assert_uimm_bits!(INDEX, 3);
-    simd_extract!(a.as_i32x8(), INDEX as u32)
-}
-
-/// Returns the first element of the input vector of `[4 x double]`.
-///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_cvtsd_f64)
-#[inline]
-#[target_feature(enable = "avx2")]
-//#[cfg_attr(test, assert_instr(movsd))] FIXME
-#[stable(feature = "simd_x86", since = "1.27.0")]
-pub unsafe fn _mm256_cvtsd_f64(a: __m256d) -> f64 {
-    simd_extract!(a, 0)
-}
-
-/// Returns the first element of the input vector of `[8 x i32]`.
-///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_cvtsi256_si32)
-#[inline]
-#[target_feature(enable = "avx2")]
-#[stable(feature = "simd_x86", since = "1.27.0")]
-pub unsafe fn _mm256_cvtsi256_si32(a: __m256i) -> i32 {
-    simd_extract!(a.as_i32x8(), 0)
-}
-
 #[allow(improper_ctypes)]
 extern "C" {
     #[link_name = "llvm.x86.avx2.phadd.w"]
@@ -3814,10 +3811,6 @@ extern "C" {
         mask: __m128,
         scale: i8,
     ) -> __m128;
-    #[link_name = "llvm.x86.avx2.psll.dq"]
-    fn vpslldq(a: i64x4, b: i32) -> i64x4;
-    #[link_name = "llvm.x86.avx2.psrl.dq"]
-    fn vpsrldq(a: i64x4, b: i32) -> i64x4;
 }
 
 #[cfg(test)]
@@ -4222,6 +4215,19 @@ mod tests {
         let a = _mm_setr_pd(6.88, 3.44);
         let res = _mm256_broadcastsd_pd(a);
         assert_eq_m256d(res, _mm256_set1_pd(6.88f64));
+    }
+
+    #[simd_test(enable = "avx2")]
+    unsafe fn test_mm_broadcastsi128_si256() {
+        let a = _mm_setr_epi64x(0x0987654321012334, 0x5678909876543210);
+        let res = _mm_broadcastsi128_si256(a);
+        let retval = _mm256_setr_epi64x(
+            0x0987654321012334,
+            0x5678909876543210,
+            0x0987654321012334,
+            0x5678909876543210,
+        );
+        assert_eq_m256i(res, retval);
     }
 
     #[simd_test(enable = "avx2")]
@@ -5194,6 +5200,13 @@ mod tests {
     }
 
     #[simd_test(enable = "avx2")]
+    unsafe fn test_mm256_stream_load_si256() {
+        let a = _mm256_set_epi64x(5, 6, 7, 8);
+        let r = _mm256_stream_load_si256(core::ptr::addr_of!(a) as *const _);
+        assert_eq_m256i(a, r);
+    }
+
+    #[simd_test(enable = "avx2")]
     unsafe fn test_mm256_sub_epi16() {
         let a = _mm256_set1_epi16(4);
         let b = _mm256_set1_epi16(2);
@@ -5765,28 +5778,5 @@ mod tests {
         let r2 = _mm256_extract_epi16::<3>(a);
         assert_eq!(r1, 0xFFFF);
         assert_eq!(r2, 3);
-    }
-
-    #[simd_test(enable = "avx2")]
-    unsafe fn test_mm256_extract_epi32() {
-        let a = _mm256_setr_epi32(-1, 1, 2, 3, 4, 5, 6, 7);
-        let r1 = _mm256_extract_epi32::<0>(a);
-        let r2 = _mm256_extract_epi32::<3>(a);
-        assert_eq!(r1, -1);
-        assert_eq!(r2, 3);
-    }
-
-    #[simd_test(enable = "avx2")]
-    unsafe fn test_mm256_cvtsd_f64() {
-        let a = _mm256_setr_pd(1., 2., 3., 4.);
-        let r = _mm256_cvtsd_f64(a);
-        assert_eq!(r, 1.);
-    }
-
-    #[simd_test(enable = "avx2")]
-    unsafe fn test_mm256_cvtsi256_si32() {
-        let a = _mm256_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8);
-        let r = _mm256_cvtsi256_si32(a);
-        assert_eq!(r, 1);
     }
 }

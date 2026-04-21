@@ -51,8 +51,8 @@ pub const _MM_FROUND_NEARBYINT: i32 = _MM_FROUND_NO_EXC | _MM_FROUND_CUR_DIRECTI
 /// Blend packed 8-bit integers from `a` and `b` using `mask`
 ///
 /// The high bit of each corresponding mask byte determines the selection.
-/// If the high bit is set the element of `a` is selected. The element
-/// of `b` is selected otherwise.
+/// If the high bit is set, the element of `b` is selected.
+/// Otherwise, the element of `a` is selected.
 ///
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_blendv_epi8)
 #[inline]
@@ -191,10 +191,7 @@ pub unsafe fn _mm_blend_ps<const IMM4: i32>(a: __m128, b: __m128) -> __m128 {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_extract_ps)
 #[inline]
 #[target_feature(enable = "sse4.1")]
-#[cfg_attr(
-    all(test, not(target_os = "windows")),
-    assert_instr(extractps, IMM8 = 0)
-)]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(extractps, IMM8 = 0))]
 #[rustc_legacy_const_generics(1)]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_extract_ps<const IMM8: i32>(a: __m128) -> i32 {
@@ -223,10 +220,7 @@ pub unsafe fn _mm_extract_epi8<const IMM8: i32>(a: __m128i) -> i32 {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_extract_epi32)
 #[inline]
 #[target_feature(enable = "sse4.1")]
-#[cfg_attr(
-    all(test, not(target_os = "windows")),
-    assert_instr(extractps, IMM8 = 1)
-)]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(extractps, IMM8 = 1))]
 #[rustc_legacy_const_generics(1)]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_extract_epi32<const IMM8: i32>(a: __m128i) -> i32 {
@@ -1148,6 +1142,26 @@ pub unsafe fn _mm_test_mix_ones_zeros(a: __m128i, mask: __m128i) -> i32 {
     _mm_testnzc_si128(a, mask)
 }
 
+/// Load 128-bits of integer data from memory into dst. mem_addr must be aligned on a 16-byte
+/// boundary or a general-protection exception may be generated. To minimize caching, the data
+/// is flagged as non-temporal (unlikely to be used again soon)
+///
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_stream_load_si128)
+#[inline]
+#[target_feature(enable = "sse,sse4.1")]
+#[cfg_attr(test, assert_instr(movntdqa))]
+#[stable(feature = "simd_x86_updates", since = "1.82.0")]
+pub unsafe fn _mm_stream_load_si128(mem_addr: *const __m128i) -> __m128i {
+    let dst: __m128i;
+    crate::arch::asm!(
+        vpl!("movntdqa {a}"),
+        a = out(xmm_reg) dst,
+        p = in(reg) mem_addr,
+        options(pure, readonly, nostack, preserves_flags),
+    );
+    dst
+}
+
 #[allow(improper_ctypes)]
 extern "C" {
     #[link_name = "llvm.x86.sse41.insertps"]
@@ -1941,5 +1955,12 @@ mod tests {
         let mask = _mm_set1_epi8(0b101);
         let r = _mm_test_mix_ones_zeros(a, mask);
         assert_eq!(r, 0);
+    }
+
+    #[simd_test(enable = "sse4.1")]
+    unsafe fn test_mm_stream_load_si128() {
+        let a = _mm_set_epi64x(5, 6);
+        let r = _mm_stream_load_si128(core::ptr::addr_of!(a) as *const _);
+        assert_eq_m128i(a, r);
     }
 }

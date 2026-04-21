@@ -1,23 +1,16 @@
-#![allow(bad_style)]
-#![allow(unused)]
-#![allow(
-    clippy::shadow_reuse,
-    clippy::cast_lossless,
-    clippy::match_same_arms,
-    clippy::nonminimal_bool,
-    clippy::print_stdout,
-    clippy::use_debug,
-    clippy::eq_op,
-    clippy::useless_format
-)]
+#![allow(unused, non_camel_case_types)]
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs::File;
+use std::io;
+use std::io::{BufWriter, Write};
 
 use serde::Deserialize;
 
 const PRINT_INSTRUCTION_VIOLATIONS: bool = false;
 const PRINT_MISSING_LISTS: bool = false;
 const PRINT_MISSING_LISTS_MARKDOWN: bool = false;
+const SS: u8 = (8 * core::mem::size_of::<usize>()) as u8;
 
 struct Function {
     name: &'static str,
@@ -28,8 +21,11 @@ struct Function {
     file: &'static str,
     required_const: &'static [usize],
     has_test: bool,
+    doc: &'static str,
 }
 
+static BF16: Type = Type::BFloat16;
+static F16: Type = Type::PrimFloat(16);
 static F32: Type = Type::PrimFloat(32);
 static F64: Type = Type::PrimFloat(64);
 static I8: Type = Type::PrimSigned(8);
@@ -41,21 +37,24 @@ static U16: Type = Type::PrimUnsigned(16);
 static U32: Type = Type::PrimUnsigned(32);
 static U64: Type = Type::PrimUnsigned(64);
 static U128: Type = Type::PrimUnsigned(128);
+static USIZE: Type = Type::PrimUnsigned(SS);
 static ORDERING: Type = Type::Ordering;
 
-static M64: Type = Type::M64;
 static M128: Type = Type::M128;
 static M128BH: Type = Type::M128BH;
 static M128I: Type = Type::M128I;
 static M128D: Type = Type::M128D;
+static M128H: Type = Type::M128H;
 static M256: Type = Type::M256;
 static M256BH: Type = Type::M256BH;
 static M256I: Type = Type::M256I;
 static M256D: Type = Type::M256D;
+static M256H: Type = Type::M256H;
 static M512: Type = Type::M512;
 static M512BH: Type = Type::M512BH;
 static M512I: Type = Type::M512I;
 static M512D: Type = Type::M512D;
+static M512H: Type = Type::M512H;
 static MMASK8: Type = Type::MMASK8;
 static MMASK16: Type = Type::MMASK16;
 static MMASK32: Type = Type::MMASK32;
@@ -74,20 +73,23 @@ enum Type {
     PrimFloat(u8),
     PrimSigned(u8),
     PrimUnsigned(u8),
+    BFloat16,
     MutPtr(&'static Type),
     ConstPtr(&'static Type),
-    M64,
     M128,
     M128BH,
     M128D,
+    M128H,
     M128I,
     M256,
     M256BH,
     M256D,
+    M256H,
     M256I,
     M512,
     M512BH,
     M512D,
+    M512H,
     M512I,
     MMASK8,
     MMASK16,
@@ -115,36 +117,42 @@ struct Data {
 struct Intrinsic {
     #[serde(rename = "return")]
     return_: Return,
+    #[serde(rename = "@name")]
     name: String,
+    #[serde(rename = "@tech")]
+    tech: String,
     #[serde(rename = "CPUID", default)]
     cpuid: Vec<String>,
     #[serde(rename = "parameter", default)]
     parameters: Vec<Parameter>,
+    #[serde(rename = "@sequence", default)]
+    generates_sequence: bool,
     #[serde(default)]
     instruction: Vec<Instruction>,
 }
 
 #[derive(Deserialize)]
 struct Parameter {
-    #[serde(rename = "type")]
+    #[serde(rename = "@type")]
     type_: String,
-    #[serde(default)]
+    #[serde(rename = "@etype", default)]
     etype: String,
 }
 
 #[derive(Deserialize)]
 struct Return {
-    #[serde(rename = "type")]
+    #[serde(rename = "@type", default)]
     type_: String,
 }
 
 #[derive(Deserialize, Debug)]
 struct Instruction {
+    #[serde(rename = "@name")]
     name: String,
 }
 
 macro_rules! bail {
-    ($($t:tt)*) => (return Err(format!($($t)*)))
+    ($($t:tt)*) => { return Err(format!($($t)*)) }
 }
 
 #[test]
@@ -155,12 +163,12 @@ fn verify_all_signatures() {
     //   https://software.intel.com/sites/landingpage/IntrinsicsGuide/#
     //
     // Open up the network console and you'll see an xml file was downloaded
-    // (currently called data-3.4.xml). That's the file we downloaded
+    // (currently called data-3.6.9.xml). That's the file we downloaded
     // here.
     let xml = include_bytes!("../x86-intel.xml");
 
     let xml = &xml[..];
-    let data: Data = serde_xml_rs::from_reader(xml).expect("failed to deserialize xml");
+    let data: Data = quick_xml::de::from_reader(xml).expect("failed to deserialize xml");
     let mut map = HashMap::new();
     for intrinsic in &data.intrinsics {
         map.entry(&intrinsic.name[..])
@@ -173,17 +181,12 @@ fn verify_all_signatures() {
         if !rust.has_test {
             // FIXME: this list should be almost empty
             let skip = [
+                // EFLAGS
                 "__readeflags",
                 "__readeflags",
                 "__writeeflags",
                 "__writeeflags",
-                "_mm_comige_ss",
-                "_mm_cvt_ss2si",
-                "_mm_cvtt_ss2si",
-                "_mm_cvt_si2ss",
-                "_mm_set_ps1",
-                "_mm_load_ps1",
-                "_mm_store_ps1",
+                // MXCSR - deprecated
                 "_mm_getcsr",
                 "_mm_setcsr",
                 "_MM_GET_EXCEPTION_MASK",
@@ -194,87 +197,51 @@ fn verify_all_signatures() {
                 "_MM_SET_EXCEPTION_STATE",
                 "_MM_SET_FLUSH_ZERO_MODE",
                 "_MM_SET_ROUNDING_MODE",
-                "_mm_prefetch",
-                "_mm_undefined_ps",
-                "_m_pmaxsw",
-                "_m_pmaxub",
-                "_m_pminsw",
-                "_m_pminub",
-                "_m_pavgb",
-                "_m_pavgw",
-                "_m_psadbw",
-                "_mm_cvt_pi2ps",
-                "_m_maskmovq",
-                "_m_pextrw",
-                "_m_pinsrw",
-                "_m_pmovmskb",
-                "_m_pshufw",
-                "_mm_cvtt_ps2pi",
-                "_mm_cvt_ps2pi",
+                // CPUID
                 "__cpuid_count",
                 "__cpuid",
                 "__get_cpuid_max",
-                "_xsave",
-                "_xrstor",
+                // Privileged, see https://github.com/rust-lang/stdarch/issues/209
                 "_xsetbv",
-                "_xgetbv",
-                "_xsaveopt",
-                "_xsavec",
                 "_xsaves",
                 "_xrstors",
-                "_mm_bslli_si128",
-                "_mm_bsrli_si128",
-                "_mm_undefined_pd",
-                "_mm_undefined_si128",
-                "_mm_cvtps_ph",
-                "_mm256_cvtps_ph",
+                "_xsaves64",
+                "_xrstors64",
+                // TSC
                 "_rdtsc",
                 "__rdtscp",
-                "_mm256_castps128_ps256",
-                "_mm256_castpd128_pd256",
-                "_mm256_castsi128_si256",
+                // TBM
+                "_t1mskc_u64",
+                // RTM
+                "_xbegin",
+                "_xend",
+                // RDRAND
+                "_rdrand16_step",
+                "_rdrand32_step",
+                "_rdrand64_step",
+                "_rdseed16_step",
+                "_rdseed32_step",
+                "_rdseed64_step",
+                // Prefetch
+                "_mm_prefetch",
+                // CMPXCHG
+                "cmpxchg16b",
+                // Undefined
+                "_mm_undefined_ps",
+                "_mm_undefined_pd",
+                "_mm_undefined_si128",
+                "_mm_undefined_ph",
                 "_mm256_undefined_ps",
                 "_mm256_undefined_pd",
                 "_mm256_undefined_si256",
-                "_bextr2_u32",
-                "_mm_tzcnt_32",
-                "_m_paddb",
-                "_m_paddw",
-                "_m_paddd",
-                "_m_paddsb",
-                "_m_paddsw",
-                "_m_paddusb",
-                "_m_paddusw",
-                "_m_psubb",
-                "_m_psubw",
-                "_m_psubd",
-                "_m_psubsb",
-                "_m_psubsw",
-                "_m_psubusb",
-                "_m_psubusw",
-                "_mm_set_pi16",
-                "_mm_set_pi32",
-                "_mm_set_pi8",
-                "_mm_set1_pi16",
-                "_mm_set1_pi32",
-                "_mm_set1_pi8",
-                "_mm_setr_pi16",
-                "_mm_setr_pi32",
-                "_mm_setr_pi8",
-                "_mm_min_epi8",
-                "_mm_min_epi32",
-                "_xbegin",
-                "_xend",
-                "_rdrand16_step",
-                "_rdrand32_step",
-                "_rdseed16_step",
-                "_rdseed32_step",
-                "_fxsave",
-                "_fxrstor",
-                "_t1mskc_u64",
+                "_mm256_undefined_ph",
+                "_mm512_undefined_ps",
+                "_mm512_undefined_pd",
+                "_mm512_undefined_epi32",
+                "_mm512_undefined",
+                "_mm512_undefined_ph",
+                // Has doc-tests instead
                 "_mm256_shuffle_epi32",
-                "_mm256_bslli_epi128",
-                "_mm256_bsrli_epi128",
                 "_mm256_unpackhi_epi8",
                 "_mm256_unpacklo_epi8",
                 "_mm256_unpackhi_epi16",
@@ -283,26 +250,35 @@ fn verify_all_signatures() {
                 "_mm256_unpacklo_epi32",
                 "_mm256_unpackhi_epi64",
                 "_mm256_unpacklo_epi64",
-                "_xsave64",
+                // Has tests with different name
+                "_mm_min_epi8",
+                "_mm_min_epi32",
+                "_xrstor",
                 "_xrstor64",
-                "_xsaveopt64",
-                "_xsavec64",
-                "_xsaves64",
-                "_xrstors64",
+                "_fxrstor",
+                "_fxrstor64",
+                // Needs `f16` to test
+                "_mm_cvtps_ph",
+                "_mm256_cvtps_ph",
+                // Aliases
+                "_mm_comige_ss",
+                "_mm_cvt_ss2si",
+                "_mm_cvtt_ss2si",
+                "_mm_cvt_si2ss",
+                "_mm_set_ps1",
+                "_mm_load_ps1",
+                "_mm_store_ps1",
+                "_mm_bslli_si128",
+                "_mm_bsrli_si128",
+                "_bextr2_u32",
+                "_mm_tzcnt_32",
+                "_mm256_bslli_epi128",
+                "_mm256_bsrli_epi128",
                 "_mm_cvtsi64x_si128",
                 "_mm_cvtsi128_si64x",
                 "_mm_cvtsi64x_sd",
-                "cmpxchg16b",
-                "_rdrand64_step",
-                "_rdseed64_step",
                 "_bextr2_u64",
                 "_mm_tzcnt_64",
-                "_fxsave64",
-                "_fxrstor64",
-                "_mm512_undefined_ps",
-                "_mm512_undefined_pd",
-                "_mm512_undefined_epi32",
-                "_mm512_undefined",
             ];
             if !skip.contains(&rust.name) {
                 println!(
@@ -332,12 +308,15 @@ fn verify_all_signatures() {
             "__get_cpuid_max" |
             // Not listed with intel, but manually verified
             "cmpxchg16b"
-                => continue,
+            => continue,
             // Intel requires the mask argument for _mm_shuffle_ps to be an
             // unsigned integer, but all other _mm_shuffle_.. intrinsics
             // take a signed-integer. This breaks `_MM_SHUFFLE` for
             // `_mm_shuffle_ps`:
-            "_mm_shuffle_ps" => continue,
+            name@"_mm_shuffle_ps" => {
+                map.remove(name);
+                continue;
+            },
             _ => {}
         }
 
@@ -368,54 +347,62 @@ fn verify_all_signatures() {
     }
     assert!(all_valid);
 
-    let mut missing = BTreeMap::new();
-    for (name, intel) in &map {
-        // currently focused mainly on missing SIMD intrinsics, but there's
-        // definitely some other assorted ones that we're missing.
-        if !name.starts_with("_mm") {
-            continue;
-        }
+    if PRINT_MISSING_LISTS {
+        print_missing(&map, io::stdout()).unwrap();
+    }
+    if PRINT_MISSING_LISTS_MARKDOWN {
+        print_missing(
+            &map,
+            BufWriter::new(File::create("../core_arch/missing-x86.md").unwrap()),
+        )
+        .unwrap();
+    }
+}
 
-        // we'll get to avx-512 later
-        // let avx512 = intel.iter().any(|i| {
-        //     i.name.starts_with("_mm512") || i.cpuid.iter().any(|c| {
-        //         c.contains("512")
-        //     })
-        // });
-        // if avx512 {
-        //     continue
-        // }
+fn print_missing(map: &HashMap<&str, Vec<&Intrinsic>>, mut f: impl Write) -> io::Result<()> {
+    let mut missing = BTreeMap::new(); // BTreeMap to keep the cpuids ordered
 
-        for intel in intel {
-            missing
-                .entry(&intel.cpuid)
-                .or_insert_with(Vec::new)
-                .push(intel);
-        }
+    // we cannot use SVML and MMX, and MPX is not in LLVM, and intrinsics without any cpuid requirement
+    // are accessible from safe rust
+    for intrinsic in map.values().flatten().filter(|intrinsic| {
+        intrinsic.tech != "SVML"
+            && intrinsic.tech != "MMX"
+            && !intrinsic.cpuid.is_empty()
+            && !intrinsic.cpuid.contains(&"MPX".to_string())
+            && intrinsic.return_.type_ != "__m64"
+            && !intrinsic
+                .parameters
+                .iter()
+                .any(|param| param.type_.contains("__m64"))
+    }) {
+        missing
+            .entry(&intrinsic.cpuid)
+            .or_insert_with(Vec::new)
+            .push(intrinsic);
     }
 
-    // generate a bulleted list of missing intrinsics
-    if PRINT_MISSING_LISTS || PRINT_MISSING_LISTS_MARKDOWN {
-        for (k, v) in missing {
-            if PRINT_MISSING_LISTS_MARKDOWN {
-                println!("\n<details><summary>{k:?}</summary><p>\n");
-                for intel in v {
-                    let url = format!(
-                        "https://software.intel.com/sites/landingpage\
-                         /IntrinsicsGuide/#text={}&expand=5236",
-                        intel.name
-                    );
-                    println!("  * [ ] [`{}`]({url})", intel.name);
-                }
-                println!("</p></details>\n");
-            } else {
-                println!("\n{k:?}\n");
-                for intel in v {
-                    println!("\t{}", intel.name);
-                }
+    for (k, v) in &mut missing {
+        v.sort_by_key(|intrinsic| &intrinsic.name); // sort to make the order of everything same
+        if PRINT_MISSING_LISTS_MARKDOWN {
+            writeln!(f, "\n<details><summary>{k:?}</summary><p>\n")?;
+            for intel in v {
+                let url = format!(
+                    "https://software.intel.com/sites/landingpage\
+                         /IntrinsicsGuide/#text={}",
+                    intel.name
+                );
+                writeln!(f, "  * [ ] [`{}`]({url})", intel.name)?;
+            }
+            writeln!(f, "</p></details>\n")?;
+        } else {
+            writeln!(f, "\n{k:?}\n")?;
+            for intel in v {
+                writeln!(f, "\t{}", intel.name)?;
             }
         }
     }
+
+    f.flush()
 }
 
 fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
@@ -444,6 +431,14 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
             }
         }
     }
+
+    let rust_features: HashSet<String> = match rust.target_feature {
+        Some(features) => features
+            .split(',')
+            .map(|feature| feature.to_string())
+            .collect(),
+        None => HashSet::new(),
+    };
 
     for cpuid in &intel.cpuid {
         // The pause intrinsic is in the SSE2 module, but it is backwards
@@ -478,10 +473,7 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
             continue;
         }
 
-        let cpuid = cpuid
-            .chars()
-            .flat_map(|c| c.to_lowercase())
-            .collect::<String>();
+        let cpuid = cpuid.to_lowercase();
 
         // Fix mismatching feature names:
         let fixup_cpuid = |cpuid: String| match cpuid.as_ref() {
@@ -500,39 +492,44 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
             // The XML file names VNNI as "avx512_vnni", while Rust calls
             // it "avx512vnni".
             "avx512_vnni" => String::from("avx512vnni"),
-            // Some AVX512f intrinsics are also supported by Knight's Corner.
-            // The XML lists them as avx512f/kncni, but we are solely gating
-            // them behind avx512f since we don't have a KNC feature yet.
-            "avx512f/kncni" => String::from("avx512f"),
-            // See: https://github.com/rust-lang/stdarch/issues/738
-            // The intrinsics guide calls `f16c` `fp16c` in disagreement with
-            // Intel's architecture manuals.
-            "fp16c" => String::from("f16c"),
-            "avx512_bf16" => String::from("avx512bf16"),
-            // The XML file names VNNI as "avx512_bf16", while Rust calls
+            // The XML file names BF16 as "avx512_bf16", while Rust calls
             // it "avx512bf16".
+            "avx512_bf16" => String::from("avx512bf16"),
+            // The XML file names FP16 as "avx512_fp16", while Rust calls
+            // it "avx512fp16".
+            "avx512_fp16" => String::from("avx512fp16"),
+            // The XML file names AVX-VNNI as "avx_vnni", while Rust calls
+            // it "avxvnni"
+            "avx_vnni" => String::from("avxvnni"),
+            // The XML file names AVX-VNNI_INT8 as "avx_vnni_int8", while Rust calls
+            // it "avxvnniint8"
+            "avx_vnni_int8" => String::from("avxvnniint8"),
+            // The XML file names AVX-NE-CONVERT as "avx_ne_convert", while Rust calls
+            // it "avxvnni"
+            "avx_ne_convert" => String::from("avxneconvert"),
+            // The XML file names AVX-IFMA as "avx_ifma", while Rust calls
+            // it "avxifma"
+            "avx_ifma" => String::from("avxifma"),
+            // The XML file names AVX-VNNI_INT16 as "avx_vnni_int16", while Rust calls
+            // it "avxvnniint16"
+            "avx_vnni_int16" => String::from("avxvnniint16"),
             _ => cpuid,
         };
         let fixed_cpuid = fixup_cpuid(cpuid);
 
-        let rust_feature = rust
-            .target_feature
-            .unwrap_or_else(|| panic!("no target feature listed for {}", rust.name));
-
-        if rust_feature.contains(&fixed_cpuid) {
-            continue;
+        if !rust_features.contains(&fixed_cpuid) {
+            bail!(
+                "intel cpuid `{}` not in `{:?}` for {}",
+                fixed_cpuid,
+                rust_features,
+                rust.name
+            );
         }
-        bail!(
-            "intel cpuid `{}` not in `{}` for {}",
-            fixed_cpuid,
-            rust_feature,
-            rust.name
-        )
     }
 
     if PRINT_INSTRUCTION_VIOLATIONS {
         if rust.instrs.is_empty() {
-            if !intel.instruction.is_empty() {
+            if !intel.instruction.is_empty() && !intel.generates_sequence {
                 println!(
                     "instruction not listed for `{}`, but intel lists {:?}",
                     rust.name, intel.instruction
@@ -544,7 +541,10 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
         // some extra assertions on our end.
         } else if !intel.instruction.is_empty() {
             for instr in rust.instrs {
-                let asserting = intel.instruction.iter().any(|a| a.name.starts_with(instr));
+                let asserting = intel
+                    .instruction
+                    .iter()
+                    .any(|a| a.name.to_lowercase().starts_with(instr));
                 if !asserting {
                     println!(
                         "intel failed to list `{}` as an instruction for `{}`",
@@ -558,12 +558,12 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
     // Make sure we've got the right return type.
     if let Some(t) = rust.ret {
         equate(t, &intel.return_.type_, "", rust.name, false)?;
-    } else if intel.return_.type_ != "" && intel.return_.type_ != "void" {
+    } else if !intel.return_.type_.is_empty() && intel.return_.type_ != "void" {
         bail!(
             "{} returns `{}` with intel, void in rust",
             rust.name,
             intel.return_.type_
-        )
+        );
     }
 
     // If there's no arguments on Rust's side intel may list one "void"
@@ -575,7 +575,7 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
     } else {
         // Otherwise we want all parameters to be exactly the same
         if rust.arguments.len() != intel.parameters.len() {
-            bail!("wrong number of arguments on {}", rust.name)
+            bail!("wrong number of arguments on {}", rust.name);
         }
         for (i, (a, b)) in intel.parameters.iter().zip(rust.arguments).enumerate() {
             let is_const = rust.required_const.contains(&i);
@@ -673,7 +673,21 @@ fn matches(rust: &Function, intel: &Intrinsic) -> Result<(), String> {
             "intrinsic `{}` uses a 64-bit bare type but may be \
              available on 32-bit platforms",
             rust.name
-        )
+        );
+    }
+    if !rust.doc.contains("Intel") {
+        bail!("No link to Intel");
+    }
+    let recognized_links = [
+        "https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html",
+        "https://software.intel.com/sites/landingpage/IntrinsicsGuide/",
+    ];
+    if !recognized_links.iter().any(|link| rust.doc.contains(link)) {
+        bail!("Unrecognized Intel Link");
+    }
+    if !rust.doc.contains(&rust.name[1..]) {
+        // We can leave the leading underscore
+        bail!("Bad link to Intel");
     }
     Ok(())
 }
@@ -696,73 +710,72 @@ fn equate(
         intel = intel.replace("const ", "");
         intel = intel.replace('*', " const*");
     }
-    if etype == "IMM" {
+    if etype == "IMM" || intel == "constexpr int" {
         // The _bittest intrinsics claim to only accept immediates but actually
         // accept run-time values as well.
         if !is_const && !intrinsic.starts_with("_bittest") {
-            return bail!("argument required to be const but isn't");
+            bail!("argument required to be const but isn't");
         }
     } else {
         // const int must be an IMM
         assert_ne!(intel, "const int");
         if is_const {
-            return bail!("argument is const but shouldn't be");
+            bail!("argument is const but shouldn't be");
         }
     }
     match (t, &intel[..]) {
+        (&Type::PrimFloat(16), "_Float16") => {}
         (&Type::PrimFloat(32), "float") => {}
         (&Type::PrimFloat(64), "double") => {}
-        (&Type::PrimSigned(16), "__int16") => {}
-        (&Type::PrimSigned(16), "short") => {}
-        (&Type::PrimSigned(32), "__int32") => {}
-        (&Type::PrimSigned(32), "const int") => {}
-        (&Type::PrimSigned(32), "int") => {}
-        (&Type::PrimSigned(64), "__int64") => {}
-        (&Type::PrimSigned(64), "long long") => {}
-        (&Type::PrimSigned(8), "__int8") => {}
-        (&Type::PrimSigned(8), "char") => {}
-        (&Type::PrimUnsigned(16), "unsigned short") => {}
-        (&Type::PrimUnsigned(32), "unsigned int") => {}
-        (&Type::PrimUnsigned(32), "const unsigned int") => {}
-        (&Type::PrimUnsigned(64), "unsigned __int64") => {}
+        (&Type::PrimSigned(8), "__int8" | "char") => {}
+        (&Type::PrimSigned(16), "__int16" | "short") => {}
+        (&Type::PrimSigned(32), "__int32" | "constexpr int" | "const int" | "int") => {}
+        (&Type::PrimSigned(64), "__int64" | "long long") => {}
         (&Type::PrimUnsigned(8), "unsigned char") => {}
-        (&Type::M64, "__m64") => {}
+        (&Type::PrimUnsigned(16), "unsigned short") => {}
+        (&Type::BFloat16, "__bfloat16") => {}
+        (
+            &Type::PrimUnsigned(32),
+            "unsigned __int32" | "unsigned int" | "unsigned long" | "const unsigned int",
+        ) => {}
+        (&Type::PrimUnsigned(64), "unsigned __int64" | "size_t") => {}
+
         (&Type::M128, "__m128") => {}
         (&Type::M128BH, "__m128bh") => {}
         (&Type::M128I, "__m128i") => {}
         (&Type::M128D, "__m128d") => {}
+        (&Type::M128H, "__m128h") => {}
         (&Type::M256, "__m256") => {}
         (&Type::M256BH, "__m256bh") => {}
         (&Type::M256I, "__m256i") => {}
         (&Type::M256D, "__m256d") => {}
+        (&Type::M256H, "__m256h") => {}
         (&Type::M512, "__m512") => {}
         (&Type::M512BH, "__m512bh") => {}
         (&Type::M512I, "__m512i") => {}
         (&Type::M512D, "__m512d") => {}
+        (&Type::M512H, "__m512h") => {}
         (&Type::MMASK64, "__mmask64") => {}
         (&Type::MMASK32, "__mmask32") => {}
         (&Type::MMASK16, "__mmask16") => {}
         (&Type::MMASK8, "__mmask8") => {}
 
+        (&Type::MutPtr(_), "void*") => {}
         (&Type::MutPtr(&Type::PrimFloat(32)), "float*") => {}
         (&Type::MutPtr(&Type::PrimFloat(64)), "double*") => {}
-        (&Type::MutPtr(&Type::PrimFloat(32)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimFloat(64)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(32)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(16)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(8)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(32)), "int*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(32)), "__int32*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(64)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimSigned(64)), "__int64*") => {}
         (&Type::MutPtr(&Type::PrimSigned(8)), "char*") => {}
+        (&Type::MutPtr(&Type::PrimSigned(32)), "__int32*" | "int*") => {}
+        (&Type::MutPtr(&Type::PrimSigned(64)), "__int64*") => {}
+        (&Type::MutPtr(&Type::PrimUnsigned(8)), "unsigned char*") => {}
         (&Type::MutPtr(&Type::PrimUnsigned(16)), "unsigned short*") => {}
-        (&Type::MutPtr(&Type::PrimUnsigned(32)), "unsigned int*") => {}
+        (&Type::MutPtr(&Type::PrimUnsigned(32)), "unsigned int*" | "unsigned __int32*") => {}
         (&Type::MutPtr(&Type::PrimUnsigned(64)), "unsigned __int64*") => {}
-        (&Type::MutPtr(&Type::PrimUnsigned(8)), "void*") => {}
-        (&Type::MutPtr(&Type::PrimUnsigned(32)), "__mmask32*") => {}
-        (&Type::MutPtr(&Type::PrimUnsigned(64)), "__mmask64*") => {}
-        (&Type::MutPtr(&Type::M64), "__m64*") => {}
+
+        (&Type::MutPtr(&Type::MMASK8), "__mmask8*") => {}
+        (&Type::MutPtr(&Type::MMASK32), "__mmask32*") => {}
+        (&Type::MutPtr(&Type::MMASK64), "__mmask64*") => {}
+        (&Type::MutPtr(&Type::MMASK16), "__mmask16*") => {}
+
         (&Type::MutPtr(&Type::M128), "__m128*") => {}
         (&Type::MutPtr(&Type::M128BH), "__m128bh*") => {}
         (&Type::MutPtr(&Type::M128I), "__m128i*") => {}
@@ -776,38 +789,37 @@ fn equate(
         (&Type::MutPtr(&Type::M512I), "__m512i*") => {}
         (&Type::MutPtr(&Type::M512D), "__m512d*") => {}
 
+        (&Type::ConstPtr(_), "void const*") => {}
+        (&Type::ConstPtr(&Type::PrimFloat(16)), "_Float16 const*") => {}
         (&Type::ConstPtr(&Type::PrimFloat(32)), "float const*") => {}
         (&Type::ConstPtr(&Type::PrimFloat(64)), "double const*") => {}
-        (&Type::ConstPtr(&Type::PrimFloat(32)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimFloat(64)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(32)), "int const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(32)), "__int32 const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(8)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(16)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(32)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(64)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimSigned(64)), "__int64 const*") => {}
         (&Type::ConstPtr(&Type::PrimSigned(8)), "char const*") => {}
+        (&Type::ConstPtr(&Type::PrimSigned(32)), "__int32 const*" | "int const*") => {}
+        (&Type::ConstPtr(&Type::PrimSigned(64)), "__int64 const*") => {}
         (&Type::ConstPtr(&Type::PrimUnsigned(16)), "unsigned short const*") => {}
         (&Type::ConstPtr(&Type::PrimUnsigned(32)), "unsigned int const*") => {}
         (&Type::ConstPtr(&Type::PrimUnsigned(64)), "unsigned __int64 const*") => {}
-        (&Type::ConstPtr(&Type::PrimUnsigned(8)), "void const*") => {}
-        (&Type::ConstPtr(&Type::PrimUnsigned(32)), "void const*") => {}
-        (&Type::ConstPtr(&Type::M64), "__m64 const*") => {}
+        (&Type::ConstPtr(&Type::BFloat16), "__bf16 const*") => {}
+
         (&Type::ConstPtr(&Type::M128), "__m128 const*") => {}
         (&Type::ConstPtr(&Type::M128BH), "__m128bh const*") => {}
         (&Type::ConstPtr(&Type::M128I), "__m128i const*") => {}
         (&Type::ConstPtr(&Type::M128D), "__m128d const*") => {}
+        (&Type::ConstPtr(&Type::M128H), "__m128h const*") => {}
         (&Type::ConstPtr(&Type::M256), "__m256 const*") => {}
         (&Type::ConstPtr(&Type::M256BH), "__m256bh const*") => {}
         (&Type::ConstPtr(&Type::M256I), "__m256i const*") => {}
         (&Type::ConstPtr(&Type::M256D), "__m256d const*") => {}
+        (&Type::ConstPtr(&Type::M256H), "__m256h const*") => {}
         (&Type::ConstPtr(&Type::M512), "__m512 const*") => {}
         (&Type::ConstPtr(&Type::M512BH), "__m512bh const*") => {}
         (&Type::ConstPtr(&Type::M512I), "__m512i const*") => {}
         (&Type::ConstPtr(&Type::M512D), "__m512d const*") => {}
-        (&Type::ConstPtr(&Type::PrimUnsigned(32)), "__mmask32*") => {}
-        (&Type::ConstPtr(&Type::PrimUnsigned(64)), "__mmask64*") => {}
+
+        (&Type::ConstPtr(&Type::MMASK8), "__mmask8*") => {}
+        (&Type::ConstPtr(&Type::MMASK16), "__mmask16*") => {}
+        (&Type::ConstPtr(&Type::MMASK32), "__mmask32*") => {}
+        (&Type::ConstPtr(&Type::MMASK64), "__mmask64*") => {}
 
         (&Type::MM_CMPINT_ENUM, "_MM_CMPINT_ENUM") => {}
         (&Type::MM_MANTISSA_NORM_ENUM, "_MM_MANTISSA_NORM_ENUM") => {}
@@ -836,6 +848,9 @@ fn equate(
                 || intrinsic == "_xrstor64"
                 || intrinsic == "_fxrstor"
                 || intrinsic == "_fxrstor64" => {}
+        // The _mm_stream_load_si128 intrinsic take a mutable pointer in the intrinsics
+        // guide even though they never write through the pointer
+        (&Type::ConstPtr(&Type::M128I), "void*") if intrinsic == "_mm_stream_load_si128" => {}
 
         _ => bail!(
             "failed to equate: `{}` and {:?} for {}",

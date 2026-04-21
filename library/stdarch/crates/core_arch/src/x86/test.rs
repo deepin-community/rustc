@@ -36,6 +36,15 @@ pub unsafe fn get_m128(a: __m128, idx: usize) -> f32 {
     transmute::<_, [f32; 4]>(a)[idx]
 }
 
+#[track_caller]
+#[target_feature(enable = "avx512fp16")]
+pub unsafe fn assert_eq_m128h(a: __m128h, b: __m128h) {
+    let r = _mm_cmp_ph_mask::<_CMP_EQ_OQ>(a, b);
+    if r != 0b1111_1111 {
+        panic!("{:?} != {:?}", a, b);
+    }
+}
+
 // not actually an intrinsic but useful in various tests as we proted from
 // `i64x2::new` which is backwards from `_mm_set_epi64x`
 #[target_feature(enable = "sse2")]
@@ -77,6 +86,15 @@ pub unsafe fn get_m256(a: __m256, idx: usize) -> f32 {
     transmute::<_, [f32; 8]>(a)[idx]
 }
 
+#[track_caller]
+#[target_feature(enable = "avx512fp16")]
+pub unsafe fn assert_eq_m256h(a: __m256h, b: __m256h) {
+    let r = _mm256_cmp_ph_mask::<_CMP_EQ_OQ>(a, b);
+    if r != 0b11111111_11111111 {
+        panic!("{:?} != {:?}", a, b);
+    }
+}
+
 #[target_feature(enable = "avx512f")]
 pub unsafe fn get_m512(a: __m512, idx: usize) -> f32 {
     transmute::<_, [f32; 16]>(a)[idx]
@@ -97,34 +115,22 @@ pub unsafe fn get_m512i(a: __m512i, idx: usize) -> i64 {
 #[cfg(target_arch = "x86")]
 mod x86_polyfill {
     use crate::core_arch::x86::*;
+    use crate::intrinsics::simd::*;
 
     #[rustc_legacy_const_generics(2)]
     pub unsafe fn _mm_insert_epi64<const INDEX: i32>(a: __m128i, val: i64) -> __m128i {
         static_assert_uimm_bits!(INDEX, 1);
-        #[repr(C)]
-        union A {
-            a: __m128i,
-            b: [i64; 2],
-        }
-        let mut a = A { a };
-        a.b[INDEX as usize] = val;
-        a.a
+        transmute(simd_insert!(a.as_i64x2(), INDEX as u32, val))
     }
 
     #[target_feature(enable = "avx2")]
     #[rustc_legacy_const_generics(2)]
     pub unsafe fn _mm256_insert_epi64<const INDEX: i32>(a: __m256i, val: i64) -> __m256i {
         static_assert_uimm_bits!(INDEX, 2);
-        #[repr(C)]
-        union A {
-            a: __m256i,
-            b: [i64; 4],
-        }
-        let mut a = A { a };
-        a.b[INDEX as usize] = val;
-        a.a
+        transmute(simd_insert!(a.as_i64x4(), INDEX as u32, val))
     }
 }
+
 #[cfg(target_arch = "x86_64")]
 mod x86_polyfill {
     pub use crate::core_arch::x86_64::{_mm256_insert_epi64, _mm_insert_epi64};
@@ -148,6 +154,15 @@ pub unsafe fn assert_eq_m512(a: __m512, b: __m512) {
 pub unsafe fn assert_eq_m512d(a: __m512d, b: __m512d) {
     let cmp = _mm512_cmp_pd_mask::<_CMP_EQ_OQ>(a, b);
     if cmp != 0b11111111 {
+        panic!("{:?} != {:?}", a, b);
+    }
+}
+
+#[track_caller]
+#[target_feature(enable = "avx512fp16")]
+pub unsafe fn assert_eq_m512h(a: __m512h, b: __m512h) {
+    let r = _mm512_cmp_ph_mask::<_CMP_EQ_OQ>(a, b);
+    if r != 0b11111111_11111111_11111111_11111111 {
         panic!("{:?} != {:?}", a, b);
     }
 }

@@ -10,8 +10,6 @@ upstream/u-rustc-llvm-cross-flags.patch
 upstream/u-hurd-tests.patch
 upstream/d-ignore-test_arc_condvar_poison-ppc.patch
 upstream/d-disable-download-tests.patch
-upstream/u-add-missing-f16-intrinsics.patch
-upstream/u-add-f16-f128-handling-in-a-couple-places.patch
 prune/d-0000-ignore-removed-submodules.patch
 prune/d-0001-pkg-config-no-special-snowflake.patch
 prune/d-0002-mdbook-strip-embedded-libs.patch
@@ -34,6 +32,7 @@ build/d-bootstrap-custom-debuginfo-path.patch
 build/d-bootstrap-permit-symlink-in-docs.patch
 build/d-test-ignore-avx-44056.patch
 build/d-armel-fix-lldb.patch
+build/fix-gcc-15.patch
 behaviour/d-rust-gdb-paths.patch
 behaviour/d-rust-lldb-paths.patch
 behaviour/d-rustc-add-soname.patch
@@ -44,10 +43,8 @@ ubuntu/ubuntu-disable-ppc64el-asm-tests.patch
 ubuntu/ubuntu-ignore-arm-doctest.patch
 ubuntu/ubuntu-vendor-no-workspace.patch
 ubuntu/ubuntu-use-system-compiler-during-tests.patch
-upstream/Revert-loongarch-add-frecipe-and-relax-target-feature.patch
 ubuntu/ubuntu-disable-nanum-fonts.patch
 ubuntu/ubuntu-skip-gdb-tests.patch
-ubuntu/ubuntu-add-s390x-allowed-features.patch
 ubuntu/ubuntu-fix-f16-fallback-intrinsics.patch
-upstream/u-disable-f16-f128-on-unsupported-platforms.patch
-ubuntu/ubuntu-libgit2-downgrade.patch
+ubuntu/ubuntu-fix-simd-test.patch
+ubuntu/ubuntu-update-libgit2-to-1.9.patch

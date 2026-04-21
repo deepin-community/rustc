@@ -42,13 +42,17 @@ mod bmi2;
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub use self::bmi2::*;
 
-mod avx2;
+mod tbm;
 #[stable(feature = "simd_x86", since = "1.27.0")]
-pub use self::avx2::*;
+pub use self::tbm::*;
 
 mod avx512f;
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
 pub use self::avx512f::*;
+
+mod avx512bw;
+#[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
+pub use self::avx512bw::*;
 
 mod bswap;
 #[stable(feature = "simd_x86", since = "1.27.0")]
@@ -69,3 +73,11 @@ pub use self::adx::*;
 mod bt;
 #[stable(feature = "simd_x86_bittest", since = "1.55.0")]
 pub use self::bt::*;
+
+mod avx512fp16;
+#[unstable(feature = "stdarch_x86_avx512_f16", issue = "127213")]
+pub use self::avx512fp16::*;
+
+mod amx;
+#[unstable(feature = "x86_amx_intrinsics", issue = "126622")]
+pub use self::amx::*;

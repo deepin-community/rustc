@@ -1,0 +1,2 @@
+usr/lib/rust-${env:RUST_VERSION}/bin/rustfmt
+usr/lib/rust-${env:RUST_VERSION}/bin/cargo-fmt

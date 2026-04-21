@@ -6,10 +6,9 @@
 >              ( `:` [_TypeParamBounds_] )<sup>?</sup>
 >              [_WhereClause_]<sup>?</sup> ( `=` [_Type_] [_WhereClause_]<sup>?</sup>)<sup>?</sup> `;`
 
-A _type alias_ defines a new name for an existing [type]. Type aliases are
-declared with the keyword `type`. Every value has a single, specific type, but
-may implement several different traits, or be compatible with several different
-type constraints.
+A _type alias_ defines a new name for an existing [type] in the [type namespace] of the module or block where it is located.
+Type aliases are declared with the keyword `type`.
+Every value has a single, specific type, but may implement several different traits, and may be compatible with several different type constraints.
 
 For example, the following defines the type `Point` as a synonym for the type
 `(u8, u8)`, the type of pairs of unsigned 8 bit integers:
@@ -31,7 +30,7 @@ let _ = UseAlias(5); // OK
 let _ = TypeAlias(5); // Doesn't work
 ```
 
-A type alias, when not used as an associated type, must include a [_Type_] and
+A type alias, when not used as an [associated type], must include a [_Type_] and
 may not include [_TypeParamBounds_].
 
 A type alias, when used as an [associated type] in a [trait], must not include a
@@ -53,3 +52,4 @@ the equals sign (like `type TypeAlias<T> = Bar<T> where T: Foo`) are preferred.
 [trait]: traits.md
 [type]: ../types.md
 [trait impl]: implementations.md#trait-implementations
+[type namespace]: ../names/namespaces.md

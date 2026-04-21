@@ -610,11 +610,11 @@ fn list_files_gix(
 
     let pathspec = {
         // Include the package root.
-        let mut include = BString::from(":/");
+        let mut include = BString::from(":(top)");
         include.push_str(package_prefix.as_ref());
 
         // Exclude the target directory.
-        let mut exclude = BString::from(":!/");
+        let mut exclude = BString::from(":!(exclude,top)");
         exclude.push_str(target_prefix.as_ref());
 
         vec![include, exclude]
@@ -880,14 +880,14 @@ fn read_packages(
 
 fn nested_paths(manifest: &Manifest) -> Vec<PathBuf> {
     let mut nested_paths = Vec::new();
-    let resolved = manifest.resolved_toml();
-    let dependencies = resolved
+    let normalized = manifest.normalized_toml();
+    let dependencies = normalized
         .dependencies
         .iter()
-        .chain(resolved.build_dependencies())
-        .chain(resolved.dev_dependencies())
+        .chain(normalized.build_dependencies())
+        .chain(normalized.dev_dependencies())
         .chain(
-            resolved
+            normalized
                 .target
                 .as_ref()
                 .into_iter()

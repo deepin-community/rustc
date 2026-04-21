@@ -158,7 +158,7 @@ See [#113971] for how we used to conflate the difference.
 
 [#113971]: https://github.com/rust-lang/rust/issues/113971
 [SCC]: https://en.wikipedia.org/wiki/Strongly_connected_component
-[member constraints]: https://rustc-dev-guide.rust-lang.org/borrow_check/region_inference/member_constraints.html
+[member constraints]: ./region_inference/member_constraints.md
 
 **interaction with "once modulo regions" restriction**
 In the example above, note the opaque type in the signature is `Opaque<'a>` and the one in the
@@ -201,7 +201,7 @@ behave more like existential lifetimes in that the relations between them are no
 time, instead their values are inferred just like existential lifetimes and the requirements are
 propagated back to the parent fn. This breaks the member constraints algorithm as described above:
 > In order for the algorithm to pick the right choice, the complete set of “outlives” relationships
-between the choice regions ['static, '?1] must already be known before doing the region inference
+between the choice regions `['static, '?1]` must already be known before doing the region inference
 
 Here is an example that details how :
 

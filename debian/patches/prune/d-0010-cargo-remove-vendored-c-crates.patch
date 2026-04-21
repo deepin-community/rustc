@@ -15,16 +15,16 @@ Index: rustc/src/tools/cargo/Cargo.toml
 ===================================================================
 --- rustc.orig/src/tools/cargo/Cargo.toml
 +++ rustc/src/tools/cargo/Cargo.toml
-@@ -77,7 +77,7 @@ proptest = "1.4.0"
+@@ -77,7 +77,7 @@ proptest = "1.5.0"
  pulldown-cmark = { version = "0.11.0", default-features = false, features = ["html"] }
  rand = "0.8.5"
- regex = "1.10.4"
--rusqlite = { version = "0.31.0", features = ["bundled"] }
-+rusqlite = { version = "0.31.0", features = [] }
+ regex = "1.10.5"
+-rusqlite = { version = "0.32.0", features = ["bundled"] }
++rusqlite = { version = "0.32.0", features = [] }
  rustfix = { version = "0.8.2", path = "crates/rustfix" }
  same-file = "1.0.6"
- security-framework = "2.10.0"
-@@ -252,10 +252,8 @@ test = false
+ security-framework = "2.11.1"
+@@ -253,10 +253,8 @@ test = false
  doc = false
  
  [features]

@@ -42,3 +42,19 @@ index b458f32..07b7b55 100644
  }
  
  // Write the NatVis debugger visualizer files for each crate to the temp directory and gather the file paths.
+diff --git a/tests/run-make/dylib-soname/rmake.rs b/tests/run-make/dylib-soname/rmake.rs
+index 714997cbc1a..f636920a8e5 100644
+--- a/tests/run-make/dylib-soname/rmake.rs
++++ b/tests/run-make/dylib-soname/rmake.rs
+@@ -15,8 +15,8 @@ fn main() {
+         // Rust dylibs should get a relative SONAME
+         check("dylib").assert_stdout_contains("Library soname: [libfoo.so]");
+     });
+-    run_in_tmpdir(|| {
++    //run_in_tmpdir(|| {
+         // C dylibs should not implicitly get any SONAME
+-        check("cdylib").assert_stdout_not_contains("Library soname:");
+-    });
++    //    check("cdylib").assert_stdout_not_contains("Library soname:");
++    //});
+ }

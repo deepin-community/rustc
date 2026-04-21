@@ -1,0 +1,1219 @@
+Description: Update libgit2 to 1.9
+Author: Zixing Liu <zixing.liu@canonical.com>
+Origin: backport, https://github.com/rust-lang/git2-rs/commit/68aa1ad420ab0f82277c39d21228eca54c833a2a
+Last-Update: 2025-01-05
+---
+Index: rustc/vendor/git2-0.19.0/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/Cargo.toml
++++ rustc/vendor/git2-0.19.0/Cargo.toml
+@@ -52,13 +52,12 @@ features = ["derive"]
+ version = "3.1.0"
+ 
+ [dev-dependencies.time]
+-version = "0.1.39"
++version = "0.3.30"
+ 
+ [features]
+ default = [
+     "ssh",
+     "https",
+-    "ssh_key_from_memory",
+ ]
+ https = [
+     "libgit2-sys/https",
+@@ -66,7 +65,6 @@ https = [
+     "openssl-probe",
+ ]
+ ssh = ["libgit2-sys/ssh"]
+-ssh_key_from_memory = ["libgit2-sys/ssh_key_from_memory"]
+ unstable = []
+ vendored-libgit2 = ["libgit2-sys/vendored"]
+ vendored-openssl = [
+Index: rustc/vendor/git2-0.19.0/examples/log.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/examples/log.rs
++++ rustc/vendor/git2-0.19.0/examples/log.rs
+@@ -253,22 +253,15 @@ fn print_commit(commit: &Commit) {
+ }
+ 
+ fn print_time(time: &Time, prefix: &str) {
+-    let (offset, sign) = match time.offset_minutes() {
+-        n if n < 0 => (-n, '-'),
+-        n => (n, '+'),
+-    };
++    let offset = time.offset_minutes();
+     let (hours, minutes) = (offset / 60, offset % 60);
+-    let ts = time::Timespec::new(time.seconds() + (time.offset_minutes() as i64) * 60, 0);
+-    let time = time::at(ts);
++    let dt = time::OffsetDateTime::from_unix_timestamp(time.seconds()).unwrap();
++    let dto = dt.to_offset(time::UtcOffset::from_hms(hours as i8, minutes as i8, 0).unwrap());
++    let format = time::format_description::parse("[weekday repr:short] [month repr:short] [day padding:space] [hour]:[minute]:[second] [year] [offset_hour sign:mandatory][offset_minute]")
++        .unwrap();
++    let time_str = dto.format(&format).unwrap();
+ 
+-    println!(
+-        "{}{} {}{:02}{:02}",
+-        prefix,
+-        time.strftime("%a %b %e %T %Y").unwrap(),
+-        sign,
+-        hours,
+-        minutes
+-    );
++    println!("{}{}", prefix, time_str);
+ }
+ 
+ fn match_with_parent(
+Index: rustc/vendor/git2-0.19.0/src/build.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/build.rs
++++ rustc/vendor/git2-0.19.0/src/build.rs
+@@ -491,6 +491,12 @@ impl<'cb> CheckoutBuilder<'cb> {
+         self.flag(raw::GIT_CHECKOUT_CONFLICT_STYLE_DIFF3, on)
+     }
+ 
++    /// Treat paths specified in [`CheckoutBuilder::path`] as exact file paths
++    /// instead of as pathspecs.
++    pub fn disable_pathspec_match(&mut self, on: bool) -> &mut CheckoutBuilder<'cb> {
++        self.flag(raw::GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH, on)
++    }
++
+     /// Indicate whether to apply filters like CRLF conversion.
+     pub fn disable_filters(&mut self, disable: bool) -> &mut CheckoutBuilder<'cb> {
+         self.disable_filters = disable;
+@@ -515,8 +521,13 @@ impl<'cb> CheckoutBuilder<'cb> {
+ 
+     /// Add a path to be checked out.
+     ///
++    /// The path is a [pathspec] pattern, unless
++    /// [`CheckoutBuilder::disable_pathspec_match`] is set.
++    ///
+     /// If no paths are specified, then all files are checked out. Otherwise
+     /// only these specified paths are checked out.
++    ///
++    /// [pathspec]: https://git-scm.com/docs/gitglossary.html#Documentation/gitglossary.txt-aiddefpathspecapathspec
+     pub fn path<T: IntoCString>(&mut self, path: T) -> &mut CheckoutBuilder<'cb> {
+         let path = util::cstring_to_repo_path(path).unwrap();
+         self.path_ptrs.push(path.as_ptr());
+Index: rustc/vendor/git2-0.19.0/src/call.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/call.rs
++++ rustc/vendor/git2-0.19.0/src/call.rs
+@@ -44,9 +44,7 @@ pub fn c_try(ret: libc::c_int) -> Result
+ }
+ 
+ pub fn last_error(code: libc::c_int) -> Error {
+-    // nowadays this unwrap is safe as `Error::last_error` always returns
+-    // `Some`.
+-    Error::last_error(code).unwrap()
++    Error::last_error(code)
+ }
+ 
+ mod impls {
+Index: rustc/vendor/git2-0.19.0/src/config.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/config.rs
++++ rustc/vendor/git2-0.19.0/src/config.rs
+@@ -237,7 +237,10 @@ impl Config {
+     /// This is the same as `get_bytes` except that it may return `Err` if
+     /// the bytes are not valid utf-8.
+     ///
+-    /// This method will return an error if this `Config` is not a snapshot.
++    /// For consistency reasons, this method can only be called on a [`snapshot`].
++    /// An error will be returned otherwise.
++    ///
++    /// [`snapshot`]: `crate::Config::snapshot`
+     pub fn get_str(&self, name: &str) -> Result<&str, Error> {
+         str::from_utf8(self.get_bytes(name)?)
+             .map_err(|_| Error::from_str("configuration value is not valid utf8"))
+@@ -245,7 +248,10 @@ impl Config {
+ 
+     /// Get the value of a string config variable as a byte slice.
+     ///
+-    /// This method will return an error if this `Config` is not a snapshot.
++    /// For consistency reasons, this method can only be called on a [`snapshot`].
++    /// An error will be returned otherwise.
++    ///
++    /// [`snapshot`]: `crate::Config::snapshot`
+     pub fn get_bytes(&self, name: &str) -> Result<&[u8], Error> {
+         let mut ret = ptr::null();
+         let name = CString::new(name)?;
+Index: rustc/vendor/git2-0.19.0/src/cred.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/cred.rs
++++ rustc/vendor/git2-0.19.0/src/cred.rs
+@@ -372,6 +372,12 @@ impl CredentialHelper {
+         // If that fails then it's up to the user to put `sh` in path and make
+         // sure it works.
+         let mut c = Command::new("sh");
++        #[cfg(windows)]
++        {
++            use std::os::windows::process::CommandExt;
++            const CREATE_NO_WINDOW: u32 = 0x08000000;
++            c.creation_flags(CREATE_NO_WINDOW);
++        }
+         c.arg("-c")
+             .arg(&format!("{} get", cmd))
+             .stdin(Stdio::piped())
+@@ -384,6 +390,12 @@ impl CredentialHelper {
+                 debug!("`sh` failed to spawn: {}", e);
+                 let mut parts = cmd.split_whitespace();
+                 let mut c = Command::new(parts.next().unwrap());
++                #[cfg(windows)]
++                {
++                    use std::os::windows::process::CommandExt;
++                    const CREATE_NO_WINDOW: u32 = 0x08000000;
++                    c.creation_flags(CREATE_NO_WINDOW);
++                }
+                 for arg in parts {
+                     c.arg(arg);
+                 }
+Index: rustc/vendor/git2-0.19.0/src/error.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/error.rs
++++ rustc/vendor/git2-0.19.0/src/error.rs
+@@ -32,12 +32,7 @@ impl Error {
+     ///
+     /// The `code` argument typically comes from the return value of a function
+     /// call. This code will later be returned from the `code` function.
+-    ///
+-    /// Historically this function returned `Some` or `None` based on the return
+-    /// value of `git_error_last` but nowadays it always returns `Some` so it's
+-    /// safe to unwrap the return value. This API will change in the next major
+-    /// version.
+-    pub fn last_error(code: c_int) -> Option<Error> {
++    pub fn last_error(code: c_int) -> Error {
+         crate::init();
+         unsafe {
+             // Note that whenever libgit2 returns an error any negative value
+@@ -64,7 +59,7 @@ impl Error {
+                 Error::from_raw(code, ptr)
+             };
+             raw::git_error_clear();
+-            Some(err)
++            err
+         }
+     }
+ 
+Index: rustc/vendor/git2-0.19.0/src/indexer.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/indexer.rs
++++ rustc/vendor/git2-0.19.0/src/indexer.rs
+@@ -188,10 +188,7 @@ impl io::Write for Indexer<'_> {
+ 
+             let res = raw::git_indexer_append(self.raw, ptr, len, &mut self.progress);
+             if res < 0 {
+-                Err(io::Error::new(
+-                    io::ErrorKind::Other,
+-                    Error::last_error(res).unwrap(),
+-                ))
++                Err(io::Error::new(io::ErrorKind::Other, Error::last_error(res)))
+             } else {
+                 Ok(buf.len())
+             }
+Index: rustc/vendor/git2-0.19.0/src/lib.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/lib.rs
++++ rustc/vendor/git2-0.19.0/src/lib.rs
+@@ -65,7 +65,7 @@
+ //! source `Repository`, to ensure that they do not outlive the repository
+ //! itself.
+ 
+-#![doc(html_root_url = "https://docs.rs/git2/0.19")]
++#![doc(html_root_url = "https://docs.rs/git2/0.20")]
+ #![allow(trivial_numeric_casts, trivial_casts)]
+ #![deny(missing_docs)]
+ #![warn(rust_2018_idioms)]
+@@ -419,7 +419,7 @@ pub enum FileFavor {
+ 
+ bitflags! {
+     /// Orderings that may be specified for Revwalk iteration.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct Sort: u32 {
+         /// Sort the repository contents in no particular ordering.
+         ///
+@@ -454,7 +454,7 @@ impl Sort {
+ 
+ bitflags! {
+     /// Types of credentials that can be requested by a credential callback.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct CredentialType: u32 {
+         #[allow(missing_docs)]
+         const USER_PASS_PLAINTEXT = raw::GIT_CREDTYPE_USERPASS_PLAINTEXT as u32;
+@@ -491,7 +491,7 @@ impl Default for CredentialType {
+ 
+ bitflags! {
+     /// Flags for the `flags` field of an IndexEntry.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct IndexEntryFlag: u16 {
+         /// Set when the `extended_flags` field is valid.
+         const EXTENDED = raw::GIT_INDEX_ENTRY_EXTENDED as u16;
+@@ -507,7 +507,7 @@ impl IndexEntryFlag {
+ 
+ bitflags! {
+     /// Flags for the `extended_flags` field of an IndexEntry.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct IndexEntryExtendedFlag: u16 {
+         /// An "intent to add" entry from "git add -N"
+         const INTENT_TO_ADD = raw::GIT_INDEX_ENTRY_INTENT_TO_ADD as u16;
+@@ -527,7 +527,7 @@ impl IndexEntryExtendedFlag {
+ 
+ bitflags! {
+     /// Flags for APIs that add files matching pathspec
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct IndexAddOption: u32 {
+         #[allow(missing_docs)]
+         const DEFAULT = raw::GIT_INDEX_ADD_DEFAULT as u32;
+@@ -559,7 +559,7 @@ impl Default for IndexAddOption {
+ 
+ bitflags! {
+     /// Flags for `Repository::open_ext`
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct RepositoryOpenFlags: u32 {
+         /// Only open the specified path; don't walk upward searching.
+         const NO_SEARCH = raw::GIT_REPOSITORY_OPEN_NO_SEARCH as u32;
+@@ -584,7 +584,7 @@ impl RepositoryOpenFlags {
+ 
+ bitflags! {
+     /// Flags for the return value of `Repository::revparse`
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct RevparseMode: u32 {
+         /// The spec targeted a single object
+         const SINGLE = raw::GIT_REVPARSE_SINGLE as u32;
+@@ -603,7 +603,7 @@ impl RevparseMode {
+ 
+ bitflags! {
+     /// The results of `merge_analysis` indicating the merge opportunities.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct MergeAnalysis: u32 {
+         /// No merge is possible.
+         const ANALYSIS_NONE = raw::GIT_MERGE_ANALYSIS_NONE as u32;
+@@ -634,7 +634,7 @@ impl MergeAnalysis {
+ 
+ bitflags! {
+     /// The user's stated preference for merges.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct MergePreference: u32 {
+         /// No configuration was found that suggests a preferred behavior for
+         /// merge.
+@@ -656,7 +656,7 @@ impl MergePreference {
+ 
+ bitflags! {
+     /// Flags controlling the behavior of ODB lookup operations
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct OdbLookupFlags: u32 {
+         /// Don't call `git_odb_refresh` if the lookup fails. Useful when doing
+         /// a batch of lookup operations for objects that may legitimately not
+@@ -668,7 +668,7 @@ bitflags! {
+ 
+ bitflags! {
+     /// How to handle reference updates.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct RemoteUpdateFlags: u32 {
+        /// Write the fetch results to FETCH_HEAD.
+        const UPDATE_FETCHHEAD = raw::GIT_REMOTE_UPDATE_FETCHHEAD as u32;
+@@ -1023,7 +1023,7 @@ bitflags! {
+     /// represents the status of file in the index relative to the HEAD, and the
+     /// `STATUS_WT_*` set of flags represent the status of the file in the
+     /// working directory relative to the index.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct Status: u32 {
+         #[allow(missing_docs)]
+         const CURRENT = raw::GIT_STATUS_CURRENT as u32;
+@@ -1074,7 +1074,7 @@ impl Status {
+ 
+ bitflags! {
+     /// Mode options for RepositoryInitOptions
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct RepositoryInitMode: u32 {
+         /// Use permissions configured by umask - the default
+         const SHARED_UMASK = raw::GIT_REPOSITORY_INIT_SHARED_UMASK as u32;
+@@ -1207,7 +1207,7 @@ bitflags! {
+     /// Lastly, the following will only be returned for ignore "NONE".
+     ///
+     /// * WD_UNTRACKED      - workdir contains untracked files
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct SubmoduleStatus: u32 {
+         #[allow(missing_docs)]
+         const IN_HEAD = raw::GIT_SUBMODULE_STATUS_IN_HEAD as u32;
+@@ -1304,7 +1304,7 @@ pub enum SubmoduleUpdate {
+ 
+ bitflags! {
+     /// ...
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct PathspecFlags: u32 {
+         /// Use the default pathspec matching configuration.
+         const DEFAULT = raw::GIT_PATHSPEC_DEFAULT as u32;
+@@ -1350,7 +1350,7 @@ impl Default for PathspecFlags {
+ 
+ bitflags! {
+     /// Types of notifications emitted from checkouts.
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct CheckoutNotificationType: u32 {
+         /// Notification about a conflict.
+         const CONFLICT = raw::GIT_CHECKOUT_NOTIFY_CONFLICT as u32;
+@@ -1392,7 +1392,7 @@ pub enum DiffFormat {
+ 
+ bitflags! {
+     /// Formatting options for diff stats
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct DiffStatsFormat: raw::git_diff_stats_format_t {
+         /// Don't generate any stats
+         const NONE = raw::GIT_DIFF_STATS_NONE;
+@@ -1463,7 +1463,7 @@ pub enum StashApplyProgress {
+ 
+ bitflags! {
+     #[allow(missing_docs)]
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct StashApplyFlags: u32 {
+         #[allow(missing_docs)]
+         const DEFAULT = raw::GIT_STASH_APPLY_DEFAULT as u32;
+@@ -1486,7 +1486,7 @@ impl Default for StashApplyFlags {
+ 
+ bitflags! {
+     #[allow(missing_docs)]
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct StashFlags: u32 {
+         #[allow(missing_docs)]
+         const DEFAULT = raw::GIT_STASH_DEFAULT as u32;
+@@ -1519,7 +1519,7 @@ impl Default for StashFlags {
+ 
+ bitflags! {
+     #[allow(missing_docs)]
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct AttrCheckFlags: u32 {
+         /// Check the working directory, then the index.
+         const FILE_THEN_INDEX = raw::GIT_ATTR_CHECK_FILE_THEN_INDEX as u32;
+@@ -1540,7 +1540,7 @@ impl Default for AttrCheckFlags {
+ 
+ bitflags! {
+     #[allow(missing_docs)]
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct DiffFlags: u32 {
+         /// File(s) treated as binary data.
+         const BINARY = raw::GIT_DIFF_FLAG_BINARY as u32;
+@@ -1562,7 +1562,7 @@ impl DiffFlags {
+ 
+ bitflags! {
+     /// Options for [`Reference::normalize_name`].
+-    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
++    #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+     pub struct ReferenceFormat: u32 {
+         /// No particular normalization.
+         const NORMAL = raw::GIT_REFERENCE_FORMAT_NORMAL as u32;
+Index: rustc/vendor/git2-0.19.0/src/odb.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/odb.rs
++++ rustc/vendor/git2-0.19.0/src/odb.rs
+@@ -364,7 +364,7 @@ impl<'repo> io::Read for OdbReader<'repo
+             if res < 0 {
+                 Err(io::Error::new(io::ErrorKind::Other, "Read error"))
+             } else {
+-                Ok(len)
++                Ok(res as _)
+             }
+         }
+     }
+@@ -458,7 +458,7 @@ impl<'repo> OdbPackwriter<'repo> {
+             };
+ 
+             if res < 0 {
+-                Err(Error::last_error(res).unwrap())
++                Err(Error::last_error(res))
+             } else {
+                 Ok(res)
+             }
+@@ -726,4 +726,45 @@ mod tests {
+         t!(repo.reset(commit1.as_object(), ResetType::Hard, None));
+         assert!(foo_file.exists());
+     }
++
++    #[test]
++    fn stream_read() {
++        // Test for read impl of OdbReader.
++        const FOO_TEXT: &[u8] = b"this is a test";
++        let (_td, repo) = crate::test::repo_init();
++        let p = repo.path().parent().unwrap().join("foo");
++        std::fs::write(&p, FOO_TEXT).unwrap();
++        let mut index = repo.index().unwrap();
++        index.add_path(std::path::Path::new("foo")).unwrap();
++        let tree_id = index.write_tree().unwrap();
++        let tree = repo.find_tree(tree_id).unwrap();
++        let sig = repo.signature().unwrap();
++        let head_id = repo.refname_to_id("HEAD").unwrap();
++        let parent = repo.find_commit(head_id).unwrap();
++        let _commit = repo
++            .commit(Some("HEAD"), &sig, &sig, "commit", &tree, &[&parent])
++            .unwrap();
++
++        // Try reading from a commit object.
++        let odb = repo.odb().unwrap();
++        let oid = repo.refname_to_id("HEAD").unwrap();
++        let (mut reader, size, ty) = odb.reader(oid).unwrap();
++        assert!(ty == ObjectType::Commit);
++        let mut x = [0; 10000];
++        let r = reader.read(&mut x).unwrap();
++        assert!(r == size);
++
++        // Try reading from a blob. This assumes it is a loose object (packed
++        // objects can't read).
++        let commit = repo.find_commit(oid).unwrap();
++        let tree = commit.tree().unwrap();
++        let entry = tree.get_name("foo").unwrap();
++        let (mut reader, size, ty) = odb.reader(entry.id()).unwrap();
++        assert_eq!(size, FOO_TEXT.len());
++        assert!(ty == ObjectType::Blob);
++        let mut x = [0; 10000];
++        let r = reader.read(&mut x).unwrap();
++        assert_eq!(r, 14);
++        assert_eq!(&x[..FOO_TEXT.len()], FOO_TEXT);
++    }
+ }
+Index: rustc/vendor/git2-0.19.0/src/packbuilder.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/packbuilder.rs
++++ rustc/vendor/git2-0.19.0/src/packbuilder.rs
+@@ -1,10 +1,13 @@
+ use libc::{c_int, c_uint, c_void, size_t};
+ use std::marker;
++use std::path::Path;
+ use std::ptr;
+ use std::slice;
+ use std::str;
+ 
++use crate::odb::{write_pack_progress_cb, OdbPackwriterCb};
+ use crate::util::Binding;
++use crate::IntoCString;
+ use crate::{panic, raw, Buf, Error, Oid, Repository, Revwalk};
+ 
+ #[derive(PartialEq, Eq, Clone, Debug, Copy)]
+@@ -84,6 +87,26 @@ impl<'repo> PackBuilder<'repo> {
+         Ok(())
+     }
+ 
++    /// Write the new pack and corresponding index file to path.
++    /// To set a progress callback, use `set_progress_callback` before calling this method.
++    pub fn write(&mut self, path: &Path, mode: u32) -> Result<(), Error> {
++        let path = path.into_c_string()?;
++        let progress_cb: raw::git_indexer_progress_cb = Some(write_pack_progress_cb);
++        let progress_payload = Box::new(OdbPackwriterCb { cb: None });
++        let progress_payload_ptr = Box::into_raw(progress_payload);
++
++        unsafe {
++            try_call!(raw::git_packbuilder_write(
++                self.raw,
++                path,
++                mode,
++                progress_cb,
++                progress_payload_ptr as *mut _
++            ));
++        }
++        Ok(())
++    }
++
+     /// Create the new pack and pass each object to the callback.
+     pub fn foreach<F>(&mut self, mut cb: F) -> Result<(), Error>
+     where
+@@ -270,7 +293,10 @@ extern "C" fn progress_c(
+ 
+ #[cfg(test)]
+ mod tests {
+-    use crate::Buf;
++    use crate::{Buf, Oid};
++
++    // hash of a packfile constructed without any objects in it
++    const EMPTY_PACKFILE_OID: &str = "029d08823bd8a8eab510ad6ac75c823cfd3ed31e";
+ 
+     fn pack_header(len: u8) -> Vec<u8> {
+         [].iter()
+@@ -315,6 +341,18 @@ mod tests {
+     }
+ 
+     #[test]
++    fn smoke_write() {
++        let (_td, repo) = crate::test::repo_init();
++        let mut builder = t!(repo.packbuilder());
++        t!(builder.write(repo.path(), 0));
++        #[allow(deprecated)]
++        {
++            assert!(builder.hash().unwrap() == Oid::from_str(EMPTY_PACKFILE_OID).unwrap());
++        }
++        assert!(builder.name().unwrap() == EMPTY_PACKFILE_OID);
++    }
++
++    #[test]
+     fn smoke_foreach() {
+         let (_td, repo) = crate::test::repo_init();
+         let mut builder = t!(repo.packbuilder());
+@@ -368,6 +406,41 @@ mod tests {
+     }
+ 
+     #[test]
++    fn insert_write() {
++        let (_td, repo) = crate::test::repo_init();
++        let mut builder = t!(repo.packbuilder());
++        let (commit, _tree) = crate::test::commit(&repo);
++        t!(builder.insert_object(commit, None));
++        assert_eq!(builder.object_count(), 1);
++        t!(builder.write(repo.path(), 0));
++        t!(repo.find_commit(commit));
++    }
++
++    #[test]
++    fn insert_tree_write() {
++        let (_td, repo) = crate::test::repo_init();
++        let mut builder = t!(repo.packbuilder());
++        let (_commit, tree) = crate::test::commit(&repo);
++        // will insert the tree itself and the blob, 2 objects
++        t!(builder.insert_tree(tree));
++        assert_eq!(builder.object_count(), 2);
++        t!(builder.write(repo.path(), 0));
++        t!(repo.find_tree(tree));
++    }
++
++    #[test]
++    fn insert_commit_write() {
++        let (_td, repo) = crate::test::repo_init();
++        let mut builder = t!(repo.packbuilder());
++        let (commit, _tree) = crate::test::commit(&repo);
++        // will insert the commit, its tree and the blob, 3 objects
++        t!(builder.insert_commit(commit));
++        assert_eq!(builder.object_count(), 3);
++        t!(builder.write(repo.path(), 0));
++        t!(repo.find_commit(commit));
++    }
++
++    #[test]
+     fn progress_callback() {
+         let mut progress_called = false;
+         {
+@@ -403,6 +476,23 @@ mod tests {
+     }
+ 
+     #[test]
++    fn progress_callback_with_write() {
++        let mut progress_called = false;
++        {
++            let (_td, repo) = crate::test::repo_init();
++            let mut builder = t!(repo.packbuilder());
++            let (commit, _tree) = crate::test::commit(&repo);
++            t!(builder.set_progress_callback(|_, _, _| {
++                progress_called = true;
++                true
++            }));
++            t!(builder.insert_commit(commit));
++            t!(builder.write(repo.path(), 0));
++        }
++        assert_eq!(progress_called, true);
++    }
++
++    #[test]
+     fn set_threads() {
+         let (_td, repo) = crate::test::repo_init();
+         let mut builder = t!(repo.packbuilder());
+Index: rustc/vendor/git2-0.19.0/src/repo.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/repo.rs
++++ rustc/vendor/git2-0.19.0/src/repo.rs
+@@ -456,6 +456,18 @@ impl Repository {
+         }
+     }
+ 
++    /// Returns the path of the shared common directory for this repository.
++    ///
++    /// If the repository is bare, it is the root directory for the repository.
++    /// If the repository is a worktree, it is the parent repo's gitdir.
++    /// Otherwise, it is the gitdir.
++    pub fn commondir(&self) -> &Path {
++        unsafe {
++            let ptr = raw::git_repository_commondir(self.raw);
++            util::bytes2path(crate::opt_bytes(self, ptr).unwrap())
++        }
++    }
++
+     /// Returns the current state of this repository
+     pub fn state(&self) -> RepositoryState {
+         let state = unsafe { raw::git_repository_state(self.raw) };
+@@ -848,7 +860,7 @@ impl Repository {
+             match value {
+                 0 => Ok(false),
+                 1 => Ok(true),
+-                _ => Err(Error::last_error(value).unwrap()),
++                _ => Err(Error::last_error(value)),
+             }
+         }
+     }
+@@ -1290,9 +1302,9 @@ impl Repository {
+         parents: &[&Commit<'_>],
+     ) -> Result<Oid, Error> {
+         let update_ref = crate::opt_cstr(update_ref)?;
+-        let parent_ptrs = parents
++        let mut parent_ptrs = parents
+             .iter()
+-            .map(|p| p.raw() as *mut raw::git_commit)
++            .map(|p| p.raw() as *const raw::git_commit)
+             .collect::<Vec<_>>();
+         let message = CString::new(message)?;
+         let mut raw = raw::git_oid {
+@@ -1309,7 +1321,7 @@ impl Repository {
+                 message,
+                 tree.raw(),
+                 parents.len() as size_t,
+-                parent_ptrs.as_ptr()
++                parent_ptrs.as_mut_ptr()
+             ));
+             Ok(Binding::from_raw(&raw as *const _))
+         }
+@@ -1328,9 +1340,9 @@ impl Repository {
+         tree: &Tree<'_>,
+         parents: &[&Commit<'_>],
+     ) -> Result<Buf, Error> {
+-        let parent_ptrs = parents
++        let mut parent_ptrs = parents
+             .iter()
+-            .map(|p| p.raw() as *mut raw::git_commit)
++            .map(|p| p.raw() as *const raw::git_commit)
+             .collect::<Vec<_>>();
+         let message = CString::new(message)?;
+         let buf = Buf::new();
+@@ -1344,7 +1356,7 @@ impl Repository {
+                 message,
+                 tree.raw(),
+                 parents.len() as size_t,
+-                parent_ptrs.as_ptr()
++                parent_ptrs.as_mut_ptr()
+             ));
+             Ok(buf)
+         }
+@@ -2455,6 +2467,38 @@ impl Repository {
+     }
+ 
+     /// Find a merge base given a list of commits
++    ///
++    /// This behaves similar to [`git merge-base`](https://git-scm.com/docs/git-merge-base#_discussion).
++    /// Given three commits `a`, `b`, and `c`, `merge_base_many(&[a, b, c])`
++    /// will compute a hypothetical commit `m`, which is a merge between `b`
++    /// and `c`.
++    ///
++    /// For example, with the following topology:
++    /// ```text
++    ///        o---o---o---o---C
++    ///       /
++    ///      /   o---o---o---B
++    ///     /   /
++    /// ---2---1---o---o---o---A
++    /// ```
++    ///
++    /// the result of `merge_base_many(&[a, b, c])` is 1. This is because the
++    /// equivalent topology with a merge commit `m` between `b` and `c` would
++    /// is:
++    /// ```text
++    ///        o---o---o---o---o
++    ///       /                 \
++    ///      /   o---o---o---o---M
++    ///     /   /
++    /// ---2---1---o---o---o---A
++    /// ```
++    ///
++    /// and the result of `merge_base_many(&[a, m])` is 1.
++    ///
++    /// ---
++    ///
++    /// If you're looking to recieve the common merge base between all the
++    /// given commits, use [`Self::merge_base_octopus`].
+     pub fn merge_base_many(&self, oids: &[Oid]) -> Result<Oid, Error> {
+         let mut raw = raw::git_oid {
+             id: [0; raw::GIT_OID_RAWSZ],
+@@ -2471,6 +2515,23 @@ impl Repository {
+         }
+     }
+ 
++    /// Find a common merge base between all given a list of commits
++    pub fn merge_base_octopus(&self, oids: &[Oid]) -> Result<Oid, Error> {
++        let mut raw = raw::git_oid {
++            id: [0; raw::GIT_OID_RAWSZ],
++        };
++
++        unsafe {
++            try_call!(raw::git_merge_base_octopus(
++                &mut raw,
++                self.raw,
++                oids.len() as size_t,
++                oids.as_ptr() as *const raw::git_oid
++            ));
++            Ok(Binding::from_raw(&raw as *const _))
++        }
++    }
++
+     /// Find all merge bases between two commits
+     pub fn merge_bases(&self, one: Oid, two: Oid) -> Result<OidArray, Error> {
+         let mut arr = raw::git_oidarray {
+@@ -3813,6 +3874,10 @@ mod tests {
+         // the merge base of (oid2,oid3,oid4) should be oid1
+         let merge_base = repo.merge_base_many(&[oid2, oid3, oid4]).unwrap();
+         assert_eq!(merge_base, oid1);
++
++        // the octopus merge base of (oid2,oid3,oid4) should be oid1
++        let merge_base = repo.merge_base_octopus(&[oid2, oid3, oid4]).unwrap();
++        assert_eq!(merge_base, oid1);
+     }
+ 
+     /// create an octopus:
+@@ -4304,4 +4369,22 @@ Committer Name <committer.proper@email>
+             .unwrap();
+         assert_eq!(tag.id(), found_tag.id());
+     }
++
++    #[test]
++    fn smoke_commondir() {
++        let (td, repo) = crate::test::repo_init();
++        assert_eq!(
++            crate::test::realpath(repo.path()).unwrap(),
++            crate::test::realpath(repo.commondir()).unwrap()
++        );
++
++        let worktree = repo
++            .worktree("test", &td.path().join("worktree"), None)
++            .unwrap();
++        let worktree_repo = Repository::open_from_worktree(&worktree).unwrap();
++        assert_eq!(
++            crate::test::realpath(repo.path()).unwrap(),
++            crate::test::realpath(worktree_repo.commondir()).unwrap()
++        );
++    }
+ }
+Index: rustc/vendor/git2-0.19.0/src/tracing.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/tracing.rs
++++ rustc/vendor/git2-0.19.0/src/tracing.rs
+@@ -1,8 +1,11 @@
+-use std::sync::atomic::{AtomicUsize, Ordering};
++use std::{
++    ffi::CStr,
++    sync::atomic::{AtomicPtr, Ordering},
++};
+ 
+-use libc::c_char;
++use libc::{c_char, c_int};
+ 
+-use crate::{panic, raw, util::Binding};
++use crate::{panic, raw, util::Binding, Error};
+ 
+ /// Available tracing levels.  When tracing is set to a particular level,
+ /// callers will be provided tracing at the given level and all lower levels.
+@@ -57,29 +60,81 @@ impl Binding for TraceLevel {
+     }
+ }
+ 
+-//TODO: pass raw &[u8] and leave conversion to consumer (breaking API)
+ /// Callback type used to pass tracing events to the subscriber.
+ /// see `trace_set` to register a subscriber.
+-pub type TracingCb = fn(TraceLevel, &str);
++pub type TracingCb = fn(TraceLevel, &[u8]);
+ 
+-static CALLBACK: AtomicUsize = AtomicUsize::new(0);
++/// Use an atomic pointer to store the global tracing subscriber function.
++static CALLBACK: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
+ 
+-///
+-pub fn trace_set(level: TraceLevel, cb: TracingCb) -> bool {
+-    CALLBACK.store(cb as usize, Ordering::SeqCst);
+-
+-    unsafe {
+-        raw::git_trace_set(level.raw(), Some(tracing_cb_c));
++/// Set the global subscriber called when libgit2 produces a tracing message.
++pub fn trace_set(level: TraceLevel, cb: TracingCb) -> Result<(), Error> {
++    // Store the callback in the global atomic.
++    CALLBACK.store(cb as *mut (), Ordering::SeqCst);
++
++    // git_trace_set returns 0 if there was no error.
++    let return_code: c_int = unsafe { raw::git_trace_set(level.raw(), Some(tracing_cb_c)) };
++
++    if return_code != 0 {
++        Err(Error::last_error(return_code))
++    } else {
++        Ok(())
+     }
+-
+-    return true;
+ }
+ 
++/// The tracing callback we pass to libgit2 (C ABI compatible).
+ extern "C" fn tracing_cb_c(level: raw::git_trace_level_t, msg: *const c_char) {
+-    let cb = CALLBACK.load(Ordering::SeqCst);
+-    panic::wrap(|| unsafe {
+-        let cb: TracingCb = std::mem::transmute(cb);
+-        let msg = std::ffi::CStr::from_ptr(msg).to_string_lossy();
+-        cb(Binding::from_raw(level), msg.as_ref());
++    // Load the callback function pointer from the global atomic.
++    let cb: *mut () = CALLBACK.load(Ordering::SeqCst);
++
++    // Transmute the callback pointer into the function pointer we know it to be.
++    //
++    // SAFETY: We only ever set the callback pointer with something cast from a TracingCb
++    // so transmuting back to a TracingCb is safe. This is notably not an integer-to-pointer
++    // transmute as described in the mem::transmute documentation and is in-line with the
++    // example in that documentation for casing between *const () to fn pointers.
++    let cb: TracingCb = unsafe { std::mem::transmute(cb) };
++
++    // If libgit2 passes us a message that is null, drop it and do not pass it to the callback.
++    // This is to avoid ever exposing rust code to a null ref, which would be Undefined Behavior.
++    if msg.is_null() {
++        return;
++    }
++
++    // Convert the message from a *const c_char to a &[u8] and pass it to the callback.
++    //
++    // SAFETY: We've just checked that the pointer is not null. The other safety requirements are left to
++    // libgit2 to enforce -- namely that it gives us a valid, nul-terminated, C string, that that string exists
++    // entirely in one allocation, that the string will not be mutated once passed to us, and that the nul-terminator is
++    // within isize::MAX bytes from the given pointers data address.
++    let msg: &CStr = unsafe { CStr::from_ptr(msg) };
++
++    // Convert from a CStr to &[u8] to pass to the rust code callback.
++    let msg: &[u8] = CStr::to_bytes(msg);
++
++    // Do the remaining part of this function in a panic wrapper, to catch any panics it produces.
++    panic::wrap(|| {
++        // Convert the raw trace level into a type we can pass to the rust callback fn.
++        //
++        // SAFETY: Currently the implementation of this function (above) may panic, but is only marked as unsafe to match
++        // the trait definition, thus we can consider this call safe.
++        let level: TraceLevel = unsafe { Binding::from_raw(level) };
++
++        // Call the user-supplied callback (which may panic).
++        (cb)(level, msg);
+     });
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::TraceLevel;
++
++    // Test that using the above function to set a tracing callback doesn't panic.
++    #[test]
++    fn smoke() {
++        super::trace_set(TraceLevel::Trace, |level, msg| {
++            dbg!(level, msg);
++        })
++        .expect("libgit2 can set global trace callback");
++    }
++}
+Index: rustc/vendor/git2-0.19.0/src/transport.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/transport.rs
++++ rustc/vendor/git2-0.19.0/src/transport.rs
+@@ -54,7 +54,7 @@ pub trait SmartSubtransport: Send + 'sta
+ }
+ 
+ /// Actions that a smart transport can ask a subtransport to perform
+-#[derive(Copy, Clone, PartialEq)]
++#[derive(Copy, Clone, PartialEq, Debug)]
+ #[allow(missing_docs)]
+ pub enum Service {
+     UploadPackLs,
+Index: rustc/vendor/git2-0.19.0/src/tree.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/src/tree.rs
++++ rustc/vendor/git2-0.19.0/src/tree.rs
+@@ -36,6 +36,7 @@ pub struct TreeIter<'tree> {
+ 
+ /// A binary indicator of whether a tree walk should be performed in pre-order
+ /// or post-order.
++#[derive(Clone, Copy)]
+ pub enum TreeWalkMode {
+     /// Runs the traversal in pre-order.
+     PreOrder = 0,
+@@ -126,12 +127,12 @@ impl<'repo> Tree<'repo> {
+             let mut data = TreeWalkCbData {
+                 callback: &mut callback,
+             };
+-            raw::git_tree_walk(
++            try_call!(raw::git_tree_walk(
+                 self.raw(),
+-                mode.into(),
+-                Some(treewalk_cb::<T>),
+-                &mut data as *mut _ as *mut c_void,
+-            );
++                mode as raw::git_treewalk_mode,
++                treewalk_cb::<T>,
++                &mut data as *mut _ as *mut c_void
++            ));
+             Ok(())
+         }
+     }
+@@ -599,4 +600,18 @@ mod tests {
+         .unwrap();
+         assert_eq!(ct, 8);
+     }
++
++    #[test]
++    fn tree_walk_error() {
++        let (td, repo) = crate::test::repo_init();
++
++        setup_repo(&td, &repo);
++
++        let head = repo.head().unwrap();
++        let target = head.target().unwrap();
++        let commit = repo.find_commit(target).unwrap();
++        let tree = repo.find_tree(commit.tree_id()).unwrap();
++        let e = tree.walk(TreeWalkMode::PreOrder, |_, _| -1).unwrap_err();
++        assert_eq!(e.class(), crate::ErrorClass::Callback);
++    }
+ }
+Index: rustc/vendor/git2-0.19.0/tests/add_extensions.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/tests/add_extensions.rs
++++ rustc/vendor/git2-0.19.0/tests/add_extensions.rs
+@@ -10,14 +10,21 @@ fn test_add_extensions() -> Result<(), E
+     }
+ 
+     let extensions = unsafe { get_extensions() }?;
++    let extensions: Vec<_> = extensions.iter().collect();
+ 
+-    assert_eq!(extensions.len(), 4);
+-    assert_eq!(extensions.get(0), Some("custom"));
+-    assert_eq!(extensions.get(1), Some("noop"));
+-    // The objectformat extension was added in 1.6
+-    assert_eq!(extensions.get(2), Some("objectformat"));
+-    // The worktreeconfig extension was added in 1.8
+-    assert_eq!(extensions.get(3), Some("worktreeconfig"));
++    assert_eq!(
++        extensions,
++        [
++            Some("custom"),
++            Some("noop"),
++            // The objectformat extension was added in 1.6
++            Some("objectformat"),
++            // The preciousobjects extension was added in 1.9
++            Some("preciousobjects"),
++            // The worktreeconfig extension was added in 1.8
++            Some("worktreeconfig")
++        ]
++    );
+ 
+     Ok(())
+ }
+Index: rustc/vendor/git2-0.19.0/tests/get_extensions.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/tests/get_extensions.rs
++++ rustc/vendor/git2-0.19.0/tests/get_extensions.rs
+@@ -6,13 +6,20 @@ use git2::Error;
+ #[test]
+ fn test_get_extensions() -> Result<(), Error> {
+     let extensions = unsafe { get_extensions() }?;
++    let extensions: Vec<_> = extensions.iter().collect();
+ 
+-    assert_eq!(extensions.len(), 3);
+-    assert_eq!(extensions.get(0), Some("noop"));
+-    // The objectformat extension was added in 1.6
+-    assert_eq!(extensions.get(1), Some("objectformat"));
+-    // The worktreeconfig extension was added in 1.8
+-    assert_eq!(extensions.get(2), Some("worktreeconfig"));
++    assert_eq!(
++        extensions,
++        [
++            Some("noop"),
++            // The objectformat extension was added in 1.6
++            Some("objectformat"),
++            // The preciousobjects extension was added in 1.9
++            Some("preciousobjects"),
++            // The worktreeconfig extension was added in 1.8
++            Some("worktreeconfig")
++        ]
++    );
+ 
+     Ok(())
+ }
+Index: rustc/vendor/git2-0.19.0/tests/remove_extensions.rs
+===================================================================
+--- rustc.orig/vendor/git2-0.19.0/tests/remove_extensions.rs
++++ rustc/vendor/git2-0.19.0/tests/remove_extensions.rs
+@@ -11,16 +11,16 @@ fn test_remove_extensions() -> Result<()
+             "!ignore",
+             "!noop",
+             "!objectformat",
++            "!preciousobjects",
+             "!worktreeconfig",
+             "other",
+         ])?;
+     }
+ 
+     let extensions = unsafe { get_extensions() }?;
++    let extensions: Vec<_> = extensions.iter().collect();
+ 
+-    assert_eq!(extensions.len(), 2);
+-    assert_eq!(extensions.get(0), Some("custom"));
+-    assert_eq!(extensions.get(1), Some("other"));
++    assert_eq!(extensions, [Some("custom"), Some("other")]);
+ 
+     Ok(())
+ }
+Index: rustc/vendor/libgit2-sys-0.17.0+1.8.1/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/libgit2-sys-0.17.0+1.8.1/Cargo.toml
++++ rustc/vendor/libgit2-sys-0.17.0+1.8.1/Cargo.toml
+@@ -56,7 +56,6 @@ version = "0.3.15"
+ [features]
+ https = ["openssl-sys"]
+ ssh = ["libssh2-sys"]
+-ssh_key_from_memory = []
+ vendored = []
+ vendored-openssl = ["openssl-sys/vendored"]
+ zlib-ng-compat = [
+Index: rustc/vendor/libgit2-sys-0.17.0+1.8.1/build.rs
+===================================================================
+--- rustc.orig/vendor/libgit2-sys-0.17.0+1.8.1/build.rs
++++ rustc/vendor/libgit2-sys-0.17.0+1.8.1/build.rs
+@@ -7,7 +7,7 @@ use std::process::Command;
+ /// Tries to use system libgit2 and emits necessary build script instructions.
+ fn try_system_libgit2() -> Result<pkg_config::Library, pkg_config::Error> {
+     let mut cfg = pkg_config::Config::new();
+-    match cfg.range_version("1.8.1".."1.9.0").probe("libgit2") {
++    match cfg.range_version("1.9.0".."1.10.0").probe("libgit2") {
+         Ok(lib) => {
+             for include in &lib.include_paths {
+                 println!("cargo:root={}", include.display());
+@@ -22,6 +22,12 @@ fn try_system_libgit2() -> Result<pkg_co
+ }
+ 
+ fn main() {
++    println!(
++        "cargo:rustc-check-cfg=cfg(\
++            libgit2_vendored,\
++        )"
++    );
++
+     let https = env::var("CARGO_FEATURE_HTTPS").is_ok();
+     let ssh = env::var("CARGO_FEATURE_SSH").is_ok();
+     let vendored = env::var("CARGO_FEATURE_VENDORED").is_ok();
+Index: rustc/vendor/libgit2-sys-0.17.0+1.8.1/lib.rs
+===================================================================
+--- rustc.orig/vendor/libgit2-sys-0.17.0+1.8.1/lib.rs
++++ rustc/vendor/libgit2-sys-0.17.0+1.8.1/lib.rs
+@@ -395,6 +395,15 @@ pub struct git_remote_callbacks {
+     pub remote_ready: git_remote_ready_cb,
+     pub payload: *mut c_void,
+     pub resolve_url: git_url_resolve_cb,
++    pub update_refs: Option<
++        extern "C" fn(
++            *const c_char,
++            *const git_oid,
++            *const git_oid,
++            *mut git_refspec,
++            *mut c_void,
++        ) -> c_int,
++    >,
+ }
+ 
+ #[repr(C)]
+@@ -668,8 +677,7 @@ pub struct git_status_entry {
+ 
+ git_enum! {
+     pub enum git_checkout_strategy_t {
+-        GIT_CHECKOUT_NONE = 0,
+-        GIT_CHECKOUT_SAFE = 1 << 0,
++        GIT_CHECKOUT_SAFE = 0,
+         GIT_CHECKOUT_FORCE = 1 << 1,
+         GIT_CHECKOUT_RECREATE_MISSING = 1 << 2,
+         GIT_CHECKOUT_ALLOW_CONFLICTS = 1 << 4,
+@@ -686,6 +694,7 @@ git_enum! {
+         GIT_CHECKOUT_DONT_OVERWRITE_IGNORED = 1 << 19,
+         GIT_CHECKOUT_CONFLICT_STYLE_MERGE = 1 << 20,
+         GIT_CHECKOUT_CONFLICT_STYLE_DIFF3 = 1 << 21,
++        GIT_CHECKOUT_NONE = 1 << 30,
+ 
+         GIT_CHECKOUT_UPDATE_SUBMODULES = 1 << 16,
+         GIT_CHECKOUT_UPDATE_SUBMODULES_IF_CHANGED = 1 << 17,
+@@ -742,7 +751,7 @@ git_enum! {
+ }
+ 
+ pub type git_treewalk_cb =
+-    Option<extern "C" fn(*const c_char, *const git_tree_entry, *mut c_void) -> c_int>;
++    extern "C" fn(*const c_char, *const git_tree_entry, *mut c_void) -> c_int;
+ pub type git_treebuilder_filter_cb =
+     Option<extern "C" fn(*const git_tree_entry, *mut c_void) -> c_int>;
+ 
+@@ -808,10 +817,13 @@ pub struct git_blame_hunk {
+     pub final_commit_id: git_oid,
+     pub final_start_line_number: usize,
+     pub final_signature: *mut git_signature,
++    pub final_committer: *mut git_signature,
+     pub orig_commit_id: git_oid,
+     pub orig_path: *const c_char,
+     pub orig_start_line_number: usize,
+     pub orig_signature: *mut git_signature,
++    pub orig_committer: *mut git_signature,
++    pub summary: *const c_char,
+     pub boundary: c_char,
+ }
+ 
+@@ -870,7 +882,6 @@ pub struct git_config_entry {
+     pub origin_path: *const c_char,
+     pub include_depth: c_uint,
+     pub level: git_config_level_t,
+-    pub free: Option<extern "C" fn(*mut git_config_entry)>,
+ }
+ 
+ git_enum! {
+@@ -2148,6 +2159,7 @@ extern "C" {
+     pub fn git_repository_is_empty(repo: *mut git_repository) -> c_int;
+     pub fn git_repository_is_shallow(repo: *mut git_repository) -> c_int;
+     pub fn git_repository_path(repo: *const git_repository) -> *const c_char;
++    pub fn git_repository_commondir(repo: *const git_repository) -> *const c_char;
+     pub fn git_repository_state(repo: *mut git_repository) -> c_int;
+     pub fn git_repository_workdir(repo: *const git_repository) -> *const c_char;
+     pub fn git_repository_set_workdir(
+@@ -2905,7 +2917,7 @@ extern "C" {
+         message: *const c_char,
+         tree: *const git_tree,
+         parent_count: size_t,
+-        parents: *const *mut git_commit,
++        parents: *mut *const git_commit,
+     ) -> c_int;
+     pub fn git_commit_create_buffer(
+         out: *mut git_buf,
+@@ -2916,7 +2928,7 @@ extern "C" {
+         message: *const c_char,
+         tree: *const git_tree,
+         parent_count: size_t,
+-        parents: *const *mut git_commit,
++        parents: *mut *const git_commit,
+     ) -> c_int;
+     pub fn git_commit_header_field(
+         out: *mut git_buf,
+@@ -3502,6 +3514,13 @@ extern "C" {
+         out: *mut git_oid,
+         repo: *mut git_repository,
+         length: size_t,
++        input_array: *const git_oid,
++    ) -> c_int;
++
++    pub fn git_merge_base_octopus(
++        out: *mut git_oid,
++        repo: *mut git_repository,
++        length: size_t,
+         input_array: *const git_oid,
+     ) -> c_int;
+ 

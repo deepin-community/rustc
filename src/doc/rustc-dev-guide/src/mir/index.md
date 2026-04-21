@@ -317,7 +317,7 @@ compile-time and thus we cannot make any assumptions about them. References on t
 ignore their address and just look at the backing value. We must make sure that the pointer values
 of the references are not observable at compile time. We thus encode `&42` exactly like `42`.
 Any conversion from
-valtree back a to MIR constant value must reintroduce an actual indirection. At codegen time the
+valtree back to a MIR constant value must reintroduce an actual indirection. At codegen time the
 addresses may be deduplicated between multiple uses or not, entirely depending on arbitrary
 optimization choices.
 
@@ -351,5 +351,5 @@ See the const-eval WG's [docs on promotion](https://github.com/rust-lang/const-e
 [`ProjectionElem::Deref`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/enum.ProjectionElem.html#variant.Deref
 [`Rvalue`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/enum.Rvalue.html
 [`Operand`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/enum.Operand.html
-[`mir::Constant`]: https://doc.rust-lang.org/nightly/nightly-rustc/stable_mir/mir/struct.Constant.html
+[`mir::Constant`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/enum.Const.html
 [`ty::Const`]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/ty/struct.Const.html

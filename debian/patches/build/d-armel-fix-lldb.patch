@@ -11,9 +11,9 @@ Index: rustc/src/bootstrap/src/core/build_steps/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/build_steps/test.rs
 +++ rustc/src/bootstrap/src/core/build_steps/test.rs
-@@ -1860,7 +1860,7 @@ NOTE: if you're sure you want to do this
+@@ -1861,7 +1861,7 @@ NOTE: if you're sure you want to do this
                  .arg("-P")
-                 .run(builder)
+                 .run_capture_stdout(builder)
                  .stdout_if_ok()
 -                .map(|p| p.lines().next().expect("lldb Python dir not found").to_string());
 +                .map(|p| p.lines().next().unwrap_or("").to_string());

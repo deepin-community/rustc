@@ -180,7 +180,7 @@ if false {
 > _UnsafeBlockExpression_ :\
 > &nbsp;&nbsp; `unsafe` _BlockExpression_
 
-_See [`unsafe` block](../unsafe-blocks.md) for more information on when to use `unsafe`_
+_See [`unsafe` blocks] for more information on when to use `unsafe`_.
 
 A block of code can be prefixed with the `unsafe` keyword to permit [unsafe operations].
 Examples:
@@ -231,8 +231,7 @@ fn is_unix_platform() -> bool {
 [`cfg`]: ../conditional-compilation.md
 [`for`]: loop-expr.md#iterator-loops
 [`loop`]: loop-expr.md#infinite-loops
-[`std::ops::Fn`]: ../../std/ops/trait.Fn.html
-[`std::future::Future`]: ../../std/future/trait.Future.html
+[`unsafe` blocks]: ../unsafe-keyword.md#unsafe-blocks-unsafe-
 [`while let`]: loop-expr.md#predicate-pattern-loops
 [`while`]: loop-expr.md#predicate-loops
 [array expressions]: array-expr.md

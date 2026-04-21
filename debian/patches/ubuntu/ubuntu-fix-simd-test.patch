@@ -1,0 +1,28 @@
+Description: tests: Fix the SIMD FFI tests with certain x86 configuration
+Author: Zixing Liu <zixing.liu@canonical.com>
+Forwarded: https://github.com/rust-lang/rust/pull/133053
+Last-Update: 2024-11-14
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+diff --git a/tests/run-make/simd-ffi/simd.rs b/tests/run-make/simd-ffi/simd.rs
+index d11cfd77c5b..7e994c15b25 100644
+--- a/tests/run-make/simd-ffi/simd.rs
++++ b/tests/run-make/simd-ffi/simd.rs
+@@ -25,7 +25,7 @@ pub fn foo(x: f32x4) -> f32x4 {
+
+ extern "C" {
+     // _mm_sll_epi32
+-    #[cfg(any(target_arch = "x86", target_arch = "x86-64"))]
++    #[cfg(any(all(target_arch = "x86", target_feature = "sse2"), target_arch = "x86-64"))]
+     #[link_name = "llvm.x86.sse2.psll.d"]
+     fn integer(a: i32x4, b: i32x4) -> i32x4;
+
+@@ -42,7 +42,7 @@ pub fn foo(x: f32x4) -> f32x4 {
+     // we still get type checking, but not as detailed as (ab)using
+     // LLVM.
+     #[cfg(not(any(
+-        target_arch = "x86",
++        all(target_arch = "x86", target_feature = "sse2"),
+         target_arch = "x86-64",
+         target_arch = "arm",
+         target_arch = "aarch64"

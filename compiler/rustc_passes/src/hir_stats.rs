@@ -2,13 +2,11 @@
 // pieces of AST and HIR. The resulting numbers are good approximations but not
 // completely accurate (some things might be counted twice, others missed).
 
-use rustc_ast::visit as ast_visit;
 use rustc_ast::visit::BoundKind;
-use rustc_ast::{self as ast, AttrId, NodeId};
+use rustc_ast::{self as ast, visit as ast_visit, AttrId, NodeId};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir as hir;
-use rustc_hir::intravisit as hir_visit;
-use rustc_hir::HirId;
+use rustc_hir::{intravisit as hir_visit, HirId};
 use rustc_middle::hir::map::Map;
 use rustc_middle::ty::TyCtxt;
 use rustc_middle::util::common::to_readable_str;
@@ -452,7 +450,7 @@ impl<'v> hir_visit::Visitor<'v> for StatCollector<'v> {
         match ga {
             hir::GenericArg::Lifetime(lt) => self.visit_lifetime(lt),
             hir::GenericArg::Type(ty) => self.visit_ty(ty),
-            hir::GenericArg::Const(ct) => self.visit_anon_const(&ct.value),
+            hir::GenericArg::Const(ct) => self.visit_const_arg(ct),
             hir::GenericArg::Infer(inf) => self.visit_infer(inf),
         }
     }

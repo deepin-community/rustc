@@ -20,52 +20,6 @@ Forwarded: not-needed
 
 Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
  ---
-Index: rustc/vendor/ansi_term-0.12.1/Cargo.toml
-===================================================================
---- rustc.orig/vendor/ansi_term-0.12.1/Cargo.toml
-+++ rustc/vendor/ansi_term-0.12.1/Cargo.toml
-@@ -38,6 +38,3 @@ version = "1.0.39"
- 
- [features]
- derive_serde_style = ["serde"]
--[target."cfg(target_os=\"windows\")".dependencies.winapi]
--version = "0.3.4"
--features = ["consoleapi", "errhandlingapi", "fileapi", "handleapi", "processenv"]
-Index: rustc/vendor/anstream-0.6.14/Cargo.toml
-===================================================================
---- rustc.orig/vendor/anstream-0.6.14/Cargo.toml
-+++ rustc/vendor/anstream-0.6.14/Cargo.toml
-@@ -141,11 +141,7 @@ default = [
-     "wincon",
- ]
- test = []
--wincon = ["dep:anstyle-wincon"]
--
--[target."cfg(windows)".dependencies.anstyle-wincon]
--version = "3.0.1"
--optional = true
-+wincon = []
- 
- [lints.clippy]
- bool_assert_comparison = "allow"
-Index: rustc/vendor/anstyle-query-1.1.0/Cargo.toml
-===================================================================
---- rustc.orig/vendor/anstyle-query-1.1.0/Cargo.toml
-+++ rustc/vendor/anstyle-query-1.1.0/Cargo.toml
-@@ -79,13 +79,6 @@ replace = """
- [Unreleased]: https://github.com/rust-cli/anstyle/compare/{{tag_name}}...HEAD"""
- search = "<!-- next-url -->"
- 
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52.0"
--features = [
--    "Win32_System_Console",
--    "Win32_Foundation",
--]
--
- [lints.clippy]
- bool_assert_comparison = "allow"
- branches_sharing_code = "allow"
 Index: rustc/vendor/backtrace-0.3.71/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/backtrace-0.3.71/Cargo.toml
@@ -168,34 +122,6 @@ Index: rustc/vendor/console-0.15.8/Cargo.toml
 -    "Win32_Storage_FileSystem",
 -    "Win32_UI_Input_KeyboardAndMouse",
 -]
-Index: rustc/vendor/ctrlc-3.4.4/Cargo.toml
-===================================================================
---- rustc.orig/vendor/ctrlc-3.4.4/Cargo.toml
-+++ rustc/vendor/ctrlc-3.4.4/Cargo.toml
-@@ -56,23 +56,5 @@ features = [
- ]
- default-features = false
- 
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Threading",
--    "Win32_Security",
--    "Win32_System_Console",
--]
--
--[target."cfg(windows)".dev-dependencies.windows-sys]
--version = "0.52"
--features = [
--    "Win32_Storage_FileSystem",
--    "Win32_Foundation",
--    "Win32_System_IO",
--    "Win32_System_Console",
--]
--
- [badges.maintenance]
- status = "passively-maintained"
 Index: rustc/vendor/curl-0.4.46/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/curl-0.4.46/Cargo.toml
@@ -214,21 +140,6 @@ Index: rustc/vendor/curl-0.4.46/Cargo.toml
 -    "Win32_System_LibraryLoader",
 -    "Win32_Security_Cryptography",
 -]
--
- [badges.appveyor]
- repository = "alexcrichton/curl-rust"
- 
-Index: rustc/vendor/curl-sys-0.4.73+curl-8.8.0/Cargo.toml
-===================================================================
---- rustc.orig/vendor/curl-sys-0.4.73+curl-8.8.0/Cargo.toml
-+++ rustc/vendor/curl-sys-0.4.73+curl-8.8.0/Cargo.toml
-@@ -80,10 +80,6 @@ optional = true
- [target."cfg(target_env = \"msvc\")".build-dependencies.vcpkg]
- version = "0.2"
- 
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52"
--features = ["Win32_Networking_WinSock"]
 -
  [badges.appveyor]
  repository = "alexcrichton/curl-rust"
@@ -277,23 +188,6 @@ Index: rustc/vendor/dirs-sys-next-0.1.2/Cargo.toml
 -features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"]
  [badges.maintenance]
  status = "as-is"
-Index: rustc/vendor/dlmalloc-0.2.6/Cargo.toml
-===================================================================
---- rustc.orig/vendor/dlmalloc-0.2.6/Cargo.toml
-+++ rustc/vendor/dlmalloc-0.2.6/Cargo.toml
-@@ -62,12 +62,3 @@ rustc-dep-of-std = [
- [target."cfg(all(unix, not(target_arch = \"wasm32\")))".dependencies.libc]
- version = "0.2"
- default-features = false
--
--[target."cfg(target_os = \"windows\")".dependencies.windows-sys]
--version = "0.52.0"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Memory",
--    "Win32_System_Threading",
--    "Win32_System_SystemInformation",
--]
 Index: rustc/vendor/errno-0.3.9/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/errno-0.3.9/Cargo.toml
@@ -325,41 +219,6 @@ Index: rustc/vendor/fd-lock-4.0.2/Cargo.toml
 -    "Win32_Storage_FileSystem",
 -    "Win32_System_IO",
 -]
-Index: rustc/vendor/filetime-0.2.23/Cargo.toml
-===================================================================
---- rustc.orig/vendor/filetime-0.2.23/Cargo.toml
-+++ rustc/vendor/filetime-0.2.23/Cargo.toml
-@@ -33,15 +33,8 @@ version = "1.0.0"
- [dev-dependencies.tempfile]
- version = "3"
- 
--[target."cfg(target_os = \"redox\")".dependencies.redox_syscall]
--version = "0.4.1"
-+#[target."cfg(target_os = \"redox\")".dependencies.redox_syscall]
-+#version = "0.4.1"
- 
- [target."cfg(unix)".dependencies.libc]
- version = "0.2.27"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52.0"
--features = [
--    "Win32_Foundation",
--    "Win32_Storage_FileSystem",
--]
-Index: rustc/vendor/flate2-1.0.30/Cargo.toml
-===================================================================
---- rustc.orig/vendor/flate2-1.0.30/Cargo.toml
-+++ rustc/vendor/flate2-1.0.30/Cargo.toml
-@@ -117,8 +116,3 @@ zlib-rs = [
-     "any_zlib",
-     "libz-rs-sys",
- ]
--
--[target."cfg(all(target_arch = \"wasm32\", not(target_os = \"emscripten\")))".dependencies.miniz_oxide]
--version = "0.7.1"
--features = ["with-alloc"]
--default-features = false
 Index: rustc/vendor/gix-discover-0.33.0/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/gix-discover-0.33.0/Cargo.toml
@@ -463,24 +322,6 @@ Index: rustc/vendor/is-terminal-0.4.12/Cargo.toml
 -
 -[target."cfg(windows)".dev-dependencies.tempfile]
 -version = "3"
-Index: rustc/vendor/libloading-0.8.4/Cargo.toml
-===================================================================
---- rustc.orig/vendor/libloading-0.8.4/Cargo.toml
-+++ rustc/vendor/libloading-0.8.4/Cargo.toml
-@@ -43,13 +43,6 @@ version = "1.1"
- [target."cfg(unix)".dependencies.cfg-if]
- version = "1"
- 
--[target."cfg(windows)".dependencies.windows-targets]
--version = ">=0.48, <0.53"
--
--[target."cfg(windows)".dev-dependencies.windows-sys]
--version = "0.52"
--features = ["Win32_Foundation"]
--
- [lints.rust.unexpected_cfgs]
- level = "warn"
- priority = 0
 Index: rustc/vendor/libssh2-sys-0.3.0/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/libssh2-sys-0.3.0/Cargo.toml
@@ -522,35 +363,6 @@ Index: rustc/vendor/nu-ansi-term-0.46.0/Cargo.toml
 -    "handleapi",
 -    "processenv",
 -]
-Index: rustc/vendor/nu-ansi-term-0.50.0/Cargo.toml
-===================================================================
---- rustc.orig/vendor/nu-ansi-term-0.50.0/Cargo.toml
-+++ rustc/vendor/nu-ansi-term-0.50.0/Cargo.toml
-@@ -42,13 +42,3 @@ version = "1.0.94"
- [features]
- derive_serde_style = ["serde"]
- gnu_legacy = []
--
--[target."cfg(windows)".dependencies.windows]
--version = "0.48.0"
--features = [
--    "Win32_Foundation",
--    "Win32_System_Console",
--    "Win32_Storage_FileSystem",
--    "Win32_Security",
--]
--package = "windows-sys"
-Index: rustc/vendor/onig-6.4.0/Cargo.toml
-===================================================================
---- rustc.orig/vendor/onig-6.4.0/Cargo.toml
-+++ rustc/vendor/onig-6.4.0/Cargo.toml
-@@ -44,6 +44,3 @@ generate = ["onig_sys/generate"]
- posix-api = ["onig_sys/posix-api"]
- print-debug = ["onig_sys/print-debug"]
- std-pattern = []
--
--[target."cfg(windows)".dependencies.libc]
--version = "0.2"
 Index: rustc/vendor/opener-0.5.2/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/opener-0.5.2/Cargo.toml
@@ -593,35 +405,6 @@ Index: rustc/vendor/opener-0.6.1/Cargo.toml
  [badges.appveyor]
  branch = "master"
  repository = "Seeker14491/opener"
-Index: rustc/vendor/opener-0.7.1/Cargo.toml
-===================================================================
---- rustc.orig/vendor/opener-0.7.1/Cargo.toml
-+++ rustc/vendor/opener-0.7.1/Cargo.toml
-@@ -39,7 +39,6 @@ default = ["dbus-vendored"]
- reveal = [
-     "dep:url",
-     "dep:dbus",
--    "windows-sys/Win32_System_Com",
- ]
- 
- [target."cfg(target_os = \"linux\")".dependencies.bstr]
-@@ -53,16 +52,5 @@ optional = true
- version = "2"
- optional = true
- 
--[target."cfg(windows)".dependencies.normpath]
--version = "1"
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52"
--features = [
--    "Win32_Foundation",
--    "Win32_UI_Shell",
--    "Win32_UI_WindowsAndMessaging",
--]
--
- [badges.maintenance]
- status = "passively-maintained"
 Index: rustc/vendor/os_info-3.8.2/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/os_info-3.8.2/Cargo.toml
@@ -733,30 +516,6 @@ Index: rustc/vendor/same-file-1.0.6/Cargo.toml
  version = "0.3"
 -[target."cfg(windows)".dependencies.winapi-util]
 -version = "0.1.1"
-Index: rustc/vendor/snapbox-0.6.10/Cargo.toml
-===================================================================
---- rustc.orig/vendor/snapbox-0.6.10/Cargo.toml
-+++ rustc/vendor/snapbox-0.6.10/Cargo.toml
-@@ -174,7 +174,6 @@ cmd = [
-     "dep:os_pipe",
-     "dep:wait-timeout",
-     "dep:libc",
--    "dep:windows-sys",
- ]
- color = [
-     "dep:anstream",
-@@ -216,11 +215,6 @@ term-svg = [
- version = "0.2.137"
- optional = true
- 
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52.0"
--features = ["Win32_Foundation"]
--optional = true
--
- [lints.clippy]
- bool_assert_comparison = "allow"
- branches_sharing_code = "allow"
 Index: rustc/vendor/socket2-0.5.7/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/socket2-0.5.7/Cargo.toml
@@ -792,80 +551,6 @@ Index: rustc/vendor/stacker-0.1.15/Cargo.toml
 -    "fibersapi",
 -    "processthreadsapi",
 -    "minwindef",
--]
-Index: rustc/vendor/sysinfo-0.30.12/Cargo.toml
-===================================================================
---- rustc.orig/vendor/sysinfo-0.30.12/Cargo.toml
-+++ rustc/vendor/sysinfo-0.30.12/Cargo.toml
-@@ -70,52 +70,11 @@ unknown-ci = []
- [target."cfg(all(target_os = \"linux\", not(target_os = \"android\")))".dev-dependencies.tempfile]
- version = "3.9"
- 
--[target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dependencies.core-foundation-sys]
--version = "0.8"
-+#[target."cfg(any(target_os = \"macos\", target_os = \"ios\"))".dependencies.core-foundation-sys]
-+#version = "0.8"
- 
- [target."cfg(any(windows, target_os = \"linux\", target_os = \"android\"))".dependencies.once_cell]
- version = "1.18"
- 
- [target."cfg(not(any(target_os = \"unknown\", target_arch = \"wasm32\")))".dependencies.libc]
- version = "^0.2.153"
--
--[target."cfg(windows)".dependencies.ntapi]
--version = "0.4"
--
--[target."cfg(windows)".dependencies.windows]
--version = "0.52"
--features = [
--    "Wdk_System_SystemInformation",
--    "Wdk_System_SystemServices",
--    "Wdk_System_Threading",
--    "Win32_Foundation",
--    "Win32_NetworkManagement_IpHelper",
--    "Win32_NetworkManagement_NetManagement",
--    "Win32_NetworkManagement_Ndis",
--    "Win32_Networking_WinSock",
--    "Win32_Security",
--    "Win32_Security_Authentication_Identity",
--    "Win32_Security_Authorization",
--    "Win32_Storage_FileSystem",
--    "Win32_System_Com",
--    "Win32_System_Diagnostics_Debug",
--    "Win32_System_IO",
--    "Win32_System_Ioctl",
--    "Win32_System_LibraryLoader",
--    "Win32_System_Kernel",
--    "Win32_System_Memory",
--    "Win32_System_Ole",
--    "Win32_System_Performance",
--    "Win32_System_Power",
--    "Win32_System_ProcessStatus",
--    "Win32_System_Registry",
--    "Win32_System_RemoteDesktop",
--    "Win32_System_Rpc",
--    "Win32_System_SystemInformation",
--    "Win32_System_SystemServices",
--    "Win32_System_Threading",
--    "Win32_System_Variant",
--    "Win32_System_WindowsProgramming",
--    "Win32_System_Wmi",
--    "Win32_UI_Shell",
--]
-Index: rustc/vendor/tempfile-3.10.1/Cargo.toml
-===================================================================
---- rustc.orig/vendor/tempfile-3.10.1/Cargo.toml
-+++ rustc/vendor/tempfile-3.10.1/Cargo.toml
-@@ -47,10 +47,3 @@ nightly = []
- [target."cfg(any(unix, target_os = \"wasi\"))".dependencies.rustix]
- version = "0.38.31"
- features = ["fs"]
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.52"
--features = [
--    "Win32_Storage_FileSystem",
--    "Win32_Foundation",
 -]
 Index: rustc/vendor/term-0.7.0/Cargo.toml
 ===================================================================
@@ -944,56 +629,6 @@ Index: rustc/vendor/time-0.3.36/Cargo.toml
  [target."cfg(bench)".dev-dependencies.criterion]
  version = "0.5.1"
  default-features = false
-Index: rustc/vendor/tokio-1.38.0/Cargo.toml
-===================================================================
---- rustc.orig/vendor/tokio-1.38.0/Cargo.toml
-+++ rustc/vendor/tokio-1.38.0/Cargo.toml
-@@ -130,11 +130,6 @@ net = [
-     "mio/os-ext",
-     "mio/net",
-     "socket2",
--    "windows-sys/Win32_Foundation",
--    "windows-sys/Win32_Security",
--    "windows-sys/Win32_Storage_FileSystem",
--    "windows-sys/Win32_System_Pipes",
--    "windows-sys/Win32_System_SystemServices",
- ]
- process = [
-     "bytes",
-@@ -143,9 +138,6 @@ process = [
-     "mio/os-ext",
-     "mio/net",
-     "signal-hook-registry",
--    "windows-sys/Win32_Foundation",
--    "windows-sys/Win32_System_Threading",
--    "windows-sys/Win32_System_WindowsProgramming",
- ]
- rt = []
- rt-multi-thread = [
-@@ -158,8 +150,6 @@ signal = [
-     "mio/net",
-     "mio/os-ext",
-     "signal-hook-registry",
--    "windows-sys/Win32_Foundation",
--    "windows-sys/Win32_System_Console",
- ]
- sync = []
- test-util = [
-@@ -225,14 +215,3 @@ features = [
-     "socket",
- ]
- default-features = false
--
--[target."cfg(windows)".dependencies.windows-sys]
--version = "0.48"
--optional = true
--
--[target."cfg(windows)".dev-dependencies.windows-sys]
--version = "0.48"
--features = [
--    "Win32_Foundation",
--    "Win32_Security_Authorization",
--]
 Index: rustc/vendor/walkdir-2.5.0/Cargo.toml
 ===================================================================
 --- rustc.orig/vendor/walkdir-2.5.0/Cargo.toml
@@ -1022,3 +657,363 @@ Index: rustc/vendor/yansi-term-0.1.2/Cargo.toml
  [badges.maintenance]
  status = "actively-developed"
  
+Index: rustc/vendor/anstream-0.6.15/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/anstream-0.6.15/Cargo.toml
++++ rustc/vendor/anstream-0.6.15/Cargo.toml
+@@ -155,11 +155,7 @@ default = [
+     "wincon",
+ ]
+ test = []
+-wincon = ["dep:anstyle-wincon"]
+-
+-[target."cfg(windows)".dependencies.anstyle-wincon]
+-version = "3.0.1"
+-optional = true
++wincon = []
+ 
+ [lints.clippy]
+ bool_assert_comparison = "allow"
+Index: rustc/vendor/anstyle-query-1.1.1/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/anstyle-query-1.1.1/Cargo.toml
++++ rustc/vendor/anstyle-query-1.1.1/Cargo.toml
+@@ -92,13 +92,6 @@ path = "src/lib.rs"
+ name = "query"
+ path = "examples/query.rs"
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52.0"
+-features = [
+-    "Win32_System_Console",
+-    "Win32_Foundation",
+-]
+-
+ [lints.clippy]
+ bool_assert_comparison = "allow"
+ branches_sharing_code = "allow"
+Index: rustc/vendor/backtrace-0.3.73/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/backtrace-0.3.73/Cargo.toml
++++ rustc/vendor/backtrace-0.3.73/Cargo.toml
+@@ -121,18 +121,6 @@ serialize-serde = ["serde"]
+ std = []
+ unix-backtrace = []
+ verify-winapi = [
+-    "winapi/dbghelp",
+-    "winapi/handleapi",
+-    "winapi/libloaderapi",
+-    "winapi/memoryapi",
+-    "winapi/minwindef",
+-    "winapi/processthreadsapi",
+-    "winapi/synchapi",
+-    "winapi/tlhelp32",
+-    "winapi/winbase",
+-    "winapi/winnt",
+-    "winapi/winnls",
+-    "winapi/stringapiset",
+ ]
+ 
+ [target."cfg(not(all(windows, target_env = \"msvc\", not(target_vendor = \"uwp\"))))".dependencies.addr2line]
+@@ -160,9 +148,5 @@ features = [
+ ]
+ default-features = false
+ 
+-[target."cfg(windows)".dependencies.winapi]
+-version = "0.3.9"
+-optional = true
+-
+ [lints.rust]
+ unexpected_cfgs = "allow"
+Index: rustc/vendor/ctrlc-3.4.5/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/ctrlc-3.4.5/Cargo.toml
++++ rustc/vendor/ctrlc-3.4.5/Cargo.toml
+@@ -56,23 +56,5 @@ features = [
+ ]
+ default-features = false
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.59"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Threading",
+-    "Win32_Security",
+-    "Win32_System_Console",
+-]
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.59"
+-features = [
+-    "Win32_Storage_FileSystem",
+-    "Win32_Foundation",
+-    "Win32_System_IO",
+-    "Win32_System_Console",
+-]
+-
+ [badges.maintenance]
+ status = "passively-maintained"
+Index: rustc/vendor/curl-sys-0.4.74+curl-8.9.0/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/curl-sys-0.4.74+curl-8.9.0/Cargo.toml
++++ rustc/vendor/curl-sys-0.4.74+curl-8.9.0/Cargo.toml
+@@ -80,10 +80,6 @@ optional = true
+ [target."cfg(target_env = \"msvc\")".build-dependencies.vcpkg]
+ version = "0.2"
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Networking_WinSock"]
+-
+ [badges.appveyor]
+ repository = "alexcrichton/curl-rust"
+ 
+Index: rustc/vendor/filetime-0.2.24/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/filetime-0.2.24/Cargo.toml
++++ rustc/vendor/filetime-0.2.24/Cargo.toml
+@@ -47,10 +47,3 @@ version = "0.1.0"
+ 
+ [target."cfg(unix)".dependencies.libc]
+ version = "0.2.27"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.59.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Storage_FileSystem",
+-]
+Index: rustc/vendor/libloading-0.8.5/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/libloading-0.8.5/Cargo.toml
++++ rustc/vendor/libloading-0.8.5/Cargo.toml
+@@ -43,13 +43,6 @@ version = "1.1"
+ [target."cfg(unix)".dependencies.cfg-if]
+ version = "1"
+ 
+-[target."cfg(windows)".dependencies.windows-targets]
+-version = ">=0.48, <0.53"
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.52"
+-features = ["Win32_Foundation"]
+-
+ [lints.rust.unexpected_cfgs]
+ level = "warn"
+ priority = 0
+Index: rustc/vendor/nu-ansi-term-0.50.1/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/nu-ansi-term-0.50.1/Cargo.toml
++++ rustc/vendor/nu-ansi-term-0.50.1/Cargo.toml
+@@ -42,13 +42,3 @@ version = "1.0.94"
+ [features]
+ derive_serde_style = ["serde"]
+ gnu_legacy = []
+-
+-[target."cfg(windows)".dependencies.windows]
+-version = "0.52.0"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_System_Console",
+-    "Win32_Storage_FileSystem",
+-    "Win32_Security",
+-]
+-package = "windows-sys"
+Index: rustc/vendor/opener-0.7.2/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/opener-0.7.2/Cargo.toml
++++ rustc/vendor/opener-0.7.2/Cargo.toml
+@@ -48,7 +48,6 @@ default = ["dbus-vendored"]
+ reveal = [
+     "dep:url",
+     "dep:dbus",
+-    "windows-sys/Win32_System_Com",
+ ]
+ 
+ [target.'cfg(target_os = "linux")'.dependencies.bstr]
+@@ -62,16 +61,5 @@ optional = true
+ version = "2"
+ optional = true
+ 
+-[target."cfg(windows)".dependencies.normpath]
+-version = "1"
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.59"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_UI_Shell",
+-    "Win32_UI_WindowsAndMessaging",
+-]
+-
+ [badges.maintenance]
+ status = "passively-maintained"
+Index: rustc/vendor/snapbox-0.6.17/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/snapbox-0.6.17/Cargo.toml
++++ rustc/vendor/snapbox-0.6.17/Cargo.toml
+@@ -189,7 +189,6 @@ cmd = [
+     "dep:os_pipe",
+     "dep:wait-timeout",
+     "dep:libc",
+-    "dep:windows-sys",
+ ]
+ color = [
+     "dep:anstream",
+@@ -231,11 +230,6 @@ term-svg = [
+ version = "0.2.137"
+ optional = true
+ 
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.59.0"
+-features = ["Win32_Foundation"]
+-optional = true
+-
+ [lints.clippy]
+ bool_assert_comparison = "allow"
+ branches_sharing_code = "allow"
+Index: rustc/vendor/sysinfo-0.31.2/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/sysinfo-0.31.2/Cargo.toml
++++ rustc/vendor/sysinfo-0.31.2/Cargo.toml
+@@ -114,12 +114,6 @@ apple-app-store = ["apple-sandbox"]
+ apple-sandbox = []
+ c-interface = ["default"]
+ component = [
+-    "windows/Win32_Foundation",
+-    "windows/Win32_Security",
+-    "windows/Win32_System_Com",
+-    "windows/Win32_System_Rpc",
+-    "windows/Win32_System_Variant",
+-    "windows/Win32_System_Wmi",
+ ]
+ debug = ["libc/extra_traits"]
+ default = [
+@@ -131,50 +125,17 @@ default = [
+     "multithread",
+ ]
+ disk = [
+-    "windows/Win32_Foundation",
+-    "windows/Win32_Storage_FileSystem",
+-    "windows/Win32_Security",
+-    "windows/Win32_System_IO",
+-    "windows/Win32_System_Ioctl",
+-    "windows/Win32_System_WindowsProgramming",
+ ]
+ linux-netdevs = []
+ linux-tmpfs = []
+ multithread = ["dep:rayon"]
+ network = [
+-    "windows/Win32_Foundation",
+-    "windows/Win32_NetworkManagement_IpHelper",
+-    "windows/Win32_NetworkManagement_Ndis",
+-    "windows/Win32_Networking_WinSock",
+ ]
+ system = [
+-    "windows/Win32_Foundation",
+-    "windows/Wdk_System_SystemInformation",
+-    "windows/Wdk_System_SystemServices",
+-    "windows/Wdk_System_Threading",
+-    "windows/Win32_Security_Authorization",
+-    "windows/Win32_System_Diagnostics_Debug",
+-    "windows/Win32_System_Kernel",
+-    "windows/Win32_System_Memory",
+-    "windows/Win32_System_Performance",
+-    "windows/Win32_System_Power",
+-    "windows/Win32_System_ProcessStatus",
+-    "windows/Win32_System_Registry",
+-    "windows/Win32_System_RemoteDesktop",
+-    "windows/Win32_System_SystemInformation",
+-    "windows/Win32_System_SystemServices",
+-    "windows/Win32_System_Threading",
+-    "windows/Win32_UI_Shell",
+-    "dep:ntapi",
+     "dep:memchr",
+ ]
+ unknown-ci = []
+ user = [
+-    "windows/Win32_Foundation",
+-    "windows/Win32_NetworkManagement_NetManagement",
+-    "windows/Win32_Security",
+-    "windows/Win32_Security_Authentication_Identity",
+-    "windows/Win32_Security_Authorization",
+ ]
+ 
+ [target.'cfg(all(target_os = "linux", not(target_os = "android")))'.dev-dependencies.tempfile]
+@@ -185,11 +146,3 @@ version = "0.8"
+ 
+ [target.'cfg(not(any(target_os = "unknown", target_arch = "wasm32")))'.dependencies.libc]
+ version = "^0.2.153"
+-
+-[target."cfg(windows)".dependencies.ntapi]
+-version = "0.4"
+-optional = true
+-
+-[target."cfg(windows)".dependencies.windows]
+-version = ">=0.54, <=0.57"
+-optional = true
+Index: rustc/vendor/tempfile-3.12.0/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/tempfile-3.12.0/Cargo.toml
++++ rustc/vendor/tempfile-3.12.0/Cargo.toml
+@@ -81,10 +81,3 @@ nightly = []
+ [target.'cfg(any(unix, target_os = "wasi"))'.dependencies.rustix]
+ version = "0.38.31"
+ features = ["fs"]
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.59"
+-features = [
+-    "Win32_Storage_FileSystem",
+-    "Win32_Foundation",
+-]
+Index: rustc/vendor/tokio-1.39.3/Cargo.toml
+===================================================================
+--- rustc.orig/vendor/tokio-1.39.3/Cargo.toml
++++ rustc/vendor/tokio-1.39.3/Cargo.toml
+@@ -695,11 +695,6 @@ net = [
+     "mio/os-ext",
+     "mio/net",
+     "socket2",
+-    "windows-sys/Win32_Foundation",
+-    "windows-sys/Win32_Security",
+-    "windows-sys/Win32_Storage_FileSystem",
+-    "windows-sys/Win32_System_Pipes",
+-    "windows-sys/Win32_System_SystemServices",
+ ]
+ process = [
+     "bytes",
+@@ -708,9 +703,6 @@ process = [
+     "mio/os-ext",
+     "mio/net",
+     "signal-hook-registry",
+-    "windows-sys/Win32_Foundation",
+-    "windows-sys/Win32_System_Threading",
+-    "windows-sys/Win32_System_WindowsProgramming",
+ ]
+ rt = []
+ rt-multi-thread = ["rt"]
+@@ -720,8 +712,6 @@ signal = [
+     "mio/net",
+     "mio/os-ext",
+     "signal-hook-registry",
+-    "windows-sys/Win32_Foundation",
+-    "windows-sys/Win32_System_Console",
+ ]
+ sync = []
+ test-util = [
+@@ -787,14 +777,3 @@ features = [
+     "socket",
+ ]
+ default-features = false
+-
+-[target."cfg(windows)".dependencies.windows-sys]
+-version = "0.52"
+-optional = true
+-
+-[target."cfg(windows)".dev-dependencies.windows-sys]
+-version = "0.52"
+-features = [
+-    "Win32_Foundation",
+-    "Win32_Security_Authorization",
+-]

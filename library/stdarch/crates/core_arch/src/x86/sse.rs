@@ -3,6 +3,7 @@
 use crate::{
     core_arch::{simd::*, x86::*},
     intrinsics::simd::*,
+    intrinsics::sqrtf32,
     mem, ptr,
 };
 
@@ -18,7 +19,7 @@ use stdarch_test::assert_instr;
 #[cfg_attr(test, assert_instr(addss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_add_ss(a: __m128, b: __m128) -> __m128 {
-    addss(a, b)
+    simd_insert!(a, 0, _mm_cvtss_f32(a) + _mm_cvtss_f32(b))
 }
 
 /// Adds __m128 vectors.
@@ -41,7 +42,7 @@ pub unsafe fn _mm_add_ps(a: __m128, b: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(subss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sub_ss(a: __m128, b: __m128) -> __m128 {
-    subss(a, b)
+    simd_insert!(a, 0, _mm_cvtss_f32(a) - _mm_cvtss_f32(b))
 }
 
 /// Subtracts __m128 vectors.
@@ -64,7 +65,7 @@ pub unsafe fn _mm_sub_ps(a: __m128, b: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(mulss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_mul_ss(a: __m128, b: __m128) -> __m128 {
-    mulss(a, b)
+    simd_insert!(a, 0, _mm_cvtss_f32(a) * _mm_cvtss_f32(b))
 }
 
 /// Multiplies __m128 vectors.
@@ -87,7 +88,7 @@ pub unsafe fn _mm_mul_ps(a: __m128, b: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(divss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_div_ss(a: __m128, b: __m128) -> __m128 {
-    divss(a, b)
+    simd_insert!(a, 0, _mm_cvtss_f32(a) / _mm_cvtss_f32(b))
 }
 
 /// Divides __m128 vectors.
@@ -110,7 +111,7 @@ pub unsafe fn _mm_div_ps(a: __m128, b: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(sqrtss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sqrt_ss(a: __m128) -> __m128 {
-    sqrtss(a)
+    simd_insert!(a, 0, sqrtf32(_mm_cvtss_f32(a)))
 }
 
 /// Returns the square root of packed single-precision (32-bit) floating-point
@@ -122,7 +123,7 @@ pub unsafe fn _mm_sqrt_ss(a: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(sqrtps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_sqrt_ps(a: __m128) -> __m128 {
-    sqrtps(a)
+    simd_fsqrt(a)
 }
 
 /// Returns the approximate reciprocal of the first single-precision
@@ -851,7 +852,7 @@ pub unsafe fn _mm_cvtt_ss2si(a: __m128) -> i32 {
 #[inline]
 #[target_feature(enable = "sse")]
 // No point in using assert_instrs. In Unix x86_64 calling convention this is a
-// no-op, and on Windows it's just a `mov`.
+// no-op, and on msvc it's just a `mov`.
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_cvtss_f32(a: __m128) -> f32 {
     simd_extract!(a, 0)
@@ -892,7 +893,7 @@ pub unsafe fn _mm_cvt_si2ss(a: __m128, b: i32) -> __m128 {
 #[cfg_attr(test, assert_instr(movss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_set_ss(a: f32) -> __m128 {
-    __m128(a, 0.0, 0.0, 0.0)
+    __m128([a, 0.0, 0.0, 0.0])
 }
 
 /// Construct a `__m128` with all element set to `a`.
@@ -903,7 +904,7 @@ pub unsafe fn _mm_set_ss(a: f32) -> __m128 {
 #[cfg_attr(test, assert_instr(shufps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_set1_ps(a: f32) -> __m128 {
-    __m128(a, a, a, a)
+    __m128([a, a, a, a])
 }
 
 /// Alias for [`_mm_set1_ps`](fn._mm_set1_ps.html)
@@ -941,7 +942,7 @@ pub unsafe fn _mm_set_ps1(a: f32) -> __m128 {
 #[cfg_attr(test, assert_instr(unpcklps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_set_ps(a: f32, b: f32, c: f32, d: f32) -> __m128 {
-    __m128(d, c, b, a)
+    __m128([d, c, b, a])
 }
 
 /// Construct a `__m128` from four floating point values lowest to highest.
@@ -957,17 +958,17 @@ pub unsafe fn _mm_set_ps(a: f32, b: f32, c: f32, d: f32) -> __m128 {
 #[inline]
 #[target_feature(enable = "sse")]
 #[cfg_attr(
-    all(test, any(target_os = "windows", target_arch = "x86_64")),
+    all(test, any(target_env = "msvc", target_arch = "x86_64")),
     assert_instr(unpcklps)
 )]
-// On a 32-bit architecture on non-Windows it just copies the operands from the stack.
+// On a 32-bit architecture on non-msvc it just copies the operands from the stack.
 #[cfg_attr(
-    all(test, all(not(target_os = "windows"), target_arch = "x86")),
+    all(test, all(not(target_env = "msvc"), target_arch = "x86")),
     assert_instr(movaps)
 )]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_setr_ps(a: f32, b: f32, c: f32, d: f32) -> __m128 {
-    __m128(a, b, c, d)
+    __m128([a, b, c, d])
 }
 
 /// Construct a `__m128` with all elements initialized to zero.
@@ -978,7 +979,7 @@ pub unsafe fn _mm_setr_ps(a: f32, b: f32, c: f32, d: f32) -> __m128 {
 #[cfg_attr(test, assert_instr(xorps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_setzero_ps() -> __m128 {
-    __m128(0.0, 0.0, 0.0, 0.0)
+    __m128([0.0, 0.0, 0.0, 0.0])
 }
 
 /// A utility function for creating masks to use with Intel shuffle and
@@ -1052,10 +1053,10 @@ pub unsafe fn _mm_unpacklo_ps(a: __m128, b: __m128) -> __m128 {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movehl_ps)
 #[inline]
 #[target_feature(enable = "sse")]
-#[cfg_attr(all(test, not(target_os = "windows")), assert_instr(movhlps))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movhlps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_movehl_ps(a: __m128, b: __m128) -> __m128 {
-    // TODO; figure why this is a different instruction on Windows?
+    // TODO; figure why this is a different instruction on msvc?
     simd_shuffle!(a, b, [6, 7, 2, 3])
 }
 
@@ -1065,7 +1066,7 @@ pub unsafe fn _mm_movehl_ps(a: __m128, b: __m128) -> __m128 {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_movelh_ps)
 #[inline]
 #[target_feature(enable = "sse")]
-#[cfg_attr(all(test, not(target_os = "windows")), assert_instr(movlhps))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movlhps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_movelh_ps(a: __m128, b: __m128) -> __m128 {
     simd_shuffle!(a, b, [0, 1, 4, 5])
@@ -1099,7 +1100,7 @@ pub unsafe fn _mm_movemask_ps(a: __m128) -> i32 {
 #[cfg_attr(test, assert_instr(movss))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_load_ss(p: *const f32) -> __m128 {
-    __m128(*p, 0.0, 0.0, 0.0)
+    __m128([*p, 0.0, 0.0, 0.0])
 }
 
 /// Construct a `__m128` by duplicating the value read from `p` into all
@@ -1115,7 +1116,7 @@ pub unsafe fn _mm_load_ss(p: *const f32) -> __m128 {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_load1_ps(p: *const f32) -> __m128 {
     let a = *p;
-    __m128(a, a, a, a)
+    __m128([a, a, a, a])
 }
 
 /// Alias for [`_mm_load1_ps`](fn._mm_load1_ps.html)
@@ -1201,18 +1202,6 @@ pub unsafe fn _mm_loadu_ps(p: *const f32) -> __m128 {
 pub unsafe fn _mm_loadr_ps(p: *const f32) -> __m128 {
     let a = _mm_load_ps(p);
     simd_shuffle!(a, a, [3, 2, 1, 0])
-}
-
-/// Loads unaligned 64-bits of integer data from memory into new vector.
-///
-/// `mem_addr` does not need to be aligned on any particular boundary.
-///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_loadu_si64)
-#[inline]
-#[target_feature(enable = "sse")]
-#[stable(feature = "simd_x86_mm_loadu_si64", since = "1.46.0")]
-pub unsafe fn _mm_loadu_si64(mem_addr: *const u8) -> __m128i {
-    transmute(i64x2::new(ptr::read_unaligned(mem_addr as *const i64), 0))
 }
 
 /// Stores the lowest 32 bit float of `a` into memory.
@@ -1877,6 +1866,7 @@ pub const _MM_HINT_ET1: i32 = 6;
 #[rustc_legacy_const_generics(1)]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_prefetch<const STRATEGY: i32>(p: *const i8) {
+    static_assert_uimm_bits!(STRATEGY, 3);
     // We use the `llvm.prefetch` intrinsic with `cache type` = 1 (data cache).
     // `locality` and `rw` are based on our `STRATEGY`.
     prefetch(p, (STRATEGY >> 2) & 1, STRATEGY & 3, 1);
@@ -1920,18 +1910,6 @@ pub unsafe fn _MM_TRANSPOSE4_PS(
 
 #[allow(improper_ctypes)]
 extern "C" {
-    #[link_name = "llvm.x86.sse.add.ss"]
-    fn addss(a: __m128, b: __m128) -> __m128;
-    #[link_name = "llvm.x86.sse.sub.ss"]
-    fn subss(a: __m128, b: __m128) -> __m128;
-    #[link_name = "llvm.x86.sse.mul.ss"]
-    fn mulss(a: __m128, b: __m128) -> __m128;
-    #[link_name = "llvm.x86.sse.div.ss"]
-    fn divss(a: __m128, b: __m128) -> __m128;
-    #[link_name = "llvm.x86.sse.sqrt.ss"]
-    fn sqrtss(a: __m128) -> __m128;
-    #[link_name = "llvm.x86.sse.sqrt.ps"]
-    fn sqrtps(a: __m128) -> __m128;
     #[link_name = "llvm.x86.sse.rcp.ss"]
     fn rcpss(a: __m128) -> __m128;
     #[link_name = "llvm.x86.sse.rcp.ps"]
@@ -2013,16 +1991,23 @@ extern "C" {
 #[stable(feature = "simd_x86", since = "1.27.0")]
 #[allow(clippy::cast_ptr_alignment)]
 pub unsafe fn _mm_stream_ps(mem_addr: *mut f32, a: __m128) {
-    intrinsics::nontemporal_store(mem_addr as *mut __m128, a);
+    crate::arch::asm!(
+        vps!("movntps", ",{a}"),
+        p = in(reg) mem_addr,
+        a = in(xmm_reg) a,
+        options(nostack, preserves_flags),
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{hint::black_box, mem::transmute, ptr};
-    use std::{boxed, f32::NAN};
+    use std::boxed;
     use stdarch_test::simd_test;
 
     use crate::core_arch::{simd::*, x86::*};
+
+    const NAN: f32 = f32::NAN;
 
     #[simd_test(enable = "sse")]
     unsafe fn test_mm_add_ps() {
@@ -3193,13 +3178,6 @@ mod tests {
         let r = _mm_loadr_ps(p);
         let e = _mm_add_ps(_mm_setr_ps(4.0, 3.0, 2.0, 1.0), _mm_set1_ps(fixup));
         assert_eq_m128(r, e);
-    }
-
-    #[simd_test(enable = "sse2")]
-    unsafe fn test_mm_loadu_si64() {
-        let a = _mm_setr_epi64x(5, 6);
-        let r = _mm_loadu_si64(ptr::addr_of!(a) as *const _);
-        assert_eq_m128i(r, _mm_setr_epi64x(5, 0));
     }
 
     #[simd_test(enable = "sse")]

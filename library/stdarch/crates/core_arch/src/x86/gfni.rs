@@ -65,7 +65,7 @@ extern "C" {
 ///
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_gf2p8mul_epi8)
 #[inline]
-#[target_feature(enable = "gfni,avx512bw,avx512f")]
+#[target_feature(enable = "gfni,avx512f")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
 #[cfg_attr(test, assert_instr(vgf2p8mulb))]
 pub unsafe fn _mm512_gf2p8mul_epi8(a: __m512i, b: __m512i) -> __m512i {
@@ -241,9 +241,9 @@ pub unsafe fn _mm_maskz_gf2p8mul_epi8(k: __mmask16, a: __m128i, b: __m128i) -> _
 /// and b being a constant 8-bit immediate value.
 /// Each pack of 8 bytes in x is paired with the 64-bit word at the same position in a.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_gf2p8affine_epi64_epi8)
 #[inline]
-#[target_feature(enable = "gfni,avx512bw,avx512f")]
+#[target_feature(enable = "gfni,avx512f")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
 #[cfg_attr(test, assert_instr(vgf2p8affineqb, B = 0))]
 #[rustc_legacy_const_generics(2)]
@@ -264,7 +264,7 @@ pub unsafe fn _mm512_gf2p8affine_epi64_epi8<const B: i32>(x: __m512i, a: __m512i
 /// Uses the writemask in k - elements are zeroed in the result if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_maskz_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_maskz_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512f")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -292,7 +292,7 @@ pub unsafe fn _mm512_maskz_gf2p8affine_epi64_epi8<const B: i32>(
 /// Uses the writemask in k - elements are copied from src if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_mask_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_mask_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512f")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -317,7 +317,7 @@ pub unsafe fn _mm512_mask_gf2p8affine_epi64_epi8<const B: i32>(
 /// and b being a constant 8-bit immediate value.
 /// Each pack of 8 bytes in x is paired with the 64-bit word at the same position in a.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -340,7 +340,7 @@ pub unsafe fn _mm256_gf2p8affine_epi64_epi8<const B: i32>(x: __m256i, a: __m256i
 /// Uses the writemask in k - elements are zeroed in the result if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_maskz_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_maskz_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512vl")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -368,7 +368,7 @@ pub unsafe fn _mm256_maskz_gf2p8affine_epi64_epi8<const B: i32>(
 /// Uses the writemask in k - elements are copied from src if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_mask_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm256_mask_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512vl")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -393,7 +393,7 @@ pub unsafe fn _mm256_mask_gf2p8affine_epi64_epi8<const B: i32>(
 /// and b being a constant 8-bit immediate value.
 /// Each pack of 8 bytes in x is paired with the 64-bit word at the same position in a.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -416,7 +416,7 @@ pub unsafe fn _mm_gf2p8affine_epi64_epi8<const B: i32>(x: __m128i, a: __m128i) -
 /// Uses the writemask in k - elements are zeroed in the result if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_maskz_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_maskz_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512vl")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -444,7 +444,7 @@ pub unsafe fn _mm_maskz_gf2p8affine_epi64_epi8<const B: i32>(
 /// Uses the writemask in k - elements are copied from src if the corresponding mask bit is not set.
 /// Otherwise the computation result is written into the result.
 ///
-/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_mask_gf2p8affine_epi8)
+/// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_mask_gf2p8affine_epi64_epi8)
 #[inline]
 #[target_feature(enable = "gfni,avx512bw,avx512vl")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
@@ -473,7 +473,7 @@ pub unsafe fn _mm_mask_gf2p8affine_epi64_epi8<const B: i32>(
 ///
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm512_gf2p8affineinv_epi64_epi8)
 #[inline]
-#[target_feature(enable = "gfni,avx512bw,avx512f")]
+#[target_feature(enable = "gfni,avx512f")]
 #[unstable(feature = "stdarch_x86_avx512", issue = "111137")]
 #[cfg_attr(test, assert_instr(vgf2p8affineinvqb, B = 0))]
 #[rustc_legacy_const_generics(2)]
@@ -877,7 +877,7 @@ mod tests {
         _mm512_loadu_si512(black_box(pointer))
     }
 
-    #[simd_test(enable = "gfni,avx512bw")]
+    #[simd_test(enable = "gfni,avx512f")]
     unsafe fn test_mm512_gf2p8mul_epi8() {
         let (left, right, expected) = generate_byte_mul_test_data();
 
@@ -927,7 +927,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni,avx")]
     unsafe fn test_mm256_gf2p8mul_epi8() {
         let (left, right, expected) = generate_byte_mul_test_data();
 
@@ -977,7 +977,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni")]
     unsafe fn test_mm_gf2p8mul_epi8() {
         let (left, right, expected) = generate_byte_mul_test_data();
 
@@ -1027,7 +1027,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw")]
+    #[simd_test(enable = "gfni,avx512f")]
     unsafe fn test_mm512_gf2p8affine_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;
@@ -1104,7 +1104,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni,avx")]
     unsafe fn test_mm256_gf2p8affine_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;
@@ -1181,7 +1181,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni")]
     unsafe fn test_mm_gf2p8affine_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;
@@ -1257,7 +1257,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw")]
+    #[simd_test(enable = "gfni,avx512f")]
     unsafe fn test_mm512_gf2p8affineinv_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;
@@ -1345,7 +1345,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni,avx")]
     unsafe fn test_mm256_gf2p8affineinv_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;
@@ -1433,7 +1433,7 @@ mod tests {
         }
     }
 
-    #[simd_test(enable = "gfni,avx512bw,avx512vl")]
+    #[simd_test(enable = "gfni")]
     unsafe fn test_mm_gf2p8affineinv_epi64_epi8() {
         let identity: i64 = 0x01_02_04_08_10_20_40_80;
         const IDENTITY_BYTE: i32 = 0;

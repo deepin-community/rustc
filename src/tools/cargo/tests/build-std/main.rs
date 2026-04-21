@@ -62,8 +62,6 @@ impl BuildStd for Execs {
     }
 }
 
-#[allow(unused_attributes)]
-#[ignore = "to unblock beta-1.81 backport"]
 #[cargo_test(build_std_real)]
 fn basic() {
     let p = project()
@@ -121,8 +119,31 @@ fn basic() {
 
 "#]])
         .run();
-    p.cargo("run").build_std().target_host().run();
-    p.cargo("test").build_std().target_host().run();
+    p.cargo("run")
+        .build_std()
+        .target_host()
+        .with_stderr_data(str![[r#"
+[FINISHED] `dev` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[RUNNING] `target/[HOST_TARGET]/debug/foo`
+
+"#]])
+        .run();
+    p.cargo("test")
+        .build_std()
+        .target_host()
+        .with_stderr_data(str![[r#"
+[COMPILING] rustc-std-workspace-std [..]
+...
+[COMPILING] test v0.0.0 ([..])
+[COMPILING] foo v0.0.1 ([ROOT]/foo)
+[FINISHED] `test` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
+[RUNNING] unittests src/lib.rs (target/[HOST_TARGET]/debug/deps/foo-[HASH])
+[RUNNING] unittests src/main.rs (target/[HOST_TARGET]/debug/deps/foo-[HASH])
+[RUNNING] tests/smoke.rs (target/[HOST_TARGET]/debug/deps/smoke-[HASH])
+[DOCTEST] foo
+
+"#]])
+        .run();
 
     // Check for hack that removes dylibs.
     let deps_dir = Path::new("target")
@@ -133,8 +154,6 @@ fn basic() {
     assert_eq!(p.glob(deps_dir.join("*.dylib")).count(), 0);
 }
 
-#[allow(unused_attributes)]
-#[ignore = "to unblock beta-1.81 backport"]
 #[cargo_test(build_std_real)]
 fn cross_custom() {
     let p = project()
@@ -178,8 +197,6 @@ fn cross_custom() {
         .run();
 }
 
-#[allow(unused_attributes)]
-#[ignore = "to unblock beta-1.81 backport"]
 #[cargo_test(build_std_real)]
 fn custom_test_framework() {
     let p = project()
@@ -241,8 +258,6 @@ fn custom_test_framework() {
 // Fixing rust-lang/rust#117839.
 // on macOS it never gets remapped.
 // Might be a separate issue, so only run on Linux.
-#[allow(unused_attributes)]
-#[ignore = "to unblock beta-1.81 backport"]
 #[cargo_test(build_std_real)]
 #[cfg(target_os = "linux")]
 fn remap_path_scope() {

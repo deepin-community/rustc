@@ -19,7 +19,8 @@
 //! [wiki_fma]: https://en.wikipedia.org/wiki/Fused_multiply-accumulate
 
 use crate::core_arch::x86::*;
-use crate::intrinsics::simd::simd_fma;
+use crate::intrinsics::simd::{simd_fma, simd_insert, simd_neg};
+use crate::intrinsics::{fmaf32, fmaf64};
 
 #[cfg(test)]
 use stdarch_test::assert_instr;
@@ -83,7 +84,11 @@ pub unsafe fn _mm256_fmadd_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmadd_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfmaddsd(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf64(_mm_cvtsd_f64(a), _mm_cvtsd_f64(b), _mm_cvtsd_f64(c))
+    )
 }
 
 /// Multiplies the lower single-precision (32-bit) floating-point elements in
@@ -97,7 +102,11 @@ pub unsafe fn _mm_fmadd_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmadd_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfmaddss(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf32(_mm_cvtss_f32(a), _mm_cvtss_f32(b), _mm_cvtss_f32(c))
+    )
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -110,7 +119,9 @@ pub unsafe fn _mm_fmadd_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfmaddsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmaddsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfmaddsubpd(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [2, 1])
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -123,7 +134,9 @@ pub unsafe fn _mm_fmaddsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfmaddsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmaddsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
-    vfmaddsubpd256(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [4, 1, 6, 3])
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -136,7 +149,9 @@ pub unsafe fn _mm256_fmaddsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d 
 #[cfg_attr(test, assert_instr(vfmaddsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmaddsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfmaddsubps(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [4, 1, 6, 3])
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -149,7 +164,9 @@ pub unsafe fn _mm_fmaddsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfmaddsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmaddsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
-    vfmaddsubps256(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [8, 1, 10, 3, 12, 5, 14, 7])
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -161,7 +178,7 @@ pub unsafe fn _mm256_fmaddsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfmsubpd(a, b, c)
+    simd_fma(a, b, simd_neg(c))
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -173,7 +190,7 @@ pub unsafe fn _mm_fmsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
-    vfmsubpd256(a, b, c)
+    simd_fma(a, b, simd_neg(c))
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -185,7 +202,7 @@ pub unsafe fn _mm256_fmsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
 #[cfg_attr(test, assert_instr(vfmsub213ps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfmsubps(a, b, c)
+    simd_fma(a, b, simd_neg(c))
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -197,7 +214,7 @@ pub unsafe fn _mm_fmsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfmsub213ps))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
-    vfmsubps256(a, b, c)
+    simd_fma(a, b, simd_neg(c))
 }
 
 /// Multiplies the lower double-precision (64-bit) floating-point elements in
@@ -211,7 +228,11 @@ pub unsafe fn _mm256_fmsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsub_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfmsubsd(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf64(_mm_cvtsd_f64(a), _mm_cvtsd_f64(b), -_mm_cvtsd_f64(c))
+    )
 }
 
 /// Multiplies the lower single-precision (32-bit) floating-point elements in
@@ -225,7 +246,11 @@ pub unsafe fn _mm_fmsub_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsub_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfmsubss(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf32(_mm_cvtss_f32(a), _mm_cvtss_f32(b), -_mm_cvtss_f32(c))
+    )
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -238,7 +263,9 @@ pub unsafe fn _mm_fmsub_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfmsubadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsubadd_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfmsubaddpd(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [0, 3])
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -251,7 +278,9 @@ pub unsafe fn _mm_fmsubadd_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfmsubadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmsubadd_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
-    vfmsubaddpd256(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [0, 5, 2, 7])
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -264,7 +293,9 @@ pub unsafe fn _mm256_fmsubadd_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d 
 #[cfg_attr(test, assert_instr(vfmsubadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fmsubadd_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfmsubaddps(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [0, 5, 2, 7])
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -277,7 +308,9 @@ pub unsafe fn _mm_fmsubadd_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfmsubadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fmsubadd_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
-    vfmsubaddps256(a, b, c)
+    let add = simd_fma(a, b, c);
+    let sub = simd_fma(a, b, simd_neg(c));
+    simd_shuffle!(add, sub, [0, 9, 2, 11, 4, 13, 6, 15])
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -289,7 +322,7 @@ pub unsafe fn _mm256_fmsubadd_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmadd_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfnmaddpd(a, b, c)
+    simd_fma(simd_neg(a), b, c)
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -301,7 +334,7 @@ pub unsafe fn _mm_fnmadd_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fnmadd_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
-    vfnmaddpd256(a, b, c)
+    simd_fma(simd_neg(a), b, c)
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -313,7 +346,7 @@ pub unsafe fn _mm256_fnmadd_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmadd_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfnmaddps(a, b, c)
+    simd_fma(simd_neg(a), b, c)
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -325,7 +358,7 @@ pub unsafe fn _mm_fnmadd_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fnmadd_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
-    vfnmaddps256(a, b, c)
+    simd_fma(simd_neg(a), b, c)
 }
 
 /// Multiplies the lower double-precision (64-bit) floating-point elements in
@@ -339,7 +372,11 @@ pub unsafe fn _mm256_fnmadd_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmadd_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfnmaddsd(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf64(_mm_cvtsd_f64(a), -_mm_cvtsd_f64(b), _mm_cvtsd_f64(c))
+    )
 }
 
 /// Multiplies the lower single-precision (32-bit) floating-point elements in
@@ -353,7 +390,11 @@ pub unsafe fn _mm_fnmadd_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfnmadd))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmadd_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfnmaddss(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf32(_mm_cvtss_f32(a), -_mm_cvtss_f32(b), _mm_cvtss_f32(c))
+    )
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -366,7 +407,7 @@ pub unsafe fn _mm_fnmadd_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfnmsubpd(a, b, c)
+    simd_fma(simd_neg(a), b, simd_neg(c))
 }
 
 /// Multiplies packed double-precision (64-bit) floating-point elements in `a`
@@ -379,7 +420,7 @@ pub unsafe fn _mm_fnmsub_pd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fnmsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
-    vfnmsubpd256(a, b, c)
+    simd_fma(simd_neg(a), b, simd_neg(c))
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -392,7 +433,7 @@ pub unsafe fn _mm256_fnmsub_pd(a: __m256d, b: __m256d, c: __m256d) -> __m256d {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfnmsubps(a, b, c)
+    simd_fma(simd_neg(a), b, simd_neg(c))
 }
 
 /// Multiplies packed single-precision (32-bit) floating-point elements in `a`
@@ -405,7 +446,7 @@ pub unsafe fn _mm_fnmsub_ps(a: __m128, b: __m128, c: __m128) -> __m128 {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm256_fnmsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
-    vfnmsubps256(a, b, c)
+    simd_fma(simd_neg(a), b, simd_neg(c))
 }
 
 /// Multiplies the lower double-precision (64-bit) floating-point elements in
@@ -420,7 +461,11 @@ pub unsafe fn _mm256_fnmsub_ps(a: __m256, b: __m256, c: __m256) -> __m256 {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmsub_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
-    vfnmsubsd(a, b, c)
+    simd_insert!(
+        a,
+        0,
+        fmaf64(_mm_cvtsd_f64(a), -_mm_cvtsd_f64(b), -_mm_cvtsd_f64(c))
+    )
 }
 
 /// Multiplies the lower single-precision (32-bit) floating-point elements in
@@ -435,67 +480,11 @@ pub unsafe fn _mm_fnmsub_sd(a: __m128d, b: __m128d, c: __m128d) -> __m128d {
 #[cfg_attr(test, assert_instr(vfnmsub))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_fnmsub_ss(a: __m128, b: __m128, c: __m128) -> __m128 {
-    vfnmsubss(a, b, c)
-}
-
-#[allow(improper_ctypes)]
-extern "C" {
-    #[link_name = "llvm.x86.fma.vfmadd.sd"]
-    fn vfmaddsd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfmadd.ss"]
-    fn vfmaddss(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfmaddsub.pd"]
-    fn vfmaddsubpd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfmaddsub.pd.256"]
-    fn vfmaddsubpd256(a: __m256d, b: __m256d, c: __m256d) -> __m256d;
-    #[link_name = "llvm.x86.fma.vfmaddsub.ps"]
-    fn vfmaddsubps(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfmaddsub.ps.256"]
-    fn vfmaddsubps256(a: __m256, b: __m256, c: __m256) -> __m256;
-    #[link_name = "llvm.x86.fma.vfmsub.pd"]
-    fn vfmsubpd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfmsub.pd.256"]
-    fn vfmsubpd256(a: __m256d, b: __m256d, c: __m256d) -> __m256d;
-    #[link_name = "llvm.x86.fma.vfmsub.ps"]
-    fn vfmsubps(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfmsub.ps.256"]
-    fn vfmsubps256(a: __m256, b: __m256, c: __m256) -> __m256;
-    #[link_name = "llvm.x86.fma.vfmsub.sd"]
-    fn vfmsubsd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfmsub.ss"]
-    fn vfmsubss(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfmsubadd.pd"]
-    fn vfmsubaddpd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfmsubadd.pd.256"]
-    fn vfmsubaddpd256(a: __m256d, b: __m256d, c: __m256d) -> __m256d;
-    #[link_name = "llvm.x86.fma.vfmsubadd.ps"]
-    fn vfmsubaddps(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfmsubadd.ps.256"]
-    fn vfmsubaddps256(a: __m256, b: __m256, c: __m256) -> __m256;
-    #[link_name = "llvm.x86.fma.vfnmadd.pd"]
-    fn vfnmaddpd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfnmadd.pd.256"]
-    fn vfnmaddpd256(a: __m256d, b: __m256d, c: __m256d) -> __m256d;
-    #[link_name = "llvm.x86.fma.vfnmadd.ps"]
-    fn vfnmaddps(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfnmadd.ps.256"]
-    fn vfnmaddps256(a: __m256, b: __m256, c: __m256) -> __m256;
-    #[link_name = "llvm.x86.fma.vfnmadd.sd"]
-    fn vfnmaddsd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfnmadd.ss"]
-    fn vfnmaddss(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfnmsub.pd"]
-    fn vfnmsubpd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfnmsub.pd.256"]
-    fn vfnmsubpd256(a: __m256d, b: __m256d, c: __m256d) -> __m256d;
-    #[link_name = "llvm.x86.fma.vfnmsub.ps"]
-    fn vfnmsubps(a: __m128, b: __m128, c: __m128) -> __m128;
-    #[link_name = "llvm.x86.fma.vfnmsub.ps.256"]
-    fn vfnmsubps256(a: __m256, b: __m256, c: __m256) -> __m256;
-    #[link_name = "llvm.x86.fma.vfnmsub.sd"]
-    fn vfnmsubsd(a: __m128d, b: __m128d, c: __m128d) -> __m128d;
-    #[link_name = "llvm.x86.fma.vfnmsub.ss"]
-    fn vfnmsubss(a: __m128, b: __m128, c: __m128) -> __m128;
+    simd_insert!(
+        a,
+        0,
+        fmaf32(_mm_cvtss_f32(a), -_mm_cvtss_f32(b), -_mm_cvtss_f32(c))
+    )
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/notable-trait/spot
 rustc-@RUST_VERSION@ source: source-is-missing [tests/rustdoc/decl-trailing-whitespace.declaration.html]
 rustc-@RUST_VERSION@ source: source-is-missing [vendor/html5ever-*/data/bench/*.html]
 rustc-@RUST_VERSION@ source: source-is-missing [vendor/minifier-*/tests/files/minified_main.js]
+rustc-@RUST_VERSION@ source: source-is-missing [vendor/html_parser-*/benches/wikipedia-2020-12-21.html]
 rustc-@RUST_VERSION@ source: license-problem-json-evil [vendor/spdx-*/src/text/licenses/JSON]
 rustc-@RUST_VERSION@ source: license-problem-php-license [vendor/spdx-*/src/text/licenses/PHP-3.01]
 rustc-@RUST_VERSION@ source: license-problem-php-license [vendor/spdx-*/src/text/licenses/PHP-3.0]

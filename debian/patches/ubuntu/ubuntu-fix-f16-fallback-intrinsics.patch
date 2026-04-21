@@ -5,8 +5,8 @@ Last-Update: 2024-08-02
 ---
 Index: rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
 ===================================================================
---- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/extend.rs
-+++ rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
+--- rustc.orig/vendor/compiler_builtins-0.1.123/src/float/extend.rs
++++ rustc/vendor/compiler_builtins-0.1.123/src/float/extend.rs
 @@ -32,7 +32,7 @@ where
  
      let sign_bits_delta = dst_sign_bits - src_sign_bits;
@@ -18,8 +18,8 @@ Index: rustc/vendor/compiler_builtins-0.1.109/src/float/extend.rs
      if a_abs.wrapping_sub(src_min_normal) < src_infinity.wrapping_sub(src_min_normal) {
 Index: rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
 ===================================================================
---- rustc.orig/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
-+++ rustc/vendor/compiler_builtins-0.1.109/src/float/trunc.rs
+--- rustc.orig/vendor/compiler_builtins-0.1.123/src/float/trunc.rs
++++ rustc/vendor/compiler_builtins-0.1.123/src/float/trunc.rs
 @@ -43,8 +43,9 @@ where
  
      let sign_bits_delta = F::SIGNIFICAND_BITS - R::SIGNIFICAND_BITS;

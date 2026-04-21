@@ -13,17 +13,17 @@ Last-Update: 2023-03-29
  src/bootstrap/src/core/config/config.rs | 28 ++++++++++++++++++++++++++--
  1 file changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/src/bootstrap/src/core/config/config.rs b/src/bootstrap/src/core/config/config.rs
-index 149a62f..117c65d 100644
---- a/src/bootstrap/src/core/config/config.rs
-+++ b/src/bootstrap/src/core/config/config.rs
-@@ -1205,8 +1205,32 @@ impl Config {
+Index: rustc/src/bootstrap/src/core/config/config.rs
+===================================================================
+--- rustc.orig/src/bootstrap/src/core/config/config.rs
++++ rustc/src/bootstrap/src/core/config/config.rs
+@@ -1212,8 +1212,32 @@ impl Config {
+     }
  
-     pub fn parse(args: &[String]) -> Config {
-         #[cfg(test)]
--        fn get_toml(_: &Path) -> TomlConfig {
--            TomlConfig::default()
-+        fn get_toml(file: &Path) -> TomlConfig {
+     #[cfg(test)]
+-    fn get_toml(_: &Path) -> Result<TomlConfig, toml::de::Error> {
+-        Ok(TomlConfig::default())
++    fn get_toml(file: &Path) -> Result<TomlConfig, toml::de::Error> {
 +            // Debian: We use previous version as a custom rustc, which
 +            // unfortunately won't be picked up because config.toml isn't
 +            // read when cfg!(test). Making tests use the entirety of our
@@ -49,6 +49,6 @@ index 149a62f..117c65d 100644
 +                    eprintln!("failed to parse TOML configuration '{}': {err}", file.display());
 +                    crate::detail_exit(2);
 +                })
-         }
+     }
  
-         #[cfg(not(test))]
+     #[cfg(not(test))]

@@ -1,17 +1,19 @@
-use crate::infer::InferCtxt;
-use crate::traits;
+use std::iter;
+
 use rustc_hir as hir;
 use rustc_hir::lang_items::LangItem;
 use rustc_infer::traits::ObligationCauseCode;
 use rustc_middle::bug;
 use rustc_middle::ty::{
-    self, Ty, TyCtxt, TypeSuperVisitable, TypeVisitable, TypeVisitableExt, TypeVisitor,
+    self, GenericArg, GenericArgKind, GenericArgsRef, Ty, TyCtxt, TypeSuperVisitable,
+    TypeVisitable, TypeVisitableExt, TypeVisitor,
 };
-use rustc_middle::ty::{GenericArg, GenericArgKind, GenericArgsRef};
 use rustc_span::def_id::{DefId, LocalDefId, CRATE_DEF_ID};
 use rustc_span::{Span, DUMMY_SP};
+use tracing::{debug, instrument, trace};
 
-use std::iter;
+use crate::infer::InferCtxt;
+use crate::traits;
 /// Returns the set of obligations needed to make `arg` well-formed.
 /// If `arg` contains unresolved inference variables, this may include
 /// further WF obligations. However, if `arg` IS an unresolved
@@ -672,9 +674,21 @@ impl<'a, 'tcx> TypeVisitor<TyCtxt<'tcx>> for WfPredicates<'a, 'tcx> {
                 self.require_sized(subty, ObligationCauseCode::SliceOrArrayElem);
             }
 
-            ty::Array(subty, _) => {
+            ty::Array(subty, len) => {
                 self.require_sized(subty, ObligationCauseCode::SliceOrArrayElem);
-                // Note that we handle the len is implicitly checked while walking `arg`.
+                // Note that the len being WF is implicitly checked while visiting.
+                // Here we just check that it's of type usize.
+                let cause = self.cause(ObligationCauseCode::Misc);
+                self.out.push(traits::Obligation::with_depth(
+                    tcx,
+                    cause,
+                    self.recursion_depth,
+                    self.param_env,
+                    ty::Binder::dummy(ty::PredicateKind::Clause(ty::ClauseKind::ConstArgHasType(
+                        len,
+                        tcx.types.usize,
+                    ))),
+                ));
             }
 
             ty::Pat(subty, _) => {
@@ -799,7 +813,7 @@ impl<'a, 'tcx> TypeVisitor<TyCtxt<'tcx>> for WfPredicates<'a, 'tcx> {
                 return upvars.visit_with(self);
             }
 
-            ty::FnPtr(_) => {
+            ty::FnPtr(..) => {
                 // Let the visitor iterate into the argument/return
                 // types appearing in the fn signature.
             }

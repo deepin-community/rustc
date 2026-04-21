@@ -152,6 +152,8 @@ fn functions(input: TokenStream, dirs: &[&str]) -> TokenStream {
             }
             let has_test = tests.contains(&format!("test_{test_name_id}"));
 
+            let doc = find_doc(&f.attrs);
+
             quote! {
                 Function {
                     name: stringify!(#name),
@@ -162,6 +164,7 @@ fn functions(input: TokenStream, dirs: &[&str]) -> TokenStream {
                     file: stringify!(#path),
                     required_const: &[#(#required_const),*],
                     has_test: #has_test,
+                    doc: #doc
                 }
             }
         })
@@ -179,14 +182,17 @@ fn to_type(t: &syn::Type) -> proc_macro2::TokenStream {
             "__m128" => quote! { &M128 },
             "__m128bh" => quote! { &M128BH },
             "__m128d" => quote! { &M128D },
+            "__m128h" => quote! { &M128H },
             "__m128i" => quote! { &M128I },
             "__m256" => quote! { &M256 },
             "__m256bh" => quote! { &M256BH },
             "__m256d" => quote! { &M256D },
+            "__m256h" => quote! { &M256H },
             "__m256i" => quote! { &M256I },
             "__m512" => quote! { &M512 },
             "__m512bh" => quote! { &M512BH },
             "__m512d" => quote! { &M512D },
+            "__m512h" => quote! { &M512H },
             "__m512i" => quote! { &M512I },
             "__mmask8" => quote! { &MMASK8 },
             "__mmask16" => quote! { &MMASK16 },
@@ -196,8 +202,9 @@ fn to_type(t: &syn::Type) -> proc_macro2::TokenStream {
             "_MM_MANTISSA_NORM_ENUM" => quote! { &MM_MANTISSA_NORM_ENUM },
             "_MM_MANTISSA_SIGN_ENUM" => quote! { &MM_MANTISSA_SIGN_ENUM },
             "_MM_PERM_ENUM" => quote! { &MM_PERM_ENUM },
-            "__m64" => quote! { &M64 },
             "bool" => quote! { &BOOL },
+            "bf16" => quote! { &BF16 },
+            "f16" => quote! { &F16 },
             "f32" => quote! { &F32 },
             "f64" => quote! { &F64 },
             "i16" => quote! { &I16 },
@@ -208,6 +215,7 @@ fn to_type(t: &syn::Type) -> proc_macro2::TokenStream {
             "u32" => quote! { &U32 },
             "u64" => quote! { &U64 },
             "u128" => quote! { &U128 },
+            "usize" => quote! { &USIZE },
             "u8" => quote! { &U8 },
             "p8" => quote! { &P8 },
             "p16" => quote! { &P16 },
@@ -506,6 +514,26 @@ fn find_target_feature(attrs: &[syn::Attribute]) -> Option<syn::Lit> {
             }
             _ => None,
         })
+}
+
+fn find_doc(attrs: &[syn::Attribute]) -> String {
+    attrs
+        .iter()
+        .filter_map(|a| {
+            if let syn::Meta::NameValue(ref l) = a.meta {
+                if l.path.is_ident("doc") {
+                    if let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(ref s),
+                        ..
+                    }) = l.value
+                    {
+                        return Some(s.value());
+                    }
+                }
+            }
+            return None;
+        })
+        .collect()
 }
 
 fn find_required_const(name: &str, attrs: &[syn::Attribute]) -> Vec<usize> {

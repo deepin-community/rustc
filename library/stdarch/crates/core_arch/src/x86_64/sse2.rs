@@ -1,9 +1,6 @@
 //! `x86_64`'s Streaming SIMD Extensions 2 (SSE2)
 
-use crate::{
-    core_arch::x86::*,
-    intrinsics::{self, simd::*},
-};
+use crate::{core_arch::x86::*, intrinsics::simd::*};
 
 #[cfg(test)]
 use stdarch_test::assert_instr;
@@ -81,7 +78,12 @@ pub unsafe fn _mm_cvttsd_si64x(a: __m128d) -> i64 {
 #[cfg_attr(test, assert_instr(movnti))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_stream_si64(mem_addr: *mut i64, a: i64) {
-    intrinsics::nontemporal_store(mem_addr, a);
+    crate::arch::asm!(
+        vps!("movnti", ",{a}"),
+        p = in(reg) mem_addr,
+        a = in(reg) a,
+        options(nostack, preserves_flags),
+    );
 }
 
 /// Returns a vector whose lowest element is `a` and all higher elements are
@@ -90,7 +92,7 @@ pub unsafe fn _mm_stream_si64(mem_addr: *mut i64, a: i64) {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_cvtsi64_si128)
 #[inline]
 #[target_feature(enable = "sse2")]
-#[cfg_attr(all(test, not(windows)), assert_instr(movq))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_cvtsi64_si128(a: i64) -> __m128i {
     _mm_set_epi64x(0, a)
@@ -102,7 +104,7 @@ pub unsafe fn _mm_cvtsi64_si128(a: i64) -> __m128i {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_cvtsi64x_si128)
 #[inline]
 #[target_feature(enable = "sse2")]
-#[cfg_attr(all(test, not(windows)), assert_instr(movq))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_cvtsi64x_si128(a: i64) -> __m128i {
     _mm_cvtsi64_si128(a)
@@ -113,7 +115,7 @@ pub unsafe fn _mm_cvtsi64x_si128(a: i64) -> __m128i {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_cvtsi128_si64)
 #[inline]
 #[target_feature(enable = "sse2")]
-#[cfg_attr(all(test, not(windows)), assert_instr(movq))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_cvtsi128_si64(a: __m128i) -> i64 {
     simd_extract!(a.as_i64x2(), 0)
@@ -124,7 +126,7 @@ pub unsafe fn _mm_cvtsi128_si64(a: __m128i) -> i64 {
 /// [Intel's documentation](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#text=_mm_cvtsi128_si64x)
 #[inline]
 #[target_feature(enable = "sse2")]
-#[cfg_attr(all(test, not(windows)), assert_instr(movq))]
+#[cfg_attr(all(test, not(target_env = "msvc")), assert_instr(movq))]
 #[stable(feature = "simd_x86", since = "1.27.0")]
 pub unsafe fn _mm_cvtsi128_si64x(a: __m128i) -> i64 {
     _mm_cvtsi128_si64(a)

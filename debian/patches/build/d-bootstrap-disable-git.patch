@@ -12,7 +12,7 @@ Index: rustc/src/bootstrap/src/core/build_steps/dist.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/build_steps/dist.rs
 +++ rustc/src/bootstrap/src/core/build_steps/dist.rs
-@@ -1007,8 +1007,10 @@ impl Step for PlainSourceTarball {
+@@ -1013,8 +1013,10 @@ impl Step for PlainSourceTarball {
  
          // If we're building from git or tarball sources, we need to vendor
          // a complete distribution.
@@ -23,8 +23,8 @@ Index: rustc/src/bootstrap/src/core/build_steps/dist.rs
 +        //         repository, but cargo-vendor should not be installed or run.
 +        if false
          {
-             // FIXME: This code looks _very_ similar to what we have in `src/core/build_steps/vendor.rs`
-             // perhaps it should be removed in favor of making `dist` perform the `vendor` step?
+             builder.require_and_update_all_submodules();
+ 
 Index: rustc/src/bootstrap/src/utils/channel.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/utils/channel.rs

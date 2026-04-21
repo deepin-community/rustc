@@ -92,9 +92,10 @@ jobs:
         - thumbv7m-none-eabi
         - thumbv7em-none-eabi
         - thumbv7em-none-eabihf
+        - loongarch64-unknown-linux-gnu
 
         # macOS targets
-        #- x86_64-apple-darwin
+        - x86_64-apple-darwin
         - aarch64-apple-darwin
         # FIXME: gh-actions build environment doesn't have linker support
         # - i686-apple-darwin
@@ -103,8 +104,7 @@ jobs:
         - x86_64-pc-windows-msvc
         - i686-pc-windows-msvc
         - aarch64-pc-windows-msvc
-        # FIXME: Disassembly not implemented for the # following targets:
-        # - x86_64-pc-windows-gnu:
+        - x86_64-pc-windows-gnu
         # - i686-pc-windows-gnu:
 
         include:
@@ -116,6 +116,7 @@ jobs:
           os: ubuntu-latest
           test_everything: true
           rustflags: --cfg stdarch_intel_sde
+          disable_assert_instr: true
         - target: arm-unknown-linux-gnueabihf
           os: ubuntu-latest
         - target: armv7-unknown-linux-gnueabihf
@@ -147,7 +148,7 @@ jobs:
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-latest
         - target: x86_64-apple-darwin
-          os: macos-11
+          os: macos-13
         - target: x86_64-pc-windows-msvc
           os: windows-latest
         - target: i686-pc-windows-msvc
@@ -155,6 +156,8 @@ jobs:
         - target: aarch64-pc-windows-msvc
           os: windows-latest
           norun: true
+        - target: x86_64-pc-windows-gnu
+          os: windows-latest
         - target: i586-unknown-linux-gnu
           os: ubuntu-latest
         - target: nvptx64-nvidia-cuda
@@ -169,26 +172,18 @@ jobs:
           os: ubuntu-latest
         - target: riscv64gc-unknown-linux-gnu
           os: ubuntu-latest
+        - target: loongarch64-unknown-linux-gnu
+          os: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Install Rust (rustup)
+    - name: Install Rust
       run: |
         rustup update nightly --no-self-update
         rustup default nightly
-      if: matrix.os != 'macos-latest'
-    - name: Install Rust (macos)
-      run: |
-        curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        rustup update nightly --no-self-update
-        rustup default nightly
-      if: matrix.os == 'macos-latest'
-    - run: |
-        rustup default nightly
-        rustup target add ${{ matrix.target }}
+    - run: rustup target add ${{ matrix.target }}
       if: "!endsWith(matrix.target, 'emulated')"
     - name: Setup (aarch64-apple-darwin)
       run: |

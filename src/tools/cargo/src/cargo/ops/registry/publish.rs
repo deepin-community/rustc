@@ -155,6 +155,7 @@ pub fn publish(ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<()> {
             jobs: opts.jobs.clone(),
             keep_going: opts.keep_going,
             cli_features,
+            reg_or_index,
         },
     )?;
 
@@ -320,15 +321,12 @@ fn verify_dependencies(
     Ok(())
 }
 
-fn transmit(
+pub(crate) fn prepare_transmit(
     gctx: &GlobalContext,
     ws: &Workspace<'_>,
     local_pkg: &Package,
-    tarball: &File,
-    registry: &mut Registry,
     registry_id: SourceId,
-    dry_run: bool,
-) -> CargoResult<()> {
+) -> CargoResult<NewCrate> {
     let included = None; // don't filter build-targets
     let publish_pkg = prepare_for_publish(local_pkg, ws, included)?;
 
@@ -413,13 +411,7 @@ fn transmit(
         }
     }
 
-    // Do not upload if performing a dry run
-    if dry_run {
-        gctx.shell().warn("aborting upload due to dry run")?;
-        return Ok(());
-    }
-
-    let string_features = match manifest.resolved_toml().features() {
+    let string_features = match manifest.normalized_toml().features() {
         Some(features) => features
             .iter()
             .map(|(feat, values)| {
@@ -432,30 +424,47 @@ fn transmit(
         None => BTreeMap::new(),
     };
 
+    Ok(NewCrate {
+        name: publish_pkg.name().to_string(),
+        vers: publish_pkg.version().to_string(),
+        deps,
+        features: string_features,
+        authors: authors.clone(),
+        description: description.clone(),
+        homepage: homepage.clone(),
+        documentation: documentation.clone(),
+        keywords: keywords.clone(),
+        categories: categories.clone(),
+        readme: readme_content,
+        readme_file: readme.clone(),
+        repository: repository.clone(),
+        license: license.clone(),
+        license_file: license_file.clone(),
+        badges: badges.clone(),
+        links: links.clone(),
+        rust_version,
+    })
+}
+
+fn transmit(
+    gctx: &GlobalContext,
+    ws: &Workspace<'_>,
+    pkg: &Package,
+    tarball: &File,
+    registry: &mut Registry,
+    registry_id: SourceId,
+    dry_run: bool,
+) -> CargoResult<()> {
+    let new_crate = prepare_transmit(gctx, ws, pkg, registry_id)?;
+
+    // Do not upload if performing a dry run
+    if dry_run {
+        gctx.shell().warn("aborting upload due to dry run")?;
+        return Ok(());
+    }
+
     let warnings = registry
-        .publish(
-            &NewCrate {
-                name: local_pkg.name().to_string(),
-                vers: local_pkg.version().to_string(),
-                deps,
-                features: string_features,
-                authors: authors.clone(),
-                description: description.clone(),
-                homepage: homepage.clone(),
-                documentation: documentation.clone(),
-                keywords: keywords.clone(),
-                categories: categories.clone(),
-                readme: readme_content,
-                readme_file: readme.clone(),
-                repository: repository.clone(),
-                license: license.clone(),
-                license_file: license_file.clone(),
-                badges: badges.clone(),
-                links: links.clone(),
-                rust_version,
-            },
-            tarball,
-        )
+        .publish(&new_crate, tarball)
         .with_context(|| format!("failed to publish to registry at {}", registry.host()))?;
 
     if !warnings.invalid_categories.is_empty() {

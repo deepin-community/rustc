@@ -2,7 +2,6 @@
 
 use std::fs;
 
-use cargo_test_support::paths::CargoPathExt;
 use cargo_test_support::prelude::*;
 use cargo_test_support::registry::Package;
 use cargo_test_support::{
@@ -4384,38 +4383,42 @@ fn json_artifact_includes_test_flag() {
         .file("src/lib.rs", "")
         .build();
 
-    p.cargo("test --lib -v --message-format=json")
-        .with_json(
-            r#"
-                {
-                    "reason":"compiler-artifact",
-                    "profile": {
-                        "debug_assertions": true,
-                        "debuginfo": 2,
-                        "opt_level": "1",
-                        "overflow_checks": true,
-                        "test": true
-                    },
-                    "executable": "[..]/foo-[..]",
-                    "features": [],
-                    "package_id":"path+file:///[..]/foo#0.0.1",
-                    "manifest_path": "[..]",
-                    "target":{
-                        "kind":["lib"],
-                        "crate_types":["lib"],
-                        "doc": true,
-                        "doctest": true,
-                        "edition": "2015",
-                        "name":"foo",
-                        "src_path":"[..]lib.rs",
-                        "test": true
-                    },
-                    "filenames":"{...}",
-                    "fresh": false
-                }
-
-                {"reason": "build-finished", "success": true}
-            "#,
+    p.cargo("test --lib -v --no-run --message-format=json")
+        .with_stdout_data(
+            str![[r#"
+[
+  {
+    "executable": "[ROOT]/foo/target/debug/deps/foo-[HASH][EXE]",
+    "features": [],
+    "filenames": "{...}",
+    "fresh": false,
+    "manifest_path": "[ROOT]/foo/Cargo.toml",
+    "package_id": "path+[ROOTURL]/foo#0.0.1",
+    "profile": "{...}",
+    "reason": "compiler-artifact",
+    "target": {
+      "crate_types": [
+        "lib"
+      ],
+      "doc": true,
+      "doctest": true,
+      "edition": "2015",
+      "kind": [
+        "lib"
+      ],
+      "name": "foo",
+      "src_path": "[ROOT]/foo/src/lib.rs",
+      "test": true
+    }
+  },
+  {
+    "reason": "build-finished",
+    "success": true
+  }
+]
+"#]]
+            .is_json()
+            .against_jsonlines(),
         )
         .run();
 }
@@ -4429,31 +4432,41 @@ fn json_artifact_includes_executable_for_library_tests() {
         .build();
 
     p.cargo("test --lib -v --no-run --message-format=json")
-        .with_json(
-            r#"
-                {
-                    "executable": "[..]/foo/target/debug/deps/foo-[..][EXE]",
-                    "features": [],
-                    "filenames": "{...}",
-                    "fresh": false,
-                    "package_id": "path+file:///[..]/foo#0.0.1",
-                    "manifest_path": "[..]",
-                    "profile": "{...}",
-                    "reason": "compiler-artifact",
-                    "target": {
-                        "crate_types": [ "lib" ],
-                        "kind": [ "lib" ],
-                        "doc": true,
-                        "doctest": true,
-                        "edition": "2015",
-                        "name": "foo",
-                        "src_path": "[..]/foo/src/lib.rs",
-                        "test": true
-                    }
-                }
-
-                {"reason": "build-finished", "success": true}
-            "#,
+        .with_stdout_data(
+            str![[r#"
+[
+  {
+    "executable": "[ROOT]/foo/target/debug/deps/foo-[HASH][EXE]",
+    "features": [],
+    "filenames": "{...}",
+    "fresh": false,
+    "manifest_path": "[ROOT]/foo/Cargo.toml",
+    "package_id": "path+[ROOTURL]/foo#0.0.1",
+    "profile": "{...}",
+    "reason": "compiler-artifact",
+    "target": {
+      "crate_types": [
+        "lib"
+      ],
+      "doc": true,
+      "doctest": true,
+      "edition": "2015",
+      "kind": [
+        "lib"
+      ],
+      "name": "foo",
+      "src_path": "[ROOT]/foo/src/lib.rs",
+      "test": true
+    }
+  },
+  {
+    "reason": "build-finished",
+    "success": true
+  }
+]
+"#]]
+            .is_json()
+            .against_jsonlines(),
         )
         .run();
 }
@@ -4469,31 +4482,41 @@ fn json_artifact_includes_executable_for_integration_tests() {
         .build();
 
     p.cargo("test -v --no-run --message-format=json --test integration_test")
-        .with_json(
-            r#"
-                {
-                    "executable": "[..]/foo/target/debug/deps/integration_test-[..][EXE]",
-                    "features": [],
-                    "filenames": "{...}",
-                    "fresh": false,
-                    "package_id": "path+file:///[..]/foo#0.0.1",
-                    "manifest_path": "[..]",
-                    "profile": "{...}",
-                    "reason": "compiler-artifact",
-                    "target": {
-                        "crate_types": [ "bin" ],
-                        "kind": [ "test" ],
-                        "doc": false,
-                        "doctest": false,
-                        "edition": "2015",
-                        "name": "integration_test",
-                        "src_path": "[..]/foo/tests/integration_test.rs",
-                        "test": true
-                    }
-                }
-
-                {"reason": "build-finished", "success": true}
-            "#,
+        .with_stdout_data(
+            str![[r#"
+[
+  {
+    "executable": "[ROOT]/foo/target/debug/deps/integration_test-[HASH][EXE]",
+    "features": [],
+    "filenames": "{...}",
+    "fresh": false,
+    "manifest_path": "[ROOT]/foo/Cargo.toml",
+    "package_id": "path+[ROOTURL]/foo#0.0.1",
+    "profile": "{...}",
+    "reason": "compiler-artifact",
+    "target": {
+      "crate_types": [
+        "bin"
+      ],
+      "doc": false,
+      "doctest": false,
+      "edition": "2015",
+      "kind": [
+        "test"
+      ],
+      "name": "integration_test",
+      "src_path": "[ROOT]/foo/tests/integration_test.rs",
+      "test": true
+    }
+  },
+  {
+    "reason": "build-finished",
+    "success": true
+  }
+]
+"#]]
+            .is_json()
+            .against_jsonlines(),
         )
         .run();
 }
@@ -5532,7 +5555,7 @@ fn cargo_test_print_env_verbose() {
 [FINISHED] `test` profile [unoptimized + debuginfo] target(s) in [ELAPSED]s
 [RUNNING] `[..]CARGO_MANIFEST_DIR=[ROOT]/foo[..] [ROOT]/foo/target/debug/deps/foo-[HASH][EXE]`
 [DOCTEST] foo
-[RUNNING] `[..]CARGO_MANIFEST_DIR=[ROOT]/foo[..] rustdoc --edition=2015 --crate-type lib --crate-name foo[..]`
+[RUNNING] `[..]CARGO_MANIFEST_DIR=[ROOT]/foo[..] rustdoc --edition=2015 --crate-type lib --color auto --crate-name foo[..]`
 
 "#]]).run();
 }

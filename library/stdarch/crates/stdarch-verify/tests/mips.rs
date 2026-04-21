@@ -1,5 +1,5 @@
 //! Verification of MIPS MSA intrinsics
-#![allow(bad_style, unused)]
+#![allow(unused, non_upper_case_globals, clippy::single_match)]
 
 // This file is obtained from
 // https://gcc.gnu.org/onlinedocs//gcc/MIPS-SIMD-Architecture-Built-in-Functions.html
@@ -16,6 +16,7 @@ struct Function {
     file: &'static str,
     required_const: &'static [usize],
     has_test: bool,
+    doc: &'static str,
 }
 
 static F16: Type = Type::PrimFloat(16);

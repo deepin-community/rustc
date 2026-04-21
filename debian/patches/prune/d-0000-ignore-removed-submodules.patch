@@ -18,7 +18,7 @@ Index: rustc/Cargo.toml
 ===================================================================
 --- rustc.orig/Cargo.toml
 +++ rustc/Cargo.toml
-@@ -20,21 +20,15 @@ members = [
+@@ -18,21 +18,15 @@ members = [
    "src/tools/tidy",
    "src/tools/tier-check",
    "src/tools/build-manifest",
@@ -44,7 +44,7 @@ Index: rustc/src/bootstrap/bootstrap.py
 ===================================================================
 --- rustc.orig/src/bootstrap/bootstrap.py
 +++ rustc/src/bootstrap/bootstrap.py
-@@ -1007,10 +1007,6 @@ class RustBuild(object):
+@@ -1024,10 +1024,6 @@ class RustBuild(object):
          args = [self.cargo(), "build", "--manifest-path",
                  os.path.join(self.rust_root, "src/bootstrap/Cargo.toml")]
          args.extend("--verbose" for _ in range(self.verbose))
@@ -59,21 +59,18 @@ Index: rustc/src/bootstrap/src/core/build_steps/test.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/build_steps/test.rs
 +++ rustc/src/bootstrap/src/core/build_steps/test.rs
-@@ -2398,18 +2398,7 @@ impl Step for RustcGuide {
+@@ -2409,15 +2409,7 @@ impl Step for RustcGuide {
      }
  
      fn run(self, builder: &Builder<'_>) {
--        let relative_path = Path::new("src").join("doc").join("rustc-dev-guide");
--        builder.update_submodule(&relative_path);
+-        let relative_path = "src/doc/rustc-dev-guide";
+-        builder.require_submodule(relative_path, None);
 -
 -        let src = builder.src.join(relative_path);
 -        let mut rustbook_cmd = builder.tool_cmd(Tool::Rustbook).delay_failure();
 -        rustbook_cmd.arg("linkcheck").arg(&src);
--        let toolstate = if rustbook_cmd.run(builder).is_success() {
--            ToolState::TestPass
--        } else {
--            ToolState::TestFail
--        };
+-        let toolstate =
+-            if rustbook_cmd.run(builder) { ToolState::TestPass } else { ToolState::TestFail };
 -        builder.save_toolstate("rustc-dev-guide", toolstate);
 +        builder.save_toolstate("rustc-dev-guide", ToolState::TestPass);
      }
@@ -83,7 +80,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/builder.rs
 +++ rustc/src/bootstrap/src/core/builder.rs
-@@ -778,28 +778,16 @@ impl<'a> Builder<'a> {
+@@ -782,28 +782,16 @@ impl<'a> Builder<'a> {
                  tool::Linkchecker,
                  tool::CargoTest,
                  tool::Compiletest,
@@ -112,7 +109,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
              ),
              Kind::Clippy => describe!(
                  clippy::Std,
-@@ -834,12 +822,7 @@ impl<'a> Builder<'a> {
+@@ -839,12 +827,7 @@ impl<'a> Builder<'a> {
                  check::Rustdoc,
                  check::CodegenBackend,
                  check::Clippy,
@@ -122,10 +119,10 @@ Index: rustc/src/bootstrap/src/core/builder.rs
 -                check::Rls,
                  check::Rustfmt,
 -                check::RustAnalyzer,
+                 check::TestFloatParse,
                  check::Bootstrap,
              ),
-             Kind::Test => describe!(
-@@ -872,7 +855,6 @@ impl<'a> Builder<'a> {
+@@ -878,7 +861,6 @@ impl<'a> Builder<'a> {
                  test::TierCheck,
                  test::Cargotest,
                  test::Cargo,
@@ -133,7 +130,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  test::ErrorIndex,
                  test::Distcheck,
                  test::Nomicon,
-@@ -887,8 +869,6 @@ impl<'a> Builder<'a> {
+@@ -893,8 +875,6 @@ impl<'a> Builder<'a> {
                  test::EmbeddedBook,
                  test::EditionGuide,
                  test::Rustfmt,
@@ -142,7 +139,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  test::Clippy,
                  test::CompiletestTest,
                  test::CrateRunMakeSupport,
-@@ -927,7 +907,6 @@ impl<'a> Builder<'a> {
+@@ -934,7 +914,6 @@ impl<'a> Builder<'a> {
                  doc::CargoBook,
                  doc::Clippy,
                  doc::ClippyBook,
@@ -150,7 +147,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  doc::EmbeddedBook,
                  doc::EditionGuide,
                  doc::StyleGuide,
-@@ -948,11 +927,8 @@ impl<'a> Builder<'a> {
+@@ -955,11 +934,8 @@ impl<'a> Builder<'a> {
                  dist::Analysis,
                  dist::Src,
                  dist::Cargo,
@@ -162,7 +159,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  dist::LlvmTools,
                  dist::LlvmBitcodeLinker,
                  dist::RustDev,
-@@ -975,10 +951,8 @@ impl<'a> Builder<'a> {
+@@ -982,10 +958,8 @@ impl<'a> Builder<'a> {
                  // install the same binaries twice for each tool, leaving backup files (*.old) as a result.
                  install::Rustc,
                  install::Cargo,
@@ -173,7 +170,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  install::LlvmTools,
                  install::Src,
              ),
-@@ -986,7 +960,6 @@ impl<'a> Builder<'a> {
+@@ -993,7 +967,6 @@ impl<'a> Builder<'a> {
                  run::BuildManifest,
                  run::BumpStage0,
                  run::ReplaceVersionPlaceholder,
@@ -181,7 +178,7 @@ Index: rustc/src/bootstrap/src/core/builder.rs
                  run::CollectLicenseMetadata,
                  run::GenerateCopyright,
                  run::GenerateWindowsSys,
-@@ -2131,10 +2104,7 @@ impl<'a> Builder<'a> {
+@@ -2138,10 +2111,7 @@ impl<'a> Builder<'a> {
              }
          }
  

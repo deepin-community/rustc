@@ -14,6 +14,7 @@
     core_intrinsics,
     intrinsics,
     no_core,
+    fmt_helpers_for_derive,
     rustc_attrs,
     staged_api,
     doc_cfg,
@@ -30,10 +31,12 @@
     rtm_target_feature,
     allow_internal_unstable,
     decl_macro,
-    asm_const,
     target_feature_11,
     generic_arg_infer,
-    asm_experimental_arch
+    asm_experimental_arch,
+    sha512_sm_x86,
+    x86_amx_intrinsics,
+    f16
 )]
 #![cfg_attr(test, feature(test, abi_vectorcall, stdarch_internal))]
 #![deny(clippy::missing_inline_in_public_items)]
@@ -63,7 +66,11 @@
 )]
 #![cfg_attr(
     test,
-    feature(stdarch_arm_feature_detection, stdarch_powerpc_feature_detection)
+    feature(
+        stdarch_arm_feature_detection,
+        stdarch_powerpc_feature_detection,
+        stdarch_loongarch_feature_detection
+    )
 )]
 
 #[cfg(test)]
@@ -85,4 +92,4 @@ pub mod arch {
 }
 
 #[allow(unused_imports)]
-use core::{convert, ffi, hint, intrinsics, marker, mem, ops, ptr, sync};
+use core::{array, convert, ffi, fmt, hint, intrinsics, marker, mem, ops, ptr, sync};

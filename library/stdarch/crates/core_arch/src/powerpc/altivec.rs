@@ -21,41 +21,30 @@ use stdarch_test::assert_instr;
 use super::macros::*;
 
 types! {
+    #![unstable(feature = "stdarch_powerpc", issue = "111145")]
+
     /// PowerPC-specific 128-bit wide vector of sixteen packed `i8`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_signed_char(i8, i8, i8, i8, i8, i8, i8, i8,
-                                  i8, i8, i8, i8, i8, i8, i8, i8);
+    pub struct vector_signed_char(16 x i8);
     /// PowerPC-specific 128-bit wide vector of sixteen packed `u8`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_unsigned_char(u8, u8, u8, u8, u8, u8, u8, u8,
-                                    u8, u8, u8, u8, u8, u8, u8, u8);
+    pub struct vector_unsigned_char(16 x u8);
 
     /// PowerPC-specific 128-bit wide vector mask of sixteen packed elements
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_bool_char(i8, i8, i8, i8, i8, i8, i8, i8,
-                                i8, i8, i8, i8, i8, i8, i8, i8);
+    pub struct vector_bool_char(16 x i8);
     /// PowerPC-specific 128-bit wide vector of eight packed `i16`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_signed_short(i16, i16, i16, i16, i16, i16, i16, i16);
+    pub struct vector_signed_short(8 x i16);
     /// PowerPC-specific 128-bit wide vector of eight packed `u16`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_unsigned_short(u16, u16, u16, u16, u16, u16, u16, u16);
+    pub struct vector_unsigned_short(8 x u16);
     /// PowerPC-specific 128-bit wide vector mask of eight packed elements
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_bool_short(i16, i16, i16, i16, i16, i16, i16, i16);
+    pub struct vector_bool_short(8 x i16);
     // pub struct vector_pixel(???);
     /// PowerPC-specific 128-bit wide vector of four packed `i32`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_signed_int(i32, i32, i32, i32);
+    pub struct vector_signed_int(4 x i32);
     /// PowerPC-specific 128-bit wide vector of four packed `u32`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_unsigned_int(u32, u32, u32, u32);
+    pub struct vector_unsigned_int(4 x u32);
     /// PowerPC-specific 128-bit wide vector mask of four packed elements
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_bool_int(i32, i32, i32, i32);
+    pub struct vector_bool_int(4 x i32);
     /// PowerPC-specific 128-bit wide vector of four packed `f32`
-    #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-    pub struct vector_float(f32, f32, f32, f32);
+    pub struct vector_float(4 x f32);
 }
 
 #[allow(improper_ctypes)]
@@ -410,8 +399,8 @@ mod sealed {
 
     #[unstable(feature = "stdarch_powerpc", issue = "111145")]
     pub trait VectorInsert {
-        type S;
-        unsafe fn vec_insert<const IDX: u32>(self, s: Self::S) -> Self;
+        type Scalar;
+        unsafe fn vec_insert<const IDX: u32>(self, s: Self::Scalar) -> Self;
     }
 
     const fn idx_in_vec<T, const IDX: u32>() -> u32 {
@@ -422,11 +411,11 @@ mod sealed {
         ($ty:ident) => {
             #[unstable(feature = "stdarch_powerpc", issue = "111145")]
             impl VectorInsert for t_t_l!($ty) {
-                type S = $ty;
+                type Scalar = $ty;
                 #[inline]
                 #[target_feature(enable = "altivec")]
-                unsafe fn vec_insert<const IDX: u32>(self, s: Self::S) -> Self {
-                    simd_insert(self, const { idx_in_vec::<Self::S, IDX>() }, s)
+                unsafe fn vec_insert<const IDX: u32>(self, s: Self::Scalar) -> Self {
+                    simd_insert(self, const { idx_in_vec::<Self::Scalar, IDX>() }, s)
                 }
             }
         };
@@ -442,19 +431,19 @@ mod sealed {
 
     #[unstable(feature = "stdarch_powerpc", issue = "111145")]
     pub trait VectorExtract {
-        type S;
-        unsafe fn vec_extract<const IDX: u32>(self) -> Self::S;
+        type Scalar;
+        unsafe fn vec_extract<const IDX: u32>(self) -> Self::Scalar;
     }
 
     macro_rules! impl_vec_extract {
         ($ty:ident) => {
             #[unstable(feature = "stdarch_powerpc", issue = "111145")]
             impl VectorExtract for t_t_l!($ty) {
-                type S = $ty;
+                type Scalar = $ty;
                 #[inline]
                 #[target_feature(enable = "altivec")]
-                unsafe fn vec_extract<const IDX: u32>(self) -> Self::S {
-                    simd_extract(self, const { idx_in_vec::<Self::S, IDX>() })
+                unsafe fn vec_extract<const IDX: u32>(self) -> Self::Scalar {
+                    simd_extract(self, const { idx_in_vec::<Self::Scalar, IDX>() })
                 }
             }
         };
@@ -3233,18 +3222,18 @@ mod sealed {
 
     #[unstable(feature = "stdarch_powerpc", issue = "111145")]
     pub trait VectorRl {
-        type B;
-        unsafe fn vec_rl(self, b: Self::B) -> Self;
+        type Shift;
+        unsafe fn vec_rl(self, b: Self::Shift) -> Self;
     }
 
     macro_rules! impl_vec_rl {
         ($fun:ident ($a:ident)) => {
             #[unstable(feature = "stdarch_powerpc", issue = "111145")]
             impl VectorRl for $a {
-                type B = t_u!($a);
+                type Shift = t_u!($a);
                 #[inline]
                 #[target_feature(enable = "altivec")]
-                unsafe fn vec_rl(self, b: Self::B) -> Self {
+                unsafe fn vec_rl(self, b: Self::Shift) -> Self {
                     transmute($fun(transmute(self), b))
                 }
             }
@@ -3292,7 +3281,7 @@ mod sealed {
 #[inline]
 #[target_feature(enable = "altivec")]
 #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-pub unsafe fn vec_insert<T, const IDX: u32>(a: T, b: <T as sealed::VectorInsert>::S) -> T
+pub unsafe fn vec_insert<T, const IDX: u32>(a: T, b: <T as sealed::VectorInsert>::Scalar) -> T
 where
     T: sealed::VectorInsert,
 {
@@ -3310,7 +3299,7 @@ where
 #[inline]
 #[target_feature(enable = "altivec")]
 #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-pub unsafe fn vec_extract<T, const IDX: u32>(a: T) -> <T as sealed::VectorExtract>::S
+pub unsafe fn vec_extract<T, const IDX: u32>(a: T) -> <T as sealed::VectorExtract>::Scalar
 where
     T: sealed::VectorExtract,
 {
@@ -3949,7 +3938,7 @@ where
 #[inline]
 #[target_feature(enable = "altivec")]
 #[unstable(feature = "stdarch_powerpc", issue = "111145")]
-pub unsafe fn vec_rl<T>(a: T, b: <T as sealed::VectorRl>::B) -> T
+pub unsafe fn vec_rl<T>(a: T, b: <T as sealed::VectorRl>::Shift) -> T
 where
     T: sealed::VectorRl,
 {
@@ -4691,7 +4680,7 @@ mod tests {
                 let a: vector_float = transmute(f32x4::new($($a),+));
 
                 let d: vector_float = transmute(f32x4::new($($d),+));
-                let r = transmute(vec_cmple(vec_abs(vec_sub($fn(a), d)), vec_splats(std::f32::EPSILON)));
+                let r = transmute(vec_cmple(vec_abs(vec_sub($fn(a), d)), vec_splats(f32::EPSILON)));
                 let e = m32x4::new(true, true, true, true);
                 assert_eq!(e, r);
             }
@@ -6621,10 +6610,7 @@ mod tests {
         let r8: vector_float = transmute(f32x4::new(0.0, 536870900.0, 536870900.0, 5.25));
 
         let check = |a, b| {
-            let r = transmute(vec_cmple(
-                vec_abs(vec_sub(a, b)),
-                vec_splats(std::f32::EPSILON),
-            ));
+            let r = transmute(vec_cmple(vec_abs(vec_sub(a, b)), vec_splats(f32::EPSILON)));
             let e = m32x4::new(true, true, true, true);
             assert_eq!(e, r);
         };
@@ -6673,10 +6659,7 @@ mod tests {
         let r8: vector_float = transmute(f32x4::new(-268435460.0, 268435460.0, 268435460.0, 5.25));
 
         let check = |a, b| {
-            let r = transmute(vec_cmple(
-                vec_abs(vec_sub(a, b)),
-                vec_splats(std::f32::EPSILON),
-            ));
+            let r = transmute(vec_cmple(vec_abs(vec_sub(a, b)), vec_splats(f32::EPSILON)));
             println!("{:?} {:?}", a, b);
             let e = m32x4::new(true, true, true, true);
             assert_eq!(e, r);

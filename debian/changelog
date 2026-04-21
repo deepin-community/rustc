@@ -1,8 +1,49 @@
-rustc-1.81 (1.81.0+dfsg0ubuntu1-0ubuntu1deepin1) unstable; urgency=medium
+rustc-1.82 (1.82.0+dfsg0ubuntu1-0ubuntu2deepin1) unstable; urgency=medium
 
+  * fix for gcc-15
   * Adapt to deepin's four architectures and version requirements.
 
- -- Mingcong Bai <baimingcong@uniontech.com>  Wed, 16 Oct 2024 11:52:52 +0800
+ -- Chang Yang <yangchang@deepin.org>  Fri, 17 Apr 2026 14:33:13 +0800
+
+rustc-1.82 (1.82.0+dfsg0ubuntu1-0ubuntu2) plucky; urgency=medium
+
+  * d/p/ubuntu/ubuntu-update-libgit2-to-1.9.patch: add a patch to
+    update libgit2 to 1.9 (LP: #2093205)
+  * d/control.in: update libgit2 to 1.9
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Tue, 07 Jan 2025 11:33:36 -0700
+
+rustc-1.82 (1.82.0+dfsg0ubuntu1-0ubuntu1) plucky; urgency=medium
+
+  [ Zixing Liu ]
+  * New upstream release 1.82.0 (LP: #2088229)
+  * d/rules: correctly pass the LLVM_PROFILER_RT_LIB variable to Rust build system
+  * debian/patches/behaviour/d-rustc-add-soname.patch: patch the new test, the test is detecting this patch negatively
+  * debian/patches/build/d-bootstrap-custom-debuginfo-path.patch: don't patch debuginfo test, it works correctly now
+  * d/control.in: update to use libgit2 1.8.x
+  * d/rules,*.in: upgrade to LLVM 19
+  * d/p/ubuntu/ubuntu-fix-simd-test.patch: add a patch to fix SIMD FFI test
+  * d/control.in: update vendored dependency list
+  * d/{control,s/lintian-overrides}: re-generate files for rustc-1.82
+  * d/patches: refresh patches
+  * d/patches: remove obsoleted patches
+    - upstream/u-add-missing-f16-intrinsics.patch
+    - upstream/u-add-f16-f128-handling-in-a-couple-places.patch
+    - upstream/Revert-loongarch-add-frecipe-and-relax-target-feature.patch
+    - ubuntu/ubuntu-add-s390x-allowed-features.patch
+    - upstream/u-disable-f16-f128-on-unsupported-platforms.patch
+  * d/copyright: update the list of unused vendored dependencies
+  * d/copyright: update copyright information
+  * d/s/lintian-overrides: override new false-positives
+  * d/p/prune/d-0020-remove-windows-dependencies.patch: refresh the patch
+
+  [ Fabian Grünbichler ]
+  * set LLVM profiler RT path via config
+    instead of via the environment, adapting to corresponding upstream changes, and
+    adapt the config change-id accordingly.
+    Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
+
+ -- Zixing Liu <zixing.liu@canonical.com>  Thu, 14 Nov 2024 15:26:51 -0700
 
 rustc-1.81 (1.81.0+dfsg0ubuntu1-0ubuntu1) oracular; urgency=medium
 

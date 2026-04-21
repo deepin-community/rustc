@@ -11,19 +11,19 @@ Index: rustc/src/bootstrap/src/core/config/config.rs
 ===================================================================
 --- rustc.orig/src/bootstrap/src/core/config/config.rs
 +++ rustc/src/bootstrap/src/core/config/config.rs
-@@ -1481,7 +1481,6 @@ impl Config {
+@@ -1521,7 +1521,6 @@ impl Config {
              }
              rustc
          } else {
 -            config.download_beta_toolchain();
              config
                  .out
-                 .join(config.build.triple)
-@@ -1496,7 +1495,6 @@ impl Config {
+                 .join(config.build)
+@@ -1536,7 +1535,6 @@ impl Config {
              }
              cargo
          } else {
 -            config.download_beta_toolchain();
              config
                  .out
-                 .join(config.build.triple)
+                 .join(config.build)

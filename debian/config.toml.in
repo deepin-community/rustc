@@ -1,4 +1,4 @@
-change-id = 127866
+change-id = 129295
 
 [build]
 submodules = false
@@ -34,21 +34,39 @@ prefix = "/usr/lib/rust-RUST_VERSION"
 [target.DEB_BUILD_RUST_TYPE]
 llvm-config = "LLVM_DESTDIR/usr/lib/llvm-LLVM_VERSION/bin/llvm-config"
 linker = "DEB_BUILD_GNU_TYPE-gcc"
+PROFILER_PATH
 
 ifelse(DEB_BUILD_RUST_TYPE,DEB_HOST_RUST_TYPE,,
 [target.DEB_HOST_RUST_TYPE]
 llvm-config = "LLVM_DESTDIR/usr/lib/llvm-LLVM_VERSION/bin/llvm-config"
 linker = "DEB_HOST_GNU_TYPE-gcc"
+PROFILER_PATH
 
 )dnl
 ifelse(DEB_BUILD_RUST_TYPE,DEB_TARGET_RUST_TYPE,,DEB_HOST_RUST_TYPE,DEB_TARGET_RUST_TYPE,,
 [target.DEB_TARGET_RUST_TYPE]
 llvm-config = "LLVM_DESTDIR/usr/lib/llvm-LLVM_VERSION/bin/llvm-config"
 linker = "DEB_TARGET_GNU_TYPE-gcc"
+PROFILER_PATH
 
 )dnl
 [target.wasm32-wasi]
 wasi-root = "/usr"
+profiler = false
+[target.wasm32-wasip1]
+wasi-root = "/usr"
+profiler = false
+[target.wasm32-wasip2]
+wasi-root = "/usr"
+profiler = false
+[target.wasm32-unknown-unknown]
+profiler = false
+
+ifelse(WINDOWS_ARCH,,,
+[target.WINDOWS_ARCH-pc-windows-gnu]
+profiler = false
+
+)dnl
 
 [llvm]
 link-shared = true

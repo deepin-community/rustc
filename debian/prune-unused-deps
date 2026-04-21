@@ -10,35 +10,27 @@ had_config_toml=$(if test -e "$scriptdir/debian/config.toml"; then echo true; el
 ( cd "$scriptdir" && debian/rules debian/config.toml )
 cp "$scriptdir/debian/config.toml" config.toml
 
-for i in "$scriptdir/debian/patches"/d-00*.patch; do
+for i in "$scriptdir/debian/patches"/prune/d-00*.patch; do
 	"$scriptdir/debian/ensure-patch" -N "$i"
 done
 
-test -f Cargo.lock.orig || cp Cargo.lock Cargo.lock.orig
-test -f src/bootstrap/Cargo.lock.orig || cp src/bootstrap/Cargo.lock src/bootstrap/Cargo.lock.orig
-test -f src/tools/rust-analyzer/Cargo.lock.orig || cp src/tools/rust-analyzer/Cargo.lock src/tools/rust-analyzer/Cargo.lock.orig
-test -f src/tools/cargo/Cargo.lock.orig || cp src/tools/cargo/Cargo.lock src/tools/cargo/Cargo.lock.orig
-rm -f Cargo.lock src/bootstrap/Cargo.lock src/tools/rust-analyzer/Cargo.lock src/tools/cargo/Cargo.lock
+# keep in sync with d/rules
+workspaces=". src/bootstrap library src/tools/rust-analyzer src/tools/cargo src/tools/rustbook"
+for ws in $workspaces; do
+	test -f "$ws/Cargo.lock.org" || cp "$ws/Cargo.lock" "$ws/Cargo.lock.orig"
+	rm -f "$ws/Cargo.lock"
+done
 
 find vendor -name .cargo-checksum.json -execdir "$scriptdir/debian/prune-checksums" "{}" +
 
-# re-generate Cargo.lock after patching
-cargo update --offline
-
-# re-generate src/bootstrap/Cargo.lock after patching
-(cd src/bootstrap && cargo update --offline)
-
-# re-generate src/tools/rust-analyzer/Cargo.lock after patching
-( cd src/tools/rust-analyzer && cargo update --offline )
-
-# re-generate src/tools/cargo/Cargo.lock after patching
-( cd src/tools/cargo && cargo update --offline )
+for ws in $workspaces; do
+	(cd "$ws" && cargo update --offline)
+done
 
 needed_crates() {
-	cat Cargo.lock \
-	    src/bootstrap/Cargo.lock \
-	    src/tools/rust-analyzer/Cargo.lock \
-	    src/tools/cargo/Cargo.lock \
+	for ws in $workspaces; do
+		cat "$ws/Cargo.lock";
+	done \
 	  | sed -z -e 's/\nname = /name = /g' -e 's/\nversion = /version = /g' \
 	  | sed -ne 's/\[\[package\]\]name = "\(.*\)"version = "\(.*\)"/\1 \2/gp'
 }
